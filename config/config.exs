@@ -13,6 +13,9 @@ config :dashboard_ssd,
   generators: [timestamp_type: :utc_datetime]
 
 # Use bigints for primary and foreign keys
+config :dashboard_ssd, DashboardSSD.Repo,
+  migration_primary_key: [name: :id, type: :bigserial],
+  migration_foreign_key: [type: :bigint]
 
 
 # Configures the endpoint
