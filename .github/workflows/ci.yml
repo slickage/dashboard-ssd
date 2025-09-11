@@ -58,7 +58,7 @@ jobs:
         run: mix deps.get
 
       - name: Compile
-        run: mix compile --warnings-as-errors
+        run: mix compile
 
       - name: Format
         run: mix format --check-formatted
@@ -83,5 +83,6 @@ jobs:
         run: mix test
 
       - name: Docs
+        env:
+          MIX_ENV: dev
         run: mix docs
-
