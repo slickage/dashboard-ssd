@@ -20,6 +20,9 @@ defmodule DashboardSSDWeb.Router do
     get "/", PageController, :home
     get "/auth/:provider", AuthController, :request
     get "/auth/:provider/callback", AuthController, :callback
+    post "/auth/:provider/callback", AuthController, :callback
+    delete "/logout", AuthController, :delete
+    get "/logout", AuthController, :delete
   end
 
   # Other scopes may use custom stacks.
