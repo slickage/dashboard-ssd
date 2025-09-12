@@ -19,10 +19,10 @@
  - [x] T008 Implement RBAC with role model and policies.
 
 ## Phase 3.3: Core Models and Contexts
-- [ ] T009 [P] **Test**: Write tests for Users/Auth context.
-- [ ] T010 Implement Users/Auth context.
-- [ ] T011 [P] **Test**: Write tests for Clients context.
-- [ ] T012 Implement Clients context.
+- [x] T009 [P] **Test**: Write tests for Users/Auth context.
+- [x] T010 Implement Users/Auth context.
+- [x] T011 [P] **Test**: Write tests for Clients context.
+- [x] T012 Implement Clients context.
 - [ ] T013 [P] **Test**: Write tests for Projects context.
 - [ ] T014 Implement Projects context.
 - [ ] T015 [P] **Test**: Write tests for Contracts context.
