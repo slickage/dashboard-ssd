@@ -67,6 +67,12 @@ config :logger, :console,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+config :ueberauth, Ueberauth,
+  providers: [
+    google:
+      {Ueberauth.Strategy.Google, [default_scope: "email profile", prompt: "select_account"]}
+  ]
+
 # Git hooks: enforce checks on pre-commit
 if config_env() == :dev do
   config :git_hooks,
