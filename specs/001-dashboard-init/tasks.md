@@ -14,7 +14,7 @@
 
 ## Phase 3.2: Authentication & Authorization
  - [x] T005 [P] **Test**: Write integration test for Google OAuth user registration and login flow.
-- [ ] T006 Implement user authentication with Google OAuth.
+ - [x] T006 Implement user authentication with Google OAuth.
 - [ ] T007 [P] **Test**: Write tests for RBAC (admin, employee, client roles).
 - [ ] T008 Implement RBAC with role model and policies.
 

@@ -8,6 +8,7 @@ defmodule DashboardSSDWeb.Router do
     plug :put_root_layout, html: {DashboardSSDWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug DashboardSSDWeb.Plugs.CurrentUser
   end
 
   pipeline :api do
@@ -23,6 +24,13 @@ defmodule DashboardSSDWeb.Router do
     post "/auth/:provider/callback", AuthController, :callback
     delete "/logout", AuthController, :delete
     get "/logout", AuthController, :delete
+  end
+
+  scope "/protected", DashboardSSDWeb do
+    pipe_through :browser
+
+    get "/projects", ProtectedController, :projects
+    get "/clients", ProtectedController, :clients
   end
 
   # Other scopes may use custom stacks.
