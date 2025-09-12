@@ -18,4 +18,8 @@ defmodule DashboardSSD.Auth.PolicyTest do
     refute Policy.can?(user("client"), :write, :projects)
     refute Policy.can?(user("client"), :read, :clients)
   end
+
+  test "nil user cannot access anything" do
+    refute Policy.can?(nil, :read, :projects)
+  end
 end
