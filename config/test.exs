@@ -41,3 +41,6 @@ config :dashboard_ssd, :oauth_mode, :stub
 
 # Enable dev/test-only routes for stubbed authorization endpoints
 config :dashboard_ssd, dev_routes: true
+
+# Use Tesla.Mock adapter in tests to avoid real HTTP requests
+config :tesla, adapter: Tesla.Mock
