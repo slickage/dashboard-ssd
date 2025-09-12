@@ -10,7 +10,7 @@
 - [x] T001 [P] Initialize Phoenix project in the root directory.
 - [x] T002 [P] Configure linting and formatting for the project (Credo).
 - [x] T003 [P] Create database schema based on `data-model.md`.
-- [ ] T004 [P] Configure tooling and CI: enforce `mix format --check-formatted`, `mix credo`, `mix dialyzer`, `mix test`, and `mix docs` on pre-commit and CI/CD.
+- [x] T004 [P] Configure tooling and CI: enforce `mix format --check-formatted`, `mix credo`, `mix dialyzer`, `mix test`, and `mix docs` on pre-commit and CI/CD.
 
 ## Phase 3.2: Authentication & Authorization
 - [ ] T005 [P] **Test**: Write integration test for Google OAuth user registration and login flow.

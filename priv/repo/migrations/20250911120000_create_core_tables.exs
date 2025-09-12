@@ -117,4 +117,3 @@ defmodule DashboardSSD.Repo.Migrations.CreateCoreTables do
     create index(:audits, [:user_id])
   end
 end
-

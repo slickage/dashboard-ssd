@@ -17,7 +17,6 @@ config :dashboard_ssd, DashboardSSD.Repo,
   migration_primary_key: [name: :id, type: :bigserial],
   migration_foreign_key: [type: :bigint]
 
-
 # Configures the endpoint
 config :dashboard_ssd, DashboardSSDWeb.Endpoint,
   url: [host: "localhost"],
