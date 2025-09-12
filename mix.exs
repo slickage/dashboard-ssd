@@ -10,7 +10,13 @@ defmodule DashboardSSD.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
-      dialyzer: dialyzer()
+      dialyzer: dialyzer(),
+      test_coverage: [tool: ExCoveralls],
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.github": :test,
+        sobelow: :dev
+      ]
     ]
   end
 
@@ -63,7 +69,9 @@ defmodule DashboardSSD.MixProject do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
-      {:git_hooks, "~> 0.7", only: :dev, runtime: false}
+      {:git_hooks, "~> 0.7", only: :dev, runtime: false},
+      {:sobelow, "~> 0.13", only: :dev, runtime: false},
+      {:excoveralls, "~> 0.18", only: :test, runtime: false}
     ]
   end
 

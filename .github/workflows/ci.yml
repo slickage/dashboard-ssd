@@ -42,6 +42,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup BEAM
         id: beam
@@ -98,14 +100,31 @@ jobs:
           MIX_ENV: dev
         run: mix deps.get
 
+      - name: Hex audit
+        run: mix hex.audit
+
       - name: Compile
         run: mix compile
+
+      - name: Compile (warnings as errors on PRs)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: mix compile --force --warnings-as-errors
 
       - name: Format
         run: mix format --check-formatted
 
       - name: Credo
         run: mix credo --strict
+
+      - name: Assets setup
+        env:
+          MIX_ENV: dev
+        run: mix assets.setup
+
+      - name: Assets build
+        env:
+          MIX_ENV: dev
+        run: mix assets.build
 
       - name: Dialyzer PLTs
         env:
@@ -124,8 +143,17 @@ jobs:
           mix ecto.create
           mix ecto.migrate
 
-      - name: Tests
-        run: mix test
+      - name: Security scan (Sobelow)
+        env:
+          MIX_ENV: dev
+        run: mix sobelow --exit
+        continue-on-error: true
+
+      - name: Coverage (ExCoveralls GitHub)
+        env:
+          MIX_ENV: test
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: mix coveralls.github
 
       - name: Docs
         env:
