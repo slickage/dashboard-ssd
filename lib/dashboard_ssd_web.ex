@@ -43,7 +43,7 @@ defmodule DashboardSSDWeb do
         layouts: [html: DashboardSSDWeb.Layouts]
 
       import Plug.Conn
-      import DashboardSSDWeb.Gettext
+      use Gettext, backend: DashboardSSDWeb.Gettext
 
       unquote(verified_routes())
     end
@@ -85,7 +85,7 @@ defmodule DashboardSSDWeb do
       import Phoenix.HTML
       # Core UI components and translation
       import DashboardSSDWeb.CoreComponents
-      import DashboardSSDWeb.Gettext
+      use Gettext, backend: DashboardSSDWeb.Gettext
 
       # Shortcut for generating JS commands
       alias Phoenix.LiveView.JS

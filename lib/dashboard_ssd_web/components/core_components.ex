@@ -15,13 +15,13 @@ defmodule DashboardSSDWeb.CoreComponents do
   Icons are provided by [heroicons](https://heroicons.com). See `icon/1` for usage.
   """
   use Phoenix.Component
+  use Gettext, backend: DashboardSSDWeb.Gettext
 
   alias Phoenix.Component, as: Component
   alias Phoenix.HTML.Form
   alias Phoenix.HTML.FormField
   alias Phoenix.LiveView.JS
   alias Phoenix.LiveView.LiveStream
-  import DashboardSSDWeb.Gettext
 
   @doc """
   Renders a modal.
