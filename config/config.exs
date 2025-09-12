@@ -77,7 +77,7 @@ config :git_hooks,
         {:mix_task, :credo, ["--strict"]},
         {:mix_task, :dialyzer, []},
         {:mix_task, :test, []},
-        {:mix_task, :docs, []}
+        {:cmd, "mix docs > /dev/null"}
       ]
     ]
   ]
