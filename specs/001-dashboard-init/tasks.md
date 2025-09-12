@@ -31,7 +31,6 @@
 - [x] T018 Implement Deployments context.
 - [x] T019 [P] **Test**: Write tests for Notifications context (alerts and rules).
 - [x] T020 Implement Notifications context.
-<!-- Analytics/Integrations/Webhooks/Audit deferred from Phase 3.3; numbering continues in Phase 3.4+ -->
 
 ## Phase 3.4: Integration APIs (Initial)
 - [ ] T021 [P] **Test**: Write tests for Linear API client (basic list issues by project).
@@ -57,18 +56,11 @@
 - [ ] T039 [P] **Test**: Write tests for Home LiveView, including the display of task summaries.
 - [ ] T040 Implement Home LiveView to display projects, clients, workload (including a summary of tasks from Linear), incidents, and CI status.
 
-## Phase 3.6: Integrations
-- [ ] T041 [P] **Test**: Write contract test for POST /webhooks/linear.
-- [ ] T042 Implement webhook controller for Linear.
-- [ ] T043 [P] **Test**: Write contract test for POST /webhooks/slack.
-- [ ] T044 Implement webhook controller for Slack.
-- [ ] T045 [P] Implement background jobs with Oban for heartbeat, weekly digest, CI refresh, token refresh.
-
-## Phase 3.7: Polish
-- [ ] T046 [P] Write unit tests for all contexts and LiveViews.
-- [ ] T047 [P] Write end-to-end tests for critical user flows.
-- [ ] T048 [P] Update documentation (`README.md`, `quickstart.md`, etc.).
-- [ ] T049 [P] Perform manual testing based on `quickstart.md` and user stories.
+## Phase 3.6: Polish
+- [ ] T041 [P] Write unit tests for all contexts and LiveViews.
+- [ ] T042 [P] Write end-to-end tests for critical user flows.
+- [ ] T043 [P] Update documentation (`README.md`, `quickstart.md`, etc.).
+- [ ] T044 [P] Perform manual testing based on `quickstart.md` and user stories.
 
 ## Dependencies
 - Setup tasks (T001-T004) must be completed first.
