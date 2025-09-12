@@ -8,7 +8,7 @@ defmodule DashboardSSD.Auth.Policy do
   def can?(%User{role: %{name: "admin"}}, _action, _subject), do: true
 
   def can?(%User{role: %{name: "employee"}}, action, subject) do
-    action in [:read] and subject in [:projects, :clients, :kb]
+    action in [:read] and subject in [:projects, :kb]
   end
 
   def can?(%User{role: %{name: "client"}}, action, subject) do
