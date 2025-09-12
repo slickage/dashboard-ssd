@@ -49,4 +49,48 @@ defmodule DashboardSSD.Accounts.UsersAuthContextTest do
     r2 = Accounts.ensure_role!("custom")
     assert r1.id == r2.id
   end
+
+  describe "user CRUD" do
+    test "list_users/0 returns users" do
+      role = Accounts.ensure_role!("employee")
+      {:ok, u1} = Accounts.create_user(%{email: "l1@example.com", name: "L1", role_id: role.id})
+      {:ok, u2} = Accounts.create_user(%{email: "l2@example.com", name: "L2", role_id: role.id})
+
+      ids = Accounts.list_users() |> Enum.map(& &1.id) |> Enum.sort()
+      assert Enum.sort([u1.id, u2.id]) == ids |> Enum.take(-2)
+    end
+
+    test "update_user/2 updates attributes" do
+      role = Accounts.ensure_role!("employee")
+
+      {:ok, user} =
+        Accounts.create_user(%{email: "upd@example.com", name: "Old", role_id: role.id})
+
+      {:ok, user} = Accounts.update_user(user, %{name: "New"})
+      assert user.name == "New"
+    end
+
+    test "update_user/2 with invalid data returns error changeset" do
+      role = Accounts.ensure_role!("employee")
+      {:ok, user} = Accounts.create_user(%{email: "inv@example.com", name: "X", role_id: role.id})
+
+      assert {:error, changeset} = Accounts.update_user(user, %{email: nil})
+      assert %{email: ["can't be blank"]} = errors_on(changeset)
+    end
+
+    test "delete_user/1 removes the user" do
+      role = Accounts.ensure_role!("employee")
+      {:ok, user} = Accounts.create_user(%{email: "del@example.com", name: "D", role_id: role.id})
+      assert {:ok, _} = Accounts.delete_user(user)
+      refute Accounts.get_user_by_email("del@example.com")
+    end
+
+    test "change_user/2 returns a changeset" do
+      role = Accounts.ensure_role!("employee")
+      {:ok, user} = Accounts.create_user(%{email: "chg@example.com", name: "C", role_id: role.id})
+      cs = Accounts.change_user(user, %{name: "Changed"})
+      assert %Ecto.Changeset{} = cs
+      assert cs.changes.name == "Changed"
+    end
+  end
 end
