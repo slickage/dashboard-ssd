@@ -38,3 +38,6 @@ config :phoenix_live_view,
 
 # OAuth mode: stubbed in tests
 config :dashboard_ssd, :oauth_mode, :stub
+
+# Enable dev/test-only routes for stubbed authorization endpoints
+config :dashboard_ssd, dev_routes: true

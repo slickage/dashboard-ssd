@@ -26,11 +26,13 @@ defmodule DashboardSSDWeb.Router do
     get "/logout", AuthController, :delete
   end
 
-  scope "/protected", DashboardSSDWeb do
-    pipe_through :browser
+  if Application.compile_env(:dashboard_ssd, :dev_routes) do
+    scope "/protected", DashboardSSDWeb do
+      pipe_through :browser
 
-    get "/projects", ProtectedController, :projects
-    get "/clients", ProtectedController, :clients
+      get "/projects", ProtectedController, :projects
+      get "/clients", ProtectedController, :clients
+    end
   end
 
   # Other scopes may use custom stacks.
