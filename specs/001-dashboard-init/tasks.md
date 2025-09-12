@@ -23,18 +23,14 @@
 - [x] T010 Implement Users/Auth context.
 - [x] T011 [P] **Test**: Write tests for Clients context.
 - [x] T012 Implement Clients context.
-- [ ] T013 [P] **Test**: Write tests for Projects context.
-- [ ] T014 Implement Projects context.
 - [x] T013 [P] **Test**: Write tests for Projects context.
 - [x] T014 Implement Projects context.
-- [ ] T015 [P] **Test**: Write tests for Contracts context.
-- [ ] T016 Implement Contracts context.
- - [x] T015 [P] **Test**: Write tests for Contracts context.
- - [x] T016 Implement Contracts context.
-- [ ] T017 [P] **Test**: Write tests for Deployments context.
-- [ ] T018 Implement Deployments context.
-- [ ] T019 [P] **Test**: Write tests for Notifications context.
-- [ ] T020 Implement Notifications context.
+- [x] T015 [P] **Test**: Write tests for Contracts context.
+- [x] T016 Implement Contracts context.
+- [x] T017 [P] **Test**: Write tests for Deployments context (deployments and health checks).
+- [x] T018 Implement Deployments context.
+- [x] T019 [P] **Test**: Write tests for Notifications context (alerts and rules).
+- [x] T020 Implement Notifications context.
 - [ ] T021 [P] **Test**: Write tests for Analytics context.
 - [ ] T022 Implement Analytics context.
 - [ ] T023 [P] **Test**: Write tests for Integrations context.
