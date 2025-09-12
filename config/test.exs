@@ -35,3 +35,9 @@ config :phoenix, :plug_init_mode, :runtime
 # Enable helpful, but potentially expensive runtime checks
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true
+
+# OAuth mode: stubbed in tests
+config :dashboard_ssd, :oauth_mode, :stub
+
+# Enable dev/test-only routes for stubbed authorization endpoints
+config :dashboard_ssd, dev_routes: true
