@@ -13,10 +13,10 @@
 - [x] T004 [P] Configure tooling and CI: enforce `mix format --check-formatted`, `mix credo`, `mix dialyzer`, `mix test`, and `mix docs` on pre-commit and CI/CD.
 
 ## Phase 3.2: Authentication & Authorization
-- [ ] T005 [P] **Test**: Write integration test for Google OAuth user registration and login flow.
-- [ ] T006 Implement user authentication with Google OAuth.
-- [ ] T007 [P] **Test**: Write tests for RBAC (admin, employee, client roles).
-- [ ] T008 Implement RBAC with role model and policies.
+ - [x] T005 [P] **Test**: Write integration test for Google OAuth user registration and login flow.
+ - [x] T006 Implement user authentication with Google OAuth.
+ - [x] T007 [P] **Test**: Write tests for RBAC (admin, employee, client roles).
+ - [x] T008 Implement RBAC with role model and policies.
 
 ## Phase 3.3: Core Models and Contexts
 - [ ] T009 [P] **Test**: Write tests for Users/Auth context.

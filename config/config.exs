@@ -67,6 +67,29 @@ config :logger, :console,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Redact sensitive fields from logs and params inspection
+config :phoenix, :filter_parameters, [
+  "password",
+  "token",
+  "refresh_token",
+  "access_token",
+  "authorization"
+]
+
+# Silence Tesla builder deprecation warning from ueberauth_google's dependency
+config :tesla, disable_deprecated_builder_warning: true
+
+config :ueberauth, Ueberauth,
+  providers: [
+    google:
+      {Ueberauth.Strategy.Google,
+       [
+         default_scope: "email profile",
+         prompt: "select_account",
+         callback_methods: ["GET", "POST"]
+       ]}
+  ]
+
 # Git hooks: enforce checks on pre-commit
 if config_env() == :dev do
   config :git_hooks,
