@@ -9,6 +9,7 @@ defmodule DashboardSSD.Application do
   def start(_type, _args) do
     children = [
       DashboardSSDWeb.Telemetry,
+      DashboardSSD.Vault,
       DashboardSSD.Repo,
       {DNSCluster, query: Application.get_env(:dashboard_ssd, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: DashboardSSD.PubSub},

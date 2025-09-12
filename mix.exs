@@ -72,6 +72,7 @@ defmodule DashboardSSD.MixProject do
       {:git_hooks, "~> 0.7", only: :dev, runtime: false},
       {:sobelow, "~> 0.13", only: :dev, runtime: false},
       {:excoveralls, "~> 0.18", only: :test, runtime: false},
+      {:cloak_ecto, "~> 1.2"},
       {:ueberauth, "~> 0.10"},
       {:ueberauth_google, "~> 0.10"}
     ]
