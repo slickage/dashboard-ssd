@@ -32,4 +32,37 @@ defmodule DashboardSSDWeb.AuthControllerTest do
     assert is_nil(user_id) == false
     assert conn.status in [301, 302]
   end
+
+  test "DELETE /logout clears session and redirects", %{conn: conn} do
+    conn =
+      conn
+      |> init_test_session(%{user_id: 123})
+      |> delete("/logout")
+
+    assert redirected_to(conn) == ~p"/"
+    assert get_session(conn, :user_id) == nil
+  end
+
+  test "GET /logout clears session and redirects (GET route)", %{conn: conn} do
+    conn =
+      conn
+      |> init_test_session(%{user_id: 456})
+      |> get("/logout")
+
+    assert redirected_to(conn) == ~p"/"
+    assert get_session(conn, :user_id) == nil
+  end
+
+  test "callback without assigns and :real mode redirects with error", %{conn: conn} do
+    original = Application.get_env(:dashboard_ssd, :oauth_mode)
+    Application.put_env(:dashboard_ssd, :oauth_mode, :real)
+    on_exit(fn -> Application.put_env(:dashboard_ssd, :oauth_mode, original) end)
+
+    conn =
+      conn
+      |> init_test_session(%{})
+      |> get(~p"/auth/google/callback")
+
+    assert redirected_to(conn) == ~p"/"
+  end
 end
