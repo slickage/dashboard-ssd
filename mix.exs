@@ -9,7 +9,8 @@ defmodule DashboardSSD.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+      dialyzer: dialyzer()
     ]
   end
 
@@ -92,6 +93,14 @@ defmodule DashboardSSD.MixProject do
         "esbuild dashboard_ssd --minify",
         "phx.digest"
       ]
+    ]
+  end
+
+  defp dialyzer do
+    [
+      plt_core_path: "priv/plts",
+      plt_local_path: "priv/plts",
+      list_unused_filters: true
     ]
   end
 end

@@ -54,6 +54,12 @@ jobs:
           path: _build
           key: ${{ runner.os }}-build-${{ hashFiles('**/mix.lock') }}
 
+      - name: Cache Dialyzer PLTs
+        uses: actions/cache@v4
+        with:
+          path: priv/plts
+          key: ${{ runner.os }}-plts-elixir-1.17.3-otp-27-${{ hashFiles('**/mix.lock') }}
+
       - name: Install dependencies
         run: mix deps.get
 

@@ -68,19 +68,21 @@ config :logger, :console,
 config :phoenix, :json_library, Jason
 
 # Git hooks: enforce checks on pre-commit
-config :git_hooks,
-  auto_install: true,
-  hooks: [
-    pre_commit: [
-      tasks: [
-        {:mix_task, :format, ["--check-formatted"]},
-        {:mix_task, :credo, ["--strict"]},
-        {:mix_task, :dialyzer, []},
-        {:mix_task, :test, []},
-        {:cmd, "mix docs > /dev/null"}
+if config_env() == :dev do
+  config :git_hooks,
+    auto_install: true,
+    hooks: [
+      pre_commit: [
+        tasks: [
+          {:mix_task, :format, ["--check-formatted"]},
+          {:mix_task, :credo, ["--strict"]},
+          {:mix_task, :dialyzer, []},
+          {:mix_task, :test, []},
+          {:cmd, "mix docs > /dev/null"}
+        ]
       ]
     ]
-  ]
+end
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
