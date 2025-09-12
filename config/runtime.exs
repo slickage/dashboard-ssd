@@ -20,6 +20,52 @@ if System.get_env("PHX_SERVER") do
   config :dashboard_ssd, DashboardSSDWeb.Endpoint, server: true
 end
 
+# Load environment variables from a local .env file in development.
+# This helps when running locally without exporting vars manually.
+if config_env() in [:dev, :test] do
+  env_path = Path.expand("../.env", __DIR__)
+
+  if File.exists?(env_path) do
+    env_lines = File.stream!(env_path, [], :line)
+
+    Enum.each(env_lines, fn line ->
+      line = String.trim(line)
+
+      cond do
+        line == "" ->
+          :ok
+
+        String.starts_with?(line, "#") ->
+          :ok
+
+        true ->
+          # Support optional leading `export KEY=VALUE`
+          [key | rest] = String.split(line, "=", parts: 2)
+          key = key |> String.trim_leading("export ") |> String.trim()
+          value = rest |> List.first() |> to_string() |> String.trim()
+
+          # Strip surrounding quotes if present
+          value =
+            cond do
+              String.starts_with?(value, "\"") and String.ends_with?(value, "\"") ->
+                value |> String.trim_leading("\"") |> String.trim_trailing("\"")
+
+              String.starts_with?(value, "'") and String.ends_with?(value, "'") ->
+                value |> String.trim_leading("'") |> String.trim_trailing("'")
+
+              true ->
+                # Remove trailing inline comments for unquoted values
+                Regex.replace(~r/\s+#.*$/, value, "")
+            end
+
+          if key != "" and System.get_env(key) in [nil, ""] do
+            System.put_env(key, value)
+          end
+      end
+    end)
+  end
+end
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||
@@ -120,4 +166,38 @@ if config_env() in [:dev, :prod] do
   config :ueberauth, Ueberauth.Strategy.Google.OAuth,
     client_id: System.get_env("GOOGLE_CLIENT_ID"),
     client_secret: System.get_env("GOOGLE_CLIENT_SECRET")
+end
+
+# Configure Cloak vault for encrypting sensitive fields
+if config_env() == :test do
+  # Use a deterministic fallback key in tests if not provided
+  key_b64 = System.get_env("ENCRYPTION_KEY") || Base.encode64(String.duplicate("0", 32))
+
+  key =
+    case Base.decode64(key_b64) do
+      {:ok, key} -> key
+      :error -> raise "ENCRYPTION_KEY must be base64-encoded"
+    end
+
+  config :dashboard_ssd, DashboardSSD.Vault,
+    ciphers: [
+      default: {Cloak.Ciphers.AES.GCM, tag: "AES.GCM.V1", key: key, iv_length: 12}
+    ]
+end
+
+if config_env() in [:dev, :prod] do
+  key_b64 =
+    System.get_env("ENCRYPTION_KEY") ||
+      raise "ENCRYPTION_KEY is missing. Generate with: openssl rand -base64 32 and put in .env"
+
+  key =
+    case Base.decode64(key_b64) do
+      {:ok, key} -> key
+      :error -> raise "ENCRYPTION_KEY must be base64-encoded"
+    end
+
+  config :dashboard_ssd, DashboardSSD.Vault,
+    ciphers: [
+      default: {Cloak.Ciphers.AES.GCM, tag: "AES.GCM.V1", key: key, iv_length: 12}
+    ]
 end

@@ -5,8 +5,8 @@ defmodule DashboardSSD.Accounts.ExternalIdentity do
   schema "external_identities" do
     field :provider, :string
     field :provider_id, :string
-    field :token, :string
-    field :refresh_token, :string
+    field :token, DashboardSSD.Encrypted.Binary
+    field :refresh_token, DashboardSSD.Encrypted.Binary
     field :expires_at, :utc_datetime
     belongs_to :user, DashboardSSD.Accounts.User, type: :id
     timestamps(type: :utc_datetime)
