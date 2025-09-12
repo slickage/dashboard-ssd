@@ -67,11 +67,15 @@ jobs:
         run: mix credo --strict
 
       - name: Dialyzer PLTs
+        env:
+          MIX_ENV: dev
         run: |
           mkdir -p priv/plts
           mix dialyzer --plt
 
       - name: Dialyzer
+        env:
+          MIX_ENV: dev
         run: mix dialyzer --format short
 
       - name: Prepare DB
