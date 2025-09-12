@@ -25,10 +25,12 @@
 - [x] T012 Implement Clients context.
 - [ ] T013 [P] **Test**: Write tests for Projects context.
 - [ ] T014 Implement Projects context.
- - [x] T013 [P] **Test**: Write tests for Projects context.
- - [x] T014 Implement Projects context.
+- [x] T013 [P] **Test**: Write tests for Projects context.
+- [x] T014 Implement Projects context.
 - [ ] T015 [P] **Test**: Write tests for Contracts context.
 - [ ] T016 Implement Contracts context.
+ - [x] T015 [P] **Test**: Write tests for Contracts context.
+ - [x] T016 Implement Contracts context.
 - [ ] T017 [P] **Test**: Write tests for Deployments context.
 - [ ] T018 Implement Deployments context.
 - [ ] T019 [P] **Test**: Write tests for Notifications context.
