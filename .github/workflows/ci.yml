@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: ["**"]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -29,7 +36,7 @@ jobs:
       PGUSER: postgres
       PGPASSWORD: postgres
       PGDATABASE: dashboard_ssd_test
-      PGHOST: localhost
+      PGHOST: 127.0.0.1
       PGPORT: 5432
 
     steps:
@@ -42,6 +49,22 @@ jobs:
         with:
           otp-version: '27.1'
           elixir-version: '1.17.3'
+
+      - name: Cache Hex
+        uses: actions/cache@v4
+        with:
+          path: ~/.hex
+          key: ${{ runner.os }}-hex-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-hex-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-
+
+      - name: Cache Rebar
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/rebar3
+          key: ${{ runner.os }}-rebar-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-rebar-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-
 
       - name: Cache deps
         uses: actions/cache@v4
@@ -68,6 +91,11 @@ jobs:
             ${{ runner.os }}-plts-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-
 
       - name: Install dependencies
+        run: mix deps.get
+
+      - name: Install dev dependencies
+        env:
+          MIX_ENV: dev
         run: mix deps.get
 
       - name: Compile
