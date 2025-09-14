@@ -84,8 +84,12 @@ config :ueberauth, Ueberauth,
     google:
       {Ueberauth.Strategy.Google,
        [
-         default_scope: "email profile",
-         prompt: "select_account",
+         # Include Drive read-only to allow Drive API access with the obtained token
+         default_scope: "email profile https://www.googleapis.com/auth/drive.readonly",
+         # Request offline access to receive refresh_token (consent may be required)
+         access_type: "offline",
+         include_granted_scopes: true,
+         prompt: "consent select_account",
          callback_methods: ["GET", "POST"]
        ]}
   ]
