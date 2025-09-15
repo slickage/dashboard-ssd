@@ -7,7 +7,12 @@ defmodule DashboardSSDWeb.Router do
     plug :fetch_live_flash
     plug :put_root_layout, html: {DashboardSSDWeb.Layouts, :root}
     plug :protect_from_forgery
-    plug :put_secure_browser_headers
+
+    plug :put_secure_browser_headers, %{
+      "content-security-policy" =>
+        "default-src 'self'; img-src 'self' data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+    }
+
     plug DashboardSSDWeb.Plugs.CurrentUser
   end
 
@@ -20,10 +25,12 @@ defmodule DashboardSSDWeb.Router do
 
     get "/", PageController, :home
     get "/auth/:provider", AuthController, :request
-    get "/auth/:provider/callback", AuthController, :callback
-    post "/auth/:provider/callback", AuthController, :callback
+    # Use distinct actions to avoid CSRF action reuse warnings
+    get "/auth/:provider/callback", AuthController, :callback_get
+    post "/auth/:provider/callback", AuthController, :callback_post
     delete "/logout", AuthController, :delete
-    get "/logout", AuthController, :delete
+    # Keep GET logout for backwards-compat, but map to a distinct action
+    get "/logout", AuthController, :delete_get
   end
 
   if Application.compile_env(:dashboard_ssd, :dev_routes) do
