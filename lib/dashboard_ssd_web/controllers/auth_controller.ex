@@ -2,14 +2,15 @@ defmodule DashboardSSDWeb.AuthController do
   use DashboardSSDWeb, :controller
   alias DashboardSSD.Accounts
 
+  # Store optional redirect_to param before Ueberauth halts the request phase
+  plug :store_redirect_to when action in [:request]
+
   if Mix.env() == :test do
-    # In tests, run the request phase via Ueberauth, but skip the callback
-    # so tests can control assigns without invoking real strategies.
+    # In tests, run only the request phase via Ueberauth so tests can control the callback assigns.
     plug Ueberauth when action in [:request]
   else
-    # In non-test environments, enable Ueberauth for both request and callback
-    # actions, matching the typical example setup.
-    plug Ueberauth when action in [:request, :callback]
+    # In non-test environments, enable Ueberauth for request and all callback actions
+    plug Ueberauth when action in [:request, :callback, :callback_get, :callback_post]
   end
 
   # The Ueberauth plug handles the redirect in the request phase.
@@ -26,11 +27,13 @@ defmodule DashboardSSDWeb.AuthController do
   # Matches the Ueberauth success case
   def callback(%{assigns: %{ueberauth_auth: _auth}} = conn, _params) do
     user = handle_ueberauth(conn)
+    redirect_to = get_session(conn, :redirect_to) || ~p"/"
 
     conn
     |> put_session(:user_id, user.id)
+    |> delete_session(:redirect_to)
     |> configure_session(renew: true)
-    |> redirect(to: ~p"/")
+    |> redirect(to: redirect_to)
   end
 
   # Test/stub path (no auth assigns present). Enables deterministic tests.
@@ -52,10 +55,13 @@ defmodule DashboardSSDWeb.AuthController do
           provider_id: code
         })
 
+      redirect_to = get_session(conn, :redirect_to) || ~p"/"
+
       conn
       |> put_session(:user_id, user.id)
+      |> delete_session(:redirect_to)
       |> configure_session(renew: true)
-      |> redirect(to: ~p"/")
+      |> redirect(to: redirect_to)
     else
       # No assigns and not in stub mode – treat like failure
       conn
@@ -98,4 +104,11 @@ defmodule DashboardSSDWeb.AuthController do
   def callback_get(conn, params), do: callback(conn, params)
   def callback_post(conn, params), do: callback(conn, params)
   def delete_get(conn, params), do: delete(conn, params)
+
+  defp store_redirect_to(conn, _opts) do
+    case conn.params["redirect_to"] do
+      val when is_binary(val) and val != "" -> put_session(conn, :redirect_to, val)
+      _ -> conn
+    end
+  end
 end
