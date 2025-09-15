@@ -25,4 +25,14 @@ defmodule DashboardSSD.Integrations.DriveTest do
   test "list_files_in_folder gets with q param and auth header" do
     assert {:ok, %{"files" => []}} = Drive.list_files_in_folder("tok", "folder123")
   end
+
+  test "returns http_error on non-200" do
+    Tesla.Mock.mock(fn _ -> %Tesla.Env{status: 401, body: %{"error" => {"code", 401}}} end)
+    assert {:error, {:http_error, 401, _}} = Drive.list_files_in_folder("bad", "folder123")
+  end
+
+  test "propagates adapter error tuple" do
+    Tesla.Mock.mock(fn _ -> {:error, :timeout} end)
+    assert {:error, :timeout} = Drive.list_files_in_folder("tok", "folder123")
+  end
 end

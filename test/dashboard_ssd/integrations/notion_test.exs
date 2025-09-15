@@ -21,4 +21,14 @@ defmodule DashboardSSD.Integrations.NotionTest do
   test "search posts with Notion-Version and auth header" do
     assert {:ok, %{"results" => []}} = Notion.search("tok", "dashboard")
   end
+
+  test "returns http_error on non-200" do
+    Tesla.Mock.mock(fn _ -> %Tesla.Env{status: 429, body: %{"error" => "rate_limited"}} end)
+    assert {:error, {:http_error, 429, %{"error" => _}}} = Notion.search("tok", "q")
+  end
+
+  test "propagates adapter error tuple" do
+    Tesla.Mock.mock(fn _ -> {:error, :econnrefused} end)
+    assert {:error, :econnrefused} = Notion.search("tok", "q")
+  end
 end
