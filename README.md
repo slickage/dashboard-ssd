@@ -1,5 +1,12 @@
 # DashboardSSD
 
+[![CI](https://github.com/akinsey/dashboard-ssd/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/akinsey/dashboard-ssd/actions/workflows/ci.yml)
+[![Coverage Status](https://coveralls.io/repos/github/akinsey/dashboard-ssd/badge.svg?branch=main)](https://coveralls.io/github/akinsey/dashboard-ssd?branch=main)
+[![Credo](https://img.shields.io/badge/style-credo-4B32C3.svg)](https://github.com/rrrene/credo)
+[![Dialyzer](https://img.shields.io/badge/typecheck-dialyzer-306998.svg)](https://hexdocs.pm/dialyxir/readme.html)
+[![Sobelow](https://img.shields.io/badge/security-sobelow-EB4C2F.svg)](https://github.com/nccgroup/sobelow)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
+
 To start your Phoenix server:
 
   * Run `mix setup` to install and setup dependencies
