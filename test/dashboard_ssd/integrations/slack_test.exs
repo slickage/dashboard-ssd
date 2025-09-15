@@ -25,4 +25,18 @@ defmodule DashboardSSD.Integrations.SlackTest do
   test "send_message posts with auth header" do
     assert {:ok, %{"ok" => true}} = Slack.send_message("tok", "#general", "Hello")
   end
+
+  test "returns http_error on non-200" do
+    Tesla.Mock.mock(fn _ ->
+      %Tesla.Env{status: 403, body: %{"ok" => false, "error" => "forbidden"}}
+    end)
+
+    assert {:error, {:http_error, 403, %{"ok" => false, "error" => _}}} =
+             Slack.send_message("tok", "C123", "hi")
+  end
+
+  test "propagates adapter error tuple" do
+    Tesla.Mock.mock(fn _ -> {:error, :nxdomain} end)
+    assert {:error, :nxdomain} = Slack.send_message("tok", "C123", "hi")
+  end
 end

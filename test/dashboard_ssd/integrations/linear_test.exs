@@ -22,4 +22,19 @@ defmodule DashboardSSD.Integrations.LinearTest do
     assert {:ok, %{"data" => %{"issues" => []}}} =
              Linear.list_issues("tok", "{ issues { id } }", %{})
   end
+
+  test "returns http_error on non-200" do
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.linear.app/graphql"} ->
+        %Tesla.Env{status: 401, body: %{"message" => "unauthorized"}}
+    end)
+
+    assert {:error, {:http_error, 401, %{"message" => _}}} =
+             Linear.list_issues("bad", "{ issues { id } }", %{})
+  end
+
+  test "propagates adapter error tuple" do
+    Tesla.Mock.mock(fn _ -> {:error, :timeout} end)
+    assert {:error, :timeout} = Linear.list_issues("tok", "{ q }", %{})
+  end
 end
