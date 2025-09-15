@@ -5,6 +5,14 @@ defmodule DashboardSSD.Clients do
   import Ecto.Query, warn: false
   alias DashboardSSD.Clients.Client
   alias DashboardSSD.Repo
+  alias Phoenix.PubSub
+
+  @topic "clients"
+
+  @doc "Subscribe to client change notifications."
+  def subscribe do
+    PubSub.subscribe(DashboardSSD.PubSub, @topic)
+  end
 
   @doc "List all clients"
   @spec list_clients() :: [Client.t()]
@@ -21,18 +29,42 @@ defmodule DashboardSSD.Clients do
   @doc "Create a new client"
   @spec create_client(map()) :: {:ok, Client.t()} | {:error, Ecto.Changeset.t()}
   def create_client(attrs) do
-    %Client{} |> Client.changeset(attrs) |> Repo.insert()
+    %Client{}
+    |> Client.changeset(attrs)
+    |> Repo.insert()
+    |> broadcast(:created)
   end
 
   @doc "Update an existing client"
   @spec update_client(Client.t(), map()) :: {:ok, Client.t()} | {:error, Ecto.Changeset.t()}
   def update_client(%Client{} = client, attrs) do
-    client |> Client.changeset(attrs) |> Repo.update()
+    client
+    |> Client.changeset(attrs)
+    |> Repo.update()
+    |> broadcast(:updated)
   end
 
   @doc "Delete a client"
   @spec delete_client(Client.t()) :: {:ok, Client.t()} | {:error, Ecto.Changeset.t()}
   def delete_client(%Client{} = client) do
-    Repo.delete(client)
+    client
+    |> Repo.delete()
+    |> broadcast(:deleted)
   end
+
+  @doc "Search clients by name (case-insensitive, partial match)."
+  @spec search_clients(String.t()) :: [Client.t()]
+  def search_clients(term) when is_binary(term) do
+    like = "%" <> String.replace(term, "%", "\\%") <> "%"
+    from(c in Client, where: ilike(c.name, ^like)) |> Repo.all()
+  end
+
+  def search_clients(_), do: list_clients()
+
+  defp broadcast({:ok, client}, event) do
+    PubSub.broadcast(DashboardSSD.PubSub, @topic, {:client, event, client})
+    {:ok, client}
+  end
+
+  defp broadcast({:error, _} = error, _event), do: error
 end
