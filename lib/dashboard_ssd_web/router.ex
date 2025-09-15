@@ -24,6 +24,23 @@ defmodule DashboardSSDWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+
+    live_session :default,
+      on_mount: [{DashboardSSDWeb.UserAuth, :mount_current_user}],
+      session: {__MODULE__, :build_live_session, []} do
+    end
+
+    live_session :require_authenticated,
+      on_mount: [
+        {DashboardSSDWeb.UserAuth, :mount_current_user},
+        {DashboardSSDWeb.UserAuth, {:require, :read, :clients}}
+      ],
+      session: {__MODULE__, :build_live_session, []} do
+      live "/clients", ClientsLive.Index, :index
+      live "/clients/new", ClientsLive.Index, :new
+      live "/clients/:id/edit", ClientsLive.Index, :edit
+    end
+
     get "/auth/:provider", AuthController, :request
     # Use distinct actions to avoid CSRF action reuse warnings
     get "/auth/:provider/callback", AuthController, :callback_get
@@ -62,5 +79,17 @@ defmodule DashboardSSDWeb.Router do
       live_dashboard "/dashboard", metrics: DashboardSSDWeb.Telemetry
       forward "/mailbox", Plug.Swoosh.MailboxPreview
     end
+  end
+
+  # helper for live_session to pass needed session data into LiveViews
+  def build_live_session(conn) do
+    path =
+      conn.request_path <>
+        if conn.query_string in [nil, ""], do: "", else: "?" <> conn.query_string
+
+    %{
+      "user_id" => Plug.Conn.get_session(conn, :user_id),
+      "current_path" => path
+    }
   end
 end
