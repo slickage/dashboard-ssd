@@ -20,6 +20,19 @@ if System.get_env("PHX_SERVER") do
   config :dashboard_ssd, DashboardSSDWeb.Endpoint, server: true
 end
 
+# Integration tokens (optional; for local/dev usage)
+# Values read from environment; safe to be nil in non-dev envs.
+config :dashboard_ssd, :integrations,
+  # Accept both *_TOKEN and *_API_KEY naming
+  linear_token: System.get_env("LINEAR_TOKEN") || System.get_env("LINEAR_API_KEY"),
+  slack_bot_token: System.get_env("SLACK_BOT_TOKEN") || System.get_env("SLACK_API_KEY"),
+  slack_channel: System.get_env("SLACK_CHANNEL"),
+  notion_token: System.get_env("NOTION_TOKEN") || System.get_env("NOTION_API_KEY"),
+  # For Drive, prefer a direct access token if present; otherwise rely on user-scoped DB token
+  drive_token:
+    System.get_env("GOOGLE_DRIVE_TOKEN") ||
+      System.get_env("GOOGLE_OAUTH_TOKEN")
+
 # Load environment variables from a local .env file in development.
 # This helps when running locally without exporting vars manually.
 if config_env() in [:dev, :test] do

@@ -93,4 +93,9 @@ defmodule DashboardSSDWeb.AuthController do
     |> clear_session()
     |> redirect(to: ~p"/")
   end
+
+  # Delegating wrappers to avoid CSRF action reuse warnings without changing behavior
+  def callback_get(conn, params), do: callback(conn, params)
+  def callback_post(conn, params), do: callback(conn, params)
+  def delete_get(conn, params), do: delete(conn, params)
 end

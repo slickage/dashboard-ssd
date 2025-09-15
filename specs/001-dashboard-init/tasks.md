@@ -33,14 +33,14 @@
 - [x] T020 Implement Notifications context.
 
 ## Phase 3.4: Integration APIs (Initial)
-- [ ] T021 [P] **Test**: Write tests for Linear API client (basic list issues by project).
-- [ ] T022 Implement Linear API client (basic list issues by project).
-- [ ] T023 [P] **Test**: Write tests for Slack API client (basic send message to channel).
-- [ ] T024 Implement Slack API client (basic send message to channel).
-- [ ] T025 [P] **Test**: Write tests for Notion API client (basic search/list pages).
-- [ ] T026 Implement Notion API client (basic search/list pages).
-- [ ] T027 [P] **Test**: Write tests for Google Drive API client (basic list files in folder).
-- [ ] T028 Implement Google Drive API client (basic list files in folder).
+- [x] T021 [P] **Test**: Write tests for Linear API client (basic list issues by project).
+- [x] T022 Implement Linear API client (basic list issues by project).
+- [x] T023 [P] **Test**: Write tests for Slack API client (basic send message to channel).
+- [x] T024 Implement Slack API client (basic send message to channel).
+- [x] T025 [P] **Test**: Write tests for Notion API client (basic search/list pages).
+- [x] T026 Implement Notion API client (basic search/list pages).
+- [x] T027 [P] **Test**: Write tests for Google Drive API client (basic list files in folder).
+- [x] T028 Implement Google Drive API client (basic list files in folder).
 
 ## Phase 3.5: LiveViews
 - [ ] T029 [P] **Test**: Write tests for Clients LiveView.
