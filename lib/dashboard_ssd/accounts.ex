@@ -89,7 +89,7 @@ defmodule DashboardSSD.Accounts do
         # 2) Fall back to email: ensure user exists
         user =
           get_user_by_email(email) ||
-            case create_user(%{email: email, name: name, role_id: ensure_role!("employee").id}) do
+            case create_user(%{email: email, name: name, role_id: default_role_id()}) do
               {:ok, user} -> user
               {:error, cs} -> raise ArgumentError, inspect(cs.errors)
             end
@@ -124,6 +124,16 @@ defmodule DashboardSSD.Accounts do
 
             user
         end
+    end
+  end
+
+  # If there are no users in the system, the first user gets the admin role.
+  # Otherwise, default to employee.
+  defp default_role_id do
+    if Repo.aggregate(User, :count, :id) == 0 do
+      ensure_role!("admin").id
+    else
+      ensure_role!("employee").id
     end
   end
 end
