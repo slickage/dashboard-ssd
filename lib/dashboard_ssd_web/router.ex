@@ -102,7 +102,12 @@ defmodule DashboardSSDWeb.Router do
     end
   end
 
-  # helper for live_session to pass needed session data into LiveViews
+  @doc """
+  Builds session data for LiveViews.
+
+  Extracts user_id from session and constructs the current path with query string
+  for use in LiveView sessions.
+  """
   def build_live_session(conn) do
     path =
       conn.request_path <>

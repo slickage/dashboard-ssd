@@ -10,11 +10,20 @@ defmodule DashboardSSD.HealthChecks.Scheduler do
 
   @default_interval 60_000
 
+  @doc """
+  Starts the health check scheduler GenServer.
+
+  ## Parameters
+    - opts: Options passed to GenServer.start_link/3
+  """
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
   @impl true
+  @doc """
+  Initializes the scheduler and schedules the first health check tick.
+  """
   def init(_opts) do
     schedule_tick(0)
     {:ok, %{}}

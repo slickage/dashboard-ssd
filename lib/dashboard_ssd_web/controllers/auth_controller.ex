@@ -110,8 +110,13 @@ defmodule DashboardSSDWeb.AuthController do
   end
 
   # Delegating wrappers to avoid CSRF action reuse warnings without changing behavior
+  @doc "Handle OAuth callback for GET requests."
   def callback_get(conn, params), do: callback(conn, params)
+
+  @doc "Handle OAuth callback for POST requests."
   def callback_post(conn, params), do: callback(conn, params)
+
+  @doc "Handle logout for GET requests."
   def delete_get(conn, params), do: delete(conn, params)
 
   defp store_redirect_to(conn, _opts) do
