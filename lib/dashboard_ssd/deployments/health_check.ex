@@ -1,4 +1,5 @@
 defmodule DashboardSSD.Deployments.HealthCheck do
+  @moduledoc "Historical production health check status for a project."
   use Ecto.Schema
   import Ecto.Changeset
 

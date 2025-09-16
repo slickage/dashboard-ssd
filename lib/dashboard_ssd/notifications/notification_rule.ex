@@ -1,4 +1,5 @@
 defmodule DashboardSSD.Notifications.NotificationRule do
+  @moduledoc "Notification rule defining when and where to send alerts."
   use Ecto.Schema
   import Ecto.Changeset
 

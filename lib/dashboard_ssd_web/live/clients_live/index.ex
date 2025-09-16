@@ -1,4 +1,5 @@
 defmodule DashboardSSDWeb.ClientsLive.Index do
+  @moduledoc "LiveView for listing and managing clients."
   use DashboardSSDWeb, :live_view
 
   alias DashboardSSD.Clients

@@ -1,4 +1,5 @@
 defmodule DashboardSSD.Contracts.ChangeRequest do
+  @moduledoc "Change Request metadata and association to a project."
   use Ecto.Schema
   import Ecto.Changeset
 

@@ -1,4 +1,5 @@
 defmodule DashboardSSDWeb.ClientsLive.FormComponent do
+  @moduledoc "LiveComponent for creating and editing clients."
   use DashboardSSDWeb, :live_component
   alias DashboardSSD.Clients
 

@@ -1,4 +1,5 @@
 defmodule DashboardSSD.Accounts.Role do
+  @moduledoc "Role schema (admin, employee, client)."
   use Ecto.Schema
   import Ecto.Changeset
 

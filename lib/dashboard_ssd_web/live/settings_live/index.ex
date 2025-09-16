@@ -1,4 +1,5 @@
 defmodule DashboardSSDWeb.SettingsLive.Index do
+  @moduledoc "Settings page for viewing and connecting external integrations."
   use DashboardSSDWeb, :live_view
 
   alias DashboardSSD.Accounts.ExternalIdentity

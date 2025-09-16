@@ -1,4 +1,5 @@
 defmodule DashboardSSD.Accounts.User do
+  @moduledoc "User schema with role and external identities."
   use Ecto.Schema
   import Ecto.Changeset
 

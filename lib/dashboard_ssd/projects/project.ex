@@ -1,4 +1,5 @@
 defmodule DashboardSSD.Projects.Project do
+  @moduledoc "Ecto schema for projects tracked in the dashboard."
   use Ecto.Schema
   import Ecto.Changeset
 

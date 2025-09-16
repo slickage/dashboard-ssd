@@ -1,4 +1,5 @@
 defmodule DashboardSSD.Clients.Client do
+  @moduledoc "Ecto schema for clients (customers) associated with projects."
   use Ecto.Schema
   import Ecto.Changeset
 

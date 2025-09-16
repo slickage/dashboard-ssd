@@ -1,4 +1,7 @@
 defmodule DashboardSSDWeb.PageController do
+  @moduledoc """
+  Static pages controller. Renders the home page and other static content.
+  """
   use DashboardSSDWeb, :controller
 
   def home(conn, _params) do

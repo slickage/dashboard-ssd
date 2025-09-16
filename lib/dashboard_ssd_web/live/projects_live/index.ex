@@ -1,4 +1,5 @@
 defmodule DashboardSSDWeb.ProjectsLive.Index do
+  @moduledoc "Projects hub listing with Linear task summary and health status."
   use DashboardSSDWeb, :live_view
 
   alias DashboardSSD.{Clients, Projects}

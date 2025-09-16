@@ -1,4 +1,8 @@
 defmodule DashboardSSD.HealthChecks.Scheduler do
+  @moduledoc """
+  Periodically evaluates production health checks for enabled projects and
+  records status changes. Interval configured via `:dashboard_ssd, :health_checks`.
+  """
   use GenServer
   require Logger
 

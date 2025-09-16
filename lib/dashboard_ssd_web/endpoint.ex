@@ -1,4 +1,5 @@
 defmodule DashboardSSDWeb.Endpoint do
+  @moduledoc "Phoenix Endpoint for HTTP/WebSocket handling and plugs."
   use Phoenix.Endpoint, otp_app: :dashboard_ssd
 
   # The session will be stored in the cookie and signed,
