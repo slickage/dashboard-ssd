@@ -7,6 +7,7 @@ defmodule DashboardSSDWeb.UserAuth do
   alias Phoenix.LiveView
 
   # Controller plug: assign current_user on conn
+  @doc "Assign `:current_user` on the conn from session user_id, if present."
   def fetch_current_user(conn, _opts) do
     user =
       case get_session(conn, :user_id) do
@@ -25,6 +26,9 @@ defmodule DashboardSSDWeb.UserAuth do
   end
 
   # LiveView on_mount: mount_current_user
+  @doc "on_mount: assign current_user, enforce authz as configured."
+  def on_mount(arg, _params, _session, _socket)
+
   def on_mount(:mount_current_user, _params, session, socket) do
     user =
       case Map.get(session, "user_id") do

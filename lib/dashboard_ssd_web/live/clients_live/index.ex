@@ -5,6 +5,7 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
   alias DashboardSSD.Clients
 
   @impl true
+  @doc "Mount the Clients index and subscribe to client updates."
   def mount(_params, _session, socket) do
     _ = Clients.subscribe()
 
@@ -16,6 +17,7 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
   end
 
   @impl true
+  @doc "Handle LiveView params for index/new/edit actions."
   def handle_params(params, _url, socket) do
     action = socket.assigns.live_action
 
@@ -37,6 +39,9 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
   end
 
   @impl true
+  @doc "Handle clients page events (search/delete)."
+  def handle_event(event, params, socket)
+
   def handle_event("search", %{"q" => q}, socket) do
     {:noreply, socket |> assign(:q, q) |> assign(:clients, Clients.search_clients(q))}
   end
@@ -48,6 +53,7 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
   end
 
   @impl true
+  @doc "Handle PubSub notifications for client changes and refresh the list."
   def handle_info({:client, _event, _client}, socket) do
     {:noreply, refresh_clients(socket)}
   end

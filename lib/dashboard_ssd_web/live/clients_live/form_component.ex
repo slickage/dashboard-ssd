@@ -4,6 +4,7 @@ defmodule DashboardSSDWeb.ClientsLive.FormComponent do
   alias DashboardSSD.Clients
 
   @impl true
+  @doc "Update the form component assigns and initialize the changeset."
   def update(assigns, socket) do
     socket = assign(socket, assigns)
     client = Map.get(socket.assigns, :client) || client_from_action(socket.assigns)
@@ -20,6 +21,9 @@ defmodule DashboardSSDWeb.ClientsLive.FormComponent do
     do: Clients.get_client!(id)
 
   @impl true
+  @doc "Handle client form events (validate/save)."
+  def handle_event(event, params, socket)
+
   def handle_event("validate", %{"client" => params}, socket) do
     {:noreply, assign(socket, :changeset, change(socket.assigns.client, params))}
   end
