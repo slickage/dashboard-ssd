@@ -98,9 +98,7 @@ defmodule DashboardSSD.Integrations.WrappersTest do
 
       Tesla.Mock.mock(fn
         %{method: :post, url: "https://api.linear.app/graphql", headers: headers, body: body} ->
-          assert Enum.any?(headers, fn {k, v} ->
-                   k == "authorization" and String.starts_with?(v, "Bearer ")
-                 end)
+          assert Enum.any?(headers, fn {k, v} -> k == "authorization" and v == "tok" end)
 
           body = if is_binary(body), do: Jason.decode!(body), else: body
           assert Map.has_key?(body, "query") or Map.has_key?(body, :query)
@@ -124,10 +122,19 @@ defmodule DashboardSSD.Integrations.WrappersTest do
 
       Tesla.Mock.mock(fn
         %{method: :post, url: "https://api.linear.app/graphql", headers: headers} ->
-          assert Enum.any?(headers, fn {k, v} ->
-                   k == "authorization" and String.starts_with?(v, "Bearer ")
-                 end)
+          assert Enum.any?(headers, fn {k, v} -> k == "authorization" and v == "tok-env" end)
+          %Tesla.Env{status: 200, body: %{"data" => %{"issues" => []}}}
+      end)
 
+      assert {:ok, %{"data" => _}} = Integrations.linear_list_issues("{ issues { id } }", %{})
+    end
+
+    test "strips 'Bearer ' prefix from token if present" do
+      Application.put_env(:dashboard_ssd, :integrations, linear_token: "Bearer tok")
+
+      Tesla.Mock.mock(fn
+        %{method: :post, url: "https://api.linear.app/graphql", headers: headers} ->
+          assert Enum.any?(headers, fn {k, v} -> k == "authorization" and v == "tok" end)
           %Tesla.Env{status: 200, body: %{"data" => %{"issues" => []}}}
       end)
 

@@ -9,14 +9,15 @@ defmodule DashboardSSD.Integrations.Linear do
   plug Tesla.Middleware.JSON
 
   @doc """
-  List issues via GraphQL.
+  Execute a Linear GraphQL request (e.g., list/search issues).
 
   Accepts a GraphQL `query` string and optional `variables` map.
+  Note: Linear expects `Authorization: <api-key>` (no "Bearer ").
   Returns {:ok, response_body} on 200 or {:error, term} otherwise.
   """
   @spec list_issues(String.t(), String.t(), map()) :: {:ok, map()} | {:error, term()}
   def list_issues(token, query, variables \\ %{}) do
-    headers = [{"authorization", "Bearer #{token}"}]
+    headers = [{"authorization", token}]
     body = %{query: query, variables: variables}
 
     case post("/graphql", body, headers: headers) do

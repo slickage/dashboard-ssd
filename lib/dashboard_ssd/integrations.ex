@@ -23,7 +23,7 @@ defmodule DashboardSSD.Integrations do
   @spec linear_list_issues(String.t(), map()) :: {:ok, map()} | error()
   def linear_list_issues(query, variables \\ %{}) do
     with {:ok, token} <- fetch!(:linear_token, "LINEAR_TOKEN") do
-      Linear.list_issues(token, query, variables)
+      Linear.list_issues(strip_bearer(token), query, variables)
     end
   end
 
@@ -84,4 +84,21 @@ defmodule DashboardSSD.Integrations do
         {:error, :no_token}
     end
   end
+
+  # Generic Linear GraphQL call using configured token
+  @spec linear_graphql(String.t(), map()) :: {:ok, map()} | error()
+  def linear_graphql(query, variables \\ %{}) do
+    with {:ok, token} <- fetch!(:linear_token, "LINEAR_TOKEN") do
+      Linear.list_issues(strip_bearer(token), query, variables)
+    end
+  end
+
+  defp strip_bearer(token) when is_binary(token) do
+    token
+    |> String.trim()
+    |> String.replace_prefix("Bearer ", "")
+    |> String.replace_prefix("bearer ", "")
+  end
+
+  defp strip_bearer(other), do: other
 end

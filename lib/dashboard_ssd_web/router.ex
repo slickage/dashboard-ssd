@@ -41,6 +41,16 @@ defmodule DashboardSSDWeb.Router do
       live "/clients/:id/edit", ClientsLive.Index, :edit
     end
 
+    live_session :projects_read,
+      on_mount: [
+        {DashboardSSDWeb.UserAuth, :mount_current_user},
+        {DashboardSSDWeb.UserAuth, {:require, :read, :projects}}
+      ],
+      session: {__MODULE__, :build_live_session, []} do
+      live "/projects", ProjectsLive.Index, :index
+      live "/projects/:id/edit", ProjectsLive.Index, :edit
+    end
+
     get "/auth/:provider", AuthController, :request
     # Use distinct actions to avoid CSRF action reuse warnings
     get "/auth/:provider/callback", AuthController, :callback_get
