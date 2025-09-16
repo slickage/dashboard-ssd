@@ -78,10 +78,11 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
   end
 
   defp safe_fetch_linear_summary(project) do
-    if Code.ensure_loaded?(ExUnit) do
-      case Application.get_env(:tesla, :adapter) do
-        Tesla.Mock -> fetch_linear_summary(project)
-        _ -> :unavailable
+    if Application.get_env(:dashboard_ssd, :env) == :test do
+      if Application.get_env(:tesla, :adapter) == Tesla.Mock do
+        fetch_linear_summary(project)
+      else
+        :unavailable
       end
     else
       fetch_linear_summary(project)

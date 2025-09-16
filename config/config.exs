@@ -7,6 +7,8 @@
 # General application configuration
 import Config
 
+config :dashboard_ssd, :env, config_env()
+
 config :dashboard_ssd,
   namespace: DashboardSSD,
   ecto_repos: [DashboardSSD.Repo],
