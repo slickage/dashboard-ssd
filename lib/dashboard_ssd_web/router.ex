@@ -1,4 +1,5 @@
 defmodule DashboardSSDWeb.Router do
+  @moduledoc "Application router defining pipelines, live_sessions and routes."
   use DashboardSSDWeb, :router
 
   pipeline :browser do

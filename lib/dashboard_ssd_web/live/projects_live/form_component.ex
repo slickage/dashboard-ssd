@@ -1,4 +1,5 @@
 defmodule DashboardSSDWeb.ProjectsLive.FormComponent do
+  @moduledoc "LiveComponent for editing a project and its health check settings."
   use DashboardSSDWeb, :live_component
 
   alias DashboardSSD.{Clients, Projects}

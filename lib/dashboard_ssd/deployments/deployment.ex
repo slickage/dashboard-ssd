@@ -1,4 +1,5 @@
 defmodule DashboardSSD.Deployments.Deployment do
+  @moduledoc "Deployment record linking a project to a CI/commit status."
   use Ecto.Schema
   import Ecto.Changeset
 

@@ -1,4 +1,7 @@
 defmodule DashboardSSDWeb.AuthController do
+  @moduledoc """
+  Handles Google OAuth sign-in/sign-out via Ueberauth and session management.
+  """
   use DashboardSSDWeb, :controller
   alias DashboardSSD.Accounts
 

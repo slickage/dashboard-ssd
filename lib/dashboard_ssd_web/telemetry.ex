@@ -1,4 +1,5 @@
 defmodule DashboardSSDWeb.Telemetry do
+  @moduledoc "Telemetry supervisor and metrics setup for Phoenix and Ecto."
   use Supervisor
   import Telemetry.Metrics
 

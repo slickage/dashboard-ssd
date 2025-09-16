@@ -16,6 +16,57 @@ defmodule DashboardSSD.MixProject do
         coveralls: :test,
         "coveralls.github": :test,
         sobelow: :dev
+      ],
+      docs: [
+        main: "readme",
+        source_url: "https://github.com/akinsey/dashboard-ssd",
+        source_ref: System.get_env("DOCS_SOURCE_REF") || "phase/3.5-liveviews",
+        homepage_url: "https://github.com/akinsey/dashboard-ssd",
+        extras: [
+          "README.md": [title: "Overview"],
+          "docs/integrations.md": [title: "Integrations (Local)"],
+          "specs/001-dashboard-init/spec.md": [title: "MVP Spec"],
+          "specs/001-dashboard-init/tasks.md": [title: "Tasks"]
+        ],
+        groups_for_extras: [
+          "Getting Started": ["README.md"],
+          Guides: ["docs/integrations.md"],
+          Specs: ["specs/001-dashboard-init/spec.md", "specs/001-dashboard-init/tasks.md"]
+        ],
+        nest_modules_by_prefix: [
+          DashboardSSD,
+          DashboardSSDWeb,
+          DashboardSSD.Integrations
+        ],
+        groups_for_modules: [
+          Contexts: [
+            DashboardSSD.Accounts,
+            DashboardSSD.Clients,
+            DashboardSSD.Projects,
+            DashboardSSD.Deployments,
+            DashboardSSD.Notifications,
+            DashboardSSD.Contracts
+          ],
+          Schemas: [
+            ~r/^DashboardSSD\.(Accounts|Clients|Projects|Deployments|Notifications|Contracts)\.[A-Z].*/
+          ],
+          Integrations: [~r/^DashboardSSD\.Integrations(\.|$).*/],
+          "Web · LiveViews": [~r/^DashboardSSDWeb\..*Live/],
+          "Web · Components": [~r/^DashboardSSDWeb\..*Components/],
+          "Web · Controllers": [~r/^DashboardSSDWeb\..*Controller/],
+          "Web · Other": [
+            DashboardSSDWeb.Router,
+            DashboardSSDWeb.Endpoint,
+            DashboardSSDWeb.Telemetry,
+            DashboardSSDWeb.Gettext
+          ]
+        ],
+        skip_undefined_reference_warnings_on: [
+          "README.md",
+          "docs/integrations.md",
+          "specs/001-dashboard-init/spec.md",
+          "specs/001-dashboard-init/tasks.md"
+        ]
       ]
     ]
   end
@@ -38,7 +89,7 @@ defmodule DashboardSSD.MixProject do
   #
   # Type `mix help deps` for examples and options.
   defp deps do
-    [
+    base_deps = [
       {:phoenix, "~> 1.7.14"},
       {:phoenix_ecto, "~> 4.5"},
       {:ecto_sql, "~> 3.10"},
@@ -76,6 +127,15 @@ defmodule DashboardSSD.MixProject do
       {:ueberauth, "~> 0.10"},
       {:ueberauth_google, "~> 0.10"}
     ]
+
+    doc_deps =
+      if System.get_env("ENABLE_DOCTOR") == "1" do
+        [{:doctor, "~> 0.22", only: :dev, runtime: false}]
+      else
+        []
+      end
+
+    base_deps ++ doc_deps
   end
 
   # Aliases are shortcuts or tasks specific to the current project.

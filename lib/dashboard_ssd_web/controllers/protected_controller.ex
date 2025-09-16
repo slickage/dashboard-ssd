@@ -1,4 +1,7 @@
 defmodule DashboardSSDWeb.ProtectedController do
+  @moduledoc """
+  Simple endpoints behind authorization used by dev routes and smoke checks.
+  """
   use DashboardSSDWeb, :controller
 
   plug DashboardSSDWeb.Plugs.Authorize, {:read, :projects} when action in [:projects]

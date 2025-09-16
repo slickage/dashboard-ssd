@@ -1,4 +1,5 @@
 defmodule DashboardSSD.Deployments.HealthCheckSetting do
+  @moduledoc "Per-project configuration for production health checks (HTTP or AWS ELBv2)."
   use Ecto.Schema
   import Ecto.Changeset
 

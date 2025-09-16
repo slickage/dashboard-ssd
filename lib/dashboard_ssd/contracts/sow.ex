@@ -1,4 +1,5 @@
 defmodule DashboardSSD.Contracts.SOW do
+  @moduledoc "Statement of Work (SOW) metadata and association to a project."
   use Ecto.Schema
   import Ecto.Changeset
 
