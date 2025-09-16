@@ -169,7 +169,7 @@ defmodule DashboardSSDWeb.ProjectsLiveTest do
     {:ok, p} = Projects.create_project(%{name: "Legacy", client_id: c.id})
 
     conn = init_test_session(conn, %{user_id: adm.id})
-    {:ok, view, _} = live(conn, ~p"/projects")
+    {:ok, _view, _} = live(conn, ~p"/projects")
     {:ok, view, _} = live(conn, ~p"/projects/#{p.id}/edit")
     form = element(view, "#project-form")
     render_submit(form, %{"project" => %{"name" => "Legacy", "client_id" => ""}})
