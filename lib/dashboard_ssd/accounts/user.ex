@@ -19,6 +19,18 @@ defmodule DashboardSSD.Accounts.User do
     timestamps(type: :utc_datetime)
   end
 
+  @doc """
+  Creates a changeset for user validation and casting.
+
+  ## Parameters
+    - user: The user struct or changeset
+    - attrs: Map of attributes to cast and validate
+
+  ## Validations
+    - email: Required and must be unique
+    - name: Optional
+    - role_id: Optional
+  """
   def changeset(user, attrs) do
     user
     |> cast(attrs, [:email, :name, :role_id])

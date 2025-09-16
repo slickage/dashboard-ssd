@@ -5,8 +5,8 @@ defmodule DashboardSSDWeb do
 
   This can be used in your application as:
 
-      use DashboardSSDWeb, :controller
-      use DashboardSSDWeb, :html
+     use DashboardSSDWeb, :controller
+     use DashboardSSDWeb, :html
 
   The definitions below will be executed for every controller,
   component, etc, so keep them short and clean, focused
@@ -17,8 +17,14 @@ defmodule DashboardSSDWeb do
   those modules here.
   """
 
+  @doc """
+  Returns the list of static file paths that should be served by the endpoint.
+  """
   def static_paths, do: ~w(assets fonts images favicon.ico robots.txt)
 
+  @doc """
+  Defines imports and configuration for Phoenix routers.
+  """
   def router do
     quote do
       use Phoenix.Router, helpers: false
@@ -30,12 +36,18 @@ defmodule DashboardSSDWeb do
     end
   end
 
+  @doc """
+  Defines imports and configuration for Phoenix channels.
+  """
   def channel do
     quote do
       use Phoenix.Channel
     end
   end
 
+  @doc """
+  Defines imports and configuration for Phoenix controllers.
+  """
   def controller do
     quote do
       use Phoenix.Controller,
@@ -49,6 +61,9 @@ defmodule DashboardSSDWeb do
     end
   end
 
+  @doc """
+  Defines imports and configuration for Phoenix LiveViews.
+  """
   def live_view do
     quote do
       use Phoenix.LiveView,
@@ -58,6 +73,9 @@ defmodule DashboardSSDWeb do
     end
   end
 
+  @doc """
+  Defines imports and configuration for Phoenix LiveComponents.
+  """
   def live_component do
     quote do
       use Phoenix.LiveComponent
@@ -66,6 +84,9 @@ defmodule DashboardSSDWeb do
     end
   end
 
+  @doc """
+  Defines imports and configuration for Phoenix HTML components.
+  """
   def html do
     quote do
       use Phoenix.Component
@@ -95,6 +116,9 @@ defmodule DashboardSSDWeb do
     end
   end
 
+  @doc """
+  Defines configuration for Phoenix VerifiedRoutes.
+  """
   def verified_routes do
     quote do
       use Phoenix.VerifiedRoutes,

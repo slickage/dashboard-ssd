@@ -95,19 +95,14 @@ defmodule DashboardSSD.Integrations do
   end
 
   @doc """
-  List Drive files in a folder for a specific user using their stored Google token.
-
-  Looks up `external_identities` by provider "google". Returns {:error, :no_token}
-  if no token is present. Use `/auth/google` to sign in and store tokens.
-  """
-  @spec drive_list_files_for_user(pos_integer() | %{id: pos_integer()}, String.t()) ::
-          {:ok, map()} | error()
-  @doc """
   List Google Drive files in `folder_id` using the stored OAuth token for the given user.
 
+  Accepts either a user ID (integer) or a user struct/map with an `:id` key.
   Looks up the user's `external_identities` with provider "google" and uses that token.
   Returns `{:error, :no_token}` if no identity is stored.
   """
+  @spec drive_list_files_for_user(pos_integer() | %{id: pos_integer()}, String.t()) ::
+          {:ok, map()} | error()
   def drive_list_files_for_user(%{id: user_id}, folder_id),
     do: drive_list_files_for_user(user_id, folder_id)
 

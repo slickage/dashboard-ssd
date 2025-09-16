@@ -14,6 +14,16 @@ defmodule DashboardSSD.Clients.Client do
     timestamps(type: :utc_datetime)
   end
 
+  @doc """
+  Creates a changeset for client validation and casting.
+
+  ## Parameters
+    - client: The client struct or changeset
+    - attrs: Map of attributes to cast and validate
+
+  ## Validations
+    - name: Required
+  """
   def changeset(client, attrs) do
     client
     |> cast(attrs, [:name])

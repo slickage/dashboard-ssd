@@ -3,6 +3,9 @@ defmodule DashboardSSDWeb.Telemetry do
   use Supervisor
   import Telemetry.Metrics
 
+  @doc """
+  Starts the telemetry supervisor.
+  """
   def start_link(arg) do
     Supervisor.start_link(__MODULE__, arg, name: __MODULE__)
   end
@@ -20,6 +23,9 @@ defmodule DashboardSSDWeb.Telemetry do
     Supervisor.init(children, strategy: :one_for_one)
   end
 
+  @doc """
+  Returns the list of telemetry metrics to be collected.
+  """
   def metrics do
     [
       # Phoenix Metrics

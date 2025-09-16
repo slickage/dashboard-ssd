@@ -607,6 +607,9 @@ defmodule DashboardSSDWeb.CoreComponents do
 
   ## JS Commands
 
+  @doc """
+  Shows an element with a transition animation.
+  """
   def show(js \\ %JS{}, selector) do
     JS.show(js,
       to: selector,
@@ -618,6 +621,9 @@ defmodule DashboardSSDWeb.CoreComponents do
     )
   end
 
+  @doc """
+  Hides an element with a transition animation.
+  """
   def hide(js \\ %JS{}, selector) do
     JS.hide(js,
       to: selector,
@@ -629,6 +635,9 @@ defmodule DashboardSSDWeb.CoreComponents do
     )
   end
 
+  @doc """
+  Shows a modal with the given ID.
+  """
   def show_modal(js \\ %JS{}, id) when is_binary(id) do
     js
     |> JS.show(to: "##{id}")
@@ -642,6 +651,9 @@ defmodule DashboardSSDWeb.CoreComponents do
     |> JS.focus_first(to: "##{id}-content")
   end
 
+  @doc """
+  Hides a modal with the given ID.
+  """
   def hide_modal(js \\ %JS{}, id) do
     js
     |> JS.hide(
