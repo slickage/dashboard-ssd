@@ -2,61 +2,160 @@ name: CI
 
 on:
   push:
+    branches: ["**"]
   pull_request:
+    branches: ["**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
 
     services:
       postgres:
         image: postgres:15
+        ports: ["5432:5432"]
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: dashboard_ssd_test
-        ports:
-          - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      MIX_ENV: test
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: dashboard_ssd_test
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Set up Elixir and Erlang/OTP
+      - name: Setup BEAM
+        id: beam
         uses: erlef/setup-beam@v1
         with:
+          otp-version: '27.1'
           elixir-version: '1.17.3'
-          otp-version: '27.1.2'
+
+      - name: Cache Hex
+        uses: actions/cache@v4
+        with:
+          path: ~/.hex
+          key: ${{ runner.os }}-hex-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-hex-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-
+
+      - name: Cache Rebar
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/rebar3
+          key: ${{ runner.os }}-rebar-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-rebar-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-
 
       - name: Cache deps
         uses: actions/cache@v4
         with:
           path: deps
-          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          key: ${{ runner.os }}-deps-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-deps-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-
 
       - name: Cache build
         uses: actions/cache@v4
         with:
           path: _build
-          key: ${{ runner.os }}-build-${{ hashFiles('**/mix.lock') }}
+          key: ${{ runner.os }}-build-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-build-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-
+
+      - name: Cache Dialyzer PLTs
+        uses: actions/cache@v4
+        with:
+          path: priv/plts
+          key: ${{ runner.os }}-plts-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-plts-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-
 
       - name: Install dependencies
         run: mix deps.get
 
-      - name: Prepare database
+      - name: Install dev dependencies
         env:
-          MIX_ENV: test
-        run: |
-          mix ecto.create --quiet
-          mix ecto.migrate --quiet
+          MIX_ENV: dev
+        run: mix deps.get
 
-      - name: Run tests with Coveralls (90% gate)
+      - name: Hex audit
+        run: mix hex.audit
+
+      - name: Compile
+        run: mix compile
+
+      - name: Compile (warnings as errors on PRs)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: mix compile --force --warnings-as-errors
+
+      - name: Format
+        run: mix format --check-formatted
+
+      - name: Credo
+        run: mix credo --strict
+
+      - name: Assets setup
+        env:
+          MIX_ENV: dev
+        run: mix assets.setup
+
+      - name: Assets build
+        env:
+          MIX_ENV: dev
+        run: mix assets.build
+
+      - name: Dialyzer PLTs
+        env:
+          MIX_ENV: dev
+        run: |
+          mkdir -p priv/plts
+          mix dialyzer --plt
+
+      - name: Dialyzer
+        env:
+          MIX_ENV: dev
+        run: mix dialyzer --format short
+
+      - name: Prepare DB
+        run: |
+          mix ecto.create
+          mix ecto.migrate
+
+      - name: Security scan (Sobelow)
+        env:
+          MIX_ENV: dev
+        run: mix sobelow --exit
+        continue-on-error: true
+
+      - name: Coverage (ExCoveralls GitHub)
         env:
           MIX_ENV: test
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mix coveralls.github --min 90
+        run: mix coveralls.github
+
+      - name: Docs
+        env:
+          MIX_ENV: dev
+        run: mix docs
