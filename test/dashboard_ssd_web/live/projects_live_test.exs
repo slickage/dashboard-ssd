@@ -7,6 +7,18 @@ defmodule DashboardSSDWeb.ProjectsLiveTest do
   alias DashboardSSD.Projects
 
   setup do
+    Tesla.Mock.mock(fn
+      %{method: :get, url: "https://api.linear.app/graphql"} ->
+        %Tesla.Env{status: 200, body: %{"data" => %{"issues" => %{"nodes" => []}}}}
+
+      _ ->
+        %Tesla.Env{status: 404}
+    end)
+
+    :ok
+  end
+
+  setup do
     Accounts.ensure_role!("admin")
     Accounts.ensure_role!("employee")
     # Disable Linear summaries in these tests to avoid external calls
