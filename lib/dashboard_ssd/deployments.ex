@@ -73,4 +73,21 @@ defmodule DashboardSSD.Deployments do
   @spec delete_health_check(HealthCheck.t()) ::
           {:ok, HealthCheck.t()} | {:error, Ecto.Changeset.t()}
   def delete_health_check(%HealthCheck{} = h), do: Repo.delete(h)
+
+  @doc """
+  Return a map of project_id => latest health status for the given project IDs.
+
+  If a project has no health checks, it will be absent from the map.
+  """
+  @spec latest_health_status_by_project_ids([pos_integer()]) :: %{
+          optional(pos_integer()) => String.t()
+        }
+  def latest_health_status_by_project_ids(project_ids) when is_list(project_ids) do
+    from(h in HealthCheck,
+      where: h.project_id in ^project_ids,
+      order_by: [desc: h.inserted_at]
+    )
+    |> Repo.all()
+    |> Enum.reduce(%{}, fn h, acc -> Map.put_new(acc, h.project_id, h.status) end)
+  end
 end
