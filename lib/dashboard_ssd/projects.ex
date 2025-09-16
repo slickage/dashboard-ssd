@@ -100,13 +100,15 @@ defmodule DashboardSSD.Projects do
 
   defp upsert_project_by_name(client_id, name) do
     case Repo.get_by(Project, name: name) do
-      %Project{} = p -> update_if_changed(p, client_id)
+      %Project{} = p -> update_client_if_missing(p, client_id)
       nil -> insert_new_project(client_id, name)
     end
   end
 
-  defp update_if_changed(%Project{} = p, client_id) do
-    if p.client_id != client_id do
+  # Do not clear or overwrite an existing client assignment during sync.
+  # Only fill in client_id when it is currently nil and a non-nil client_id is inferred.
+  defp update_client_if_missing(%Project{} = p, client_id) do
+    if is_nil(p.client_id) and not is_nil(client_id) do
       case update_project(p, %{client_id: client_id}) do
         {:ok, p2} -> {:updated, p2}
         {:error, _} -> {:noop, p}
