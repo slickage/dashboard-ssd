@@ -15,6 +15,7 @@ defmodule DashboardSSD.Application do
       {Phoenix.PubSub, name: DashboardSSD.PubSub},
       # Start the Finch HTTP client for sending emails
       {Finch, name: DashboardSSD.Finch},
+      health_checks_child(),
       # Start a worker by calling: DashboardSSD.Worker.start_link(arg)
       # {DashboardSSD.Worker, arg},
       # Start to serve requests, typically the last entry
@@ -25,6 +26,18 @@ defmodule DashboardSSD.Application do
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: DashboardSSD.Supervisor]
     Supervisor.start_link(children, opts)
+  end
+
+  defp health_checks_child do
+    env = Application.get_env(:dashboard_ssd, :env) || :dev
+    enabled = Application.get_env(:dashboard_ssd, :health_checks, [])[:enabled]
+
+    if env != :test and enabled != false do
+      DashboardSSD.HealthChecks.Scheduler
+    else
+      # Disabled in test or when explicitly disabled
+      Supervisor.child_spec({Task, fn -> :ok end}, id: :hc_disabled, restart: :temporary)
+    end
   end
 
   # Tell Phoenix to update the endpoint configuration
