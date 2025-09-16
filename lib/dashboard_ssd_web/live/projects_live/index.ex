@@ -2,6 +2,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
   use DashboardSSDWeb, :live_view
 
   alias DashboardSSD.{Clients, Projects}
+  alias DashboardSSD.Deployments
   alias DashboardSSD.Integrations
 
   @impl true
@@ -40,6 +41,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
     else
       projects = fetch_projects(client_id)
       summaries = summarize_projects(projects)
+      health = health_status_map(projects)
 
       {:noreply,
        socket
@@ -48,6 +50,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
        |> assign(:clients, Clients.list_clients())
        |> assign(:projects, projects)
        |> assign(:summaries, summaries)
+       |> assign(:health, health)
        |> assign(:loaded, true)}
     end
   end
@@ -72,6 +75,11 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
     else
       %{}
     end
+  end
+
+  defp health_status_map(projects) do
+    ids = Enum.map(projects, & &1.id)
+    Deployments.latest_health_status_by_project_ids(ids)
   end
 
   defp fetch_linear_summary(project) do
@@ -278,6 +286,29 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
     trunc(n * 100 / total)
   end
 
+  # Function component: production status dot
+  attr :status, :string, required: true
+
+  defp health_dot(assigns) do
+    status = String.downcase(to_string(assigns.status || ""))
+
+    {color_class, label} =
+      cond do
+        status in ["ok", "passing", "healthy", "up"] -> {"bg-emerald-500", "Up"}
+        status in ["degraded", "warn", "warning"] -> {"bg-amber-500", "Degraded"}
+        status in ["fail", "failing", "down", "error"] -> {"bg-rose-500", "Down"}
+        true -> {"bg-zinc-400", String.capitalize(status)}
+      end
+
+    assigns = assign(assigns, color: color_class, label: label)
+
+    ~H"""
+    <span class="inline-flex items-center gap-1" title={@label} aria-label={@label}>
+      <span class={"inline-block h-2.5 w-2.5 rounded-full #{@color}"} aria-hidden="true"></span>
+    </span>
+    """
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -317,6 +348,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                 <th class="px-3 py-2">Name</th>
                 <th class="px-3 py-2">Client</th>
                 <th class="px-3 py-2">Tasks (Linear)</th>
+                <th class="px-3 py-2">Prod</th>
                 <th class="px-3 py-2">Actions</th>
               </tr>
             </thead>
@@ -350,6 +382,14 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                         </div>
                       <% %{} = summary -> %>
                         <.tasks_cell summary={summary} />
+                    <% end %>
+                  </td>
+                  <td class="px-3 py-2">
+                    <%= case Map.get(@health || %{}, p.id) do %>
+                      <% nil -> %>
+                        <span class="text-zinc-400">—</span>
+                      <% status -> %>
+                        <.health_dot status={status} />
                     <% end %>
                   </td>
                   <td class="px-3 py-2">
