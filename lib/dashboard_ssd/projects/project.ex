@@ -20,7 +20,7 @@ defmodule DashboardSSD.Projects.Project do
   def changeset(project, attrs) do
     project
     |> cast(attrs, [:name, :client_id])
-    |> validate_required([:name, :client_id])
+    |> validate_required([:name])
     |> foreign_key_constraint(:client_id)
   end
 end

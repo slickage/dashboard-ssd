@@ -61,6 +61,13 @@ defmodule DashboardSSD.Clients do
 
   def search_clients(_), do: list_clients()
 
+  @doc "Ensure a client with the given name exists, returning it."
+  @spec ensure_client!(String.t()) :: Client.t()
+  def ensure_client!(name) when is_binary(name) do
+    Repo.get_by(Client, name: name) ||
+      %Client{} |> Client.changeset(%{name: name}) |> Repo.insert!()
+  end
+
   defp broadcast({:ok, client}, event) do
     PubSub.broadcast(DashboardSSD.PubSub, @topic, {:client, event, client})
     {:ok, client}
