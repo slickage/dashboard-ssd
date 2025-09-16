@@ -96,7 +96,7 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
                 <tr class="border-t">
                   <td class="px-3 py-2">{c.name}</td>
                   <td class="px-3 py-2">
-                    <.link navigate={~p"/protected/projects"} class="text-zinc-700 hover:underline">
+                    <.link navigate={~p"/projects"} class="text-zinc-700 hover:underline">
                       View Projects
                     </.link>
                     <%= if @current_user && @current_user.role && @current_user.role.name == "admin" do %>
