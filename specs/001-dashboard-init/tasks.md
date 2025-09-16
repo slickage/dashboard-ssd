@@ -43,10 +43,10 @@
 - [x] T028 Implement Google Drive API client (basic list files in folder).
 
 ## Phase 3.5: LiveViews
-- [ ] T029 [P] **Test**: Write tests for Clients LiveView.
-- [ ] T030 Implement Clients LiveView to list clients.
-- [ ] T031 [P] **Test**: Write tests for Projects LiveView, including the display of SOWs/CRs, a list of project-specific tasks from Linear, deployment status, and KB articles.
-- [ ] T032 Implement Projects LiveView to list projects and show a project-specific hub with SOWs/CRs, a list of project-specific tasks from Linear, deployment status, and links to KB articles.
+- [x] T029 [P] **Test**: Write tests for Clients LiveView.
+- [x] T030 Implement Clients LiveView to list clients.
+- [x] T031 [P] **Test**: Write tests for Projects LiveView, including the display of SOWs/CRs, a list of project-specific tasks from Linear, deployment status, and KB articles.
+- [x] T032 Implement Projects LiveView to list projects and show a project-specific hub with SOWs/CRs, a list of project-specific tasks from Linear, deployment status, and links to KB articles.
 - [ ] T033 [P] **Test**: Write tests for Settings/Integrations LiveView.
 - [ ] T034 Implement Settings/Integrations LiveView to connect external services.
 - [ ] T035 [P] **Test**: Write tests for Analytics LiveView.
