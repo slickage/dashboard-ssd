@@ -17,7 +17,8 @@ defmodule DashboardSSD.Integrations.Linear do
   """
   @spec list_issues(String.t(), String.t(), map()) :: {:ok, map()} | {:error, term()}
   def list_issues(token, query, variables \\ %{}) do
-    headers = [{"authorization", token}]
+    # Linear expects Authorization: <api-key> (no "Bearer ")
+    headers = [{"authorization", to_string(token)}]
     body = %{query: query, variables: variables}
 
     case post("/graphql", body, headers: headers) do

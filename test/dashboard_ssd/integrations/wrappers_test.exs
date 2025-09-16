@@ -123,6 +123,7 @@ defmodule DashboardSSD.Integrations.WrappersTest do
       Tesla.Mock.mock(fn
         %{method: :post, url: "https://api.linear.app/graphql", headers: headers} ->
           assert Enum.any?(headers, fn {k, v} -> k == "authorization" and v == "tok-env" end)
+
           %Tesla.Env{status: 200, body: %{"data" => %{"issues" => []}}}
       end)
 
