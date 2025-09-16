@@ -4,7 +4,9 @@ defmodule DashboardSSDWeb.PageController do
   """
   use DashboardSSDWeb, :controller
 
+  @doc "Render the application home page."
   def home(conn, _params) do
+    # Render simple home page without the app layout
     # The home page is often custom made,
     # so skip the default app layout.
     render(conn, :home, layout: false)

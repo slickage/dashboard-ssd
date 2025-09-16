@@ -6,6 +6,7 @@ defmodule DashboardSSDWeb.ProjectsLive.FormComponent do
   alias DashboardSSD.Deployments
 
   @impl true
+  @doc "Update the project form and prefill current health check settings."
   def update(assigns, socket) do
     socket = assign(socket, assigns)
     project = Projects.get_project!(String.to_integer(assigns.project_id))
@@ -27,6 +28,9 @@ defmodule DashboardSSDWeb.ProjectsLive.FormComponent do
   end
 
   @impl true
+  @doc "Handle form events (validate/save) for project and health settings."
+  def handle_event(event, params, socket)
+
   def handle_event("validate", params, socket) do
     prj = Map.get(params, "project", %{})
     cs = Projects.change_project(socket.assigns.project, normalize_params(prj))

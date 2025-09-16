@@ -18,9 +18,14 @@ defmodule DashboardSSDWeb.AuthController do
 
   # The Ueberauth plug handles the redirect in the request phase.
   # We simply return the conn here; the plug will already have halted.
+  @doc "Initiate OAuth flow via Ueberauth request phase."
   def request(conn, _params), do: conn
 
   # Matches the Ueberauth failure case
+  # Document callback once for all clauses
+  @doc "Handle OAuth callback (success, failure, or stubbed) and manage session."
+  def callback(conn, params)
+
   def callback(%{assigns: %{ueberauth_failure: _failure}} = conn, _params) do
     conn
     |> put_flash(:error, gettext("Authentication failed. Please try again."))
@@ -96,6 +101,7 @@ defmodule DashboardSSDWeb.AuthController do
   defp normalize_expires(other), do: other
 
   # Log out: clear all session data and redirect home
+  @doc "Log the user out by clearing the session."
   def delete(conn, _params) do
     conn
     |> put_flash(:info, gettext("You have been logged out!"))

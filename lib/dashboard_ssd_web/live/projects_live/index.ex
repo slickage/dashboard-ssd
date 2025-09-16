@@ -7,6 +7,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
   alias DashboardSSD.Integrations
 
   @impl true
+  @doc "Mount the Projects hub view and initialize state."
   def mount(_params, _session, socket) do
     {:ok,
      socket
@@ -20,6 +21,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
   end
 
   @impl true
+  @doc "Handle params for index/edit actions and load data."
   def handle_params(params, _url, socket) do
     socket = assign(socket, :params, params)
 
@@ -219,6 +221,9 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
   end
 
   @impl true
+  @doc "Handle project events (sync, filter)."
+  def handle_event(event, params, socket)
+
   def handle_event("sync", _params, socket) do
     case Projects.sync_from_linear() do
       {:ok, %{inserted: i, updated: u}} ->

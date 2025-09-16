@@ -6,6 +6,7 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
   alias DashboardSSD.Repo
 
   @impl true
+  @doc "Mount Settings view and compute current integration connection states."
   def mount(_params, _session, socket) do
     {:ok,
      socket
@@ -14,6 +15,7 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
   end
 
   @impl true
+  @doc "Handle navigation params; recompute integration states."
   def handle_params(_params, _url, socket) do
     {:noreply,
      socket
