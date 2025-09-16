@@ -20,21 +20,8 @@ if System.get_env("PHX_SERVER") do
   config :dashboard_ssd, DashboardSSDWeb.Endpoint, server: true
 end
 
-# Integration tokens (optional; for local/dev usage)
-# Values read from environment; safe to be nil in non-dev envs.
-config :dashboard_ssd, :integrations,
-  # Accept both *_TOKEN and *_API_KEY naming
-  linear_token: System.get_env("LINEAR_TOKEN") || System.get_env("LINEAR_API_KEY"),
-  slack_bot_token: System.get_env("SLACK_BOT_TOKEN") || System.get_env("SLACK_API_KEY"),
-  slack_channel: System.get_env("SLACK_CHANNEL"),
-  notion_token: System.get_env("NOTION_TOKEN") || System.get_env("NOTION_API_KEY"),
-  # For Drive, prefer a direct access token if present; otherwise rely on user-scoped DB token
-  drive_token:
-    System.get_env("GOOGLE_DRIVE_TOKEN") ||
-      System.get_env("GOOGLE_OAUTH_TOKEN")
-
-# Load environment variables from a local .env file in development.
-# This helps when running locally without exporting vars manually.
+# Load environment variables from a local .env file in development before reading config.
+# This ensures Application config picks up values from .env without requiring export.
 if config_env() in [:dev, :test] do
   env_path = Path.expand("../.env", __DIR__)
 
@@ -52,12 +39,10 @@ if config_env() in [:dev, :test] do
           :ok
 
         true ->
-          # Support optional leading `export KEY=VALUE`
           [key | rest] = String.split(line, "=", parts: 2)
           key = key |> String.trim_leading("export ") |> String.trim()
           value = rest |> List.first() |> to_string() |> String.trim()
 
-          # Strip surrounding quotes if present
           value =
             cond do
               String.starts_with?(value, "\"") and String.ends_with?(value, "\"") ->
@@ -67,7 +52,6 @@ if config_env() in [:dev, :test] do
                 value |> String.trim_leading("'") |> String.trim_trailing("'")
 
               true ->
-                # Remove trailing inline comments for unquoted values
                 Regex.replace(~r/\s+#.*$/, value, "")
             end
 
@@ -78,6 +62,22 @@ if config_env() in [:dev, :test] do
     end)
   end
 end
+
+# Integration tokens (optional; for local/dev usage)
+# Values read from environment; safe to be nil in non-dev envs.
+config :dashboard_ssd, :integrations,
+  # Accept both *_TOKEN and *_API_KEY naming
+  linear_token: System.get_env("LINEAR_TOKEN") || System.get_env("LINEAR_API_KEY"),
+  slack_bot_token: System.get_env("SLACK_BOT_TOKEN") || System.get_env("SLACK_API_KEY"),
+  slack_channel: System.get_env("SLACK_CHANNEL"),
+  notion_token: System.get_env("NOTION_TOKEN") || System.get_env("NOTION_API_KEY"),
+  # For Drive, prefer a direct access token if present; otherwise rely on user-scoped DB token
+  drive_token:
+    System.get_env("GOOGLE_DRIVE_TOKEN") ||
+      System.get_env("GOOGLE_OAUTH_TOKEN")
+
+# Load environment variables from a local .env file in development.
+# This helps when running locally without exporting vars manually.
 
 if config_env() == :prod do
   database_url =

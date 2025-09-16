@@ -61,10 +61,10 @@ defmodule DashboardSSDWeb.ProjectsLiveLinearTest do
     conn = init_test_session(conn, %{user_id: adm.id})
     {:ok, _view, html} = live(conn, ~p"/projects")
 
-    # Should display computed totals
-    assert html =~ "Total:"
-    assert html =~ "In Progress:"
-    assert html =~ "Finished:"
+    # Should display computed totals via data attributes
+    assert html =~ ~s/data-total="3"/
+    assert html =~ ~s/data-in-progress="1"/
+    assert html =~ ~s/data-finished="2"/
   end
 
   test "shows N/A when Linear response unavailable", %{conn: conn} do
@@ -106,7 +106,9 @@ defmodule DashboardSSDWeb.ProjectsLiveLinearTest do
 
     conn = init_test_session(conn, %{user_id: adm.id})
     {:ok, _view, html} = live(conn, ~p"/projects")
-    assert html =~ "Total: <strong>0</strong>"
+    assert html =~ ~s/data-total="0"/
+    assert html =~ ~s/data-in-progress="0"/
+    assert html =~ ~s/data-finished="0"/
   end
 
   test "sync button flashes error on failure", %{conn: conn} do
