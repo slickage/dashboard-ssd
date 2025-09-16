@@ -108,6 +108,8 @@ if config_env() == :dev do
           {:mix_task, :credo, ["--strict"]},
           {:mix_task, :dialyzer, []},
           {:mix_task, :test, []},
+          # Run coverage locally (threshold enforced in CI)
+          {:cmd, "MIX_ENV=test mix coveralls"},
           {:cmd, "mix docs > /dev/null"}
         ]
       ]
