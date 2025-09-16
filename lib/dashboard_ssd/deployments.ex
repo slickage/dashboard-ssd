@@ -3,7 +3,7 @@ defmodule DashboardSSD.Deployments do
   Deployments context: manage deployments and health checks.
   """
   import Ecto.Query, warn: false
-  alias DashboardSSD.Deployments.{Deployment, HealthCheck}
+  alias DashboardSSD.Deployments.{Deployment, HealthCheck, HealthCheckSetting}
   alias DashboardSSD.Repo
 
   # Deployments
@@ -84,10 +84,40 @@ defmodule DashboardSSD.Deployments do
         }
   def latest_health_status_by_project_ids(project_ids) when is_list(project_ids) do
     from(h in HealthCheck,
-      where: h.project_id in ^project_ids,
+      where: h.project_id in ^project_ids and not is_nil(h.status),
       order_by: [desc: h.inserted_at]
     )
     |> Repo.all()
     |> Enum.reduce(%{}, fn h, acc -> Map.put_new(acc, h.project_id, h.status) end)
+  end
+
+  @doc "Get health check setting for a project, if any"
+  @spec get_health_check_setting_by_project(pos_integer()) :: HealthCheckSetting.t() | nil
+  def get_health_check_setting_by_project(project_id) do
+    Repo.get_by(HealthCheckSetting, project_id: project_id)
+  end
+
+  @doc "Create or update health check setting for a project"
+  @spec upsert_health_check_setting(pos_integer(), map()) ::
+          {:ok, HealthCheckSetting.t()} | {:error, Ecto.Changeset.t()}
+  def upsert_health_check_setting(project_id, attrs) do
+    case get_health_check_setting_by_project(project_id) do
+      %HealthCheckSetting{} = s -> update_health_check_setting(s, attrs)
+      nil -> create_health_check_setting(Map.put(attrs, :project_id, project_id))
+    end
+  end
+
+  @doc "Create a health check setting"
+  @spec create_health_check_setting(map()) ::
+          {:ok, HealthCheckSetting.t()} | {:error, Ecto.Changeset.t()}
+  def create_health_check_setting(attrs) do
+    %HealthCheckSetting{} |> HealthCheckSetting.changeset(attrs) |> Repo.insert()
+  end
+
+  @doc "Update a health check setting"
+  @spec update_health_check_setting(HealthCheckSetting.t(), map()) ::
+          {:ok, HealthCheckSetting.t()} | {:error, Ecto.Changeset.t()}
+  def update_health_check_setting(%HealthCheckSetting{} = s, attrs) do
+    s |> HealthCheckSetting.changeset(attrs) |> Repo.update()
   end
 end

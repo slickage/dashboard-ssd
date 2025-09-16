@@ -15,7 +15,15 @@ defmodule DashboardSSD.Integrations do
   defp cfg, do: Application.get_env(:dashboard_ssd, :integrations, [])
 
   defp fetch!(key, env_key) do
-    val = Keyword.get(cfg(), key) || System.get_env(env_key)
+    conf = Keyword.get(cfg(), key)
+
+    val =
+      case conf do
+        nil -> System.get_env(env_key)
+        "" -> System.get_env(env_key)
+        other -> other
+      end
+
     if is_nil(val) or val == "", do: {:error, {:missing_env, env_key}}, else: {:ok, val}
   end
 
