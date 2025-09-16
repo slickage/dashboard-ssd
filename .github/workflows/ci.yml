@@ -149,11 +149,11 @@ jobs:
         run: mix sobelow --exit
         continue-on-error: true
 
-      - name: Coverage (ExCoveralls GitHub)
+      - name: Coverage (ExCoveralls GitHub + Gate)
         env:
           MIX_ENV: test
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mix coveralls.github --min 90
+        run: mix coveralls.multiple --type local --type github
 
       - name: Docs
         env:
