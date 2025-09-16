@@ -89,7 +89,7 @@ defmodule DashboardSSD.MixProject do
   #
   # Type `mix help deps` for examples and options.
   defp deps do
-    base_deps = [
+    [
       {:phoenix, "~> 1.7.14"},
       {:phoenix_ecto, "~> 4.5"},
       {:ecto_sql, "~> 3.10"},
@@ -125,17 +125,9 @@ defmodule DashboardSSD.MixProject do
       {:excoveralls, "~> 0.18", only: :test, runtime: false},
       {:cloak_ecto, "~> 1.2"},
       {:ueberauth, "~> 0.10"},
-      {:ueberauth_google, "~> 0.10"}
+      {:ueberauth_google, "~> 0.10"},
+      {:doctor, "~> 0.22", only: :dev, runtime: false}
     ]
-
-    doc_deps =
-      if System.get_env("ENABLE_DOCTOR") == "1" do
-        [{:doctor, "~> 0.22", only: :dev, runtime: false}]
-      else
-        []
-      end
-
-    base_deps ++ doc_deps
   end
 
   # Aliases are shortcuts or tasks specific to the current project.
