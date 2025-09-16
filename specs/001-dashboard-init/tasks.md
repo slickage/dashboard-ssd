@@ -47,8 +47,8 @@
 - [x] T030 Implement Clients LiveView to list clients.
 - [x] T031 [P] **Test**: Write tests for Projects LiveView, including the display of SOWs/CRs, a list of project-specific tasks from Linear, deployment status, and KB articles.
 - [x] T032 Implement Projects LiveView to list projects and show a project-specific hub with SOWs/CRs, a list of project-specific tasks from Linear, deployment status, and links to KB articles.
-- [ ] T033 [P] **Test**: Write tests for Settings/Integrations LiveView.
-- [ ] T034 Implement Settings/Integrations LiveView to connect external services.
+- [x] T033 [P] **Test**: Write tests for Settings/Integrations LiveView.
+- [x] T034 Implement Settings/Integrations LiveView to connect external services.
 - [ ] T035 [P] **Test**: Write tests for Analytics LiveView.
 - [ ] T036 Implement Analytics LiveView to display metrics.
 - [ ] T037 [P] **Test**: Write tests for KB LiveView.
