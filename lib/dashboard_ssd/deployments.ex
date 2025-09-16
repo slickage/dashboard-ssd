@@ -91,6 +91,18 @@ defmodule DashboardSSD.Deployments do
     |> Enum.reduce(%{}, fn h, acc -> Map.put_new(acc, h.project_id, h.status) end)
   end
 
+  @doc "List all health check settings"
+  @spec list_health_check_settings() :: [HealthCheckSetting.t()]
+  def list_health_check_settings do
+    Repo.all(HealthCheckSetting)
+  end
+
+  @doc "List enabled health check settings"
+  @spec list_enabled_health_check_settings() :: [HealthCheckSetting.t()]
+  def list_enabled_health_check_settings do
+    from(s in HealthCheckSetting, where: s.enabled == true) |> Repo.all()
+  end
+
   @doc "Get health check setting for a project, if any"
   @spec get_health_check_setting_by_project(pos_integer()) :: HealthCheckSetting.t() | nil
   def get_health_check_setting_by_project(project_id) do
