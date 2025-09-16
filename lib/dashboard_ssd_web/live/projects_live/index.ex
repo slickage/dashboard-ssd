@@ -141,9 +141,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
   end
 
   defp linear_enabled? do
-    cfg_token = Application.get_env(:dashboard_ssd, :integrations, [])[:linear_token]
-    env_token = System.get_env("LINEAR_TOKEN") || System.get_env("LINEAR_API_KEY")
-    token = cfg_token || env_token
+    token = Application.get_env(:dashboard_ssd, :integrations, [])[:linear_token]
     is_binary(token) and String.trim(to_string(token)) != ""
   end
 
