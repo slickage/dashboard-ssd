@@ -103,6 +103,44 @@ defmodule DashboardSSD.Deployments do
     from(s in HealthCheckSetting, where: s.enabled == true) |> Repo.all()
   end
 
+  @doc "Run a health check immediately for a project, inserting a HealthCheck row on success"
+  @spec run_health_check_now(pos_integer()) :: {:ok, String.t()} | {:error, term()}
+  def run_health_check_now(project_id) do
+    case get_health_check_setting_by_project(project_id) do
+      %HealthCheckSetting{enabled: true, provider: "http", endpoint_url: url}
+      when is_binary(url) and url != "" ->
+        status = classify_http_status(do_http_get(url))
+        _ = create_health_check(%{project_id: project_id, status: status})
+        {:ok, status}
+
+      %HealthCheckSetting{enabled: true, provider: "aws_elbv2"} ->
+        {:error, :aws_not_configured}
+
+      %HealthCheckSetting{} ->
+        {:error, :invalid_config}
+
+      nil ->
+        {:error, :no_setting}
+    end
+  end
+
+  defp do_http_get(url) do
+    req = Finch.build(:get, url)
+
+    case Finch.request(req, DashboardSSD.Finch) do
+      {:ok, %Finch.Response{status: status}} -> {:ok, status}
+      {:error, reason} -> {:error, reason}
+    end
+  rescue
+    _ -> {:error, :request_failed}
+  end
+
+  defp classify_http_status({:ok, 200}), do: "up"
+  defp classify_http_status({:ok, status}) when status in 500..599, do: "down"
+  defp classify_http_status({:ok, status}) when status in 400..499, do: "degraded"
+  defp classify_http_status({:ok, _}), do: "degraded"
+  defp classify_http_status({:error, _}), do: "down"
+
   @doc "Get health check setting for a project, if any"
   @spec get_health_check_setting_by_project(pos_integer()) :: HealthCheckSetting.t() | nil
   def get_health_check_setting_by_project(project_id) do

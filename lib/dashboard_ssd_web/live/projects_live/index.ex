@@ -91,7 +91,16 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
 
   defp health_status_map(projects) do
     ids = Enum.map(projects, & &1.id)
-    Deployments.latest_health_status_by_project_ids(ids)
+    statuses = Deployments.latest_health_status_by_project_ids(ids)
+
+    enabled_ids =
+      Deployments.list_enabled_health_check_settings()
+      |> Enum.map(& &1.project_id)
+      |> MapSet.new()
+
+    statuses
+    |> Enum.filter(fn {pid, _} -> MapSet.member?(enabled_ids, pid) end)
+    |> Map.new()
   end
 
   defp fetch_linear_summary(project) do
