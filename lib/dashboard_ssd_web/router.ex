@@ -51,6 +51,16 @@ defmodule DashboardSSDWeb.Router do
       live "/projects/:id/edit", ProjectsLive.Index, :edit
     end
 
+    # Settings require authentication but no specific RBAC subject yet
+    live_session :settings_auth,
+      on_mount: [
+        {DashboardSSDWeb.UserAuth, :mount_current_user},
+        {DashboardSSDWeb.UserAuth, :ensure_authenticated}
+      ],
+      session: {__MODULE__, :build_live_session, []} do
+      live "/settings", SettingsLive.Index, :index
+    end
+
     get "/auth/:provider", AuthController, :request
     # Use distinct actions to avoid CSRF action reuse warnings
     get "/auth/:provider/callback", AuthController, :callback_get
