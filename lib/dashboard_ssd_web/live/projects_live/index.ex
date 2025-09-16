@@ -40,7 +40,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
       {:noreply, assign(socket, page_title: "Projects", client_id: client_id)}
     else
       projects = fetch_projects(client_id)
-      summaries = summarize_projects(projects)
+      summaries = if socket.assigns.linear_enabled, do: summarize_projects(projects), else: %{}
       health = health_status_map(projects)
 
       {:noreply,
@@ -71,9 +71,20 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
 
   defp summarize_projects(projects) do
     if linear_enabled?() do
-      Enum.into(projects, %{}, fn p -> {to_string(p.id), fetch_linear_summary(p)} end)
+      Enum.into(projects, %{}, fn p -> {to_string(p.id), safe_fetch_linear_summary(p)} end)
     else
       %{}
+    end
+  end
+
+  defp safe_fetch_linear_summary(project) do
+    if Code.ensure_loaded?(ExUnit) do
+      case Application.get_env(:tesla, :adapter) do
+        Tesla.Mock -> fetch_linear_summary(project)
+        _ -> :unavailable
+      end
+    else
+      fetch_linear_summary(project)
     end
   end
 
@@ -227,7 +238,8 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         id -> Projects.list_projects_by_client(String.to_integer(id))
       end
 
-    assign(socket, projects: projects, summaries: summarize_projects(projects))
+    summaries = if socket.assigns.linear_enabled, do: summarize_projects(projects), else: %{}
+    assign(socket, projects: projects, summaries: summaries)
   end
 
   # Function component: compact, consistent task summary with badges + progress bar
