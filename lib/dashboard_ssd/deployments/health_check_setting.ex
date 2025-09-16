@@ -39,7 +39,24 @@ defmodule DashboardSSD.Deployments.HealthCheckSetting do
       message: "must be http or aws_elbv2",
       allow_nil: true
     )
+    |> validate_required_when_enabled()
     |> foreign_key_constraint(:project_id)
     |> unique_constraint(:project_id)
+  end
+
+  defp validate_required_when_enabled(changeset) do
+    enabled = get_field(changeset, :enabled)
+    provider = get_field(changeset, :provider)
+
+    cond do
+      enabled && provider == "http" ->
+        validate_required(changeset, [:endpoint_url])
+
+      enabled && provider == "aws_elbv2" ->
+        validate_required(changeset, [:aws_region, :aws_target_group_arn])
+
+      true ->
+        changeset
+    end
   end
 end
