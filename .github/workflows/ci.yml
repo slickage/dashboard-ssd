@@ -52,6 +52,12 @@ jobs:
           otp-version: '27.1'
           elixir-version: '1.17.3'
 
+      - name: Initialize cache directories
+        run: |
+          mkdir -p ~/.hex
+          mkdir -p ~/.cache/rebar3
+          mkdir -p priv/plts
+
       - name: Cache Hex
         uses: actions/cache@v4
         with:
