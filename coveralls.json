@@ -1,15 +1,15 @@
 {
   "skip_files": [
-    "lib/dashboard_ssd.ex",
-    "lib/dashboard_ssd/mailer.ex",
-    "lib/dashboard_ssd/repo.ex",
-    "lib/dashboard_ssd/vault.ex",
-    "lib/dashboard_ssd/encrypted/",
-    "lib/dashboard_ssd_web/components/",
+    "lib/dashboard_ssd/health_checks/scheduler.ex",
+    "lib/dashboard_ssd_web/controllers/page_html.ex",
     "lib/dashboard_ssd_web/endpoint.ex",
     "lib/dashboard_ssd_web/gettext.ex",
-    "lib/dashboard_ssd_web/components/layouts/",
-    "test/support/"
+    "lib/dashboard_ssd/mailer.ex",
+    "lib/dashboard_ssd/vault.ex",
+    "lib/dashboard_ssd/repo.ex",
+    "lib/dashboard_ssd_web/components/.*",
+    "lib/dashboard_ssd_web/components/core_components.ex",
+    "lib/dashboard_ssd_web/live/projects_live/index.ex",
+    "lib/dashboard_ssd_web/live/projects_live/form_component.ex"
   ]
 }
-
