@@ -62,9 +62,10 @@ defmodule DashboardSSD.HealthChecks.Scheduler do
     req = Finch.build(:get, url)
 
     case Finch.request(req, DashboardSSD.Finch) do
-      {:ok, %Finch.Response{status: 200}} -> {:ok, "up"}
-      {:ok, %Finch.Response{status: status}} when status in 500..599 -> {:ok, "down"}
+      {:ok, %Finch.Response{status: status}} when status in 200..299 -> {:ok, "up"}
+      {:ok, %Finch.Response{status: status}} when status in 300..399 -> {:ok, "up"}
       {:ok, %Finch.Response{status: status}} when status in 400..499 -> {:ok, "degraded"}
+      {:ok, %Finch.Response{status: status}} when status in 500..599 -> {:ok, "down"}
       {:ok, _} -> {:ok, "degraded"}
       {:error, _} -> {:ok, "down"}
     end
