@@ -1,4 +1,5 @@
 <header class="px-4 sm:px-6 lg:px-8">
+  <% cu = assigns[:current_user] || (assigns[:conn] && assigns.conn.assigns[:current_user]) %>
   <div class="flex items-center justify-between border-b border-zinc-100 py-3 text-sm">
     <div class="flex items-center gap-5">
       <.link navigate={~p"/"} class="inline-flex items-center gap-2">
@@ -8,11 +9,13 @@
       <nav class="flex items-center gap-4 text-zinc-900">
         <.link navigate={~p"/projects"} class="hover:underline">Projects</.link>
         <.link navigate={~p"/clients"} class="hover:underline">Clients</.link>
+        <%= if cu && cu.role && cu.role.name == "admin" do %>
+          <.link navigate={~p"/analytics"} class="hover:underline">Analytics</.link>
+        <% end %>
         <.link navigate={~p"/settings"} class="hover:underline">Settings</.link>
       </nav>
     </div>
     <div class="flex items-center gap-3 leading-6 text-zinc-900">
-      <% cu = assigns[:current_user] || (assigns[:conn] && assigns.conn.assigns[:current_user]) %>
       <%= if cu do %>
         <span class="text-zinc-600 text-sm">{cu.name || cu.email}</span>
         <.link

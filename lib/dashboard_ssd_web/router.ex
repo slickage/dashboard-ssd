@@ -62,6 +62,16 @@ defmodule DashboardSSDWeb.Router do
       live "/settings", SettingsLive.Index, :index
     end
 
+    # Analytics requires admin permissions
+    live_session :analytics_admin,
+      on_mount: [
+        {DashboardSSDWeb.UserAuth, :mount_current_user},
+        {DashboardSSDWeb.UserAuth, {:require, :read, :analytics}}
+      ],
+      session: {__MODULE__, :build_live_session, []} do
+      live "/analytics", AnalyticsLive.Index, :index
+    end
+
     get "/auth/:provider", AuthController, :request
     # Use distinct actions to avoid CSRF action reuse warnings
     get "/auth/:provider/callback", AuthController, :callback_get
