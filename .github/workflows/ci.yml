@@ -109,6 +109,9 @@ jobs:
       - name: Hex audit
         run: mix hex.audit
 
+      - name: Dependencies audit
+        run: mix deps.audit
+
       - name: Compile
         run: mix compile
 
@@ -152,8 +155,8 @@ jobs:
       - name: Security scan (Sobelow)
         env:
           MIX_ENV: dev
+          SOBELOW_CONFIDENCE: medium
         run: mix sobelow --exit
-        continue-on-error: true
 
       - name: Coverage (ExCoveralls GitHub + Gate)
         env:

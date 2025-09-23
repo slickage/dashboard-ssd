@@ -126,7 +126,8 @@ defmodule DashboardSSD.MixProject do
       {:cloak_ecto, "~> 1.2"},
       {:ueberauth, "~> 0.10"},
       {:ueberauth_google, "~> 0.10"},
-      {:doctor, "~> 0.22", only: :dev, runtime: false}
+      {:doctor, "~> 0.22", only: :dev, runtime: false},
+      {:mix_audit, "~> 2.1", only: :dev, runtime: false}
     ]
   end
 
@@ -144,11 +145,12 @@ defmodule DashboardSSD.MixProject do
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       check: [
         "hex.audit",
+        "deps.audit",
         "cmd MIX_ENV=dev mix compile --force --warnings-as-errors",
         "cmd MIX_ENV=test mix compile --force --warnings-as-errors",
         "format --check-formatted",
         "credo --strict",
-        "cmd MIX_ENV=dev mix sobelow --exit || true",
+        "cmd SOBELOW_CONFIDENCE=medium MIX_ENV=dev mix sobelow --exit",
         "cmd MIX_ENV=dev mix assets.setup",
         "cmd MIX_ENV=dev mix assets.build",
         "cmd MIX_ENV=dev mix dialyzer --plt",
