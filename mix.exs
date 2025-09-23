@@ -146,6 +146,7 @@ defmodule DashboardSSD.MixProject do
       check: [
         "hex.audit",
         "deps.audit",
+        "cmd SKIP_SECRET_SCAN=${SKIP_SECRET_SCAN:-false} ./scripts/secret_scan.sh",
         "cmd MIX_ENV=dev mix compile --force --warnings-as-errors",
         "cmd MIX_ENV=test mix compile --force --warnings-as-errors",
         "format --check-formatted",

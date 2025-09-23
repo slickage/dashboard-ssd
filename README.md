@@ -12,6 +12,26 @@ To start your Phoenix server:
   * Run `mix setup` to install and setup dependencies
   * Start Phoenix endpoint with `mix phx.server` or inside IEx with `iex -S mix phx.server`
 
+### Local Tooling
+
+This project depends on several CLI tools that are not Hex packages. Install
+them locally so `mix check` and the Git hooks succeed:
+
+```bash
+brew install gitleaks
+```
+
+`scripts/secret_scan.sh` automatically falls back to the official Docker image
+(`zricethezav/gitleaks`) if the binary is unavailable.
+
+Copy the provided sample environment file and populate it with your own
+credentials:
+
+```bash
+cp .env.sample .env
+# edit .env with local secrets (file is gitignored)
+```
+
 Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
 
 Ready to run in production? Please [check our deployment guides](https://hexdocs.pm/phoenix/deployment.html).
