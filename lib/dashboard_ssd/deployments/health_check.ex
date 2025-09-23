@@ -2,6 +2,7 @@ defmodule DashboardSSD.Deployments.HealthCheck do
   @moduledoc "Historical production health check status for a project."
   use Ecto.Schema
   import Ecto.Changeset
+  alias Ecto.Changeset
 
   @typedoc "Health check record"
   @type t :: %__MODULE__{
@@ -18,6 +19,7 @@ defmodule DashboardSSD.Deployments.HealthCheck do
   end
 
   @doc false
+  @spec changeset(t() | Changeset.t(), map()) :: Changeset.t()
   def changeset(health, attrs) do
     health
     |> cast(attrs, [:project_id, :status])

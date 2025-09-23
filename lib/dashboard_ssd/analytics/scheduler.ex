@@ -16,6 +16,7 @@ defmodule DashboardSSD.Analytics.Scheduler do
   @doc """
   Starts the metrics collection scheduler GenServer.
   """
+  @spec start_link(GenServer.options()) :: GenServer.on_start()
   def start_link(opts \\ []) do
     name = Keyword.get(opts, :name, __MODULE__)
     GenServer.start_link(__MODULE__, opts, name: name)

@@ -9,6 +9,13 @@ defmodule DashboardSSD.Analytics do
   import Ecto.Query, warn: false
   alias DashboardSSD.Analytics.MetricSnapshot
   alias DashboardSSD.Repo
+  alias Ecto.Changeset
+
+  @type trend_entry :: %{
+          date: Date.t(),
+          type: String.t(),
+          avg_value: float()
+        }
 
   @doc """
   Returns the list of metric snapshots ordered by most recent first.
@@ -19,6 +26,7 @@ defmodule DashboardSSD.Analytics do
       [%MetricSnapshot{}, ...]
 
   """
+  @spec list_metrics(integer() | nil, pos_integer()) :: [MetricSnapshot.t()]
   def list_metrics(project_id \\ nil, limit \\ 50) do
     query = from m in MetricSnapshot, order_by: [desc: m.id], limit: ^limit
 
@@ -44,6 +52,7 @@ defmodule DashboardSSD.Analytics do
       {:error, %Ecto.Changeset{}}
 
   """
+  @spec create_metric(map()) :: {:ok, MetricSnapshot.t()} | {:error, Changeset.t()}
   def create_metric(attrs \\ %{}) do
     %MetricSnapshot{}
     |> MetricSnapshot.changeset(attrs)
@@ -61,6 +70,7 @@ defmodule DashboardSSD.Analytics do
       97.5
 
   """
+  @spec calculate_uptime(integer() | nil) :: float()
   def calculate_uptime(project_id \\ nil) do
     query =
       from m in MetricSnapshot,
@@ -92,6 +102,7 @@ defmodule DashboardSSD.Analytics do
       90.5
 
   """
+  @spec calculate_mttr(integer() | nil) :: float()
   def calculate_mttr(project_id \\ nil) do
     query =
       from m in MetricSnapshot,
@@ -123,6 +134,7 @@ defmodule DashboardSSD.Analytics do
       12.3
 
   """
+  @spec calculate_linear_throughput(integer() | nil) :: float()
   def calculate_linear_throughput(project_id \\ nil) do
     query =
       from m in MetricSnapshot,
@@ -154,6 +166,7 @@ defmodule DashboardSSD.Analytics do
       [%{date: ~D[2023-01-01], type: "uptime", avg_value: 99.5}, ...]
 
   """
+  @spec get_trends(integer() | nil, pos_integer()) :: [trend_entry()]
   def get_trends(project_id \\ nil, days \\ 30) do
     start_datetime = DateTime.utc_now() |> DateTime.add(-days * 24 * 3600, :second)
 
@@ -196,6 +209,7 @@ defmodule DashboardSSD.Analytics do
       "project_id,type,value,inserted_at\\n1,uptime,99.5,2023-01-01T00:00:00Z\\n"
 
   """
+  @spec export_to_csv(integer() | nil) :: String.t()
   def export_to_csv(project_id \\ nil) do
     metrics = list_metrics(project_id)
 

@@ -5,9 +5,12 @@ defmodule DashboardSSDWeb.UserAuth do
   alias DashboardSSD.Auth.Policy
   alias DashboardSSD.Repo
   alias Phoenix.LiveView
+  alias Phoenix.LiveView.Socket
+  alias Plug.Conn
 
   # Controller plug: assign current_user on conn
   @doc "Assign `:current_user` on the conn from session user_id, if present."
+  @spec fetch_current_user(Conn.t(), term()) :: Conn.t()
   def fetch_current_user(conn, _opts) do
     user =
       case get_session(conn, :user_id) do
@@ -27,6 +30,7 @@ defmodule DashboardSSDWeb.UserAuth do
 
   # LiveView on_mount: mount_current_user
   @doc "on_mount: assign current_user, enforce authz as configured."
+  @spec on_mount(term(), map(), map(), Socket.t()) :: {:cont, Socket.t()} | {:halt, Socket.t()}
   def on_mount(arg, _params, _session, _socket)
 
   def on_mount(:mount_current_user, _params, session, socket) do

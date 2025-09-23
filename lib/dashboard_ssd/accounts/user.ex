@@ -2,6 +2,7 @@ defmodule DashboardSSD.Accounts.User do
   @moduledoc "User schema with role and external identities."
   use Ecto.Schema
   import Ecto.Changeset
+  alias Ecto.Changeset
 
   @type t :: %__MODULE__{
           id: integer() | nil,
@@ -31,6 +32,7 @@ defmodule DashboardSSD.Accounts.User do
     - name: Optional
     - role_id: Optional
   """
+  @spec changeset(t() | Changeset.t(), map()) :: Changeset.t()
   def changeset(user, attrs) do
     user
     |> cast(attrs, [:email, :name, :role_id])

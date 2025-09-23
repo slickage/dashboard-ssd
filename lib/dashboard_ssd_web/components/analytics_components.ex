@@ -5,6 +5,7 @@ defmodule DashboardSSDWeb.AnalyticsComponents do
   use Phoenix.Component
 
   alias Contex.LinePlot
+  alias Phoenix.LiveView.Rendered
 
   @doc """
   Renders a line chart for metric trends.
@@ -18,6 +19,7 @@ defmodule DashboardSSDWeb.AnalyticsComponents do
   attr :width, :integer, default: 600
   attr :height, :integer, default: 400
 
+  @spec line_chart(map()) :: Rendered.t()
   def line_chart(assigns) do
     # Transform data for Contex
     {data, headers} = transform_trends_for_line(assigns.data)
@@ -86,6 +88,7 @@ defmodule DashboardSSDWeb.AnalyticsComponents do
   attr :width, :integer, default: 600
   attr :height, :integer, default: 400
 
+  @spec bar_chart(map()) :: Rendered.t()
   def bar_chart(assigns) do
     # Transform data for bar chart
     {data, headers} = transform_trends_for_bar(assigns.data)

@@ -2,6 +2,7 @@ defmodule DashboardSSD.Projects.Project do
   @moduledoc "Ecto schema for projects tracked in the dashboard."
   use Ecto.Schema
   import Ecto.Changeset
+  alias Ecto.Changeset
 
   @typedoc "Project record"
   @type t :: %__MODULE__{
@@ -18,6 +19,7 @@ defmodule DashboardSSD.Projects.Project do
   end
 
   @doc false
+  @spec changeset(t() | Changeset.t(), map()) :: Changeset.t()
   def changeset(project, attrs) do
     project
     |> cast(attrs, [:name, :client_id])

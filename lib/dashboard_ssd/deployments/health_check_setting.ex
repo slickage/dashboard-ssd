@@ -2,11 +2,12 @@ defmodule DashboardSSD.Deployments.HealthCheckSetting do
   @moduledoc "Per-project configuration for production health checks (HTTP or AWS ELBv2)."
   use Ecto.Schema
   import Ecto.Changeset
+  alias Ecto.Changeset
 
   @typedoc "Configuration for a project's production health check"
   @type t :: %__MODULE__{
           id: integer() | nil,
-          project_id: integer(),
+          project_id: integer() | nil,
           provider: String.t() | nil,
           endpoint_url: String.t() | nil,
           aws_region: String.t() | nil,
@@ -26,6 +27,7 @@ defmodule DashboardSSD.Deployments.HealthCheckSetting do
   end
 
   @doc false
+  @spec changeset(t() | Changeset.t(), map()) :: Changeset.t()
   def changeset(setting, attrs) do
     setting
     |> cast(attrs, [

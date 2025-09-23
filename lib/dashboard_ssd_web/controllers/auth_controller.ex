@@ -4,6 +4,7 @@ defmodule DashboardSSDWeb.AuthController do
   """
   use DashboardSSDWeb, :controller
   alias DashboardSSD.Accounts
+  alias Plug.Conn
 
   # Store optional redirect_to param before Ueberauth halts the request phase
   plug :store_redirect_to when action in [:request]
@@ -19,11 +20,13 @@ defmodule DashboardSSDWeb.AuthController do
   # The Ueberauth plug handles the redirect in the request phase.
   # We simply return the conn here; the plug will already have halted.
   @doc "Initiate OAuth flow via Ueberauth request phase."
+  @spec request(Conn.t(), map()) :: Conn.t()
   def request(conn, _params), do: conn
 
   # Matches the Ueberauth failure case
   # Document callback once for all clauses
   @doc "Handle OAuth callback (success, failure, or stubbed) and manage session."
+  @spec callback(Conn.t(), map()) :: Conn.t()
   def callback(conn, params)
 
   def callback(%{assigns: %{ueberauth_failure: _failure}} = conn, _params) do
@@ -102,6 +105,7 @@ defmodule DashboardSSDWeb.AuthController do
 
   # Log out: clear all session data and redirect home
   @doc "Log the user out by clearing the session."
+  @spec delete(Conn.t(), map()) :: Conn.t()
   def delete(conn, _params) do
     conn
     |> put_flash(:info, gettext("You have been logged out!"))
@@ -111,12 +115,15 @@ defmodule DashboardSSDWeb.AuthController do
 
   # Delegating wrappers to avoid CSRF action reuse warnings without changing behavior
   @doc "Handle OAuth callback for GET requests."
+  @spec callback_get(Conn.t(), map()) :: Conn.t()
   def callback_get(conn, params), do: callback(conn, params)
 
   @doc "Handle OAuth callback for POST requests."
+  @spec callback_post(Conn.t(), map()) :: Conn.t()
   def callback_post(conn, params), do: callback(conn, params)
 
   @doc "Handle logout for GET requests."
+  @spec delete_get(Conn.t(), map()) :: Conn.t()
   def delete_get(conn, params), do: delete(conn, params)
 
   defp store_redirect_to(conn, _opts) do

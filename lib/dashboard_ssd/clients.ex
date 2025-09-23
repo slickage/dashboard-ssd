@@ -10,6 +10,7 @@ defmodule DashboardSSD.Clients do
   @topic "clients"
 
   @doc "Subscribe to client change notifications."
+  @spec subscribe() :: :ok
   def subscribe do
     PubSub.subscribe(DashboardSSD.PubSub, @topic)
   end
