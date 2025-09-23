@@ -218,11 +218,12 @@ defmodule DashboardSSD.Analytics.Collector do
   def find_failure_periods(uptimes) do
     uptimes
     |> Enum.reduce({[], nil}, fn
-      %{value: 0.0, inserted_at: failure_time}, {periods, nil} ->
+      %{value: value, inserted_at: failure_time}, {periods, nil}
+      when value == 0.0 ->
         {periods, failure_time}
 
-      %{value: 100.0, inserted_at: recovery_time}, {periods, failure_time}
-      when not is_nil(failure_time) ->
+      %{value: value, inserted_at: recovery_time}, {periods, failure_time}
+      when value == 100.0 and not is_nil(failure_time) ->
         {[{failure_time, recovery_time} | periods], nil}
 
       _metric, {periods, failure_time} ->
