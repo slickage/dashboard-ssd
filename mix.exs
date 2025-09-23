@@ -9,6 +9,7 @@ defmodule DashboardSSD.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
+      git_hooks: git_hooks(),
       deps: deps(),
       dialyzer: dialyzer(),
       test_coverage: [tool: ExCoveralls],
@@ -146,6 +147,7 @@ defmodule DashboardSSD.MixProject do
       check: [
         "hex.audit",
         "cmd MIX_ENV=dev mix compile --force --warnings-as-errors",
+        "cmd MIX_ENV=test mix compile --force --warnings-as-errors",
         "format --check-formatted",
         "credo --strict",
         "cmd MIX_ENV=dev mix sobelow --exit || true",
@@ -174,6 +176,17 @@ defmodule DashboardSSD.MixProject do
       plt_core_path: "priv/plts",
       plt_local_path: "priv/plts",
       list_unused_filters: true
+    ]
+  end
+
+  defp git_hooks do
+    [
+      auto_install: true,
+      pre_commit: [
+        tasks: [
+          {:cmd, "mix check"}
+        ]
+      ]
     ]
   end
 end
