@@ -182,7 +182,7 @@ defmodule DashboardSSD.MixProject do
   defp git_hooks do
     [
       auto_install: true,
-      pre_commit: [
+      pre_push: [
         tasks: [
           {:cmd, "mix check"}
         ]
