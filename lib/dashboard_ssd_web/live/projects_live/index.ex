@@ -2,6 +2,8 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
   @moduledoc "Projects hub listing with Linear task summary and health status."
   use DashboardSSDWeb, :live_view
 
+  require Logger
+
   alias DashboardSSD.{Clients, Projects}
   alias DashboardSSD.Deployments
   alias DashboardSSD.Integrations
@@ -31,6 +33,19 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
     end
   end
 
+  @impl true
+  def handle_info({:health_updated, health}, socket) do
+    {:noreply, assign(socket, :health, health)}
+  end
+
+  @impl true
+  def handle_info(:reload_summaries, socket) do
+    IO.inspect("handle_info :reload_summaries called")
+    Logger.info("Reloading Linear task summaries for #{length(socket.assigns.projects)} projects")
+    summaries = summarize_projects(socket.assigns.projects)
+    {:noreply, assign(socket, :summaries, summaries)}
+  end
+
   defp handle_params_edit(%{"id" => id}, socket) do
     project = Projects.get_project!(String.to_integer(id))
     {:noreply, assign(socket, :page_title, "Edit Project: #{project.name}")}
@@ -43,18 +58,33 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
       {:noreply, assign(socket, page_title: "Projects", client_id: client_id)}
     else
       projects = fetch_projects(client_id)
-      summaries = if socket.assigns.linear_enabled, do: summarize_projects(projects), else: %{}
-      health = health_status_map(projects)
+      spawn(fn -> run_checks_and_update(projects, self()) end)
 
-      {:noreply,
-       socket
-       |> assign(:page_title, "Projects")
-       |> assign(:client_id, client_id)
-       |> assign(:clients, Clients.list_clients())
-       |> assign(:projects, projects)
-       |> assign(:summaries, summaries)
-       |> assign(:health, health)
-       |> assign(:loaded, true)}
+      socket =
+        socket
+        |> assign(:page_title, "Projects")
+        |> assign(:client_id, client_id)
+        |> assign(:clients, Clients.list_clients())
+        |> assign(:projects, projects)
+        |> assign(:health, %{})
+        |> assign(:loaded, true)
+        |> assign(:summaries, %{})
+
+      if socket.assigns.linear_enabled do
+        Logger.info("Linear enabled, spawning reload task")
+        pid = self()
+
+        spawn(fn ->
+          Logger.info("Reload task sleeping 500ms")
+          Process.sleep(500)
+          Logger.info("Sending :reload_summaries message")
+          send(pid, :reload_summaries)
+        end)
+      else
+        Logger.info("Linear not enabled")
+      end
+
+      {:noreply, socket}
     end
   end
 
@@ -92,18 +122,26 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
     end
   end
 
-  defp health_status_map(projects) do
-    ids = Enum.map(projects, & &1.id)
-    statuses = Deployments.latest_health_status_by_project_ids(ids)
+  defp run_checks_and_update(projects, pid) do
+    if Application.get_env(:dashboard_ssd, :env) != :test do
+      health = run_current_health_checks(projects)
+      send(pid, {:health_updated, health})
+    end
+  end
 
-    enabled_ids =
-      Deployments.list_enabled_health_check_settings()
-      |> Enum.map(& &1.project_id)
-      |> MapSet.new()
+  defp run_current_health_checks(projects) do
+    enabled_settings = Deployments.list_enabled_health_check_settings()
+    enabled_ids = MapSet.new(Enum.map(enabled_settings, & &1.project_id))
 
-    statuses
-    |> Enum.filter(fn {pid, _} -> MapSet.member?(enabled_ids, pid) end)
-    |> Map.new()
+    projects
+    |> Enum.filter(&MapSet.member?(enabled_ids, &1.id))
+    |> Enum.map(& &1.id)
+    |> Enum.reduce(%{}, fn project_id, acc ->
+      case Deployments.run_health_check_now(project_id) do
+        {:ok, status} -> Map.put(acc, project_id, status)
+        _ -> acc
+      end
+    end)
   end
 
   defp fetch_linear_summary(project) do
@@ -244,6 +282,16 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
     {:noreply, push_patch(socket, to: path)}
   end
 
+  @impl true
+  def handle_event("reload_summaries", _params, socket) do
+    Logger.info(
+      "Manually reloading Linear task summaries for #{length(socket.assigns.projects)} projects"
+    )
+
+    summaries = summarize_projects(socket.assigns.projects)
+    {:noreply, assign(socket, :summaries, summaries)}
+  end
+
   defp refresh(socket) do
     client_id = socket.assigns.client_id
 
@@ -254,8 +302,20 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         id -> Projects.list_projects_by_client(String.to_integer(id))
       end
 
-    summaries = if socket.assigns.linear_enabled, do: summarize_projects(projects), else: %{}
-    assign(socket, projects: projects, summaries: summaries)
+    spawn(fn -> run_checks_and_update(projects, self()) end)
+
+    socket = assign(socket, projects: projects, summaries: %{}, health: %{})
+
+    if socket.assigns.linear_enabled do
+      pid = self()
+
+      spawn(fn ->
+        Process.sleep(500)
+        send(pid, :reload_summaries)
+      end)
+    end
+
+    socket
   end
 
   # Function component: compact, consistent task summary with badges + progress bar
@@ -358,6 +418,9 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         </form>
         <%= if @linear_enabled do %>
           <button phx-click="sync" class="px-2 py-1 border rounded text-sm">Sync from Linear</button>
+          <button phx-click="reload_summaries" class="px-2 py-1 border rounded text-sm ml-2">
+            Reload Tasks
+          </button>
         <% else %>
           <span class="text-xs text-zinc-600">
             Linear not configured; set LINEAR_TOKEN to see task breakdowns.
@@ -375,7 +438,13 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                 <th class="px-3 py-2">ID</th>
                 <th class="px-3 py-2">Name</th>
                 <th class="px-3 py-2">Client</th>
-                <th class="px-3 py-2">Tasks (Linear)</th>
+                <th class="px-3 py-2">
+                  Tasks (Linear)
+                  <%= if @summaries == %{} do %>
+                    <span class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 ml-2">
+                    </span>
+                  <% end %>
+                </th>
                 <th class="px-3 py-2">Prod</th>
                 <th class="px-3 py-2">Actions</th>
               </tr>

@@ -8,61 +8,94 @@ defmodule DashboardSSDWeb.AnalyticsLive.Index do
   use DashboardSSDWeb, :live_view
 
   alias DashboardSSD.Analytics
+  alias DashboardSSD.Projects
 
   @impl true
   @doc "Mount Analytics view and load current metrics."
   def mount(_params, _session, socket) do
-    {:ok,
-     socket
-     |> assign(:page_title, "Analytics")
-     |> assign(:metrics, Analytics.list_metrics())
-     |> assign(:uptime_avg, Analytics.calculate_uptime())
-     |> assign(:mttr_avg, Analytics.calculate_mttr())
-     |> assign(:linear_throughput_avg, Analytics.calculate_linear_throughput())}
+    projects = Projects.list_projects()
+    selected_project_id = if projects != [], do: hd(projects).id, else: nil
+
+    socket =
+      socket
+      |> assign(:page_title, "Analytics")
+      |> assign(:projects, projects)
+      |> assign(:selected_project_id, selected_project_id)
+      |> load_metrics()
+
+    {:ok, socket}
+  end
+
+  defp load_metrics(socket) do
+    selected_project_id = socket.assigns.selected_project_id
+
+    socket
+    |> assign(:metrics, Analytics.list_metrics(selected_project_id))
+    |> assign(:uptime_avg, Analytics.calculate_uptime(selected_project_id))
+    |> assign(:mttr_avg, Analytics.calculate_mttr(selected_project_id))
+    |> assign(:linear_throughput_avg, Analytics.calculate_linear_throughput(selected_project_id))
   end
 
   @impl true
   @doc "Handle navigation params; refresh metrics data."
   def handle_params(_params, _url, socket) do
-    {:noreply,
-     socket
-     |> assign(:metrics, Analytics.list_metrics())
-     |> assign(:uptime_avg, Analytics.calculate_uptime())
-     |> assign(:mttr_avg, Analytics.calculate_mttr())
-     |> assign(:linear_throughput_avg, Analytics.calculate_linear_throughput())}
+    {:noreply, load_metrics(socket)}
   end
 
   @impl true
   @doc "Handle export event to download CSV."
   def handle_event("export_csv", _params, socket) do
-    csv_data = Analytics.export_to_csv()
+    selected_project_id = socket.assigns.selected_project_id
+    csv_data = Analytics.export_to_csv(selected_project_id)
+
+    project_suffix =
+      if selected_project_id, do: "_project_#{selected_project_id}", else: "_all_projects"
 
     {:noreply,
      socket
      |> push_event("download", %{
        data: csv_data,
        filename:
-         "analytics_metrics_#{DateTime.utc_now() |> DateTime.to_date() |> Date.to_string()}.csv"
+         "analytics_metrics#{project_suffix}_#{DateTime.utc_now() |> DateTime.to_date() |> Date.to_string()}.csv"
      })}
+  end
+
+  @impl true
+  def handle_event("select_project", %{"project_id" => project_id}, socket) do
+    selected_project_id = if project_id == "", do: nil, else: String.to_integer(project_id)
+
+    {:noreply,
+     socket
+     |> assign(:selected_project_id, selected_project_id)
+     |> load_metrics()}
   end
 
   @impl true
   def handle_event("refresh", _params, socket) do
     {:noreply,
      socket
-     |> assign(:metrics, Analytics.list_metrics())
-     |> assign(:uptime_avg, Analytics.calculate_uptime())
-     |> assign(:mttr_avg, Analytics.calculate_mttr())
-     |> assign(:linear_throughput_avg, Analytics.calculate_linear_throughput())
+     |> load_metrics()
      |> put_flash(:info, "Metrics refreshed")}
   end
 
   @impl true
   def render(assigns) do
+    assigns =
+      assign(
+        assigns,
+        :selected_project,
+        Enum.find(assigns.projects, &(&1.id == assigns.selected_project_id))
+      )
+
     ~H"""
     <div class="space-y-6">
       <div class="flex items-center justify-between">
-        <h1 class="text-xl font-semibold">{@page_title}</h1>
+        <h1 class="text-xl font-semibold">
+          {@page_title}
+          <%= if @selected_project do %>
+            <span class="text-zinc-600">- {@selected_project.name}</span>
+          <% end %>
+        </h1>
         <div class="flex items-center gap-2">
           <button
             phx-click="refresh"
@@ -79,23 +112,51 @@ defmodule DashboardSSDWeb.AnalyticsLive.Index do
         </div>
       </div>
       
+    <!-- Project Selector -->
+      <div class="flex items-center gap-4">
+        <label for="project-select" class="text-sm font-medium">Select Project:</label>
+        <form phx-change="select_project" class="flex-1 max-w-xs">
+          <select
+            id="project-select"
+            name="project_id"
+            class="w-full px-3 py-2 border border-zinc-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            phx-value-project_id={@selected_project_id || ""}
+          >
+            <%= for project <- @projects do %>
+              <option value={project.id} selected={project.id == @selected_project_id}>
+                {project.name}
+              </option>
+            <% end %>
+          </select>
+        </form>
+      </div>
+      
     <!-- Summary Cards -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="rounded border p-4">
+        <div
+          class="rounded border p-4"
+          title="Average percentage of time the system is operational and available"
+        >
           <h3 class="text-sm font-medium text-zinc-600 mb-1">Average Uptime</h3>
           <p class="text-2xl font-bold text-emerald-600" data-testid="uptime-metric">
             {format_percentage(@uptime_avg)}
           </p>
         </div>
 
-        <div class="rounded border p-4">
+        <div
+          class="rounded border p-4"
+          title="Mean Time To Recovery - average time taken to resolve system issues"
+        >
           <h3 class="text-sm font-medium text-zinc-600 mb-1">Average MTTR</h3>
           <p class="text-2xl font-bold text-amber-600" data-testid="mttr-metric">
             {format_minutes(@mttr_avg)}
           </p>
         </div>
 
-        <div class="rounded border p-4">
+        <div
+          class="rounded border p-4"
+          title="Average number of Linear issues processed per time period"
+        >
           <h3 class="text-sm font-medium text-zinc-600 mb-1">Average Linear Throughput</h3>
           <p class="text-2xl font-bold text-blue-600" data-testid="linear-throughput-metric">
             {format_throughput(@linear_throughput_avg)}
