@@ -98,20 +98,14 @@ config :ueberauth, Ueberauth,
        ]}
   ]
 
-# Git hooks: enforce checks on pre-commit
+# Git hooks: enforce checks before pushing
 if config_env() == :dev do
   config :git_hooks,
     auto_install: true,
     hooks: [
-      pre_commit: [
+      pre_push: [
         tasks: [
-          {:mix_task, :format, ["--check-formatted"]},
-          {:mix_task, :credo, ["--strict"]},
-          {:mix_task, :dialyzer, []},
-          {:mix_task, :test, []},
-          # Run coverage locally (threshold enforced in CI)
-          {:cmd, "MIX_ENV=test mix coveralls"},
-          {:cmd, "mix docs --no-deps-check > /dev/null"}
+          {:cmd, "mix check"}
         ]
       ]
     ]
