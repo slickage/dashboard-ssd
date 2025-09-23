@@ -72,13 +72,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
       if socket.assigns.linear_enabled do
         Logger.info("Linear enabled, spawning reload task")
         pid = self()
-
-        spawn(fn ->
-          Logger.info("Reload task sleeping 500ms")
-          Process.sleep(500)
-          Logger.info("Sending :reload_summaries message")
-          send(pid, :reload_summaries)
-        end)
+        spawn_reload_task(pid)
       else
         Logger.info("Linear not enabled")
       end
@@ -152,6 +146,15 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
     |> Enum.map(& &1.id)
     |> Deployments.latest_health_status_by_project_ids()
     |> Enum.into(%{})
+  end
+
+  defp spawn_reload_task(pid) do
+    spawn(fn ->
+      Logger.info("Reload task sleeping 500ms")
+      Process.sleep(500)
+      Logger.info("Sending :reload_summaries message")
+      send(pid, :reload_summaries)
+    end)
   end
 
   defp fetch_linear_summary(project) do
@@ -319,11 +322,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
 
     if socket.assigns.linear_enabled do
       pid = self()
-
-      spawn(fn ->
-        Process.sleep(500)
-        send(pid, :reload_summaries)
-      end)
+      spawn_reload_task(pid)
     end
 
     socket

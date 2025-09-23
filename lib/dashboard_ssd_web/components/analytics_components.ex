@@ -53,9 +53,12 @@ defmodule DashboardSSDWeb.AnalyticsComponents do
 
       svg_content = IO.iodata_to_binary(plot_svg)
 
+      base_svg = "<svg width=\"WIDTH\" height=\"HEIGHT\" xmlns=\"http://www.w3.org/2000/svg\">"
+
       full_svg =
-        "<svg width=\"#{assigns.width}\" height=\"#{assigns.height}\" xmlns=\"http://www.w3.org/2000/svg\">" <>
-          svg_content <> "</svg>"
+        String.replace(base_svg, "WIDTH", to_string(assigns.width))
+        |> String.replace("HEIGHT", to_string(assigns.height))
+        |> Kernel.<>(svg_content <> "</svg>")
 
       assigns = assign(assigns, :plot_svg, Phoenix.HTML.raw(full_svg))
 
@@ -114,9 +117,12 @@ defmodule DashboardSSDWeb.AnalyticsComponents do
 
       svg_content = IO.iodata_to_binary(plot_svg)
 
+      base_svg = "<svg width=\"WIDTH\" height=\"HEIGHT\" xmlns=\"http://www.w3.org/2000/svg\">"
+
       full_svg =
-        "<svg width=\"#{assigns.width}\" height=\"#{assigns.height}\" xmlns=\"http://www.w3.org/2000/svg\">" <>
-          svg_content <> "</svg>"
+        String.replace(base_svg, "WIDTH", to_string(assigns.width))
+        |> String.replace("HEIGHT", to_string(assigns.height))
+        |> Kernel.<>(svg_content <> "</svg>")
 
       assigns = assign(assigns, :plot_svg, Phoenix.HTML.raw(full_svg))
 
@@ -144,21 +150,21 @@ defmodule DashboardSSDWeb.AnalyticsComponents do
     headers = ["date" | types]
 
     # Create data rows
-    data =
-      Enum.map(dates, fn date ->
-        # Find values for each type on this date
-        values =
-          Enum.map(types, fn type ->
-            case Enum.find(trends, &(&1.date == date && &1.type == type)) do
-              nil -> 0.0
-              trend -> trend.avg_value
-            end
-          end)
-
-        [Date.diff(date, ~D[2000-01-01]) | values]
-      end)
+    data = Enum.map(dates, &build_data_row(&1, types, trends))
 
     {data, headers}
+  end
+
+  defp build_data_row(date, types, trends) do
+    values = Enum.map(types, &find_value_for_type(date, &1, trends))
+    [Date.diff(date, ~D[2000-01-01]) | values]
+  end
+
+  defp find_value_for_type(date, type, trends) do
+    case Enum.find(trends, &(&1.date == date && &1.type == type)) do
+      nil -> 0.0
+      trend -> trend.avg_value
+    end
   end
 
   defp transform_trends_for_bar(trends) do
