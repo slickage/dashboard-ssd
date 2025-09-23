@@ -133,7 +133,6 @@ defmodule DashboardSSD.Analytics.Collector do
   """
   @spec collect_linear_throughput(integer()) :: :ok
   def collect_linear_throughput(project_id) do
-    # TODO: Implement Linear throughput collection
     # This would:
     # 1. Query Linear API for issues in the project
     # 2. Count completed issues in the last period
