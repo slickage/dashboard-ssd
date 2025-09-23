@@ -127,7 +127,7 @@ defmodule DashboardSSD.Deployments do
   defp do_http_get(url) do
     req = Finch.build(:get, url)
 
-    case Finch.request(req, DashboardSSD.Finch) do
+    case Finch.request(req, DashboardSSD.Finch, receive_timeout: 5000) do
       {:ok, %Finch.Response{status: status}} -> {:ok, status}
       {:error, reason} -> {:error, reason}
     end
