@@ -112,6 +112,11 @@ jobs:
       - name: Dependencies audit
         run: mix deps.audit
 
+      - name: Secrets scan (Gitleaks)
+        env:
+          SKIP_SECRET_SCAN: false
+        run: ./scripts/secret_scan.sh
+
       - name: Compile
         run: mix compile
 
