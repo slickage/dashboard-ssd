@@ -49,8 +49,8 @@
 - [x] T032 Implement Projects LiveView to list projects and show a project-specific hub with SOWs/CRs, a list of project-specific tasks from Linear, deployment status, and links to KB articles.
 - [x] T033 [P] **Test**: Write tests for Settings/Integrations LiveView.
 - [x] T034 Implement Settings/Integrations LiveView to connect external services.
-- [ ] T035 [P] **Test**: Write tests for Analytics LiveView.
-- [ ] T036 Implement Analytics LiveView to display metrics.
+- [x] T035 [P] **Test**: Write tests for Analytics LiveView. *(No longer applicable; metrics UI removed)*
+- [x] T036 Implement Analytics LiveView to display metrics. *(Deprecated feature removed)*
 - [ ] T037 [P] **Test**: Write tests for KB LiveView.
 - [ ] T038 Implement KB LiveView to display an indexed and searchable list of Notion documents.
 - [ ] T039 [P] **Test**: Write tests for Home LiveView, including the display of task summaries.
