@@ -20,6 +20,7 @@ defmodule DashboardSSDWeb.ErrorJSON do
 
   Returns a JSON object with error details based on the template name.
   """
+  @spec render(String.t(), map()) :: map()
   def render(template, _assigns) do
     %{errors: %{detail: Phoenix.Controller.status_message_from_template(template)}}
   end

@@ -1,6 +1,7 @@
 defmodule DashboardSSDWeb.Router do
   @moduledoc "Application router defining pipelines, live_sessions and routes."
   use DashboardSSDWeb, :router
+  alias Plug.Conn
 
   pipeline :browser do
     plug :accepts, ["html"]
@@ -118,6 +119,7 @@ defmodule DashboardSSDWeb.Router do
   Extracts user_id from session and constructs the current path with query string
   for use in LiveView sessions.
   """
+  @spec build_live_session(Conn.t()) :: map()
   def build_live_session(conn) do
     path =
       conn.request_path <>

@@ -32,6 +32,7 @@ defmodule DashboardSSD.Analytics.MetricSnapshot do
     - type: Required
     - value: Required
   """
+  @spec changeset(t() | Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   def changeset(metric_snapshot, attrs) do
     metric_snapshot
     |> cast(attrs, [:project_id, :type, :value])

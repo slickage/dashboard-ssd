@@ -2,6 +2,7 @@ defmodule DashboardSSD.Clients.Client do
   @moduledoc "Ecto schema for clients (customers) associated with projects."
   use Ecto.Schema
   import Ecto.Changeset
+  alias Ecto.Changeset
 
   @type t :: %__MODULE__{
           id: integer() | nil,
@@ -24,6 +25,7 @@ defmodule DashboardSSD.Clients.Client do
   ## Validations
     - name: Required
   """
+  @spec changeset(t() | Changeset.t(), map()) :: Changeset.t()
   def changeset(client, attrs) do
     client
     |> cast(attrs, [:name])

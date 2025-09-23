@@ -156,7 +156,8 @@ defmodule DashboardSSD.Deployments do
   @doc "Create or update health check setting for a project"
   @spec upsert_health_check_setting(pos_integer(), map()) ::
           {:ok, HealthCheckSetting.t()} | {:error, Ecto.Changeset.t()}
-  def upsert_health_check_setting(project_id, attrs) do
+  def upsert_health_check_setting(project_id, attrs)
+      when is_integer(project_id) and is_map(attrs) do
     case get_health_check_setting_by_project(project_id) do
       %HealthCheckSetting{} = s -> update_health_check_setting(s, attrs)
       nil -> create_health_check_setting(Map.put(attrs, :project_id, project_id))
@@ -166,14 +167,14 @@ defmodule DashboardSSD.Deployments do
   @doc "Create a health check setting"
   @spec create_health_check_setting(map()) ::
           {:ok, HealthCheckSetting.t()} | {:error, Ecto.Changeset.t()}
-  def create_health_check_setting(attrs) do
+  def create_health_check_setting(attrs) when is_map(attrs) do
     %HealthCheckSetting{} |> HealthCheckSetting.changeset(attrs) |> Repo.insert()
   end
 
   @doc "Update a health check setting"
   @spec update_health_check_setting(HealthCheckSetting.t(), map()) ::
           {:ok, HealthCheckSetting.t()} | {:error, Ecto.Changeset.t()}
-  def update_health_check_setting(%HealthCheckSetting{} = s, attrs) do
+  def update_health_check_setting(%HealthCheckSetting{} = s, attrs) when is_map(attrs) do
     s |> HealthCheckSetting.changeset(attrs) |> Repo.update()
   end
 end

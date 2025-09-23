@@ -2,6 +2,7 @@ defmodule DashboardSSD.Deployments.Deployment do
   @moduledoc "Deployment record linking a project to a CI/commit status."
   use Ecto.Schema
   import Ecto.Changeset
+  alias Ecto.Changeset
 
   @typedoc "Deployment record"
   @type t :: %__MODULE__{
@@ -20,6 +21,7 @@ defmodule DashboardSSD.Deployments.Deployment do
   end
 
   @doc false
+  @spec changeset(t() | Changeset.t(), map()) :: Changeset.t()
   def changeset(deployment, attrs) do
     deployment
     |> cast(attrs, [:project_id, :status, :commit_sha])
