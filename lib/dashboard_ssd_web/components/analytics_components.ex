@@ -5,7 +5,6 @@ defmodule DashboardSSDWeb.AnalyticsComponents do
   use Phoenix.Component
 
   alias Contex.LinePlot
-  import Phoenix.HTML
 
   @doc """
   Renders a line chart for metric trends.
