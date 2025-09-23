@@ -144,11 +144,20 @@ defmodule DashboardSSD.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       check: [
+        "hex.audit",
+        "cmd MIX_ENV=dev mix compile --force --warnings-as-errors",
         "format --check-formatted",
         "credo --strict",
-        "dialyzer",
-        "test",
-        "docs"
+        "cmd MIX_ENV=dev mix sobelow --exit || true",
+        "cmd MIX_ENV=dev mix assets.setup",
+        "cmd MIX_ENV=dev mix assets.build",
+        "cmd MIX_ENV=dev mix dialyzer --plt",
+        "cmd MIX_ENV=dev mix dialyzer --format short",
+        "cmd MIX_ENV=test mix ecto.create --quiet",
+        "cmd MIX_ENV=test mix ecto.migrate --quiet",
+        "cmd COVERALLS_MINIMUM_COVERAGE=90 MIX_ENV=test mix coveralls",
+        "cmd MIX_ENV=dev mix docs",
+        "cmd MIX_ENV=dev mix doctor --summary --raise"
       ],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind dashboard_ssd", "esbuild dashboard_ssd"],
