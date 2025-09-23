@@ -9,7 +9,8 @@ defmodule DashboardSSD.Analytics.Collector do
   """
 
   require Logger
-  alias DashboardSSD.{Analytics, Deployments}
+  import Ecto.Query, warn: false
+  alias DashboardSSD.{Analytics, Deployments, Repo}
 
   @doc """
   Collects all available metrics for all projects.
@@ -42,6 +43,8 @@ defmodule DashboardSSD.Analytics.Collector do
     case setting.provider do
       "http" ->
         collect_http_metrics(project_id, setting)
+        # Calculate MTTR after collecting current metrics
+        collect_mttr(project_id)
 
       "aws_elbv2" ->
         Logger.debug("AWS ELBv2 metrics collection not yet implemented for project #{project_id}")
@@ -142,17 +145,90 @@ defmodule DashboardSSD.Analytics.Collector do
   @doc """
   Collects MTTR (Mean Time To Recovery) metrics.
 
-  This would analyze health check status changes to calculate
-  average time between failures and recoveries.
+  Analyzes recent uptime metrics to calculate average recovery time
+  from failures. MTTR is calculated as the average time between
+  a failure (uptime = 0) and the next success (uptime = 100).
   """
   @spec collect_mttr(integer()) :: :ok
   def collect_mttr(project_id) do
-    # TODO: Implement MTTR collection
-    # This would:
-    # 1. Analyze health check history
-    # 2. Find failure periods
-    # 3. Calculate average recovery time
+    # Get recent uptime metrics (last 24 hours)
+    end_time = DateTime.utc_now()
+    start_time = DateTime.add(end_time, -24 * 60 * 60, :second)
 
-    Logger.debug("MTTR collection not yet implemented for project #{project_id}")
+    uptimes =
+      Repo.all(
+        from m in DashboardSSD.Analytics.MetricSnapshot,
+          where: m.project_id == ^project_id,
+          where: m.type == "uptime",
+          where: m.inserted_at >= ^start_time,
+          where: m.inserted_at <= ^end_time,
+          order_by: [asc: m.inserted_at]
+      )
+
+    case calculate_mttr_from_uptimes(uptimes) do
+      {:ok, mttr_minutes} ->
+        {:ok, _} =
+          Analytics.create_metric(%{
+            project_id: project_id,
+            type: "mttr",
+            value: mttr_minutes
+          })
+
+        Logger.debug("Collected MTTR for project #{project_id}: #{mttr_minutes} minutes")
+
+      :no_failures ->
+        Logger.debug("No failures found for MTTR calculation in project #{project_id}")
+    end
+  end
+
+  @doc """
+  Calculates MTTR from a list of uptime metrics.
+
+  Returns the average time in minutes between failures and recoveries.
+  """
+  @spec calculate_mttr_from_uptimes([map()]) :: {:ok, float()} | :no_failures
+  def calculate_mttr_from_uptimes(uptimes) do
+    # Sort by timestamp
+    sorted_uptimes = Enum.sort_by(uptimes, & &1.inserted_at)
+
+    # Find failure periods
+    failure_periods = find_failure_periods(sorted_uptimes)
+
+    if failure_periods == [] do
+      :no_failures
+    else
+      # Calculate average recovery time in minutes
+      total_recovery_time =
+        Enum.reduce(failure_periods, 0, fn {failure_time, recovery_time}, acc ->
+          recovery_minutes = DateTime.diff(recovery_time, failure_time) / 60
+          acc + recovery_minutes
+        end)
+
+      average_mttr = total_recovery_time / length(failure_periods)
+      {:ok, average_mttr}
+    end
+  end
+
+  @doc """
+  Finds failure periods from uptime metrics.
+
+  Returns list of {failure_datetime, recovery_datetime} tuples.
+  """
+  @spec find_failure_periods([map()]) :: [{DateTime.t(), DateTime.t()}]
+  def find_failure_periods(uptimes) do
+    uptimes
+    |> Enum.reduce({[], nil}, fn
+      %{value: 0.0, inserted_at: failure_time}, {periods, nil} ->
+        {periods, failure_time}
+
+      %{value: 100.0, inserted_at: recovery_time}, {periods, failure_time}
+      when not is_nil(failure_time) ->
+        {[{failure_time, recovery_time} | periods], nil}
+
+      _metric, {periods, failure_time} ->
+        {periods, failure_time}
+    end)
+    |> elem(0)
+    |> Enum.reverse()
   end
 end

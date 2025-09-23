@@ -31,13 +31,23 @@ defmodule DashboardSSD.Analytics.CollectorTest do
 
       # Check that metrics were collected
       metrics = Analytics.list_metrics()
-      # 2 response_time + 2 uptime per project
-      assert length(metrics) >= 4
 
       # Check that we have metrics for both projects
-      project_ids = Enum.map(metrics, & &1.project_id) |> Enum.uniq()
-      assert project1.id in project_ids
-      assert project2.id in project_ids
+      project1_metrics = Enum.filter(metrics, &(&1.project_id == project1.id))
+      project2_metrics = Enum.filter(metrics, &(&1.project_id == project2.id))
+
+      # Each project should have at least response_time and uptime metrics
+      assert length(project1_metrics) >= 2
+      assert length(project2_metrics) >= 2
+
+      # Check metric types
+      project1_types = Enum.map(project1_metrics, & &1.type) |> Enum.uniq()
+      project2_types = Enum.map(project2_metrics, & &1.type) |> Enum.uniq()
+
+      assert "response_time" in project1_types
+      assert "uptime" in project1_types
+      assert "response_time" in project2_types
+      assert "uptime" in project2_types
     end
   end
 
@@ -79,15 +89,14 @@ defmodule DashboardSSD.Analytics.CollectorTest do
 
       # Check metrics were created
       metrics = Analytics.list_metrics()
-      assert length(metrics) == 2
 
-      # Should have both response_time and uptime metrics
-      types = Enum.map(metrics, & &1.type)
+      # Should have both response_time and uptime metrics for the project
+      project_metrics = Enum.filter(metrics, &(&1.project_id == project.id))
+      assert length(project_metrics) == 2
+
+      types = Enum.map(project_metrics, & &1.type)
       assert "response_time" in types
       assert "uptime" in types
-
-      # All metrics should be for the correct project
-      assert Enum.all?(metrics, &(&1.project_id == project.id))
 
       # Uptime should be 100%
       uptime_metric = Enum.find(metrics, &(&1.type == "uptime"))
