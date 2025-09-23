@@ -59,7 +59,11 @@ defmodule DashboardSSDWeb.ProjectsLiveLinearTest do
     end)
 
     conn = init_test_session(conn, %{user_id: adm.id})
-    {:ok, _view, html} = live(conn, ~p"/projects")
+    {:ok, view, _html} = live(conn, ~p"/projects")
+
+    # Trigger async summary loading
+    send(view.pid, :reload_summaries)
+    html = render(view)
 
     # Should display computed totals via data attributes
     assert html =~ ~s/data-total="3"/
@@ -84,7 +88,12 @@ defmodule DashboardSSDWeb.ProjectsLiveLinearTest do
     end)
 
     conn = init_test_session(conn, %{user_id: adm.id})
-    {:ok, _view, html} = live(conn, ~p"/projects")
+    {:ok, view, _html} = live(conn, ~p"/projects")
+
+    # Trigger async summary loading
+    send(view.pid, :reload_summaries)
+    html = render(view)
+
     assert html =~ "N/A"
   end
 
@@ -105,7 +114,12 @@ defmodule DashboardSSDWeb.ProjectsLiveLinearTest do
     end)
 
     conn = init_test_session(conn, %{user_id: adm.id})
-    {:ok, _view, html} = live(conn, ~p"/projects")
+    {:ok, view, _html} = live(conn, ~p"/projects")
+
+    # Trigger async summary loading
+    send(view.pid, :reload_summaries)
+    html = render(view)
+
     assert html =~ ~s/data-total="0"/
     assert html =~ ~s/data-in-progress="0"/
     assert html =~ ~s/data-finished="0"/

@@ -40,7 +40,6 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
 
   @impl true
   def handle_info(:reload_summaries, socket) do
-    IO.inspect("handle_info :reload_summaries called")
     Logger.info("Reloading Linear task summaries for #{length(socket.assigns.projects)} projects")
     summaries = summarize_projects(socket.assigns.projects)
     {:noreply, assign(socket, :summaries, summaries)}
@@ -66,7 +65,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         |> assign(:client_id, client_id)
         |> assign(:clients, Clients.list_clients())
         |> assign(:projects, projects)
-        |> assign(:health, %{})
+        |> assign(:health, load_existing_health(projects))
         |> assign(:loaded, true)
         |> assign(:summaries, %{})
 
@@ -142,6 +141,17 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         _ -> acc
       end
     end)
+  end
+
+  defp load_existing_health(projects) do
+    enabled_settings = Deployments.list_enabled_health_check_settings()
+    enabled_ids = MapSet.new(Enum.map(enabled_settings, & &1.project_id))
+
+    projects
+    |> Enum.filter(&MapSet.member?(enabled_ids, &1.id))
+    |> Enum.map(& &1.id)
+    |> Deployments.latest_health_status_by_project_ids()
+    |> Enum.into(%{})
   end
 
   defp fetch_linear_summary(project) do
@@ -304,7 +314,8 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
 
     spawn(fn -> run_checks_and_update(projects, self()) end)
 
-    socket = assign(socket, projects: projects, summaries: %{}, health: %{})
+    socket =
+      assign(socket, projects: projects, summaries: %{}, health: load_existing_health(projects))
 
     if socket.assigns.linear_enabled do
       pid = self()
