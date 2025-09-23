@@ -42,7 +42,15 @@ defmodule DashboardSSDWeb.AnalyticsComponents do
           height: assigns.height
         )
 
-      plot_svg = Contex.LinePlot.to_svg(plot, %{show_x_axis: true, show_y_axis: true})
+      plot_svg =
+        Contex.LinePlot.to_svg(plot, %{
+          show_x_axis: true,
+          show_y_axis: true,
+          x_axis_label: "Date",
+          y_axis_label: "Value",
+          legend_setting: :legend_right
+        })
+
       svg_content = IO.iodata_to_binary(plot_svg)
 
       full_svg =
@@ -53,7 +61,11 @@ defmodule DashboardSSDWeb.AnalyticsComponents do
 
       ~H"""
       <div class="chart-container">
+        <h3 class="text-lg font-semibold mb-2">{assigns.title}</h3>
         {@plot_svg}
+        <div class="mt-2 text-sm text-zinc-600">
+          <strong>Legend:</strong> Uptime (%), MTTR (min), Linear Throughput
+        </div>
       </div>
       """
     end
@@ -87,12 +99,19 @@ defmodule DashboardSSDWeb.AnalyticsComponents do
       plot =
         Contex.BarChart.new(dataset,
           title: assigns.title,
-          mapping: %{category_col: "date", value_cols: ["average"]},
+          mapping: %{category_col: "date", value_cols: ["count"]},
           width: assigns.width,
           height: assigns.height
         )
 
-      plot_svg = Contex.BarChart.to_svg(plot, %{show_x_axis: true, show_y_axis: true})
+      plot_svg =
+        Contex.BarChart.to_svg(plot, %{
+          show_x_axis: true,
+          show_y_axis: true,
+          x_axis_label: "Date",
+          y_axis_label: "Average Value"
+        })
+
       svg_content = IO.iodata_to_binary(plot_svg)
 
       full_svg =
@@ -103,7 +122,11 @@ defmodule DashboardSSDWeb.AnalyticsComponents do
 
       ~H"""
       <div class="chart-container">
+        <h3 class="text-lg font-semibold mb-2">{assigns.title}</h3>
         {@plot_svg}
+        <div class="mt-2 text-sm text-zinc-600">
+          Number of metrics recorded each day
+        </div>
       </div>
       """
     end
@@ -139,17 +162,17 @@ defmodule DashboardSSDWeb.AnalyticsComponents do
   end
 
   defp transform_trends_for_bar(trends) do
-    # For bar chart, show daily averages across all types
+    # For bar chart, show daily count of metrics
     data =
       trends
       |> Enum.group_by(& &1.date)
       |> Enum.map(fn {date, points} ->
-        avg_value = Enum.reduce(points, 0, &(&1.avg_value + &2)) / length(points)
-        [Date.diff(date, ~D[2000-01-01]), avg_value]
+        count = length(points)
+        [Date.diff(date, ~D[2000-01-01]), count]
       end)
       |> Enum.sort_by(& &1)
 
-    headers = ["date", "average"]
+    headers = ["date", "count"]
     {data, headers}
   end
 end
