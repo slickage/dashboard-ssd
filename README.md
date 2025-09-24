@@ -24,11 +24,11 @@ brew install gitleaks
 `scripts/secret_scan.sh` automatically falls back to the official Docker image
 (`zricethezav/gitleaks`) if the binary is unavailable.
 
-Copy the provided sample environment file and populate it with your own
+Copy the provided example environment file and populate it with your own
 credentials:
 
 ```bash
-cp .env.sample .env
+cp .env.example .env
 # edit .env with local secrets (file is gitignored)
 ```
 
