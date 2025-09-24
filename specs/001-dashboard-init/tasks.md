@@ -53,8 +53,8 @@
 - [x] T036 Implement Analytics LiveView to display metrics. *(Deprecated feature removed)*
 - [x] T037 [P] **Test**: Write tests for KB LiveView.
 - [x] T038 Implement KB LiveView to display an indexed and searchable list of Notion documents.
-- [ ] T039 [P] **Test**: Write tests for Home LiveView, including the display of task summaries.
-- [ ] T040 Implement Home LiveView to display projects, clients, workload (including a summary of tasks from Linear), incidents, and CI status.
+ - [x] T039 [P] **Test**: Write tests for Home LiveView, including the display of task summaries.
+ - [x] T040 Implement Home LiveView to display projects, clients, workload (including a summary of tasks from Linear), incidents, and CI status.
 
 ## Phase 3.6: Polish
 - [ ] T041 [P] Write unit tests for all contexts and LiveViews.

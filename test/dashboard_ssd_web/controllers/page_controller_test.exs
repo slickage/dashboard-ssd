@@ -1,8 +1,8 @@
 defmodule DashboardSSDWeb.PageControllerTest do
   use DashboardSSDWeb.ConnCase
 
-  test "GET /", %{conn: conn} do
+  test "GET / redirects anonymous users to auth", %{conn: conn} do
     conn = get(conn, ~p"/")
-    assert html_response(conn, 200) =~ "Peace of mind from prototype to production"
+    assert redirected_to(conn) == "/auth/google?redirect_to=/"
   end
 end

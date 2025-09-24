@@ -25,14 +25,21 @@ defmodule DashboardSSDWeb.Router do
   scope "/", DashboardSSDWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
-
     live_session :default,
       on_mount: [{DashboardSSDWeb.UserAuth, :mount_current_user}],
       session: {__MODULE__, :build_live_session, []} do
     end
 
     live_session :require_authenticated,
+      on_mount: [
+        {DashboardSSDWeb.UserAuth, :mount_current_user},
+        {DashboardSSDWeb.UserAuth, :ensure_authenticated}
+      ],
+      session: {__MODULE__, :build_live_session, []} do
+      live "/", HomeLive.Index, :index
+    end
+
+    live_session :clients_read,
       on_mount: [
         {DashboardSSDWeb.UserAuth, :mount_current_user},
         {DashboardSSDWeb.UserAuth, {:require, :read, :clients}}
