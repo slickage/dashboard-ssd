@@ -68,3 +68,5 @@ Project uses `git_hooks` with the following configuration (see `config/config.ex
 - `mix assets.setup` / `mix assets.build`: install/build frontend assets.
 - `mix ecto.create` / `mix ecto.migrate`: verify database migrations run.
 - `mix docs`: generate HTML docs to ensure doctests compile.
+  - Docs are built during CI; main-branch pushes (or a manual dispatch with
+    `deploy_docs=true`) publish the contents of `doc/` to GitHub Pages.
