@@ -110,6 +110,8 @@ jobs:
         run: mix hex.audit
 
       - name: Dependencies audit
+        env:
+          MIX_ENV: dev
         run: mix deps.audit
 
       - name: Secrets scan (Gitleaks)

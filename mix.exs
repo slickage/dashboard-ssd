@@ -145,7 +145,7 @@ defmodule DashboardSSD.MixProject do
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       check: [
         "hex.audit",
-        "deps.audit",
+        "cmd MIX_ENV=dev mix deps.audit",
         "cmd SKIP_SECRET_SCAN=${SKIP_SECRET_SCAN:-false} ./scripts/secret_scan.sh",
         "cmd MIX_ENV=dev mix compile --force --warnings-as-errors",
         "cmd MIX_ENV=test mix compile --force --warnings-as-errors",
