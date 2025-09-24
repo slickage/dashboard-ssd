@@ -73,6 +73,16 @@ defmodule DashboardSSDWeb.Router do
       live "/analytics", AnalyticsLive.Index, :index
     end
 
+    # Knowledge base accessible to any authenticated user with :read :kb rights
+    live_session :knowledge_base,
+      on_mount: [
+        {DashboardSSDWeb.UserAuth, :mount_current_user},
+        {DashboardSSDWeb.UserAuth, {:require, :read, :kb}}
+      ],
+      session: {__MODULE__, :build_live_session, []} do
+      live "/kb", KbLive.Index, :index
+    end
+
     get "/auth/:provider", AuthController, :request
     # Use distinct actions to avoid CSRF action reuse warnings
     get "/auth/:provider/callback", AuthController, :callback_get
