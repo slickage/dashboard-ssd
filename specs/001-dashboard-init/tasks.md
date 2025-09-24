@@ -51,8 +51,8 @@
 - [x] T034 Implement Settings/Integrations LiveView to connect external services.
 - [x] T035 [P] **Test**: Write tests for Analytics LiveView. *(No longer applicable; metrics UI removed)*
 - [x] T036 Implement Analytics LiveView to display metrics. *(Deprecated feature removed)*
-- [ ] T037 [P] **Test**: Write tests for KB LiveView.
-- [ ] T038 Implement KB LiveView to display an indexed and searchable list of Notion documents.
+- [x] T037 [P] **Test**: Write tests for KB LiveView.
+- [x] T038 Implement KB LiveView to display an indexed and searchable list of Notion documents.
 - [ ] T039 [P] **Test**: Write tests for Home LiveView, including the display of task summaries.
 - [ ] T040 Implement Home LiveView to display projects, clients, workload (including a summary of tasks from Linear), incidents, and CI status.
 

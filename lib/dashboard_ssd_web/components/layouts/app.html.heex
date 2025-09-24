@@ -9,6 +9,9 @@
       <nav class="flex items-center gap-4 text-zinc-900">
         <.link navigate={~p"/projects"} class="hover:underline">Projects</.link>
         <.link navigate={~p"/clients"} class="hover:underline">Clients</.link>
+        <%= if cu && DashboardSSD.Auth.Policy.can?(cu, :read, :kb) do %>
+          <.link navigate={~p"/kb"} class="hover:underline">Knowledge Base</.link>
+        <% end %>
         <%= if cu && cu.role && cu.role.name == "admin" do %>
           <.link navigate={~p"/analytics"} class="hover:underline">Analytics</.link>
         <% end %>
