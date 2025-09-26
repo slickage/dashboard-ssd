@@ -2,9 +2,44 @@ defmodule DashboardSSDWeb.HomeLiveTest do
   use DashboardSSDWeb.ConnCase, async: true
   import Phoenix.LiveViewTest
 
-  alias DashboardSSD.{Accounts, Clients, Projects, Notifications, Deployments}
+  alias DashboardSSD.{Accounts, Clients, Deployments, Notifications, Projects}
 
   setup do
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.linear.app/graphql"} ->
+        %Tesla.Env{status: 200, body: %{"data" => %{"issues" => %{"nodes" => []}}}}
+
+      _ ->
+        %Tesla.Env{status: 404}
+    end)
+
+    :ok
+  end
+
+  setup do
+    # Disable Linear summaries in these tests to avoid external calls
+    prev = Application.get_env(:dashboard_ssd, :integrations)
+
+    Application.put_env(
+      :dashboard_ssd,
+      :integrations,
+      Keyword.merge(prev || [], linear_token: nil)
+    )
+
+    prev_env = System.get_env("LINEAR_TOKEN")
+    System.delete_env("LINEAR_TOKEN")
+
+    on_exit(fn ->
+      if prev,
+        do: Application.put_env(:dashboard_ssd, :integrations, prev),
+        else: Application.delete_env(:dashboard_ssd, :integrations)
+
+      case prev_env do
+        nil -> :ok
+        v -> System.put_env("LINEAR_TOKEN", v)
+      end
+    end)
+
     Accounts.ensure_role!("admin")
     Accounts.ensure_role!("employee")
     :ok
@@ -61,5 +96,297 @@ defmodule DashboardSSDWeb.HomeLiveTest do
 
   test "anonymous is redirected to auth", %{conn: conn} do
     assert {:error, {:redirect, %{to: "/auth/google?redirect_to=/"}}} = live(conn, ~p"/")
+  end
+
+  test "displays empty state when no data exists", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "empty@example.com",
+        name: "Empty",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, _view, html} = live(conn, ~p"/")
+
+    # Should show zero counts
+    assert html =~ "0</div>"
+    assert html =~ "No projects found"
+    assert html =~ "No active incidents"
+    assert html =~ "No recent deployments"
+  end
+
+  test "refresh button reloads dashboard data", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "refresh@example.com",
+        name: "Refresh",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    # Click refresh button
+    view |> element("button", "Refresh") |> render_click()
+
+    # Should still show dashboard
+    assert render(view) =~ "Dashboard"
+  end
+
+  test "analytics summary displays metrics", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "analytics@example.com",
+        name: "Analytics",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, _view, html} = live(conn, ~p"/")
+
+    # Should show analytics section
+    assert html =~ "Analytics Summary"
+    assert html =~ "Uptime"
+    assert html =~ "MTTR"
+    assert html =~ "Throughput"
+  end
+
+  test "recent projects table shows project details", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "projects@example.com",
+        name: "Projects",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    {:ok, client} = Clients.create_client(%{name: "TestClient"})
+    {:ok, _project} = Projects.create_project(%{name: "TestProject", client_id: client.id})
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, _view, html} = live(conn, ~p"/")
+
+    # Should show project in table
+    assert html =~ "TestProject"
+    assert html =~ "TestClient"
+  end
+
+  test "CI status shows deployment information", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "ci@example.com",
+        name: "CI",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    {:ok, project} = Projects.create_project(%{name: "TestProject"})
+
+    {:ok, _deployment} =
+      Deployments.create_deployment(%{project_id: project.id, status: "success"})
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, _view, html} = live(conn, ~p"/")
+
+    # Should show CI status section
+    assert html =~ "CI Status"
+    assert html =~ "Success rate"
+  end
+
+  test "handle_info updates workload summary", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "handle-info@example.com",
+        name: "HandleInfo",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    # Send handle_info message directly
+    summary = %{total: 5, in_progress: 2, finished: 3}
+    send(view.pid, {:workload_summary_loaded, summary})
+
+    # Wait for message processing
+    :timer.sleep(100)
+
+    # Check that the summary was updated
+    updated_html = render(view)
+    assert updated_html =~ "Dashboard"
+  end
+
+  test "workload summary shows when Linear is enabled", %{conn: conn} do
+    # Temporarily enable Linear for this test
+    prev = Application.get_env(:dashboard_ssd, :integrations)
+
+    # Mock Linear API to return some issues
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.linear.app/graphql"} ->
+        %Tesla.Env{
+          status: 200,
+          body: %{
+            "data" => %{
+              "issues" => %{
+                "nodes" => [
+                  %{"state" => %{"name" => "In Progress"}},
+                  %{"state" => %{"name" => "Done"}},
+                  %{"state" => %{"name" => "Todo"}}
+                ]
+              }
+            }
+          }
+        }
+
+      _ ->
+        %Tesla.Env{status: 404}
+    end)
+
+    Application.put_env(
+      :dashboard_ssd,
+      :integrations,
+      Keyword.merge(prev || [], linear_token: "fake-token")
+    )
+
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "linear-enabled@example.com",
+        name: "LinearEnabled",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    {:ok, _project} = Projects.create_project(%{name: "TestProject"})
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, _view, html} = live(conn, ~p"/")
+
+    # Should show workload summary
+    assert html =~ "Workload Summary"
+
+    # Restore original env
+    Application.put_env(:dashboard_ssd, :integrations, prev)
+  end
+
+  test "handles Linear API errors gracefully", %{conn: conn} do
+    prev = Application.get_env(:dashboard_ssd, :integrations)
+
+    # Mock Linear API to return error
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.linear.app/graphql"} ->
+        %Tesla.Env{status: 500, body: "Internal Server Error"}
+
+      _ ->
+        %Tesla.Env{status: 404}
+    end)
+
+    Application.put_env(
+      :dashboard_ssd,
+      :integrations,
+      Keyword.merge(prev || [], linear_token: "fake-token")
+    )
+
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "linear-error@example.com",
+        name: "LinearError",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    {:ok, _project} = Projects.create_project(%{name: "TestProject"})
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, _view, html} = live(conn, ~p"/")
+
+    # Should still show dashboard even with API error
+    assert html =~ "Dashboard"
+    assert html =~ "Workload Summary"
+
+    Application.put_env(:dashboard_ssd, :integrations, prev)
+  end
+
+  test "handles empty Linear API response", %{conn: conn} do
+    prev = Application.get_env(:dashboard_ssd, :integrations)
+
+    # Mock Linear API to return empty issues
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.linear.app/graphql"} ->
+        %Tesla.Env{
+          status: 200,
+          body: %{"data" => %{"issues" => %{"nodes" => []}}}
+        }
+
+      _ ->
+        %Tesla.Env{status: 404}
+    end)
+
+    Application.put_env(
+      :dashboard_ssd,
+      :integrations,
+      Keyword.merge(prev || [], linear_token: "fake-token")
+    )
+
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "linear-empty@example.com",
+        name: "LinearEmpty",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    {:ok, _project} = Projects.create_project(%{name: "TestProject"})
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, _view, html} = live(conn, ~p"/")
+
+    # Should show workload summary with zeros
+    assert html =~ "Workload Summary"
+    assert html =~ "0</div>"
+
+    Application.put_env(:dashboard_ssd, :integrations, prev)
+  end
+
+  test "refresh updates workload summary when Linear enabled", %{conn: conn} do
+    prev = Application.get_env(:dashboard_ssd, :integrations)
+
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.linear.app/graphql"} ->
+        %Tesla.Env{
+          status: 200,
+          body: %{
+            "data" => %{
+              "issues" => %{
+                "nodes" => [%{"state" => %{"name" => "Done"}}]
+              }
+            }
+          }
+        }
+
+      _ ->
+        %Tesla.Env{status: 404}
+    end)
+
+    Application.put_env(
+      :dashboard_ssd,
+      :integrations,
+      Keyword.merge(prev || [], linear_token: "fake-token")
+    )
+
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "refresh-linear@example.com",
+        name: "RefreshLinear",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    {:ok, _project} = Projects.create_project(%{name: "TestProject"})
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    # Click refresh button
+    view |> element("button", "Refresh") |> render_click()
+
+    # Should still show dashboard
+    assert render(view) =~ "Dashboard"
+
+    Application.put_env(:dashboard_ssd, :integrations, prev)
   end
 end

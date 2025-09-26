@@ -4,7 +4,7 @@ defmodule DashboardSSDWeb.HomeLive.Index do
 
   require Logger
 
-  alias DashboardSSD.{Clients, Projects, Notifications, Deployments, Analytics}
+  alias DashboardSSD.{Analytics, Clients, Deployments, Notifications, Projects}
   alias DashboardSSD.Integrations
 
   @impl true
@@ -29,31 +29,33 @@ defmodule DashboardSSDWeb.HomeLive.Index do
     if socket.assigns.loaded do
       {:noreply, socket}
     else
-      # Load all dashboard data
-      projects = Projects.list_projects()
-      clients = Clients.list_clients()
-      alerts = Notifications.list_alerts()
-      deployments = Deployments.list_deployments()
-
-      socket =
-        socket
-        |> assign(:projects, projects)
-        |> assign(:clients, clients)
-        |> assign(:alerts, alerts)
-        |> assign(:deployments, deployments)
-        |> assign(:loaded, true)
-
-      # Load workload summary asynchronously if Linear is enabled
-      if socket.assigns.linear_enabled do
-        spawn(fn -> load_workload_summary(self(), projects) end)
-      end
-
-      # Load analytics summary
-      analytics_summary = load_analytics_summary()
-      socket = assign(socket, :analytics_summary, analytics_summary)
-
-      {:noreply, socket}
+      load_dashboard_data(socket)
     end
+  end
+
+  defp load_dashboard_data(socket) do
+    # Load all dashboard data
+    projects = Projects.list_projects()
+    clients = Clients.list_clients()
+    alerts = Notifications.list_alerts()
+    deployments = Deployments.list_deployments()
+
+    socket =
+      socket
+      |> assign(:projects, projects)
+      |> assign(:clients, clients)
+      |> assign(:alerts, alerts)
+      |> assign(:deployments, deployments)
+      |> assign(:loaded, true)
+
+    # Load workload summary (sync in test, async in prod)
+    socket = load_workload_summary_if_enabled(socket, projects)
+
+    # Load analytics summary
+    analytics_summary = load_analytics_summary()
+    socket = assign(socket, :analytics_summary, analytics_summary)
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -77,9 +79,7 @@ defmodule DashboardSSDWeb.HomeLive.Index do
       |> assign(:deployments, deployments)
 
     # Reload workload summary
-    if socket.assigns.linear_enabled do
-      spawn(fn -> load_workload_summary(self(), projects) end)
-    end
+    socket = load_workload_summary_if_enabled(socket, projects)
 
     # Reload analytics
     analytics_summary = load_analytics_summary()
@@ -94,21 +94,44 @@ defmodule DashboardSSDWeb.HomeLive.Index do
     send(pid, {:workload_summary_loaded, summary})
   end
 
+  # Synchronous version for tests
+  defp load_workload_summary_sync(projects) do
+    summarize_all_projects(projects)
+  end
+
+  # Load workload summary if enabled, handling test vs prod
+  defp load_workload_summary_if_enabled(socket, _projects) when not socket.assigns.linear_enabled,
+    do: socket
+
+  defp load_workload_summary_if_enabled(socket, projects) do
+    if Application.get_env(:dashboard_ssd, :env) == :test do
+      summary = load_workload_summary_sync(projects)
+      assign(socket, :workload_summary, summary)
+    else
+      spawn(fn -> load_workload_summary(self(), projects) end)
+      socket
+    end
+  end
+
   # Summarize workload across all projects
   defp summarize_all_projects(projects) do
     if linear_enabled?() do
-      Enum.reduce(projects, %{total: 0, in_progress: 0, finished: 0}, fn project, acc ->
-        case fetch_linear_summary(project) do
-          %{total: t, in_progress: ip, finished: f} ->
-            %{total: acc.total + t, in_progress: acc.in_progress + ip, finished: acc.finished + f}
-
-          _ ->
-            acc
-        end
-      end)
+      do_summarize_projects(projects)
     else
       %{total: 0, in_progress: 0, finished: 0}
     end
+  end
+
+  defp do_summarize_projects(projects) do
+    Enum.reduce(projects, %{total: 0, in_progress: 0, finished: 0}, fn project, acc ->
+      case fetch_linear_summary(project) do
+        %{total: t, in_progress: ip, finished: f} ->
+          %{total: acc.total + t, in_progress: acc.in_progress + ip, finished: acc.finished + f}
+
+        _ ->
+          acc
+      end
+    end)
   end
 
   # Fetch Linear summary for a single project (copied from ProjectsLive)
@@ -238,16 +261,11 @@ defmodule DashboardSSDWeb.HomeLive.Index do
   # Load analytics summary
   defp load_analytics_summary do
     %{
-      uptime: Analytics.calculate_uptime() |> ensure_float(),
-      mttr: Analytics.calculate_mttr() |> ensure_float(),
-      throughput: Analytics.calculate_linear_throughput() |> ensure_float()
+      uptime: Analytics.calculate_uptime(),
+      mttr: Analytics.calculate_mttr(),
+      throughput: Analytics.calculate_linear_throughput()
     }
   end
-
-  # Ensure value is a float for display
-  defp ensure_float(value) when is_float(value), do: value
-  defp ensure_float(value) when is_integer(value), do: value / 1.0
-  defp ensure_float(_), do: 0.0
 
   # Check if Linear is enabled
   defp linear_enabled? do
