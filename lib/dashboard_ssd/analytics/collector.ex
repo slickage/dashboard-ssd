@@ -109,7 +109,7 @@ defmodule DashboardSSD.Analytics.Collector do
   def collect_response_time(url) do
     start_time = System.monotonic_time(:millisecond)
 
-    case Finch.build(:get, url) |> Finch.request(DashboardSSD.Finch) do
+    case Finch.build(:get, url) |> Finch.request(DashboardSSD.Finch, receive_timeout: 5000) do
       {:ok, %Finch.Response{}} ->
         end_time = System.monotonic_time(:millisecond)
         response_time = end_time - start_time
