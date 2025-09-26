@@ -1,10 +1,10 @@
 defmodule DashboardSSD.AnalyticsTest do
   use DashboardSSD.DataCase, async: true
 
-  alias DashboardSSD.Analytics
+  import Ecto.Query
+
+  alias DashboardSSD.{Analytics, Clients, Projects, Repo}
   alias DashboardSSD.Analytics.MetricSnapshot
-  alias DashboardSSD.Clients
-  alias DashboardSSD.Projects
 
   describe "MetricSnapshot schema" do
     test "changeset with valid attributes" do
@@ -153,6 +153,57 @@ defmodule DashboardSSD.AnalyticsTest do
       assert length(lines) == 2
       assert hd(lines) == "project_id,type,value,inserted_at"
       assert String.contains?(Enum.at(lines, 1), "#{project.id},uptime,95.0,")
+    end
+  end
+
+  describe "get_trends/2" do
+    setup do
+      {:ok, client} = Clients.create_client(%{name: "Trend Client"})
+      {:ok, project} = Projects.create_project(%{name: "Trend Project", client_id: client.id})
+      {:ok, project: project}
+    end
+
+    test "returns empty list when no metrics fall in range" do
+      assert Analytics.get_trends(nil, 7) == []
+    end
+
+    test "aggregates metrics by date and type", %{project: project} do
+      {:ok, m1} =
+        Analytics.create_metric(%{project_id: project.id, type: "uptime", value: 90.0})
+
+      {:ok, m2} =
+        Analytics.create_metric(%{project_id: project.id, type: "uptime", value: 100.0})
+
+      {:ok, m3} =
+        Analytics.create_metric(%{project_id: project.id, type: "mttr", value: 30.0})
+
+      yesterday = DateTime.add(DateTime.utc_now(), -86_400, :second)
+
+      Repo.update_all(from(m in MetricSnapshot, where: m.id == ^m1.id),
+        set: [inserted_at: yesterday]
+      )
+
+      Repo.update_all(from(m in MetricSnapshot, where: m.id == ^m2.id),
+        set: [inserted_at: yesterday]
+      )
+
+      Repo.update_all(from(m in MetricSnapshot, where: m.id == ^m3.id),
+        set: [inserted_at: yesterday]
+      )
+
+      trends = Analytics.get_trends(project.id, 2)
+
+      assert length(trends) == 2
+
+      assert Enum.any?(trends, fn
+               %{type: "uptime", avg_value: 95.0} -> true
+               _ -> false
+             end)
+
+      assert Enum.any?(trends, fn
+               %{type: "mttr", avg_value: 30.0} -> true
+               _ -> false
+             end)
     end
   end
 end
