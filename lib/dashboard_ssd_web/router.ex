@@ -27,7 +27,8 @@ defmodule DashboardSSDWeb.Router do
 
     live_session :default,
       on_mount: [{DashboardSSDWeb.UserAuth, :mount_current_user}],
-      session: {__MODULE__, :build_live_session, []} do
+      session: {__MODULE__, :build_live_session, []},
+      layout: {DashboardSSDWeb.Layouts, :theme} do
     end
 
     live_session :require_authenticated,
@@ -35,7 +36,8 @@ defmodule DashboardSSDWeb.Router do
         {DashboardSSDWeb.UserAuth, :mount_current_user},
         {DashboardSSDWeb.UserAuth, :ensure_authenticated}
       ],
-      session: {__MODULE__, :build_live_session, []} do
+      session: {__MODULE__, :build_live_session, []},
+      layout: {DashboardSSDWeb.Layouts, :theme} do
       live "/", HomeLive.Index, :index
     end
 
@@ -44,7 +46,8 @@ defmodule DashboardSSDWeb.Router do
         {DashboardSSDWeb.UserAuth, :mount_current_user},
         {DashboardSSDWeb.UserAuth, {:require, :read, :clients}}
       ],
-      session: {__MODULE__, :build_live_session, []} do
+      session: {__MODULE__, :build_live_session, []},
+      layout: {DashboardSSDWeb.Layouts, :theme} do
       live "/clients", ClientsLive.Index, :index
       live "/clients/new", ClientsLive.Index, :new
       live "/clients/:id/edit", ClientsLive.Index, :edit
@@ -55,7 +58,8 @@ defmodule DashboardSSDWeb.Router do
         {DashboardSSDWeb.UserAuth, :mount_current_user},
         {DashboardSSDWeb.UserAuth, {:require, :read, :projects}}
       ],
-      session: {__MODULE__, :build_live_session, []} do
+      session: {__MODULE__, :build_live_session, []},
+      layout: {DashboardSSDWeb.Layouts, :theme} do
       live "/projects", ProjectsLive.Index, :index
       live "/projects/:id/edit", ProjectsLive.Index, :edit
     end
@@ -66,7 +70,8 @@ defmodule DashboardSSDWeb.Router do
         {DashboardSSDWeb.UserAuth, :mount_current_user},
         {DashboardSSDWeb.UserAuth, :ensure_authenticated}
       ],
-      session: {__MODULE__, :build_live_session, []} do
+      session: {__MODULE__, :build_live_session, []},
+      layout: {DashboardSSDWeb.Layouts, :theme} do
       live "/settings", SettingsLive.Index, :index
     end
 
@@ -76,7 +81,8 @@ defmodule DashboardSSDWeb.Router do
         {DashboardSSDWeb.UserAuth, :mount_current_user},
         {DashboardSSDWeb.UserAuth, {:require, :read, :analytics}}
       ],
-      session: {__MODULE__, :build_live_session, []} do
+      session: {__MODULE__, :build_live_session, []},
+      layout: {DashboardSSDWeb.Layouts, :theme} do
       live "/analytics", AnalyticsLive.Index, :index
     end
 
@@ -86,7 +92,8 @@ defmodule DashboardSSDWeb.Router do
         {DashboardSSDWeb.UserAuth, :mount_current_user},
         {DashboardSSDWeb.UserAuth, {:require, :read, :kb}}
       ],
-      session: {__MODULE__, :build_live_session, []} do
+      session: {__MODULE__, :build_live_session, []},
+      layout: {DashboardSSDWeb.Layouts, :theme} do
       live "/kb", KbLive.Index, :index
     end
 

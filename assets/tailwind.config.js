@@ -15,6 +15,28 @@ module.exports = {
     extend: {
       colors: {
         brand: "#FD4F00",
+        theme: {
+          background: "var(--theme-background)",
+          surface: "var(--theme-surface)",
+          surfaceMuted: "var(--theme-surface-muted)",
+          border: "var(--theme-border)",
+          primary: "var(--theme-primary)",
+          primarySoft: "var(--theme-primary-soft)",
+          accent: "var(--theme-accent)",
+          text: "var(--theme-text)",
+          muted: "var(--theme-text-muted)"
+        }
+      },
+      fontFamily: {
+        theme: ["'Inter'", "'Segoe UI'", "ui-sans-serif", "system-ui", "-apple-system", "sans-serif"],
+        sans: ["'Inter'", "'Segoe UI'", "ui-sans-serif", "system-ui", "-apple-system", "sans-serif"]
+      },
+      boxShadow: {
+        "theme-card": "0px 24px 60px -40px rgba(15, 23, 42, 0.25)",
+        "theme-soft": "0px 12px 24px -16px rgba(15, 23, 42, 0.18)"
+      },
+      borderRadius: {
+        theme: "20px"
       }
     },
   },

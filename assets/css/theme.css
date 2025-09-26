@@ -1,0 +1,28 @@
+:root {
+  --theme-background: #f5f7fb;
+  --theme-surface: #ffffff;
+  --theme-surface-muted: #f0f2f7;
+  --theme-border: #e5e7eb;
+  --theme-primary: #fd4f00;
+  --theme-primary-soft: #ff9f92;
+  --theme-accent: #2c5dff;
+  --theme-text: #0f172a;
+  --theme-text-muted: #475467;
+  --theme-font-family: 'Inter', 'Segoe UI', ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+body {
+  background-color: var(--theme-background);
+  color: var(--theme-text);
+  font-family: var(--theme-font-family);
+}
+
+.theme-surface-card {
+  background-color: var(--theme-surface);
+  box-shadow: 0 24px 60px -40px rgba(15, 23, 42, 0.25);
+  border-radius: 20px;
+}
+
+.theme-text-muted {
+  color: var(--theme-text-muted);
+}
