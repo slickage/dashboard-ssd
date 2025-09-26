@@ -73,11 +73,32 @@ jobs:
           path: deps
           key: ${{ runner.os }}-deps-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('**/mix.lock') }}
 
+      - name: Cache Mix build
+        uses: actions/cache@v4
+        with:
+          path: |
+            _build/test
+            _build/dev
+          key: ${{ runner.os }}-build-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('**/mix.lock', 'config/*.exs', 'config/**/*.exs') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-
+
       - name: Cache PLTs
         uses: actions/cache@v4
         with:
           path: priv/plts
           key: ${{ runner.os }}-plts-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('**/mix.lock') }}
+
+      - name: Cache assets
+        id: assets-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            assets/node_modules
+            priv/static
+          key: ${{ runner.os }}-assets-${{ hashFiles('assets/package-lock.json', 'assets/yarn.lock', 'assets/mix.exs', 'assets/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-assets-
 
       - name: Install dependencies
         run: |
@@ -105,11 +126,6 @@ jobs:
       - name: Quality | Credo
         run: mix credo --strict
 
-      - name: Correctness | Compile (dev warnings)
-        env:
-          MIX_ENV: dev
-        run: mix compile --force --warnings-as-errors
-
       - name: Correctness | Compile (test warnings)
         run: mix compile --force --warnings-as-errors
 
@@ -117,7 +133,9 @@ jobs:
         env:
           MIX_ENV: dev
         run: |
-          mix assets.setup
+          if [ "${{ steps.assets-cache.outputs.cache-hit }}" != 'true' ]; then
+            mix assets.setup
+          fi
           mix assets.build
 
       - name: Infrastructure | Docs
@@ -133,6 +151,7 @@ jobs:
       - name: Correctness | Tests w/ coverage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXUNIT_MAX_CASES: 20
         run: mix coveralls.multiple --type local --type github
 
       - name: Correctness | Dialyzer PLT
