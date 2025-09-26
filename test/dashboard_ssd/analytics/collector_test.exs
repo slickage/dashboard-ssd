@@ -133,5 +133,4 @@ defmodule DashboardSSD.Analytics.CollectorTest do
       assert Enum.any?(mttr_values, fn value -> Float.round(value, 1) == 5.0 end)
     end
   end
-
 end

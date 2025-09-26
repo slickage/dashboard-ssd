@@ -8,7 +8,10 @@ defmodule DashboardSSD.DeploymentsHealthChecksTest do
   describe "health checks" do
     setup do
       {:ok, client} = Clients.create_client(%{name: "Deployments Client"})
-      {:ok, project} = Projects.create_project(%{name: "Deployments Project", client_id: client.id})
+
+      {:ok, project} =
+        Projects.create_project(%{name: "Deployments Project", client_id: client.id})
+
       {:ok, project: project}
     end
 
@@ -34,7 +37,8 @@ defmodule DashboardSSD.DeploymentsHealthChecksTest do
           endpoint_url: "http://enabled.example"
         })
 
-      {:ok, disabled_project} = Projects.create_project(%{name: "Disabled", client_id: project.client_id})
+      {:ok, disabled_project} =
+        Projects.create_project(%{name: "Disabled", client_id: project.client_id})
 
       {:ok, _} =
         Deployments.upsert_health_check_setting(disabled_project.id, %{
@@ -57,7 +61,9 @@ defmodule DashboardSSD.DeploymentsHealthChecksTest do
 
       {:ok, other_client} = Clients.create_client(%{name: "Second"})
       {:ok, other_project} = Projects.create_project(%{name: "Other", client_id: other_client.id})
-      {:ok, _} = Deployments.create_health_check(%{project_id: other_project.id, status: "degraded"})
+
+      {:ok, _} =
+        Deployments.create_health_check(%{project_id: other_project.id, status: "degraded"})
 
       # ensure the first record is older than the second to exercise ordering
       Repo.update_all(
