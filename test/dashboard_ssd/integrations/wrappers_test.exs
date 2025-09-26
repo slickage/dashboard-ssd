@@ -1,5 +1,5 @@
 defmodule DashboardSSD.Integrations.WrappersTest do
-  use DashboardSSD.DataCase, async: true
+  use DashboardSSD.DataCase
 
   alias DashboardSSD.Integrations
   alias DashboardSSD.Accounts.{ExternalIdentity, User}
