@@ -1,6 +1,8 @@
 defmodule DashboardSSD.Notifications.NotificationRule do
+  @moduledoc "Notification rule defining when and where to send alerts."
   use Ecto.Schema
   import Ecto.Changeset
+  alias Ecto.Changeset
 
   @typedoc "Notification rule record"
   @type t :: %__MODULE__{
@@ -19,6 +21,7 @@ defmodule DashboardSSD.Notifications.NotificationRule do
   end
 
   @doc false
+  @spec changeset(t() | Changeset.t(), map()) :: Changeset.t()
   def changeset(rule, attrs) do
     rule
     |> cast(attrs, [:project_id, :event_type, :channel])

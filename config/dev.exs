@@ -16,6 +16,9 @@ config :dashboard_ssd, DashboardSSD.Repo,
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
+dev_secret_key_base =
+  System.get_env("DEV_SECRET_KEY_BASE", String.duplicate("a", 64))
+
 config :dashboard_ssd, DashboardSSDWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
@@ -23,7 +26,7 @@ config :dashboard_ssd, DashboardSSDWeb.Endpoint,
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
-  secret_key_base: "vJw3JQf/31bK8W423i8VLe482HL8RWvdnAaRYfbybI9rQZ0+sF9kFKKSbb7USDQv",
+  secret_key_base: dev_secret_key_base,
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:dashboard_ssd, ~w(--sourcemap=inline --watch)]},
     tailwind: {Tailwind, :install_and_run, [:dashboard_ssd, ~w(--watch)]}

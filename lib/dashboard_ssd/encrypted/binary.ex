@@ -1,4 +1,4 @@
 defmodule DashboardSSD.Encrypted.Binary do
-  # Encrypted Ecto type backed by :binary (bytea) in the DB
+  @moduledoc "Encrypted Ecto type stored as a :binary (bytea) column."
   use Cloak.Ecto.Binary, vault: DashboardSSD.Vault
 end

@@ -1,5 +1,7 @@
 defmodule DashboardSSDWeb.Router do
+  @moduledoc "Application router defining pipelines, live_sessions and routes."
   use DashboardSSDWeb, :router
+  alias Plug.Conn
 
   pipeline :browser do
     plug :accepts, ["html"]
@@ -23,7 +25,71 @@ defmodule DashboardSSDWeb.Router do
   scope "/", DashboardSSDWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live_session :default,
+      on_mount: [{DashboardSSDWeb.UserAuth, :mount_current_user}],
+      session: {__MODULE__, :build_live_session, []} do
+    end
+
+    live_session :require_authenticated,
+      on_mount: [
+        {DashboardSSDWeb.UserAuth, :mount_current_user},
+        {DashboardSSDWeb.UserAuth, :ensure_authenticated}
+      ],
+      session: {__MODULE__, :build_live_session, []} do
+      live "/", HomeLive.Index, :index
+    end
+
+    live_session :clients_read,
+      on_mount: [
+        {DashboardSSDWeb.UserAuth, :mount_current_user},
+        {DashboardSSDWeb.UserAuth, {:require, :read, :clients}}
+      ],
+      session: {__MODULE__, :build_live_session, []} do
+      live "/clients", ClientsLive.Index, :index
+      live "/clients/new", ClientsLive.Index, :new
+      live "/clients/:id/edit", ClientsLive.Index, :edit
+    end
+
+    live_session :projects_read,
+      on_mount: [
+        {DashboardSSDWeb.UserAuth, :mount_current_user},
+        {DashboardSSDWeb.UserAuth, {:require, :read, :projects}}
+      ],
+      session: {__MODULE__, :build_live_session, []} do
+      live "/projects", ProjectsLive.Index, :index
+      live "/projects/:id/edit", ProjectsLive.Index, :edit
+    end
+
+    # Settings require authentication but no specific RBAC subject yet
+    live_session :settings_auth,
+      on_mount: [
+        {DashboardSSDWeb.UserAuth, :mount_current_user},
+        {DashboardSSDWeb.UserAuth, :ensure_authenticated}
+      ],
+      session: {__MODULE__, :build_live_session, []} do
+      live "/settings", SettingsLive.Index, :index
+    end
+
+    # Analytics requires admin permissions
+    live_session :analytics_admin,
+      on_mount: [
+        {DashboardSSDWeb.UserAuth, :mount_current_user},
+        {DashboardSSDWeb.UserAuth, {:require, :read, :analytics}}
+      ],
+      session: {__MODULE__, :build_live_session, []} do
+      live "/analytics", AnalyticsLive.Index, :index
+    end
+
+    # Knowledge base accessible to any authenticated user with :read :kb rights
+    live_session :knowledge_base,
+      on_mount: [
+        {DashboardSSDWeb.UserAuth, :mount_current_user},
+        {DashboardSSDWeb.UserAuth, {:require, :read, :kb}}
+      ],
+      session: {__MODULE__, :build_live_session, []} do
+      live "/kb", KbLive.Index, :index
+    end
+
     get "/auth/:provider", AuthController, :request
     # Use distinct actions to avoid CSRF action reuse warnings
     get "/auth/:provider/callback", AuthController, :callback_get
@@ -62,5 +128,23 @@ defmodule DashboardSSDWeb.Router do
       live_dashboard "/dashboard", metrics: DashboardSSDWeb.Telemetry
       forward "/mailbox", Plug.Swoosh.MailboxPreview
     end
+  end
+
+  @doc """
+  Builds session data for LiveViews.
+
+  Extracts user_id from session and constructs the current path with query string
+  for use in LiveView sessions.
+  """
+  @spec build_live_session(Conn.t()) :: map()
+  def build_live_session(conn) do
+    path =
+      conn.request_path <>
+        if conn.query_string in [nil, ""], do: "", else: "?" <> conn.query_string
+
+    %{
+      "user_id" => Plug.Conn.get_session(conn, :user_id),
+      "current_path" => path
+    }
   end
 end

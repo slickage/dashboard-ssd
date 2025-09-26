@@ -1,13 +1,27 @@
 name: CI
 
+env:
+  OTP_VERSION: '27.1'
+  ELIXIR_VERSION: '1.17.3'
+  MIX_ENV: test
+  COVERALLS_MINIMUM_COVERAGE: 90
+
 on:
   push:
-    branches: ["**"]
+    branches: ['**']
   pull_request:
-    branches: ["**"]
+    branches: ['**']
+  workflow_dispatch:
+    inputs:
+      deploy_docs:
+        description: 'Deploy docs (override branch restriction)'
+        default: 'false'
+        required: false
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -20,7 +34,7 @@ jobs:
     services:
       postgres:
         image: postgres:15
-        ports: ["5432:5432"]
+        ports: ['5432:5432']
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -30,14 +44,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
-    env:
-      MIX_ENV: test
-      PGUSER: postgres
-      PGPASSWORD: postgres
-      PGDATABASE: dashboard_ssd_test
-      PGHOST: 127.0.0.1
-      PGPORT: 5432
+          --tmpfs /var/lib/postgresql/data:rw
 
     steps:
       - name: Checkout
@@ -49,113 +56,159 @@ jobs:
         id: beam
         uses: erlef/setup-beam@v1
         with:
-          otp-version: '27.1'
-          elixir-version: '1.17.3'
+          otp-version: ${{ env.OTP_VERSION }}
+          elixir-version: ${{ env.ELIXIR_VERSION }}
 
-      - name: Cache Hex
+      - name: Cache Hex / Rebar
         uses: actions/cache@v4
         with:
-          path: ~/.hex
-          key: ${{ runner.os }}-hex-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('**/mix.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-hex-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-
+          path: |
+            ~/.hex
+            ~/.cache/rebar3
+          key: ${{ runner.os }}-hex-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('**/mix.lock') }}
 
-      - name: Cache Rebar
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/rebar3
-          key: ${{ runner.os }}-rebar-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('**/mix.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-rebar-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-
-
-      - name: Cache deps
+      - name: Cache Mix deps
         uses: actions/cache@v4
         with:
           path: deps
-          key: ${{ runner.os }}-deps-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('**/mix.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-deps-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-
+          key: ${{ runner.os }}-deps-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('**/mix.lock') }}
 
-      - name: Cache build
+      - name: Cache Mix build
         uses: actions/cache@v4
         with:
-          path: _build
-          key: ${{ runner.os }}-build-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('**/mix.lock') }}
+          path: |
+            _build/test
+            _build/dev
+          key: ${{ runner.os }}-build-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('**/mix.lock', 'config/*.exs', 'config/**/*.exs') }}
           restore-keys: |
-            ${{ runner.os }}-build-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-
+            ${{ runner.os }}-build-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-
 
-      - name: Cache Dialyzer PLTs
+      - name: Cache PLTs
         uses: actions/cache@v4
         with:
           path: priv/plts
-          key: ${{ runner.os }}-plts-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('**/mix.lock') }}
+          key: ${{ runner.os }}-plts-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('**/mix.lock') }}
+
+      - name: Cache assets
+        id: assets-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            assets/node_modules
+            priv/static
+          key: ${{ runner.os }}-assets-${{ hashFiles('assets/package-lock.json', 'assets/yarn.lock', 'assets/mix.exs', 'assets/package.json') }}
           restore-keys: |
-            ${{ runner.os }}-plts-elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-
+            ${{ runner.os }}-assets-
 
       - name: Install dependencies
-        run: mix deps.get
+        run: |
+          mix deps.get
+          MIX_ENV=dev mix deps.get
 
-      - name: Install dev dependencies
-        env:
-          MIX_ENV: dev
-        run: mix deps.get
-
-      - name: Hex audit
+      - name: Security | Hex audit
         run: mix hex.audit
 
-      - name: Compile
-        run: mix compile
+      - name: Security | deps audit
+        run: MIX_ENV=dev mix deps.audit
 
-      - name: Compile (warnings as errors on PRs)
-        if: ${{ github.event_name == 'pull_request' }}
-        run: mix compile --force --warnings-as-errors
+      - name: Security | gitleaks
+        run: ./scripts/secret_scan.sh
 
-      - name: Format
+      - name: Security | Sobelow
+        env:
+          MIX_ENV: dev
+          SOBELOW_CONFIDENCE: medium
+        run: mix sobelow --exit
+
+      - name: Quality | Format
         run: mix format --check-formatted
 
-      - name: Credo
+      - name: Quality | Credo
         run: mix credo --strict
 
-      - name: Assets setup
-        env:
-          MIX_ENV: dev
-        run: mix assets.setup
+      - name: Correctness | Compile (test warnings)
+        run: mix compile --force --warnings-as-errors
 
-      - name: Assets build
-        env:
-          MIX_ENV: dev
-        run: mix assets.build
-
-      - name: Dialyzer PLTs
+      - name: Infrastructure | Assets
         env:
           MIX_ENV: dev
         run: |
-          mkdir -p priv/plts
-          mix dialyzer --plt
+          if [ "${{ steps.assets-cache.outputs.cache-hit }}" != 'true' ]; then
+            mix assets.setup
+          fi
+          mix assets.build
 
-      - name: Dialyzer
+      - name: Infrastructure | Docs
         env:
           MIX_ENV: dev
-        run: mix dialyzer --format short
+        run: mix docs
 
-      - name: Prepare DB
+      - name: Infrastructure | Prepare DB
         run: |
           mix ecto.create
           mix ecto.migrate
 
-      - name: Security scan (Sobelow)
+      - name: Correctness | Tests w/ coverage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXUNIT_MAX_CASES: 20
+        run: mix coveralls.multiple --type local --type github
+
+      - name: Correctness | Dialyzer PLT
         env:
           MIX_ENV: dev
-        run: mix sobelow --exit
-        continue-on-error: true
+        run: mix dialyzer --plt
 
-      - name: Coverage (ExCoveralls GitHub)
+      - name: Correctness | Dialyzer
         env:
-          MIX_ENV: test
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mix coveralls.github
+          MIX_ENV: dev
+        run: mix dialyzer --format short
 
-      - name: Docs
+      - name: Correctness | Doctor
+        env:
+          MIX_ENV: dev
+        run: mix doctor --summary --raise
+
+  docs-pages:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_docs == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup BEAM
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ env.OTP_VERSION }}
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+      - name: Cache Mix deps
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: ${{ runner.os }}-deps-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('**/mix.lock') }}
+      - name: Install dependencies
+        env:
+          MIX_ENV: dev
+        run: mix deps.get
+      - name: Build docs
         env:
           MIX_ENV: dev
         run: mix docs
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: doc
+
+  deploy-pages:
+    needs: docs-pages
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_docs == 'true')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

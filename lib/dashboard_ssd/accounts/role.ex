@@ -1,6 +1,8 @@
 defmodule DashboardSSD.Accounts.Role do
+  @moduledoc "Role schema (admin, employee, client)."
   use Ecto.Schema
   import Ecto.Changeset
+  alias Ecto.Changeset
 
   @typedoc "Role record"
   @type t :: %__MODULE__{id: integer() | nil, name: String.t() | nil}
@@ -12,6 +14,7 @@ defmodule DashboardSSD.Accounts.Role do
   end
 
   @doc false
+  @spec changeset(t() | Changeset.t(), map()) :: Changeset.t()
   def changeset(role, attrs) do
     role
     |> cast(attrs, [:name])

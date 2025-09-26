@@ -1,6 +1,8 @@
 defmodule DashboardSSD.Accounts.User do
+  @moduledoc "User schema with role and external identities."
   use Ecto.Schema
   import Ecto.Changeset
+  alias Ecto.Changeset
 
   @type t :: %__MODULE__{
           id: integer() | nil,
@@ -18,6 +20,19 @@ defmodule DashboardSSD.Accounts.User do
     timestamps(type: :utc_datetime)
   end
 
+  @doc """
+  Creates a changeset for user validation and casting.
+
+  ## Parameters
+    - user: The user struct or changeset
+    - attrs: Map of attributes to cast and validate
+
+  ## Validations
+    - email: Required and must be unique
+    - name: Optional
+    - role_id: Optional
+  """
+  @spec changeset(t() | Changeset.t(), map()) :: Changeset.t()
   def changeset(user, attrs) do
     user
     |> cast(attrs, [:email, :name, :role_id])

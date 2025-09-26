@@ -16,6 +16,57 @@ defmodule DashboardSSD.MixProject do
         coveralls: :test,
         "coveralls.github": :test,
         sobelow: :dev
+      ],
+      docs: [
+        main: "readme",
+        source_url: "https://github.com/akinsey/dashboard-ssd",
+        source_ref: System.get_env("DOCS_SOURCE_REF") || "phase/3.5-liveviews",
+        homepage_url: "https://github.com/akinsey/dashboard-ssd",
+        extras: [
+          "README.md": [title: "Overview"],
+          "docs/integrations.md": [title: "Integrations (Local)"],
+          "specs/001-dashboard-init/spec.md": [title: "MVP Spec"],
+          "specs/001-dashboard-init/tasks.md": [title: "Tasks"]
+        ],
+        groups_for_extras: [
+          "Getting Started": ["README.md"],
+          Guides: ["docs/integrations.md"],
+          Specs: ["specs/001-dashboard-init/spec.md", "specs/001-dashboard-init/tasks.md"]
+        ],
+        nest_modules_by_prefix: [
+          DashboardSSD,
+          DashboardSSDWeb,
+          DashboardSSD.Integrations
+        ],
+        groups_for_modules: [
+          Contexts: [
+            DashboardSSD.Accounts,
+            DashboardSSD.Clients,
+            DashboardSSD.Projects,
+            DashboardSSD.Deployments,
+            DashboardSSD.Notifications,
+            DashboardSSD.Contracts
+          ],
+          Schemas: [
+            ~r/^DashboardSSD\.(Accounts|Clients|Projects|Deployments|Notifications|Contracts)\.[A-Z].*/
+          ],
+          Integrations: [~r/^DashboardSSD\.Integrations(\.|$).*/],
+          "Web · LiveViews": [~r/^DashboardSSDWeb\..*Live/],
+          "Web · Components": [~r/^DashboardSSDWeb\..*Components/],
+          "Web · Controllers": [~r/^DashboardSSDWeb\..*Controller/],
+          "Web · Other": [
+            DashboardSSDWeb.Router,
+            DashboardSSDWeb.Endpoint,
+            DashboardSSDWeb.Telemetry,
+            DashboardSSDWeb.Gettext
+          ]
+        ],
+        skip_undefined_reference_warnings_on: [
+          "README.md",
+          "docs/integrations.md",
+          "specs/001-dashboard-init/spec.md",
+          "specs/001-dashboard-init/tasks.md"
+        ]
       ]
     ]
   end
@@ -74,7 +125,9 @@ defmodule DashboardSSD.MixProject do
       {:excoveralls, "~> 0.18", only: :test, runtime: false},
       {:cloak_ecto, "~> 1.2"},
       {:ueberauth, "~> 0.10"},
-      {:ueberauth_google, "~> 0.10"}
+      {:ueberauth_google, "~> 0.10"},
+      {:doctor, "~> 0.22", only: :dev, runtime: false},
+      {:mix_audit, "~> 2.1", only: :dev, runtime: false}
     ]
   end
 
@@ -91,11 +144,23 @@ defmodule DashboardSSD.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       check: [
+        "hex.audit",
+        "cmd MIX_ENV=dev mix deps.audit",
+        "cmd SKIP_SECRET_SCAN=${SKIP_SECRET_SCAN:-false} ./scripts/secret_scan.sh",
+        "cmd MIX_ENV=dev mix compile --force --warnings-as-errors",
+        "cmd MIX_ENV=test mix compile --force --warnings-as-errors",
         "format --check-formatted",
         "credo --strict",
-        "dialyzer",
-        "test",
-        "docs"
+        "cmd SOBELOW_CONFIDENCE=medium MIX_ENV=dev mix sobelow --exit",
+        "cmd MIX_ENV=dev mix assets.setup",
+        "cmd MIX_ENV=dev mix assets.build",
+        "cmd MIX_ENV=dev mix dialyzer --plt",
+        "cmd MIX_ENV=dev mix dialyzer --format short",
+        "cmd MIX_ENV=test mix ecto.create --quiet",
+        "cmd MIX_ENV=test mix ecto.migrate --quiet",
+        "cmd COVERALLS_MINIMUM_COVERAGE=90 MIX_ENV=test mix coveralls",
+        "cmd MIX_ENV=dev mix docs",
+        "cmd MIX_ENV=dev mix doctor --summary --raise"
       ],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind dashboard_ssd", "esbuild dashboard_ssd"],

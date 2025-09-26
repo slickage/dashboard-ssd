@@ -1,6 +1,7 @@
 defmodule DashboardSSD.Accounts.ExternalIdentity do
   use Ecto.Schema
   import Ecto.Changeset
+  alias Ecto.Changeset
 
   @moduledoc "Linked external identity credentials for a user (e.g., Google)."
 
@@ -26,6 +27,7 @@ defmodule DashboardSSD.Accounts.ExternalIdentity do
   end
 
   @doc false
+  @spec changeset(t() | Changeset.t(), map()) :: Changeset.t()
   def changeset(identity, attrs) do
     identity
     |> cast(attrs, [:provider, :provider_id, :token, :refresh_token, :expires_at, :user_id])

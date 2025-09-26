@@ -6,9 +6,7 @@ defmodule DashboardSSD.Integrations.LinearTest do
   setup do
     Tesla.Mock.mock(fn
       %{method: :post, url: "https://api.linear.app/graphql", headers: headers, body: body} ->
-        assert Enum.any?(headers, fn {k, v} ->
-                 k == "authorization" and String.starts_with?(v, "Bearer ")
-               end)
+        assert Enum.any?(headers, fn {k, v} -> k == "authorization" and v == "tok" end)
 
         body_map = if is_binary(body), do: Jason.decode!(body), else: body
         assert Map.has_key?(body_map, "query") or Map.has_key?(body_map, :query)

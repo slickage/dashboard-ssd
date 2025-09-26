@@ -7,6 +7,10 @@
 # General application configuration
 import Config
 
+config :dashboard_ssd, :env, config_env()
+config :dashboard_ssd, :health_checks, interval_ms: 60_000, enabled: true
+config :dashboard_ssd, :analytics, collection_interval_ms: 300_000, enabled: true
+
 config :dashboard_ssd,
   namespace: DashboardSSD,
   ecto_repos: [DashboardSSD.Repo],
@@ -94,18 +98,14 @@ config :ueberauth, Ueberauth,
        ]}
   ]
 
-# Git hooks: enforce checks on pre-commit
+# Git hooks: enforce checks before pushing
 if config_env() == :dev do
   config :git_hooks,
     auto_install: true,
     hooks: [
-      pre_commit: [
+      pre_push: [
         tasks: [
-          {:mix_task, :format, ["--check-formatted"]},
-          {:mix_task, :credo, ["--strict"]},
-          {:mix_task, :dialyzer, []},
-          {:mix_task, :test, []},
-          {:cmd, "mix docs > /dev/null"}
+          {:cmd, "mix check"}
         ]
       ]
     ]
