@@ -47,7 +47,11 @@ defmodule DashboardSSDWeb.UserAuth do
           end
       end
 
-    {:cont, Phoenix.Component.assign(socket, current_user: user)}
+    {:cont,
+     Phoenix.Component.assign(socket,
+       current_user: user,
+       current_path: Map.get(session, "current_path")
+     )}
   end
 
   # LiveView on_mount: ensure_authenticated (redirects to OAuth with redirect_to)
