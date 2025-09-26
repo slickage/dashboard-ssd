@@ -18,43 +18,41 @@ defmodule DashboardSSDWeb.KbLive.Index do
   def handle_event("search", %{"query" => query}, socket) do
     query = String.trim(query || "")
 
-    cond do
-      query == "" ->
-        {:noreply,
-         socket
-         |> assign(:query, "")
-         |> assign(:results, [])
-         |> assign(:search_performed, false)
-         |> put_flash(:error, "Enter a search term to look up Notion content.")}
+    if query == "" do
+      {:noreply,
+       socket
+       |> assign(:query, "")
+       |> assign(:results, [])
+       |> assign(:search_performed, false)
+       |> put_flash(:error, "Enter a search term to look up Notion content.")}
+    else
+      case Integrations.notion_search(query) do
+        {:ok, %{"results" => results}} ->
+          parsed = parse_results(results)
 
-      true ->
-        case Integrations.notion_search(query) do
-          {:ok, %{"results" => results}} ->
-            parsed = parse_results(results)
+          {:noreply,
+           socket
+           |> assign(:query, query)
+           |> assign(:results, parsed)
+           |> assign(:search_performed, true)
+           |> clear_flash(:error)}
 
-            {:noreply,
-             socket
-             |> assign(:query, query)
-             |> assign(:results, parsed)
-             |> assign(:search_performed, true)
-             |> clear_flash(:error)}
+        {:error, {:missing_env, _env}} ->
+          {:noreply,
+           socket
+           |> assign(:query, query)
+           |> assign(:results, [])
+           |> assign(:search_performed, true)
+           |> put_flash(:error, "Notion integration is not configured.")}
 
-          {:error, {:missing_env, _env}} ->
-            {:noreply,
-             socket
-             |> assign(:query, query)
-             |> assign(:results, [])
-             |> assign(:search_performed, true)
-             |> put_flash(:error, "Notion integration is not configured.")}
-
-          {:error, reason} ->
-            {:noreply,
-             socket
-             |> assign(:query, query)
-             |> assign(:results, [])
-             |> assign(:search_performed, true)
-             |> put_flash(:error, error_message(reason))}
-        end
+        {:error, reason} ->
+          {:noreply,
+           socket
+           |> assign(:query, query)
+           |> assign(:results, [])
+           |> assign(:search_performed, true)
+           |> put_flash(:error, error_message(reason))}
+      end
     end
   end
 
@@ -95,8 +93,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
 
   defp extract_plain_text(list) when is_list(list) do
     list
-    |> Enum.map(&(&1["plain_text"] || ""))
-    |> Enum.join(" ")
+    |> Enum.map_join(" ", &(&1["plain_text"] || ""))
     |> String.trim()
     |> case do
       "" -> nil
