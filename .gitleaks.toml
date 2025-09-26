@@ -1,0 +1,12 @@
+title = "DashboardSSD Gitleaks config"
+
+[allowlist]
+  description = "Directories and files ignored during secret scanning"
+  paths = [
+    '''^deps/''',
+    '''^_build/''',
+    '''^priv/static/''',
+    '''^cover/''',
+    '''^doc/''',
+    '''^\.env$'''
+  ]

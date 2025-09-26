@@ -15,20 +15,40 @@ defmodule DashboardSSD.Integrations do
   defp cfg, do: Application.get_env(:dashboard_ssd, :integrations, [])
 
   defp fetch!(key, env_key) do
-    val = Keyword.get(cfg(), key) || System.get_env(env_key)
+    conf = Keyword.get(cfg(), key)
+
+    val =
+      case conf do
+        nil -> System.get_env(env_key)
+        "" -> System.get_env(env_key)
+        other -> other
+      end
+
     if is_nil(val) or val == "", do: {:error, {:missing_env, env_key}}, else: {:ok, val}
   end
 
   # Linear
   @spec linear_list_issues(String.t(), map()) :: {:ok, map()} | error()
+  @doc """
+  List Linear issues via GraphQL using the configured token.
+
+  Accepts a GraphQL `query` and optional `variables` map. Returns `{:ok, map}`
+  with response data or `{:error, reason}` when missing configuration or request fails.
+  """
   def linear_list_issues(query, variables \\ %{}) do
     with {:ok, token} <- fetch!(:linear_token, "LINEAR_TOKEN") do
-      Linear.list_issues(token, query, variables)
+      Linear.list_issues(strip_bearer(token), query, variables)
     end
   end
 
   # Slack
   @spec slack_send_message(String.t() | nil, String.t()) :: {:ok, map()} | error()
+  @doc """
+  Send a message to Slack using the bot token and optional channel override.
+
+  If `channel` is nil, falls back to configured `SLACK_CHANNEL`. Returns
+  `{:ok, map}` on success or `{:error, reason}` when configuration is missing.
+  """
   def slack_send_message(channel, text) do
     with {:ok, token} <- fetch!(:slack_bot_token, "SLACK_BOT_TOKEN") do
       channel = channel || Keyword.get(cfg(), :slack_channel) || System.get_env("SLACK_CHANNEL")
@@ -43,6 +63,10 @@ defmodule DashboardSSD.Integrations do
 
   # Notion
   @spec notion_search(String.t()) :: {:ok, map()} | error()
+  @doc """
+  Search Notion for the given query string using the configured integration token.
+  Returns `{:ok, map}` on success or `{:error, reason}` when configuration is missing.
+  """
   def notion_search(query) do
     with {:ok, token} <- fetch!(:notion_token, "NOTION_TOKEN") do
       Notion.search(token, query)
@@ -51,6 +75,12 @@ defmodule DashboardSSD.Integrations do
 
   # Drive
   @spec drive_list_files_in_folder(String.t()) :: {:ok, map()} | error()
+  @doc """
+  List Google Drive files in the specified `folder_id` using a configured access token.
+
+  Uses `GOOGLE_DRIVE_TOKEN` or `GOOGLE_OAUTH_TOKEN` when present. For per-user access,
+  prefer `drive_list_files_for_user/2`.
+  """
   def drive_list_files_in_folder(folder_id) do
     # Accept either GOOGLE_DRIVE_TOKEN or GOOGLE_OAUTH_TOKEN
     token =
@@ -65,10 +95,11 @@ defmodule DashboardSSD.Integrations do
   end
 
   @doc """
-  List Drive files in a folder for a specific user using their stored Google token.
+  List Google Drive files in `folder_id` using the stored OAuth token for the given user.
 
-  Looks up `external_identities` by provider "google". Returns {:error, :no_token}
-  if no token is present. Use `/auth/google` to sign in and store tokens.
+  Accepts either a user ID (integer) or a user struct/map with an `:id` key.
+  Looks up the user's `external_identities` with provider "google" and uses that token.
+  Returns `{:error, :no_token}` if no identity is stored.
   """
   @spec drive_list_files_for_user(pos_integer() | %{id: pos_integer()}, String.t()) ::
           {:ok, map()} | error()
@@ -84,4 +115,25 @@ defmodule DashboardSSD.Integrations do
         {:error, :no_token}
     end
   end
+
+  # Generic Linear GraphQL call using configured token
+  @spec linear_graphql(String.t(), map()) :: {:ok, map()} | error()
+  @doc """
+  Make a raw Linear GraphQL request with the configured token.
+  Convenience used by `sync_from_linear/0` and other helpers.
+  """
+  def linear_graphql(query, variables \\ %{}) do
+    with {:ok, token} <- fetch!(:linear_token, "LINEAR_TOKEN") do
+      Linear.list_issues(strip_bearer(token), query, variables)
+    end
+  end
+
+  defp strip_bearer(token) when is_binary(token) do
+    token
+    |> String.trim()
+    |> String.replace_prefix("Bearer ", "")
+    |> String.replace_prefix("bearer ", "")
+  end
+
+  defp strip_bearer(other), do: other
 end

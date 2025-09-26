@@ -5,8 +5,8 @@ defmodule DashboardSSDWeb do
 
   This can be used in your application as:
 
-      use DashboardSSDWeb, :controller
-      use DashboardSSDWeb, :html
+     use DashboardSSDWeb, :controller
+     use DashboardSSDWeb, :html
 
   The definitions below will be executed for every controller,
   component, etc, so keep them short and clean, focused
@@ -17,8 +17,16 @@ defmodule DashboardSSDWeb do
   those modules here.
   """
 
+  @doc """
+  Returns the list of static file paths that should be served by the endpoint.
+  """
+  @spec static_paths() :: [String.t()]
   def static_paths, do: ~w(assets fonts images favicon.ico robots.txt)
 
+  @doc """
+  Defines imports and configuration for Phoenix routers.
+  """
+  @spec router() :: Macro.t()
   def router do
     quote do
       use Phoenix.Router, helpers: false
@@ -30,12 +38,20 @@ defmodule DashboardSSDWeb do
     end
   end
 
+  @doc """
+  Defines imports and configuration for Phoenix channels.
+  """
+  @spec channel() :: Macro.t()
   def channel do
     quote do
       use Phoenix.Channel
     end
   end
 
+  @doc """
+  Defines imports and configuration for Phoenix controllers.
+  """
+  @spec controller() :: Macro.t()
   def controller do
     quote do
       use Phoenix.Controller,
@@ -49,6 +65,10 @@ defmodule DashboardSSDWeb do
     end
   end
 
+  @doc """
+  Defines imports and configuration for Phoenix LiveViews.
+  """
+  @spec live_view() :: Macro.t()
   def live_view do
     quote do
       use Phoenix.LiveView,
@@ -58,6 +78,10 @@ defmodule DashboardSSDWeb do
     end
   end
 
+  @doc """
+  Defines imports and configuration for Phoenix LiveComponents.
+  """
+  @spec live_component() :: Macro.t()
   def live_component do
     quote do
       use Phoenix.LiveComponent
@@ -66,6 +90,10 @@ defmodule DashboardSSDWeb do
     end
   end
 
+  @doc """
+  Defines imports and configuration for Phoenix HTML components.
+  """
+  @spec html() :: Macro.t()
   def html do
     quote do
       use Phoenix.Component
@@ -95,6 +123,10 @@ defmodule DashboardSSDWeb do
     end
   end
 
+  @doc """
+  Defines configuration for Phoenix VerifiedRoutes.
+  """
+  @spec verified_routes() :: Macro.t()
   def verified_routes do
     quote do
       use Phoenix.VerifiedRoutes,
@@ -107,6 +139,7 @@ defmodule DashboardSSDWeb do
   @doc """
   When used, dispatch to the appropriate controller/live_view/etc.
   """
+  @spec __using__(atom()) :: Macro.t()
   defmacro __using__(which) when is_atom(which) do
     apply(__MODULE__, which, [])
   end

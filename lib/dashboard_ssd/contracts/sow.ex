@@ -1,6 +1,8 @@
 defmodule DashboardSSD.Contracts.SOW do
+  @moduledoc "Statement of Work (SOW) metadata and association to a project."
   use Ecto.Schema
   import Ecto.Changeset
+  alias Ecto.Changeset
 
   @typedoc "Statement of Work (SOW) record"
   @type t :: %__MODULE__{
@@ -19,6 +21,7 @@ defmodule DashboardSSD.Contracts.SOW do
   end
 
   @doc false
+  @spec changeset(t() | Changeset.t(), map()) :: Changeset.t()
   def changeset(sow, attrs) do
     sow
     |> cast(attrs, [:name, :drive_id, :project_id])

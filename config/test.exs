@@ -15,9 +15,12 @@ config :dashboard_ssd, DashboardSSD.Repo,
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
+test_secret_key_base =
+  System.get_env("TEST_SECRET_KEY_BASE", String.duplicate("b", 64))
+
 config :dashboard_ssd, DashboardSSDWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
-  secret_key_base: "gCr05Z3OZsYR8I7NTdZghXQjjyGqB6Dp1PE2pH5awp4cNnt4KgTn0aVogiQc9nbl",
+  secret_key_base: test_secret_key_base,
   server: false
 
 # In test we don't send emails

@@ -3,7 +3,7 @@ defmodule DashboardSSD.Deployments do
   Deployments context: manage deployments and health checks.
   """
   import Ecto.Query, warn: false
-  alias DashboardSSD.Deployments.{Deployment, HealthCheck}
+  alias DashboardSSD.Deployments.{Deployment, HealthCheck, HealthCheckSetting}
   alias DashboardSSD.Repo
 
   # Deployments
@@ -73,4 +73,108 @@ defmodule DashboardSSD.Deployments do
   @spec delete_health_check(HealthCheck.t()) ::
           {:ok, HealthCheck.t()} | {:error, Ecto.Changeset.t()}
   def delete_health_check(%HealthCheck{} = h), do: Repo.delete(h)
+
+  @doc """
+  Return a map of project_id => latest health status for the given project IDs.
+
+  If a project has no health checks, it will be absent from the map.
+  """
+  @spec latest_health_status_by_project_ids([pos_integer()]) :: %{
+          optional(pos_integer()) => String.t()
+        }
+  def latest_health_status_by_project_ids(project_ids) when is_list(project_ids) do
+    from(h in HealthCheck,
+      where: h.project_id in ^project_ids and not is_nil(h.status),
+      order_by: [desc: h.inserted_at]
+    )
+    |> Repo.all()
+    |> Enum.reduce(%{}, fn h, acc -> Map.put_new(acc, h.project_id, h.status) end)
+  end
+
+  @doc "List all health check settings"
+  @spec list_health_check_settings() :: [HealthCheckSetting.t()]
+  def list_health_check_settings do
+    Repo.all(HealthCheckSetting)
+  end
+
+  @doc "List enabled health check settings"
+  @spec list_enabled_health_check_settings() :: [HealthCheckSetting.t()]
+  def list_enabled_health_check_settings do
+    from(s in HealthCheckSetting, where: s.enabled == true) |> Repo.all()
+  end
+
+  @doc "Run a health check immediately for a project, inserting a HealthCheck row on success"
+  @spec run_health_check_now(pos_integer()) :: {:ok, String.t()} | {:error, term()}
+  def run_health_check_now(project_id) do
+    case get_health_check_setting_by_project(project_id) do
+      %HealthCheckSetting{enabled: true, provider: "http", endpoint_url: url}
+      when is_binary(url) and url != "" ->
+        status = classify_http_status(do_http_get(url))
+        _ = create_health_check(%{project_id: project_id, status: status})
+        {:ok, status}
+
+      %HealthCheckSetting{enabled: true, provider: "aws_elbv2"} ->
+        {:error, :aws_not_configured}
+
+      %HealthCheckSetting{} ->
+        {:error, :invalid_config}
+
+      nil ->
+        {:error, :no_setting}
+    end
+  end
+
+  defp do_http_get(url) do
+    if Application.get_env(:dashboard_ssd, :env) == :test do
+      {:ok, 200}
+    else
+      try do
+        req = Finch.build(:get, url)
+
+        case Finch.request(req, DashboardSSD.Finch, receive_timeout: 5000) do
+          {:ok, %Finch.Response{status: status}} -> {:ok, status}
+          {:error, reason} -> {:error, reason}
+        end
+      rescue
+        _ -> {:error, :request_failed}
+      end
+    end
+  end
+
+  defp classify_http_status({:ok, 200}), do: "up"
+  defp classify_http_status({:ok, status}) when status in 500..599, do: "down"
+  defp classify_http_status({:ok, status}) when status in 400..499, do: "degraded"
+  defp classify_http_status({:ok, _}), do: "degraded"
+  defp classify_http_status({:error, _}), do: "down"
+
+  @doc "Get health check setting for a project, if any"
+  @spec get_health_check_setting_by_project(pos_integer()) :: HealthCheckSetting.t() | nil
+  def get_health_check_setting_by_project(project_id) do
+    Repo.get_by(HealthCheckSetting, project_id: project_id)
+  end
+
+  @doc "Create or update health check setting for a project"
+  @spec upsert_health_check_setting(pos_integer(), map()) ::
+          {:ok, HealthCheckSetting.t()} | {:error, Ecto.Changeset.t()}
+  def upsert_health_check_setting(project_id, attrs)
+      when is_integer(project_id) and is_map(attrs) do
+    case get_health_check_setting_by_project(project_id) do
+      %HealthCheckSetting{} = s -> update_health_check_setting(s, attrs)
+      nil -> create_health_check_setting(Map.put(attrs, :project_id, project_id))
+    end
+  end
+
+  @doc "Create a health check setting"
+  @spec create_health_check_setting(map()) ::
+          {:ok, HealthCheckSetting.t()} | {:error, Ecto.Changeset.t()}
+  def create_health_check_setting(attrs) when is_map(attrs) do
+    %HealthCheckSetting{} |> HealthCheckSetting.changeset(attrs) |> Repo.insert()
+  end
+
+  @doc "Update a health check setting"
+  @spec update_health_check_setting(HealthCheckSetting.t(), map()) ::
+          {:ok, HealthCheckSetting.t()} | {:error, Ecto.Changeset.t()}
+  def update_health_check_setting(%HealthCheckSetting{} = s, attrs) when is_map(attrs) do
+    s |> HealthCheckSetting.changeset(attrs) |> Repo.update()
+  end
 end

@@ -10,9 +10,9 @@ defmodule DashboardSSD.ProjectsTest do
     %{client: client}
   end
 
-  test "create_project/1 requires name and client_id", %{client: client} do
+  test "create_project/1 requires name and validates client if provided", %{client: client} do
     assert {:error, cs} = Projects.create_project(%{})
-    assert %{name: ["can't be blank"], client_id: ["can't be blank"]} = errors_on(cs)
+    assert %{name: ["can't be blank"]} = errors_on(cs)
 
     assert {:error, cs} = Projects.create_project(%{name: "X", client_id: -1})
     assert %{client_id: ["does not exist"]} = errors_on(cs)

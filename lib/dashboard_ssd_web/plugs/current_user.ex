@@ -4,12 +4,12 @@ defmodule DashboardSSDWeb.Plugs.CurrentUser do
   alias DashboardSSD.Accounts.User
   alias DashboardSSD.Repo
 
-  @doc false
   @spec init(term) :: term
+  @doc "Initialize the plug with options."
   def init(opts), do: opts
 
-  @doc false
   @spec call(Plug.Conn.t(), term) :: Plug.Conn.t()
+  @doc "Look up the session user and assign `:current_user` on the connection."
   def call(conn, _opts) do
     case get_session(conn, :user_id) do
       nil ->

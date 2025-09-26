@@ -20,8 +20,7 @@ defmodule DashboardSSDWeb.CoreComponents do
   alias Phoenix.Component, as: Component
   alias Phoenix.HTML.Form
   alias Phoenix.HTML.FormField
-  alias Phoenix.LiveView.JS
-  alias Phoenix.LiveView.LiveStream
+  alias Phoenix.LiveView.{JS, LiveStream, Rendered}
 
   @doc """
   Renders a modal.
@@ -45,6 +44,7 @@ defmodule DashboardSSDWeb.CoreComponents do
   attr :on_cancel, JS, default: %JS{}
   slot :inner_block, required: true
 
+  @spec modal(map()) :: Rendered.t()
   def modal(assigns) do
     ~H"""
     <div
@@ -105,10 +105,12 @@ defmodule DashboardSSDWeb.CoreComponents do
   attr :flash, :map, default: %{}, doc: "the map of flash messages to display"
   attr :title, :string, default: nil
   attr :kind, :atom, values: [:info, :error], doc: "used for styling and flash lookup"
+  attr :class, :string, default: nil
   attr :rest, :global, doc: "the arbitrary HTML attributes to add to the flash container"
 
   slot :inner_block, doc: "the optional inner block that renders the flash message"
 
+  @spec flash(map()) :: Rendered.t()
   def flash(assigns) do
     assigns = assign_new(assigns, :id, fn -> "flash-#{assigns.kind}" end)
 
@@ -121,7 +123,8 @@ defmodule DashboardSSDWeb.CoreComponents do
       class={[
         "fixed top-2 right-2 mr-2 w-80 sm:w-96 z-50 rounded-lg p-3 ring-1",
         @kind == :info && "bg-emerald-50 text-emerald-800 ring-emerald-500 fill-cyan-900",
-        @kind == :error && "bg-rose-50 text-rose-900 shadow-md ring-rose-500 fill-rose-900"
+        @kind == :error && "bg-rose-50 text-rose-900 shadow-md ring-rose-500 fill-rose-900",
+        @class
       ]}
       {@rest}
     >
@@ -148,6 +151,7 @@ defmodule DashboardSSDWeb.CoreComponents do
   attr :flash, :map, required: true, doc: "the map of flash messages"
   attr :id, :string, default: "flash-group", doc: "the optional id of flash container"
 
+  @spec flash_group(map()) :: Rendered.t()
   def flash_group(assigns) do
     ~H"""
     <div id={@id}>
@@ -159,6 +163,7 @@ defmodule DashboardSSDWeb.CoreComponents do
         title={gettext("We can't find the internet")}
         phx-disconnected={show(".phx-client-error #client-error")}
         phx-connected={hide("#client-error")}
+        class="transition delay-300"
         hidden
       >
         {gettext("Attempting to reconnect")}
@@ -171,6 +176,7 @@ defmodule DashboardSSDWeb.CoreComponents do
         title={gettext("Something went wrong!")}
         phx-disconnected={show(".phx-server-error #server-error")}
         phx-connected={hide("#server-error")}
+        class="transition delay-300"
         hidden
       >
         {gettext("Hang in there while we get back on track")}
@@ -203,6 +209,7 @@ defmodule DashboardSSDWeb.CoreComponents do
   slot :inner_block, required: true
   slot :actions, doc: "the slot for form actions, such as a submit button"
 
+  @spec simple_form(map()) :: Rendered.t()
   def simple_form(assigns) do
     ~H"""
     <.form :let={f} for={@for} as={@as} {@rest}>
@@ -230,6 +237,7 @@ defmodule DashboardSSDWeb.CoreComponents do
 
   slot :inner_block, required: true
 
+  @spec button(map()) :: Rendered.t()
   def button(assigns) do
     ~H"""
     <button
@@ -295,6 +303,7 @@ defmodule DashboardSSDWeb.CoreComponents do
     include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
                 multiple pattern placeholder readonly required rows size step)
 
+  @spec input(map()) :: Rendered.t()
   def input(%{field: %FormField{} = field} = assigns) do
     errors = if Component.used_input?(field), do: field.errors, else: []
 
@@ -398,6 +407,7 @@ defmodule DashboardSSDWeb.CoreComponents do
   attr :for, :string, default: nil
   slot :inner_block, required: true
 
+  @spec label(map()) :: Rendered.t()
   def label(assigns) do
     ~H"""
     <label for={@for} class="block text-sm font-semibold leading-6 text-zinc-800">
@@ -411,6 +421,7 @@ defmodule DashboardSSDWeb.CoreComponents do
   """
   slot :inner_block, required: true
 
+  @spec error(map()) :: Rendered.t()
   def error(assigns) do
     ~H"""
     <p class="mt-3 flex gap-3 text-sm leading-6 text-rose-600">
@@ -429,6 +440,7 @@ defmodule DashboardSSDWeb.CoreComponents do
   slot :subtitle
   slot :actions
 
+  @spec header(map()) :: Rendered.t()
   def header(assigns) do
     ~H"""
     <header class={[@actions != [] && "flex items-center justify-between gap-6", @class]}>
@@ -470,6 +482,7 @@ defmodule DashboardSSDWeb.CoreComponents do
 
   slot :action, doc: "the slot for showing user actions in the last table column"
 
+  @spec table(map()) :: Rendered.t()
   def table(assigns) do
     assigns =
       with %{rows: %LiveStream{}} <- assigns do
@@ -537,6 +550,7 @@ defmodule DashboardSSDWeb.CoreComponents do
     attr :title, :string, required: true
   end
 
+  @spec list(map()) :: Rendered.t()
   def list(assigns) do
     ~H"""
     <div class="mt-14">
@@ -560,6 +574,7 @@ defmodule DashboardSSDWeb.CoreComponents do
   attr :navigate, :any, required: true
   slot :inner_block, required: true
 
+  @spec back(map()) :: Rendered.t()
   def back(assigns) do
     ~H"""
     <div class="mt-16">
@@ -595,6 +610,7 @@ defmodule DashboardSSDWeb.CoreComponents do
   attr :name, :string, required: true
   attr :class, :string, default: nil
 
+  @spec icon(map()) :: Rendered.t()
   def icon(%{name: "hero-" <> _} = assigns) do
     ~H"""
     <span class={[@name, @class]} />
@@ -603,6 +619,10 @@ defmodule DashboardSSDWeb.CoreComponents do
 
   ## JS Commands
 
+  @doc """
+  Shows an element with a transition animation.
+  """
+  @spec show(JS.t(), String.t()) :: JS.t()
   def show(js \\ %JS{}, selector) do
     JS.show(js,
       to: selector,
@@ -614,6 +634,10 @@ defmodule DashboardSSDWeb.CoreComponents do
     )
   end
 
+  @doc """
+  Hides an element with a transition animation.
+  """
+  @spec hide(JS.t(), String.t()) :: JS.t()
   def hide(js \\ %JS{}, selector) do
     JS.hide(js,
       to: selector,
@@ -625,6 +649,10 @@ defmodule DashboardSSDWeb.CoreComponents do
     )
   end
 
+  @doc """
+  Shows a modal with the given ID.
+  """
+  @spec show_modal(JS.t(), String.t()) :: JS.t()
   def show_modal(js \\ %JS{}, id) when is_binary(id) do
     js
     |> JS.show(to: "##{id}")
@@ -638,6 +666,10 @@ defmodule DashboardSSDWeb.CoreComponents do
     |> JS.focus_first(to: "##{id}-content")
   end
 
+  @doc """
+  Hides a modal with the given ID.
+  """
+  @spec hide_modal(JS.t(), String.t()) :: JS.t()
   def hide_modal(js \\ %JS{}, id) do
     js
     |> JS.hide(
@@ -653,6 +685,7 @@ defmodule DashboardSSDWeb.CoreComponents do
   @doc """
   Translates an error message using gettext.
   """
+  @spec translate_error({String.t(), Keyword.t()}) :: String.t()
   def translate_error({msg, opts}) do
     # When using gettext, we typically pass the strings we want
     # to translate as a static argument:
@@ -674,6 +707,7 @@ defmodule DashboardSSDWeb.CoreComponents do
   @doc """
   Translates the errors for a field from a keyword list of errors.
   """
+  @spec translate_errors(Keyword.t(), atom()) :: [String.t()]
   def translate_errors(errors, field) when is_list(errors) do
     for {^field, {msg, opts}} <- errors, do: translate_error({msg, opts})
   end
