@@ -127,5 +127,83 @@ defmodule DashboardSSD.DeploymentsHealthChecksTest do
 
       assert %HealthCheckSetting{enabled: false, endpoint_url: "http://updated.example"} = updated
     end
+
+    test "list_health_check_settings returns all settings", %{project: project} do
+      {:ok, setting} =
+        Deployments.upsert_health_check_setting(project.id, %{
+          enabled: true,
+          provider: "http",
+          endpoint_url: "http://all.example"
+        })
+
+      ids = Deployments.list_health_check_settings() |> Enum.map(& &1.id)
+      assert ids == [setting.id]
+    end
+
+    test "get_health_check_setting_by_project returns matching record", %{project: project} do
+      {:ok, setting} =
+        Deployments.upsert_health_check_setting(project.id, %{
+          enabled: true,
+          provider: "http",
+          endpoint_url: "http://lookup.example"
+        })
+
+      assert Deployments.get_health_check_setting_by_project(project.id).id == setting.id
+      assert Deployments.get_health_check_setting_by_project(-1) == nil
+    end
+
+    test "create_health_check_setting validates required fields", %{project: project} do
+      assert {:error, changeset} =
+               Deployments.create_health_check_setting(%{
+                 project_id: project.id,
+                 provider: "http",
+                 enabled: true
+               })
+
+      refute changeset.valid?
+    end
+
+    test "update_health_check_setting applies changes", %{project: project} do
+      {:ok, setting} =
+        Deployments.upsert_health_check_setting(project.id, %{
+          enabled: true,
+          provider: "http",
+          endpoint_url: "http://before.example"
+        })
+
+      {:ok, updated} =
+        Deployments.update_health_check_setting(setting, %{endpoint_url: "http://after.example"})
+
+      assert updated.endpoint_url == "http://after.example"
+    end
+  end
+end
+
+defmodule DashboardSSD.DeploymentsChangesetTest do
+  use DashboardSSD.DataCase, async: true
+
+  alias DashboardSSD.{Clients, Deployments, Projects}
+
+  setup do
+    {:ok, client} = Clients.create_client(%{name: "Changeset Client"})
+    {:ok, project} = Projects.create_project(%{name: "Changeset Project", client_id: client.id})
+    {:ok, project: project}
+  end
+
+  test "change_deployment returns a valid changeset", %{project: project} do
+    {:ok, deployment} =
+      Deployments.create_deployment(%{project_id: project.id, status: "ok", commit_sha: "abc"})
+
+    changeset = Deployments.change_deployment(deployment, %{status: "pending"})
+    assert changeset.valid?
+    assert changeset.changes.status == "pending"
+  end
+
+  test "change_health_check returns a valid changeset", %{project: project} do
+    {:ok, health_check} = Deployments.create_health_check(%{project_id: project.id, status: "up"})
+
+    changeset = Deployments.change_health_check(health_check, %{status: "down"})
+    assert changeset.valid?
+    assert changeset.changes.status == "down"
   end
 end
