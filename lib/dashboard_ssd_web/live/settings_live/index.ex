@@ -79,13 +79,13 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
   defp status_badge(assigns) do
     if assigns.state[:connected] do
       ~H"""
-      <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">
+      <span class="inline-flex items-center rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-200">
         Connected
       </span>
       """
     else
       ~H"""
-      <span class="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">
+      <span class="inline-flex items-center rounded-full border border-white/10 bg-white/10 px-2 py-0.5 text-xs font-medium text-white/70">
         Not connected
       </span>
       """
@@ -95,89 +95,86 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="space-y-6">
-      <h1 class="text-xl font-semibold">{@page_title}</h1>
+    <div class="flex flex-col gap-8">
+      <div>
+        <p class="text-xs font-medium uppercase tracking-[0.2em] text-theme-muted">Integrations</p>
+        <h1 class="mt-1 text-2xl font-semibold text-white">{@page_title}</h1>
+      </div>
 
-      <div class="rounded border overflow-hidden">
-        <table class="w-full text-left text-sm">
-          <thead class="bg-zinc-50">
+      <div class="theme-card overflow-hidden">
+        <table class="theme-table">
+          <thead>
             <tr>
-              <th class="px-3 py-2">Integration</th>
-              <th class="px-3 py-2">Status</th>
-              <th class="px-3 py-2">Action</th>
+              <th>Integration</th>
+              <th>Status</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            <tr class="border-t">
-              <td class="px-3 py-2">Google Drive</td>
-              <td class="px-3 py-2">
+            <tr>
+              <td>Google Drive</td>
+              <td>
                 <.status_badge state={@integrations.google} />
               </td>
-              <td class="px-3 py-2">
+              <td class="text-sm text-theme-muted">
                 <%= if @integrations.google.connected do %>
-                  <span class="text-zinc-500 text-xs">Linked via Google OAuth</span>
+                  <span>Linked via Google OAuth</span>
                 <% else %>
-                  <.link navigate={~p"/auth/google"} class="text-zinc-700 hover:underline">
+                  <.link navigate={~p"/auth/google"} class="text-white/80 transition hover:text-white">
                     Connect Google
                   </.link>
                 <% end %>
               </td>
             </tr>
 
-            <tr class="border-t">
-              <td class="px-3 py-2">Linear</td>
-              <td class="px-3 py-2">
+            <tr>
+              <td>Linear</td>
+              <td>
                 <.status_badge state={@integrations.linear} />
               </td>
-              <td class="px-3 py-2">
+              <td class="text-sm text-theme-muted">
                 <%= if @integrations.linear.connected do %>
-                  <span class="text-zinc-500 text-xs">Configured via LINEAR_TOKEN</span>
+                  <span>Configured via LINEAR_TOKEN</span>
                 <% else %>
-                  <span class="text-zinc-600 text-xs">Set LINEAR_TOKEN or LINEAR_API_KEY</span>
+                  <span>Set LINEAR_TOKEN or LINEAR_API_KEY</span>
                 <% end %>
               </td>
             </tr>
 
-            <tr class="border-t">
-              <td class="px-3 py-2">Slack</td>
-              <td class="px-3 py-2">
+            <tr>
+              <td>Slack</td>
+              <td>
                 <.status_badge state={@integrations.slack} />
               </td>
-              <td class="px-3 py-2">
+              <td class="text-sm text-theme-muted">
                 <%= if @integrations.slack.connected do %>
-                  <span class="text-zinc-500 text-xs">Configured via SLACK_BOT_TOKEN</span>
+                  <span>App token configured</span>
                 <% else %>
-                  <span class="text-zinc-600 text-xs">
-                    Set SLACK_BOT_TOKEN or SLACK_API_KEY (+ SLACK_CHANNEL)
-                  </span>
+                  <span>Add SLACK_BOT_TOKEN</span>
                 <% end %>
               </td>
             </tr>
 
-            <tr class="border-t">
-              <td class="px-3 py-2">Notion</td>
-              <td class="px-3 py-2">
+            <tr>
+              <td>Notion</td>
+              <td>
                 <.status_badge state={@integrations.notion} />
               </td>
-              <td class="px-3 py-2">
+              <td class="text-sm text-theme-muted">
                 <%= if @integrations.notion.connected do %>
-                  <span class="text-zinc-500 text-xs">Configured via NOTION_TOKEN</span>
+                  <span>Integration token active</span>
                 <% else %>
-                  <span class="text-zinc-600 text-xs">Set NOTION_TOKEN or NOTION_API_KEY</span>
+                  <span>Add NOTION_TOKEN</span>
                 <% end %>
               </td>
             </tr>
 
-            <tr class="border-t">
-              <td class="px-3 py-2">GitHub</td>
-              <td class="px-3 py-2">
-                <span class="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">
-                  Not connected
-                </span>
+            <tr>
+              <td>GitHub</td>
+              <td>
+                <.status_badge state={@integrations.github} />
               </td>
-              <td class="px-3 py-2">
-                <span class="text-zinc-600 text-xs">Coming soon</span>
-              </td>
+              <td class="text-sm text-theme-muted">Coming soon</td>
             </tr>
           </tbody>
         </table>

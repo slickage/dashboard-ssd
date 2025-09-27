@@ -353,25 +353,25 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
 
     ~H"""
     <div class="flex items-center gap-3">
-      <div class="grid grid-cols-3 gap-2 w-36 shrink-0">
-        <span class="flex items-center gap-1" title="Total">
-          <span class="inline-block h-2.5 w-2.5 rounded-full bg-zinc-400" aria-hidden="true"></span>
-          <span class="tabular-nums text-xs text-zinc-800">{@total}</span>
+      <div class="grid w-36 shrink-0 grid-cols-3 gap-2">
+        <span class="flex items-center gap-1 text-xs text-theme-muted" title="Total">
+          <span class="inline-block h-2.5 w-2.5 rounded-full bg-white/40" aria-hidden="true"></span>
+          <span class="tabular-nums text-white/80">{@total}</span>
         </span>
-        <span class="flex items-center gap-1" title="In Progress">
-          <span class="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" aria-hidden="true"></span>
-          <span class="tabular-nums text-xs text-amber-900">{@ip}</span>
+        <span class="flex items-center gap-1 text-xs text-sky-200" title="In Progress">
+          <span class="inline-block h-2.5 w-2.5 rounded-full bg-sky-400" aria-hidden="true"></span>
+          <span class="tabular-nums">{@ip}</span>
         </span>
-        <span class="flex items-center gap-1" title="Finished">
-          <span class="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" aria-hidden="true">
+        <span class="flex items-center gap-1 text-xs text-emerald-200" title="Finished">
+          <span class="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400" aria-hidden="true">
           </span>
-          <span class="tabular-nums text-xs text-emerald-900">{@fin}</span>
+          <span class="tabular-nums">{@fin}</span>
         </span>
         <span class="hidden" data-total={@total} data-in-progress={@ip} data-finished={@fin}></span>
       </div>
-      <div class="flex h-2 w-32 rounded overflow-hidden bg-zinc-200">
-        <div class="h-full bg-emerald-500" style={"width: #{@done_pct}%"}></div>
-        <div class="h-full bg-amber-500" style={"width: #{@ip_pct}%"}></div>
+      <div class="flex h-2 w-32 overflow-hidden rounded-full bg-white/10">
+        <div class="h-full bg-emerald-400" style={"width: #{@done_pct}%"}></div>
+        <div class="h-full bg-sky-400" style={"width: #{@ip_pct}%"}></div>
         <div class="h-full bg-transparent" style={"width: #{@rest_pct}%"}></div>
       </div>
     </div>
@@ -392,10 +392,10 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
 
     {color_class, label} =
       cond do
-        status in ["ok", "passing", "healthy", "up"] -> {"bg-emerald-500", "Up"}
-        status in ["degraded", "warn", "warning"] -> {"bg-amber-500", "Degraded"}
-        status in ["fail", "failing", "down", "error"] -> {"bg-rose-500", "Down"}
-        true -> {"bg-zinc-400", String.capitalize(status)}
+        status in ["ok", "passing", "healthy", "up"] -> {"bg-emerald-400", "Up"}
+        status in ["degraded", "warn", "warning"] -> {"bg-amber-400", "Degraded"}
+        status in ["fail", "failing", "down", "error"] -> {"bg-rose-400", "Down"}
+        true -> {"bg-white/40", String.capitalize(status)}
       end
 
     assigns = assign(assigns, color: color_class, label: label)
@@ -410,65 +410,97 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="space-y-6">
-      <div class="flex items-center justify-between">
-        <h1 class="text-xl font-semibold">{@page_title}</h1>
+    <div class="flex flex-col gap-8">
+      <div>
+        <p class="text-xs font-medium uppercase tracking-[0.2em] text-theme-muted">Projects</p>
+        <h1 class="mt-1 text-2xl font-semibold text-white">{@page_title}</h1>
       </div>
 
-      <div class="flex items-center gap-2">
-        <form id="client-filter-form" phx-change="filter" class="flex items-center gap-2">
-          <select name="client_id" id="client-filter" class="border rounded px-2 py-1 text-sm w-56">
-            <option value="" selected={@client_id in [nil, ""]}>All Clients</option>
-            <%= for c <- @clients do %>
-              <option value={c.id} selected={to_string(c.id) == to_string(@client_id)}>
-                {c.name}
-              </option>
+      <div class="theme-card px-4 py-4 sm:px-6">
+        <form
+          id="client-filter-form"
+          phx-change="filter"
+          class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div class="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+            <label
+              for="client-filter"
+              class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted"
+            >
+              Filter by client
+            </label>
+            <select
+              name="client_id"
+              id="client-filter"
+              class="w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white transition focus:border-white/30 focus:outline-none sm:w-64"
+            >
+              <option value="" selected={@client_id in [nil, ""]}>All Clients</option>
+              <%= for c <- @clients do %>
+                <option value={c.id} selected={to_string(c.id) == to_string(@client_id)}>
+                  {c.name}
+                </option>
+              <% end %>
+            </select>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3">
+            <%= if @linear_enabled do %>
+              <button
+                type="button"
+                phx-click="sync"
+                class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:border-white/20 hover:bg-white/10"
+              >
+                Sync from Linear
+              </button>
+              <button
+                type="button"
+                phx-click="reload_summaries"
+                class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:border-white/20 hover:bg-white/10"
+              >
+                Reload Tasks
+              </button>
+            <% else %>
+              <span class="text-xs text-theme-muted">
+                Linear not configured; set LINEAR_TOKEN to enable task breakdowns.
+              </span>
             <% end %>
-          </select>
+          </div>
         </form>
-        <%= if @linear_enabled do %>
-          <button phx-click="sync" class="px-2 py-1 border rounded text-sm">Sync from Linear</button>
-          <button phx-click="reload_summaries" class="px-2 py-1 border rounded text-sm ml-2">
-            Reload Tasks
-          </button>
-        <% else %>
-          <span class="text-xs text-zinc-600">
-            Linear not configured; set LINEAR_TOKEN to see task breakdowns.
-          </span>
-        <% end %>
       </div>
 
       <%= if @projects == [] do %>
-        <p class="text-zinc-600">No projects found.</p>
+        <div class="theme-card px-6 py-8 text-center text-sm text-theme-muted">
+          No projects found.
+        </div>
       <% else %>
-        <div class="overflow-hidden rounded border">
-          <table class="w-full text-left text-sm">
-            <thead class="bg-zinc-50">
+        <div class="theme-card overflow-hidden">
+          <table class="theme-table">
+            <thead>
               <tr>
-                <th class="px-3 py-2">ID</th>
-                <th class="px-3 py-2">Name</th>
-                <th class="px-3 py-2">Client</th>
-                <th class="px-3 py-2">
+                <th>ID</th>
+                <th>Name</th>
+                <th>Client</th>
+                <th class="whitespace-nowrap">
                   Tasks (Linear)
                   <%= if @summaries == %{} do %>
-                    <span class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 ml-2">
+                    <span class="ml-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-transparent">
                     </span>
                   <% end %>
                 </th>
-                <th class="px-3 py-2">Prod</th>
-                <th class="px-3 py-2">Actions</th>
+                <th>Prod</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               <%= for p <- @projects do %>
-                <tr class="border-t">
-                  <td class="px-3 py-2">{p.id}</td>
-                  <td class="px-3 py-2">{p.name}</td>
-                  <td class="px-3 py-2">
+                <tr>
+                  <td class="text-sm text-theme-muted">{p.id}</td>
+                  <td>{p.name}</td>
+                  <td>
                     <%= if is_nil(p.client) do %>
                       <.link
                         navigate={~p"/projects/#{p.id}/edit"}
-                        class="text-zinc-700 hover:underline"
+                        class="text-white/80 transition hover:text-white"
                       >
                         Assign Client
                       </.link>
@@ -476,31 +508,34 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                       {p.client.name}
                     <% end %>
                   </td>
-                  <td class="px-3 py-2">
+                  <td>
                     <%= case Map.get(@summaries, to_string(p.id), :unavailable) do %>
                       <% :unavailable -> %>
-                        <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-3 text-xs text-theme-muted">
                           <div class="w-36 shrink-0">
-                            <span class="text-xs inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-zinc-600">
+                            <span class="inline-flex items-center rounded-full bg-white/5 px-2 py-0.5 text-white/70">
                               N/A
                             </span>
                           </div>
-                          <div class="h-2 w-32 rounded bg-zinc-100"></div>
+                          <div class="h-2 w-32 rounded-full bg-white/5"></div>
                         </div>
                       <% %{} = summary -> %>
                         <.tasks_cell summary={summary} />
                     <% end %>
                   </td>
-                  <td class="px-3 py-2">
+                  <td>
                     <%= case Map.get(@health || %{}, p.id) do %>
                       <% nil -> %>
-                        <span class="text-zinc-400">—</span>
+                        <span class="text-white/30">—</span>
                       <% status -> %>
                         <.health_dot status={status} />
                     <% end %>
                   </td>
-                  <td class="px-3 py-2">
-                    <.link navigate={~p"/projects/#{p.id}/edit"} class="text-zinc-700 hover:underline">
+                  <td>
+                    <.link
+                      navigate={~p"/projects/#{p.id}/edit"}
+                      class="text-white/80 transition hover:text-white"
+                    >
                       Edit
                     </.link>
                   </td>

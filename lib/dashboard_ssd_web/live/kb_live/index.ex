@@ -129,50 +129,67 @@ defmodule DashboardSSDWeb.KbLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="space-y-6">
-      <div class="flex items-center justify-between">
-        <h1 class="text-xl font-semibold">{@page_title}</h1>
+    <div class="flex flex-col gap-8">
+      <div>
+        <p class="text-xs font-medium uppercase tracking-[0.2em] text-theme-muted">Knowledge Base</p>
+        <h1 class="mt-1 text-2xl font-semibold text-white">{@page_title}</h1>
       </div>
 
-      <form phx-submit="search" class="flex flex-col gap-3 md:flex-row md:items-center">
-        <input
-          type="search"
-          name="query"
-          value={@query}
-          placeholder="Search the knowledge base"
-          class="flex-1 rounded border border-zinc-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <button
-          type="submit"
-          class="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
-        >
-          Search
-        </button>
-      </form>
+      <div class="theme-card px-4 py-4 sm:px-6">
+        <form phx-submit="search" class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+          <div class="flex flex-1 items-center gap-3">
+            <input
+              type="search"
+              name="query"
+              value={@query}
+              placeholder="Search the knowledge base"
+              class="w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white placeholder:text-theme-muted focus:border-white/30 focus:outline-none"
+            />
+          </div>
+          <button
+            type="submit"
+            class="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:border-white/20 hover:bg-white/10"
+          >
+            Search
+          </button>
+        </form>
+      </div>
 
       <%= cond do %>
         <% @results != [] -> %>
-          <div class="space-y-4">
+          <div class="flex flex-col gap-4">
             <%= for result <- @results do %>
-              <div class="rounded border p-4 hover:border-zinc-400">
-                <div class="flex items-center gap-2 text-lg font-semibold text-zinc-900">
-                  <span :if={result.icon} class="text-xl">{result.icon}</span>
-                  <a href={result.url} class="hover:underline" target="_blank" rel="noopener">
-                    {result.title}
-                  </a>
+              <div class="theme-card px-5 py-4 transition hover:border-white/20 hover:bg-white/5">
+                <div class="flex flex-wrap items-start gap-3">
+                  <span :if={result.icon} class="text-2xl leading-none">{result.icon}</span>
+                  <div class="flex flex-1 flex-col gap-1">
+                    <a
+                      href={result.url}
+                      class="text-lg font-semibold text-white transition hover:text-theme-accent"
+                      target="_blank"
+                      rel="noopener"
+                    >
+                      {result.title}
+                    </a>
+                    <p
+                      :if={result.last_edited}
+                      class="text-xs uppercase tracking-[0.16em] text-theme-muted"
+                    >
+                      Last updated {result.last_edited}
+                    </p>
+                  </div>
                 </div>
-                <p :if={result.last_edited} class="mt-1 text-sm text-zinc-600">
-                  Last updated: {result.last_edited}
-                </p>
               </div>
             <% end %>
           </div>
         <% @search_performed -> %>
-          <p class="text-center text-zinc-600">No Notion results matched your search.</p>
+          <div class="theme-card px-6 py-8 text-center text-sm text-theme-muted">
+            No Notion results matched your search.
+          </div>
         <% true -> %>
-          <p class="text-center text-zinc-600">
+          <div class="theme-card px-6 py-8 text-center text-sm text-theme-muted">
             Enter a keyword to search linked Notion documents.
-          </p>
+          </div>
       <% end %>
     </div>
     """

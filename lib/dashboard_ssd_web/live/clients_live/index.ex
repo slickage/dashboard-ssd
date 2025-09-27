@@ -65,64 +65,83 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="space-y-6">
-      <div class="flex items-center justify-between">
-        <h1 class="text-xl font-semibold">{@page_title}</h1>
+    <div class="flex flex-col gap-8">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p class="text-xs font-medium uppercase tracking-[0.2em] text-theme-muted">CRM</p>
+          <h1 class="mt-1 text-2xl font-semibold text-white">{@page_title}</h1>
+        </div>
         <%= if @current_user && @current_user.role && @current_user.role.name == "admin" do %>
-          <.link navigate={~p"/clients/new"} class="px-3 py-2 rounded bg-zinc-900 text-white text-sm">
+          <.link
+            navigate={~p"/clients/new"}
+            class={DashboardSSDWeb.Layouts.header_action_classes(:primary)}
+          >
             New Client
           </.link>
         <% end %>
       </div>
 
-      <div class="flex gap-3 items-center">
-        <form phx-change="search" phx-submit="search" class="flex items-center gap-2">
-          <input
-            name="q"
-            value={@q}
-            placeholder="Search clients"
-            class="border rounded px-2 py-1 text-sm"
-          />
-          <button type="submit" class="px-2 py-1 border rounded text-sm">Search</button>
+      <div class="theme-card px-4 py-4 sm:px-6">
+        <form
+          phx-change="search"
+          phx-submit="search"
+          class="flex flex-col gap-3 sm:flex-row sm:items-center"
+        >
+          <div class="flex flex-1 items-center gap-2">
+            <input
+              name="q"
+              value={@q}
+              placeholder="Search clients"
+              class="w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white placeholder:text-theme-muted focus:border-white/30 focus:outline-none"
+            />
+          </div>
+          <button
+            type="submit"
+            class="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:border-white/20 hover:bg-white/10"
+          >
+            Search
+          </button>
         </form>
       </div>
 
       <%= if @clients == [] do %>
-        <p class="text-zinc-600">No clients found.</p>
+        <div class="theme-card px-6 py-8 text-center text-sm text-theme-muted">
+          No clients found.
+        </div>
       <% else %>
-        <div class="overflow-hidden rounded border">
-          <table class="w-full text-left text-sm">
-            <thead class="bg-zinc-50">
+        <div class="theme-card overflow-hidden">
+          <table class="theme-table">
+            <thead>
               <tr>
-                <th class="px-3 py-2">Name</th>
-                <th class="px-3 py-2">Actions</th>
+                <th>Name</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               <%= for c <- @clients do %>
-                <tr class="border-t">
-                  <td class="px-3 py-2">{c.name}</td>
-                  <td class="px-3 py-2">
+                <tr>
+                  <td>{c.name}</td>
+                  <td class="flex flex-wrap items-center gap-2 text-sm text-theme-muted">
                     <.link
                       navigate={~p"/projects?client_id=#{c.id}"}
-                      class="text-zinc-700 hover:underline"
+                      class="text-white/80 transition hover:text-white"
                     >
                       View Projects
                     </.link>
                     <%= if @current_user && @current_user.role && @current_user.role.name == "admin" do %>
-                      <span class="mx-2">•</span>
+                      <span class="text-white/30">•</span>
                       <.link
                         navigate={~p"/clients/#{c.id}/edit"}
-                        class="text-zinc-700 hover:underline"
+                        class="text-white/80 transition hover:text-white"
                       >
                         Edit
                       </.link>
-                      <span class="mx-2">•</span>
+                      <span class="text-white/30">•</span>
                       <button
                         phx-click="delete"
                         phx-value-id={c.id}
                         onclick="return confirm('Delete this client?')"
-                        class="text-red-600 hover:underline"
+                        class="text-rose-300 transition hover:text-rose-200"
                       >
                         Delete
                       </button>
