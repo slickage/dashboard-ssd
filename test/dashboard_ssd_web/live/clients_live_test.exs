@@ -105,4 +105,26 @@ defmodule DashboardSSDWeb.ClientsLiveTest do
     conn = init_test_session(conn, %{user_id: emp.id})
     assert {:error, {:redirect, %{to: "/"}}} = live(conn, ~p"/clients/#{c.id}/edit")
   end
+
+  test "mobile menu toggle works", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "adm-mobile@example.com",
+        name: "A",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, view, _html} = live(conn, ~p"/clients")
+
+    # Toggle mobile menu open
+    view
+    |> element("button[phx-click='toggle_mobile_menu']")
+    |> render_click()
+
+    # Close mobile menu by clicking the close button
+    view
+    |> element("button[phx-click='close_mobile_menu']")
+    |> render_click()
+  end
 end

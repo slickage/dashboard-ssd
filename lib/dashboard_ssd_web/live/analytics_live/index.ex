@@ -22,6 +22,7 @@ defmodule DashboardSSDWeb.AnalyticsLive.Index do
       |> assign(:projects, projects)
       |> assign(:selected_project_id, selected_project_id)
       |> load_metrics()
+      |> assign(:mobile_menu_open, false)
 
     {:ok, socket}
   end
@@ -79,6 +80,16 @@ defmodule DashboardSSDWeb.AnalyticsLive.Index do
   end
 
   @impl true
+  def handle_event("toggle_mobile_menu", _params, socket) do
+    {:noreply, assign(socket, mobile_menu_open: !socket.assigns.mobile_menu_open)}
+  end
+
+  @impl true
+  def handle_event("close_mobile_menu", _params, socket) do
+    {:noreply, assign(socket, mobile_menu_open: false)}
+  end
+
+  @impl true
   def render(assigns) do
     assigns =
       assign(
@@ -90,10 +101,6 @@ defmodule DashboardSSDWeb.AnalyticsLive.Index do
     ~H"""
     <div class="flex flex-col gap-8">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p class="text-xs font-medium uppercase tracking-[0.2em] text-theme-muted">Insights</p>
-          <h1 class="mt-1 text-2xl font-semibold text-white">{@page_title}</h1>
-        </div>
         <div class="flex items-center gap-3">
           <button
             phx-click="refresh"
@@ -171,7 +178,7 @@ defmodule DashboardSSDWeb.AnalyticsLive.Index do
         </div>
       </div>
 
-      <div class="theme-card overflow-hidden">
+      <div class="theme-card overflow-x-auto">
         <table class="theme-table">
           <thead>
             <tr>

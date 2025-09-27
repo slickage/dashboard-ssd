@@ -11,7 +11,8 @@ defmodule DashboardSSDWeb.KbLive.Index do
      |> assign(:page_title, "Knowledge Base")
      |> assign(:query, "")
      |> assign(:results, [])
-     |> assign(:search_performed, false)}
+     |> assign(:search_performed, false)
+     |> assign(:mobile_menu_open, false)}
   end
 
   @impl true
@@ -54,6 +55,16 @@ defmodule DashboardSSDWeb.KbLive.Index do
            |> put_flash(:error, error_message(reason))}
       end
     end
+  end
+
+  @impl true
+  def handle_event("toggle_mobile_menu", _params, socket) do
+    {:noreply, assign(socket, mobile_menu_open: !socket.assigns.mobile_menu_open)}
+  end
+
+  @impl true
+  def handle_event("close_mobile_menu", _params, socket) do
+    {:noreply, assign(socket, mobile_menu_open: false)}
   end
 
   defp parse_results(results) when is_list(results) do
@@ -130,11 +141,6 @@ defmodule DashboardSSDWeb.KbLive.Index do
   def render(assigns) do
     ~H"""
     <div class="flex flex-col gap-8">
-      <div>
-        <p class="text-xs font-medium uppercase tracking-[0.2em] text-theme-muted">Knowledge Base</p>
-        <h1 class="mt-1 text-2xl font-semibold text-white">{@page_title}</h1>
-      </div>
-
       <div class="theme-card px-4 py-4 sm:px-6">
         <form phx-submit="search" class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           <div class="flex flex-1 items-center gap-3">

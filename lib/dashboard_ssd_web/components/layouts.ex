@@ -75,4 +75,15 @@ defmodule DashboardSSDWeb.Layouts do
   end
 
   def user_display_name(_), do: nil
+
+  @doc "Returns the capitalized role name for the user."
+  @spec user_role(nil | %{optional(:role) => %{optional(:name) => String.t()}}) ::
+          String.t() | nil
+  def user_role(nil), do: nil
+
+  def user_role(%{role: %{name: name}}) when is_binary(name) do
+    String.capitalize(name)
+  end
+
+  def user_role(_), do: nil
 end

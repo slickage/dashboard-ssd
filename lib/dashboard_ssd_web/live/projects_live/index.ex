@@ -19,7 +19,8 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
      |> assign(:clients, Clients.list_clients())
      |> assign(:linear_enabled, linear_enabled?())
      |> assign(:summaries, %{})
-     |> assign(:loaded, false)}
+     |> assign(:loaded, false)
+     |> assign(:mobile_menu_open, false)}
   end
 
   @impl true
@@ -273,8 +274,6 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
 
   @impl true
   @doc "Handle project events (sync, filter)."
-  def handle_event(event, params, socket)
-
   def handle_event("sync", _params, socket) do
     case Projects.sync_from_linear() do
       {:ok, %{inserted: i, updated: u}} ->
@@ -303,6 +302,16 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
 
     summaries = summarize_projects(socket.assigns.projects)
     {:noreply, assign(socket, :summaries, summaries)}
+  end
+
+  @impl true
+  def handle_event("toggle_mobile_menu", _params, socket) do
+    {:noreply, assign(socket, mobile_menu_open: !socket.assigns.mobile_menu_open)}
+  end
+
+  @impl true
+  def handle_event("close_mobile_menu", _params, socket) do
+    {:noreply, assign(socket, mobile_menu_open: false)}
   end
 
   defp refresh(socket) do
@@ -411,11 +420,6 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
   def render(assigns) do
     ~H"""
     <div class="flex flex-col gap-8">
-      <div>
-        <p class="text-xs font-medium uppercase tracking-[0.2em] text-theme-muted">Projects</p>
-        <h1 class="mt-1 text-2xl font-semibold text-white">{@page_title}</h1>
-      </div>
-
       <div class="theme-card px-4 py-4 sm:px-6">
         <form
           id="client-filter-form"
@@ -473,14 +477,14 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
           No projects found.
         </div>
       <% else %>
-        <div class="theme-card overflow-hidden">
+        <div class="theme-card overflow-x-auto">
           <table class="theme-table">
             <thead>
               <tr>
-                <th>ID</th>
+                <th class="hidden md:table-cell">ID</th>
                 <th>Name</th>
                 <th>Client</th>
-                <th class="whitespace-nowrap">
+                <th class="hidden md:table-cell whitespace-nowrap">
                   Tasks (Linear)
                   <%= if @summaries == %{} do %>
                     <span class="ml-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-transparent">
@@ -494,7 +498,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
             <tbody>
               <%= for p <- @projects do %>
                 <tr>
-                  <td class="text-sm text-theme-muted">{p.id}</td>
+                  <td class="hidden md:table-cell text-sm text-theme-muted">{p.id}</td>
                   <td>{p.name}</td>
                   <td>
                     <%= if is_nil(p.client) do %>
@@ -508,7 +512,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                       {p.client.name}
                     <% end %>
                   </td>
-                  <td>
+                  <td class="hidden md:table-cell">
                     <%= case Map.get(@summaries, to_string(p.id), :unavailable) do %>
                       <% :unavailable -> %>
                         <div class="flex items-center gap-3 text-xs text-theme-muted">
