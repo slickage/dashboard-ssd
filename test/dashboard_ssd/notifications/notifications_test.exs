@@ -37,6 +37,15 @@ defmodule DashboardSSD.NotificationsTest do
 
       assert {:ok, _} = Notifications.delete_alert(alert)
     end
+
+    test "change_alert returns a changeset", %{project: project} do
+      {:ok, alert} =
+        Notifications.create_alert(%{project_id: project.id, message: "down", status: "open"})
+
+      changeset = Notifications.change_alert(alert, %{status: "closed"})
+      assert changeset.valid?
+      assert changeset.changes.status == "closed"
+    end
   end
 
   describe "notification rules" do
@@ -68,6 +77,19 @@ defmodule DashboardSSD.NotificationsTest do
       assert ids == [rule.id]
 
       assert {:ok, _} = Notifications.delete_notification_rule(rule)
+    end
+
+    test "change_notification_rule returns a changeset", %{project: project} do
+      {:ok, rule} =
+        Notifications.create_notification_rule(%{
+          project_id: project.id,
+          event_type: "deploy_failed",
+          channel: "slack"
+        })
+
+      changeset = Notifications.change_notification_rule(rule, %{channel: "email"})
+      assert changeset.valid?
+      assert changeset.changes.channel == "email"
     end
   end
 end
