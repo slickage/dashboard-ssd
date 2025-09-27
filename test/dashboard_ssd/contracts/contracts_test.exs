@@ -36,6 +36,13 @@ defmodule DashboardSSD.ContractsTest do
       # delete
       assert {:ok, _} = Contracts.delete_sow(sow)
     end
+
+    test "change_sow returns a changeset", %{project: project} do
+      {:ok, sow} = Contracts.create_sow(%{name: "S1", project_id: project.id, drive_id: "d1"})
+      changeset = Contracts.change_sow(sow, %{name: "S2"})
+      assert changeset.valid?
+      assert changeset.changes.name == "S2"
+    end
   end
 
   describe "Change Requests" do
@@ -63,6 +70,15 @@ defmodule DashboardSSD.ContractsTest do
 
       # delete
       assert {:ok, _} = Contracts.delete_change_request(cr)
+    end
+
+    test "change_change_request returns a changeset", %{project: project} do
+      {:ok, cr} =
+        Contracts.create_change_request(%{name: "CR1", project_id: project.id, drive_id: "d1"})
+
+      changeset = Contracts.change_change_request(cr, %{name: "CR2"})
+      assert changeset.valid?
+      assert changeset.changes.name == "CR2"
     end
   end
 end
