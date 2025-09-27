@@ -16,6 +16,23 @@
   --theme-shadow-soft: 0px 18px 48px -24px rgba(15, 23, 42, 0.55);
 }
 
+/* Light mode theme variables */
+[data-theme="light"] {
+  --theme-background: #f8fafc;
+  --theme-surface: #ffffff;
+  --theme-surface-muted: #f1f5f9;
+  --theme-surface-raised: #e2e8f0;
+  --theme-border: rgba(0, 0, 0, 0.08);
+  --theme-primary: #c2b7d7;
+  --theme-primary-soft: rgba(194, 183, 215, 0.12);
+  --theme-accent: #3b82f6;
+  --theme-text: rgba(15, 23, 42, 0.92);
+  --theme-text-muted: rgba(51, 65, 85, 0.8);
+  --theme-text-active: #ffffff;
+  --theme-shadow-card: 0px 32px 120px -40px rgba(0, 0, 0, 0.12);
+  --theme-shadow-soft: 0px 18px 48px -24px rgba(0, 0, 0, 0.08);
+}
+
 body {
   background-color: var(--theme-background);
   color: var(--theme-text);
@@ -28,6 +45,13 @@ body {
     radial-gradient(circle at bottom right, rgba(255, 79, 0, 0.16), transparent 45%),
     var(--theme-background);
   background-attachment: fixed;
+}
+
+[data-theme="light"] .theme-shell-gradient {
+  background-image:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 55%),
+    radial-gradient(circle at bottom right, rgba(249, 115, 22, 0.06), transparent 45%),
+    var(--theme-background);
 }
 
 .theme-card {
@@ -47,6 +71,10 @@ body {
   background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.08), transparent);
 }
 
+[data-theme="light"] .theme-divider {
+  background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.08), transparent);
+}
+
 .theme-pill {
   border-radius: 9999px;
   background: rgba(255, 255, 255, 0.04);
@@ -57,8 +85,19 @@ body {
   color: rgba(255, 255, 255, 0.82);
 }
 
+[data-theme="light"] .theme-pill {
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  color: rgba(0, 0, 0, 0.82);
+}
+
 .theme-nav-surface {
   background: linear-gradient(180deg, rgba(10, 13, 26, 0.94) 0%, rgba(5, 8, 18, 0.94) 100%);
+}
+
+[data-theme="light"] .theme-nav-surface {
+  background: linear-gradient(180deg, rgba(241, 245, 249, 0.94) 0%, rgba(226, 232, 240, 0.94) 100%);
+  border-right: 1px solid var(--theme-border);
 }
 
 .theme-nav-item {
@@ -74,13 +113,21 @@ body {
 }
 
 .theme-nav-item:hover {
-  color: #ffffff;
+  color: var(--theme-text-active);
+}
+
+[data-theme="light"] .theme-nav-item:hover {
+  color: var(--theme-text);
 }
 
 .theme-nav-item[data-active="true"] {
-  color: #ffffff;
-  background: radial-gradient(circle at 25% 25%, rgba(44, 93, 255, 0.55), rgba(44, 93, 255, 0.18));
-  box-shadow: 0 16px 40px -28px rgba(44, 93, 255, 0.9);
+  color: var(--theme-text-active) !important;
+  background: var(--theme-primary) !important;
+}
+
+[data-theme="light"] .theme-nav-item[data-active="true"] {
+  color: var(--theme-text) !important;
+  background: var(--theme-primary) !important;
 }
 
 .theme-badge {
@@ -111,6 +158,10 @@ body {
   mask-composite: exclude;
 }
 
+[data-theme="light"] .theme-gradient-border::before {
+  background: linear-gradient(120deg, rgba(0, 0, 0, 0.08), rgba(37, 99, 235, 0.18));
+}
+
 .theme-gradient-border > * {
   position: relative;
   z-index: 1;
@@ -119,7 +170,11 @@ body {
 .theme-hero-title {
   font-size: clamp(1.75rem, 1.5rem + 1vw, 2.5rem);
   font-weight: 600;
-  color: #ffffff;
+  color: var(--theme-text-active);
+}
+
+[data-theme="light"] .theme-hero-title {
+  color: var(--theme-text);
 }
 
 .theme-hero-subtitle {
@@ -127,6 +182,10 @@ body {
   letter-spacing: 0.32em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.45);
+}
+
+[data-theme="light"] .theme-hero-subtitle {
+  color: var(--theme-text-muted);
 }
 
 .theme-table {
@@ -139,6 +198,10 @@ body {
   background: rgba(255, 255, 255, 0.05);
 }
 
+[data-theme="light"] .theme-table thead {
+  background: rgba(0, 0, 0, 0.06);
+}
+
 .theme-table thead th {
   padding: 0.75rem 1rem;
   font-size: 0.65rem;
@@ -149,19 +212,111 @@ body {
   text-align: left;
 }
 
+[data-theme="light"] .theme-table thead th {
+  color: rgba(0, 0, 0, 0.85);
+}
+
 .theme-table tbody tr {
   border-top: 1px solid var(--theme-border);
   transition: background 120ms ease;
+}
+
+[data-theme="light"] .theme-table tbody tr {
+  background: rgba(0, 0, 0, 0.005);
 }
 
 .theme-table tbody tr:hover {
   background: rgba(255, 255, 255, 0.04);
 }
 
+[data-theme="light"] .theme-table tbody tr:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
 .theme-table tbody td {
   padding: 0.85rem 1rem;
   color: rgba(255, 255, 255, 0.9);
   text-align: left;
+}
+
+[data-theme="light"] .theme-table tbody td {
+  color: rgba(0, 0, 0, 0.9);
+}
+
+/* Light mode overrides for hardcoded white text */
+[data-theme="light"] .text-white {
+  color: var(--theme-text) !important;
+}
+
+[data-theme="light"] .text-white\/80 {
+  color: var(--theme-text-muted) !important;
+}
+
+[data-theme="light"] .text-white\/70 {
+  color: rgba(0, 0, 0, 0.7) !important;
+}
+
+[data-theme="light"] .text-white\/30 {
+  color: rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="light"] .text-white\/90 {
+  color: rgba(0, 0, 0, 0.9) !important;
+}
+
+/* Override the above for buttons with colored backgrounds */
+[data-theme="light"] .bg-theme-primary .text-white,
+[data-theme="light"] .bg-blue-500 .text-white,
+[data-theme="light"] .bg-blue-600 .text-white,
+[data-theme="light"] .bg-blue-700 .text-white {
+  color: #ffffff !important;
+}
+
+/* Light mode overrides for background colors */
+[data-theme="light"] .bg-white\/5 {
+  background-color: rgba(0, 0, 0, 0.02) !important;
+}
+
+[data-theme="light"] .bg-white\/10 {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .bg-white\/40 {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme="light"] .border-white\/10 {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme="light"] .border-white\/20 {
+  border-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+[data-theme="light"] .border-white\/30 {
+  border-color: rgba(0, 0, 0, 0.16) !important;
+}
+
+[data-theme="light"] .divide-white\/5 {
+  border-color: rgba(0, 0, 0, 0.02) !important;
+}
+
+.theme-status-connected {
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.1);
+  color: #34d399;
+}
+
+[data-theme="light"] .theme-status-connected {
+  border: 1px solid rgba(5, 150, 105, 0.3);
+  background: rgba(5, 150, 105, 0.1);
+  color: #047857;
+}
+
+.theme-status-disconnected {
+  border: 1px solid var(--theme-border);
+  background: var(--theme-surface-muted);
+  color: var(--theme-text-muted);
 }
 
 .theme-table tbody td:first-child,

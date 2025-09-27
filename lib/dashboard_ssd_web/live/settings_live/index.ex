@@ -81,13 +81,13 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
   defp status_badge(assigns) do
     if assigns.state[:connected] do
       ~H"""
-      <span class="inline-flex items-center rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-200">
+      <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium theme-status-connected">
         Connected
       </span>
       """
     else
       ~H"""
-      <span class="inline-flex items-center rounded-full border border-white/10 bg-white/10 px-2 py-0.5 text-xs font-medium text-white/70">
+      <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium theme-status-disconnected">
         Not connected
       </span>
       """
@@ -98,6 +98,32 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
   def render(assigns) do
     ~H"""
     <div class="flex flex-col gap-8">
+      <!-- Theme Settings -->
+      <div class="theme-card">
+        <div class="p-6">
+          <h3 class="text-lg font-semibold text-theme-text mb-4">Appearance</h3>
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-theme-text">Theme</p>
+              <p class="text-xs text-theme-text-muted">Choose your preferred theme</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-sm text-theme-text-muted" id="theme-label">Dark</span>
+              <button
+                type="button"
+                id="theme-toggle"
+                class="relative inline-flex h-6 w-11 items-center rounded-full bg-theme-surface-muted transition-colors focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2"
+                phx-click="toggle_theme"
+              >
+                <span class="sr-only">Toggle theme</span>
+                <span class="inline-block h-4 w-4 transform rounded-full bg-theme-primary transition-transform translate-x-1">
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="theme-card overflow-x-auto">
         <table class="theme-table">
           <thead>
@@ -188,5 +214,11 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
   @impl true
   def handle_event("close_mobile_menu", _params, socket) do
     {:noreply, assign(socket, mobile_menu_open: false)}
+  end
+
+  @impl true
+  def handle_event("toggle_theme", _params, socket) do
+    # Theme toggle is handled client-side via JavaScript
+    {:noreply, socket}
   end
 end
