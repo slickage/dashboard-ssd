@@ -7,6 +7,15 @@
     <.live_title>
       {assigns[:page_title] || "DashboardSSD"}
     </.live_title>
+    <script>
+      // Set theme immediately to prevent flicker
+      try {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    </script>
     <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
     <script defer phx-track-static type="text/javascript" src={~p"/assets/app.js"}>
     </script>
