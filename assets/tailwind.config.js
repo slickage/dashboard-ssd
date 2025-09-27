@@ -19,6 +19,7 @@ module.exports = {
           background: "var(--theme-background)",
           surface: "var(--theme-surface)",
           surfaceMuted: "var(--theme-surface-muted)",
+          surfaceRaised: "var(--theme-surface-raised)",
           border: "var(--theme-border)",
           primary: "var(--theme-primary)",
           primarySoft: "var(--theme-primary-soft)",
@@ -28,15 +29,15 @@ module.exports = {
         }
       },
       fontFamily: {
-        theme: ["'Inter'", "'Segoe UI'", "ui-sans-serif", "system-ui", "-apple-system", "sans-serif"],
-        sans: ["'Inter'", "'Segoe UI'", "ui-sans-serif", "system-ui", "-apple-system", "sans-serif"]
+        theme: ["'Roboto'", "'Segoe UI'", "ui-sans-serif", "system-ui", "-apple-system", "sans-serif"],
+        sans: ["'Roboto'", "'Segoe UI'", "ui-sans-serif", "system-ui", "-apple-system", "sans-serif"]
       },
       boxShadow: {
         "theme-card": "0px 24px 60px -40px rgba(15, 23, 42, 0.25)",
-        "theme-soft": "0px 12px 24px -16px rgba(15, 23, 42, 0.18)"
+        "theme-soft": "0px 32px 120px -40px rgba(8, 11, 20, 0.7)"
       },
       borderRadius: {
-        theme: "20px"
+        theme: "24px"
       }
     },
   },
