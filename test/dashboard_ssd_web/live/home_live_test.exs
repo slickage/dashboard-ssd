@@ -193,6 +193,37 @@ defmodule DashboardSSDWeb.HomeLiveTest do
     assert html =~ "Success rate"
   end
 
+  test "CI status card renders per-status colors", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "ci-colors@example.com",
+        name: "CIColors",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    {:ok, project} = Projects.create_project(%{name: "CI Colors"})
+
+    Enum.each(
+      [
+        "success",
+        "failed",
+        "pending",
+        "unknown"
+      ],
+      fn status ->
+        {:ok, _} = Deployments.create_deployment(%{project_id: project.id, status: status})
+      end
+    )
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, _view, html} = live(conn, ~p"/")
+
+    assert html =~ "bg-emerald-400"
+    assert html =~ "bg-rose-500"
+    assert html =~ "bg-amber-400"
+    assert html =~ "bg-slate-500"
+  end
+
   test "handle_info updates workload summary", %{conn: conn} do
     {:ok, adm} =
       Accounts.create_user(%{
