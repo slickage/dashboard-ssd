@@ -177,7 +177,7 @@ defmodule DashboardSSDWeb.ProjectsHealthChecksLiveTest do
 
     {:ok, _view2, html} = live(conn, ~p"/projects")
     # Dot (green) should be present for "up"
-    assert html =~ "bg-emerald-500"
+    assert html =~ "bg-emerald-400"
 
     # Now disable
     {:ok, view3, _} = live(conn, ~p"/projects/#{p.id}/edit")
@@ -226,7 +226,7 @@ defmodule DashboardSSDWeb.ProjectsHealthChecksLiveTest do
 
     conn = init_test_session(conn, %{user_id: adm.id})
     {:ok, _view, html} = live(conn, ~p"/projects")
-    assert html =~ "bg-amber-500"
-    assert html =~ "bg-rose-500"
+    assert html =~ "bg-amber-400"
+    assert html =~ "bg-rose-400"
   end
 end
