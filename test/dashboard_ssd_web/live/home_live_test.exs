@@ -109,11 +109,11 @@ defmodule DashboardSSDWeb.HomeLiveTest do
     conn = init_test_session(conn, %{user_id: adm.id})
     {:ok, _view, html} = live(conn, ~p"/")
 
-    # Should show zero counts
-    assert html =~ "0</div>"
-    assert html =~ "No projects found"
-    assert html =~ "No active incidents"
-    assert html =~ "No recent deployments"
+    # Should show zero counts and empty states
+    assert html =~ ~r/Projects[\s\S]*?tabular-nums">\s*0\s*<\/p>/
+    assert html =~ "No projects available yet."
+    assert html =~ "All systems nominal."
+    assert html =~ "No recent deployments recorded."
   end
 
   test "refresh button reloads dashboard data", %{conn: conn} do
@@ -146,7 +146,8 @@ defmodule DashboardSSDWeb.HomeLiveTest do
     {:ok, _view, html} = live(conn, ~p"/")
 
     # Should show analytics section
-    assert html =~ "Analytics Summary"
+    assert html =~ "Analytics"
+    assert html =~ "Platform performance"
     assert html =~ "Uptime"
     assert html =~ "MTTR"
     assert html =~ "Throughput"
@@ -259,8 +260,8 @@ defmodule DashboardSSDWeb.HomeLiveTest do
     conn = init_test_session(conn, %{user_id: adm.id})
     {:ok, _view, html} = live(conn, ~p"/")
 
-    # Should show workload summary
-    assert html =~ "Workload Summary"
+    # Should show workload section
+    assert html =~ "Workload"
 
     # Restore original env
     Application.put_env(:dashboard_ssd, :integrations, prev)
@@ -298,7 +299,7 @@ defmodule DashboardSSDWeb.HomeLiveTest do
 
     # Should still show dashboard even with API error
     assert html =~ "Dashboard"
-    assert html =~ "Workload Summary"
+    assert html =~ "Workload"
 
     Application.put_env(:dashboard_ssd, :integrations, prev)
   end
@@ -337,8 +338,8 @@ defmodule DashboardSSDWeb.HomeLiveTest do
     {:ok, _view, html} = live(conn, ~p"/")
 
     # Should show workload summary with zeros
-    assert html =~ "Workload Summary"
-    assert html =~ "0</div>"
+    assert html =~ "Workload"
+    assert html =~ ~r/Workload[\s\S]*?tabular-nums">\s*0\s*<\/p>/
 
     Application.put_env(:dashboard_ssd, :integrations, prev)
   end
