@@ -15,8 +15,8 @@ defmodule DashboardSSDWeb.HomeLive.Index do
 
     {:ok,
      socket
-     |> assign(:page_title, "Dashboard")
-     |> assign(:theme_section, "Mission Control")
+     |> assign(:page_title, "Overview")
+     |> assign(:theme_section, "Dashboard")
      |> assign(:theme_header_meta, nil)
      |> assign(:theme_header_actions, header_actions_for(current_user))
      |> assign(:projects, [])
@@ -27,7 +27,8 @@ defmodule DashboardSSDWeb.HomeLive.Index do
      |> assign(:analytics_summary, %{})
      |> assign(:linear_enabled, linear_enabled?())
      |> assign(:last_synced_at, nil)
-     |> assign(:loaded, false)}
+     |> assign(:loaded, false)
+     |> assign(:mobile_menu_open, false)}
   end
 
   @impl true
@@ -103,6 +104,16 @@ defmodule DashboardSSDWeb.HomeLive.Index do
       |> assign(:analytics_summary, analytics_summary)
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("toggle_mobile_menu", _params, socket) do
+    {:noreply, assign(socket, mobile_menu_open: !socket.assigns.mobile_menu_open)}
+  end
+
+  @impl true
+  def handle_event("close_mobile_menu", _params, socket) do
+    {:noreply, assign(socket, mobile_menu_open: false)}
   end
 
   # Load workload summary from Linear

@@ -11,7 +11,8 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
     {:ok,
      socket
      |> assign(:page_title, "Settings")
-     |> assign(:integrations, integration_states(socket.assigns[:current_user]))}
+     |> assign(:integrations, integration_states(socket.assigns[:current_user]))
+     |> assign(:mobile_menu_open, false)}
   end
 
   @impl true
@@ -20,7 +21,8 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
     {:noreply,
      socket
      |> assign(:page_title, "Settings")
-     |> assign(:integrations, integration_states(socket.assigns[:current_user]))}
+     |> assign(:integrations, integration_states(socket.assigns[:current_user]))
+     |> assign(:mobile_menu_open, false)}
   end
 
   defp integration_states(nil) do
@@ -96,12 +98,7 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
   def render(assigns) do
     ~H"""
     <div class="flex flex-col gap-8">
-      <div>
-        <p class="text-xs font-medium uppercase tracking-[0.2em] text-theme-muted">Integrations</p>
-        <h1 class="mt-1 text-2xl font-semibold text-white">{@page_title}</h1>
-      </div>
-
-      <div class="theme-card overflow-hidden">
+      <div class="theme-card overflow-x-auto">
         <table class="theme-table">
           <thead>
             <tr>
@@ -181,5 +178,15 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
       </div>
     </div>
     """
+  end
+
+  @impl true
+  def handle_event("toggle_mobile_menu", _params, socket) do
+    {:noreply, assign(socket, mobile_menu_open: !socket.assigns.mobile_menu_open)}
+  end
+
+  @impl true
+  def handle_event("close_mobile_menu", _params, socket) do
+    {:noreply, assign(socket, mobile_menu_open: false)}
   end
 end

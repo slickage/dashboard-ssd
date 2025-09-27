@@ -13,7 +13,8 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
      socket
      |> assign(:q, "")
      |> assign(:clients, Clients.list_clients())
-     |> assign(:page_title, "Clients")}
+     |> assign(:page_title, "Clients")
+     |> assign(:mobile_menu_open, false)}
   end
 
   @impl true
@@ -40,8 +41,6 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
 
   @impl true
   @doc "Handle clients page events (search/delete)."
-  def handle_event(event, params, socket)
-
   def handle_event("search", %{"q" => q}, socket) do
     {:noreply, socket |> assign(:q, q) |> assign(:clients, Clients.search_clients(q))}
   end
@@ -50,6 +49,16 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
     client = Clients.get_client!(String.to_integer(id))
     {:ok, _} = Clients.delete_client(client)
     {:noreply, refresh_clients(socket)}
+  end
+
+  @impl true
+  def handle_event("toggle_mobile_menu", _params, socket) do
+    {:noreply, assign(socket, mobile_menu_open: !socket.assigns.mobile_menu_open)}
+  end
+
+  @impl true
+  def handle_event("close_mobile_menu", _params, socket) do
+    {:noreply, assign(socket, mobile_menu_open: false)}
   end
 
   @impl true
@@ -67,17 +76,15 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
     ~H"""
     <div class="flex flex-col gap-8">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p class="text-xs font-medium uppercase tracking-[0.2em] text-theme-muted">CRM</p>
-          <h1 class="mt-1 text-2xl font-semibold text-white">{@page_title}</h1>
-        </div>
         <%= if @current_user && @current_user.role && @current_user.role.name == "admin" do %>
-          <.link
-            navigate={~p"/clients/new"}
-            class={DashboardSSDWeb.Layouts.header_action_classes(:primary)}
-          >
-            New Client
-          </.link>
+          <div class="flex items-center gap-3">
+            <.link
+              navigate={~p"/clients/new"}
+              class="inline-flex items-center gap-2 rounded-full bg-theme-primary px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white shadow-theme-soft transition hover:bg-theme-primary-soft"
+            >
+              New Client
+            </.link>
+          </div>
         <% end %>
       </div>
 
@@ -109,7 +116,7 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
           No clients found.
         </div>
       <% else %>
-        <div class="theme-card overflow-hidden">
+        <div class="theme-card overflow-x-auto">
           <table class="theme-table">
             <thead>
               <tr>
