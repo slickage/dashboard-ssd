@@ -51,8 +51,8 @@ defmodule DashboardSSD.Analytics.CollectorTest do
       assert :ok = Collector.collect_project_metrics(setting)
     end
 
-    test "warns for unknown provider" do
-      setting = %{project_id: 1, provider: "custom"}
+    test "logs for unknown provider" do
+      setting = %{project_id: 1, provider: "unknown"}
 
       assert :ok = Collector.collect_project_metrics(setting)
     end

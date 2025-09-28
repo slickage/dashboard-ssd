@@ -6,6 +6,8 @@ defmodule DashboardSSD.Analytics.Collector do
   - Uptime from health checks
   - Response times for configured endpoints
   - Error rates and other performance indicators
+
+  Supported health check providers: http, aws_elbv2, custom
   """
 
   require Logger
@@ -49,8 +51,13 @@ defmodule DashboardSSD.Analytics.Collector do
       "aws_elbv2" ->
         Logger.debug("AWS ELBv2 metrics collection not yet implemented for project #{project_id}")
 
+      "custom" ->
+        Logger.debug(
+          "Custom health check metrics collection not yet implemented for project #{project_id}"
+        )
+
       _ ->
-        Logger.warning("Unknown health check provider: #{setting.provider}")
+        Logger.debug("Unknown health check provider: #{setting.provider}")
     end
   end
 
