@@ -167,7 +167,7 @@ defmodule DashboardSSDWeb.HomeLive.Index do
     assigns = assign(assigns, :tone_class, stat_tone_class(assigns.tone))
 
     ~H"""
-    <div class="theme-card p-5">
+    <div class="dashboard-widget">
       <p class="text-xs font-semibold uppercase tracking-[0.28em] text-theme-muted">
         {@title}
       </p>

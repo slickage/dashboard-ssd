@@ -81,7 +81,7 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
     ~H"""
     <div class="flex flex-col gap-8">
       <!-- Theme Settings -->
-      <div class="theme-card">
+      <div class="card">
         <div class="p-6">
           <h3 class="text-lg font-semibold text-theme-text mb-4">Appearance</h3>
           <div class="flex items-center justify-between">
@@ -106,7 +106,7 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
         </div>
       </div>
 
-      <div class="theme-card overflow-x-auto">
+      <div class="card overflow-x-auto">
         <table class="theme-table">
           <thead>
             <tr>

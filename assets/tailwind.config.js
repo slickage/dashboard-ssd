@@ -9,8 +9,10 @@ module.exports = {
   content: [
     "./js/**/*.js",
     "../lib/dashboard_ssd_web.ex",
-    "../lib/dashboard_ssd_web/**/*.*ex"
+    "../lib/dashboard_ssd_web/**/*.ex",
+    "../lib/dashboard_ssd_web/**/*.heex"
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
