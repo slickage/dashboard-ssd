@@ -25,6 +25,13 @@ defmodule DashboardSSDWeb.Router do
   scope "/", DashboardSSDWeb do
     pipe_through :browser
 
+    live_session :public,
+      on_mount: [{DashboardSSDWeb.UserAuth, :mount_current_user}],
+      session: {__MODULE__, :build_live_session, []},
+      layout: false do
+      live "/login", LoginLive, :index
+    end
+
     live_session :authenticated,
       on_mount: [
         {DashboardSSDWeb.UserAuth, :mount_current_user},

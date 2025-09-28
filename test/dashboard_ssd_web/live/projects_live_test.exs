@@ -82,7 +82,7 @@ defmodule DashboardSSDWeb.ProjectsLiveTest do
   end
 
   test "anonymous is redirected to auth", %{conn: conn} do
-    assert {:error, {:redirect, %{to: "/auth/google?redirect_to=/projects"}}} =
+    assert {:error, {:redirect, %{to: "/login?redirect_to=%2Fprojects"}}} =
              live(conn, ~p"/projects")
   end
 

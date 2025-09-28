@@ -15,7 +15,7 @@ defmodule DashboardSSDWeb.AnalyticsLiveTest do
 
   describe "Analytics LiveView" do
     test "redirects unauthenticated users", %{conn: conn} do
-      assert {:error, {:redirect, %{to: "/auth/google?redirect_to=/analytics"}}} =
+      assert {:error, {:redirect, %{to: "/login?redirect_to=%2Fanalytics"}}} =
                live(conn, ~p"/analytics")
     end
 

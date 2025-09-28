@@ -95,7 +95,7 @@ defmodule DashboardSSDWeb.HomeLiveTest do
   end
 
   test "anonymous is redirected to auth", %{conn: conn} do
-    assert {:error, {:redirect, %{to: "/auth/google?redirect_to=/"}}} = live(conn, ~p"/")
+    assert {:error, {:redirect, %{to: "/login?redirect_to=%2F"}}} = live(conn, ~p"/")
   end
 
   test "displays empty state when no data exists", %{conn: conn} do

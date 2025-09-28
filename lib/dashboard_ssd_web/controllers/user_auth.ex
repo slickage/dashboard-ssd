@@ -54,13 +54,13 @@ defmodule DashboardSSDWeb.UserAuth do
      )}
   end
 
-  # LiveView on_mount: ensure_authenticated (redirects to OAuth with redirect_to)
+  # LiveView on_mount: ensure_authenticated (redirects to login page with redirect_to)
   def on_mount(:ensure_authenticated, _params, session, socket) do
     if socket.assigns[:current_user] do
       {:cont, socket}
     else
       path = Map.get(session, "current_path") || "/"
-      {:halt, LiveView.redirect(socket, to: "/auth/google?redirect_to=" <> path)}
+      {:halt, LiveView.redirect(socket, to: "/login?redirect_to=" <> URI.encode_www_form(path))}
     end
   end
 
@@ -81,7 +81,7 @@ defmodule DashboardSSDWeb.UserAuth do
     case socket.assigns[:current_user] do
       nil ->
         path = Map.get(session, "current_path") || "/"
-        {:halt, LiveView.redirect(socket, to: "/auth/google?redirect_to=" <> path)}
+        {:halt, LiveView.redirect(socket, to: "/login?redirect_to=" <> URI.encode_www_form(path))}
 
       user ->
         if Policy.can?(user, action, subject) do
