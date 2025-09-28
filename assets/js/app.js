@@ -115,12 +115,12 @@ function updateToggleUI(theme) {
     toggle.classList.remove('translate-x-1');
     toggle.classList.add('translate-x-6');
     track.classList.remove('bg-theme-border');
-    track.classList.add('bg-blue-500');
+    track.classList.add('bg-gray-200');
     themeLabel.textContent = 'Light';
   } else {
     toggle.classList.remove('translate-x-6');
     toggle.classList.add('translate-x-1');
-    track.classList.remove('bg-blue-500');
+    track.classList.remove('bg-gray-200');
     track.classList.add('bg-theme-border');
     themeLabel.textContent = 'Dark';
   }
