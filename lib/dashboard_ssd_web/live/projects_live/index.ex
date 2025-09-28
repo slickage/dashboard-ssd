@@ -288,7 +288,6 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
           <table class="theme-table">
             <thead>
               <tr>
-                <th class="hidden md:table-cell">ID</th>
                 <th>Name</th>
                 <th>Client</th>
                 <th class="hidden md:table-cell whitespace-nowrap">
@@ -305,7 +304,6 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
             <tbody>
               <%= for p <- @projects do %>
                 <tr>
-                  <td class="hidden md:table-cell text-sm text-theme-muted">{p.id}</td>
                   <td>{p.name}</td>
                   <td>
                     <%= if is_nil(p.client) do %>
