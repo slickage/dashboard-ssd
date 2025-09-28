@@ -159,7 +159,7 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
                         phx-click="delete"
                         phx-value-id={c.id}
                         onclick="return confirm('Delete this client?')"
-                        class="text-rose-300 transition hover:text-rose-200"
+                        class="theme-btn-link text-rose-300 transition hover:text-rose-200"
                       >
                         Delete
                       </button>
