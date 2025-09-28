@@ -226,158 +226,160 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="flex flex-col gap-8">
-      <div class="theme-card px-4 py-4 sm:px-6">
-        <form
-          id="client-filter-form"
-          phx-change="filter"
-          class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-        >
-          <div class="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
-            <label
-              for="client-filter"
-              class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted"
-            >
-              Filter by client
-            </label>
-            <select
-              name="client_id"
-              id="client-filter"
-              class="w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white transition focus:border-white/30 focus:outline-none sm:w-64"
-            >
-              <option value="" selected={@client_id in [nil, ""]}>All Clients</option>
-              <%= for c <- @clients do %>
-                <option value={c.id} selected={to_string(c.id) == to_string(@client_id)}>
-                  {c.name}
-                </option>
+    <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col gap-8">
+        <div class="theme-card px-4 py-4 sm:px-6">
+          <form
+            id="client-filter-form"
+            phx-change="filter"
+            class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div class="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+              <label
+                for="client-filter"
+                class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted"
+              >
+                Filter by client
+              </label>
+              <select
+                name="client_id"
+                id="client-filter"
+                class="w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white transition focus:border-white/30 focus:outline-none sm:w-64"
+              >
+                <option value="" selected={@client_id in [nil, ""]}>All Clients</option>
+                <%= for c <- @clients do %>
+                  <option value={c.id} selected={to_string(c.id) == to_string(@client_id)}>
+                    {c.name}
+                  </option>
+                <% end %>
+              </select>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3">
+              <%= if @linear_enabled do %>
+                <button
+                  type="button"
+                  phx-click="sync"
+                  class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:border-white/20 hover:bg-white/10"
+                >
+                  Sync from Linear
+                </button>
+                <button
+                  type="button"
+                  phx-click="reload_summaries"
+                  class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:border-white/20 hover:bg-white/10"
+                >
+                  Reload Tasks
+                </button>
+              <% else %>
+                <span class="text-xs text-theme-muted">
+                  Linear not configured; set LINEAR_TOKEN to enable task breakdowns.
+                </span>
               <% end %>
-            </select>
-          </div>
-
-          <div class="flex flex-wrap items-center gap-3">
-            <%= if @linear_enabled do %>
-              <button
-                type="button"
-                phx-click="sync"
-                class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:border-white/20 hover:bg-white/10"
-              >
-                Sync from Linear
-              </button>
-              <button
-                type="button"
-                phx-click="reload_summaries"
-                class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:border-white/20 hover:bg-white/10"
-              >
-                Reload Tasks
-              </button>
-            <% else %>
-              <span class="text-xs text-theme-muted">
-                Linear not configured; set LINEAR_TOKEN to enable task breakdowns.
-              </span>
-            <% end %>
-          </div>
-        </form>
-      </div>
-
-      <%= if @projects == [] do %>
-        <div class="theme-card px-6 py-8 text-center text-sm text-theme-muted">
-          No projects found.
+            </div>
+          </form>
         </div>
-      <% else %>
-        <div class="theme-card overflow-x-auto">
-          <table class="theme-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Client</th>
-                <th class="hidden md:table-cell whitespace-nowrap">
-                  Tasks (Linear)
-                  <%= if @summaries == %{} do %>
-                    <span class="ml-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-transparent">
-                    </span>
-                  <% end %>
-                </th>
-                <th>Prod</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <%= for p <- @projects do %>
+
+        <%= if @projects == [] do %>
+          <div class="theme-card px-6 py-8 text-center text-sm text-theme-muted">
+            No projects found.
+          </div>
+        <% else %>
+          <div class="theme-card overflow-x-auto">
+            <table class="theme-table">
+              <thead>
                 <tr>
-                  <td>{p.name}</td>
-                  <td>
-                    <%= if is_nil(p.client) do %>
+                  <th>Name</th>
+                  <th>Client</th>
+                  <th class="hidden md:table-cell whitespace-nowrap">
+                    Tasks (Linear)
+                    <%= if @summaries == %{} do %>
+                      <span class="ml-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-transparent">
+                      </span>
+                    <% end %>
+                  </th>
+                  <th>Prod</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <%= for p <- @projects do %>
+                  <tr>
+                    <td>{p.name}</td>
+                    <td>
+                      <%= if is_nil(p.client) do %>
+                        <.link
+                          navigate={~p"/projects/#{p.id}/edit"}
+                          class="text-white/80 transition hover:text-white"
+                        >
+                          Assign Client
+                        </.link>
+                      <% else %>
+                        {p.client.name}
+                      <% end %>
+                    </td>
+                    <td class="hidden md:table-cell">
+                      <%= case Map.get(@summaries, to_string(p.id), :unavailable) do %>
+                        <% :unavailable -> %>
+                          <div class="flex items-center gap-3 text-xs text-theme-muted">
+                            <div class="w-36 shrink-0">
+                              <span class="inline-flex items-center rounded-full bg-white/5 px-2 py-0.5 text-white/70">
+                                N/A
+                              </span>
+                            </div>
+                            <div class="h-2 w-32 rounded-full bg-white/5"></div>
+                          </div>
+                        <% %{} = summary -> %>
+                          <.tasks_cell summary={summary} />
+                      <% end %>
+                    </td>
+                    <td>
+                      <%= case Map.get(@health || %{}, p.id) do %>
+                        <% nil -> %>
+                          <span class="text-white/30">—</span>
+                        <% status -> %>
+                          <.health_dot status={status} />
+                      <% end %>
+                    </td>
+                    <td>
                       <.link
                         navigate={~p"/projects/#{p.id}/edit"}
                         class="text-white/80 transition hover:text-white"
                       >
-                        Assign Client
+                        Edit
                       </.link>
-                    <% else %>
-                      {p.client.name}
-                    <% end %>
-                  </td>
-                  <td class="hidden md:table-cell">
-                    <%= case Map.get(@summaries, to_string(p.id), :unavailable) do %>
-                      <% :unavailable -> %>
-                        <div class="flex items-center gap-3 text-xs text-theme-muted">
-                          <div class="w-36 shrink-0">
-                            <span class="inline-flex items-center rounded-full bg-white/5 px-2 py-0.5 text-white/70">
-                              N/A
-                            </span>
-                          </div>
-                          <div class="h-2 w-32 rounded-full bg-white/5"></div>
-                        </div>
-                      <% %{} = summary -> %>
-                        <.tasks_cell summary={summary} />
-                    <% end %>
-                  </td>
-                  <td>
-                    <%= case Map.get(@health || %{}, p.id) do %>
-                      <% nil -> %>
-                        <span class="text-white/30">—</span>
-                      <% status -> %>
-                        <.health_dot status={status} />
-                    <% end %>
-                  </td>
-                  <td>
-                    <.link
-                      navigate={~p"/projects/#{p.id}/edit"}
-                      class="text-white/80 transition hover:text-white"
-                    >
-                      Edit
-                    </.link>
-                  </td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-        </div>
-      <% end %>
-      <%= if @live_action in [:edit] do %>
-        <.modal
-          id="project-modal"
-          show
-          on_cancel={
-            if @client_id in [nil, ""],
-              do: JS.patch(~p"/projects"),
-              else: JS.patch(~p"/projects?client_id=#{@client_id}")
-          }
-        >
-          <.live_component
-            module={DashboardSSDWeb.ProjectsLive.FormComponent}
-            id={@params["id"]}
-            action={@live_action}
-            current_user={@current_user}
-            patch={
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% end %>
+        <%= if @live_action in [:edit] do %>
+          <.modal
+            id="project-modal"
+            show
+            on_cancel={
               if @client_id in [nil, ""],
-                do: ~p"/projects?r=1",
-                else: ~p"/projects?client_id=#{@client_id}&r=1"
+                do: JS.patch(~p"/projects"),
+                else: JS.patch(~p"/projects?client_id=#{@client_id}")
             }
-            project_id={@params["id"]}
-          />
-        </.modal>
-      <% end %>
+          >
+            <.live_component
+              module={DashboardSSDWeb.ProjectsLive.FormComponent}
+              id={@params["id"]}
+              action={@live_action}
+              current_user={@current_user}
+              patch={
+                if @client_id in [nil, ""],
+                  do: ~p"/projects?r=1",
+                  else: ~p"/projects?client_id=#{@client_id}&r=1"
+              }
+              project_id={@params["id"]}
+            />
+          </.modal>
+        <% end %>
+      </div>
     </div>
     """
   end
