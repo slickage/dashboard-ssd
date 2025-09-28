@@ -21,7 +21,7 @@ defmodule DashboardSSDWeb.LoginLive do
   @impl true
   def handle_event("start_oauth", _params, socket) do
     redirect_to = socket.assigns[:redirect_to]
-    oauth_url = ~p"/auth/google?#{%{redirect_to: redirect_to}}"
+    oauth_url = ~p"/auth/google?#{%{redirect_to: redirect_to, popup: "true"}}"
 
     {:noreply,
      socket
