@@ -109,124 +109,119 @@ defmodule DashboardSSDWeb.AnalyticsLive.Index do
       )
 
     ~H"""
-    <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex flex-col gap-8">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div class="flex items-center gap-3">
-            <button
-              phx-click="refresh"
-              class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:border-white/20 hover:bg-white/10"
-            >
-              Refresh
-            </button>
-            <button
-              phx-click="export_csv"
-              class="inline-flex items-center gap-2 rounded-full bg-theme-primary px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white shadow-theme-soft transition hover:bg-theme-primary-soft"
-            >
-              Export CSV
-            </button>
-          </div>
-        </div>
-
-        <div class="theme-card px-4 py-4 sm:px-6">
-          <form
-            phx-change="select_project"
-            class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+    <div class="flex flex-col gap-8">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-3">
+          <button
+            phx-click="refresh"
+            class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:border-white/20 hover:bg-white/10"
           >
-            <div class="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
-              <label
-                for="project-select"
-                class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted"
-              >
-                Select Project
-              </label>
-              <select
-                id="project-select"
-                name="project_id"
-                class="w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white transition focus:border-white/30 focus:outline-none sm:w-64"
-                phx-value-project_id={@selected_project_id || ""}
-              >
-                <%= for project <- @projects do %>
-                  <option value={project.id} selected={project.id == @selected_project_id}>
-                    {project.name}
-                  </option>
-                <% end %>
-              </select>
-            </div>
-          </form>
-        </div>
-
-        <div class="grid gap-4 md:grid-cols-3">
-          <div
-            class="theme-card p-6"
-            title="Average percentage of time the system is operational and available"
+            Refresh
+          </button>
+          <button
+            phx-click="export_csv"
+            class="inline-flex items-center gap-2 rounded-full bg-theme-primary px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white shadow-theme-soft transition hover:bg-theme-primary-soft"
           >
-            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted">
-              Average Uptime
-            </p>
-            <p class="mt-3 text-3xl font-semibold text-emerald-300" data-testid="uptime-metric">
-              {format_percentage(@uptime_avg)}
-            </p>
-          </div>
-          <div
-            class="theme-card p-6"
-            title="Mean Time To Recovery - average time taken to resolve system issues"
-          >
-            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted">
-              Average MTTR
-            </p>
-            <p class="mt-3 text-3xl font-semibold text-amber-300" data-testid="mttr-metric">
-              {format_minutes(@mttr_avg)}
-            </p>
-          </div>
-          <div
-            class="theme-card p-6"
-            title="Average number of Linear issues processed per time period"
-          >
-            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted">
-              Average Linear Throughput
-            </p>
-            <p class="mt-3 text-3xl font-semibold text-sky-300" data-testid="linear-throughput-metric">
-              {format_throughput(@linear_throughput_avg)}
-            </p>
-          </div>
+            Export CSV
+          </button>
         </div>
-
-        <div class="theme-card overflow-x-auto">
-          <table class="theme-table">
-            <thead>
-              <tr>
-                <th>Project ID</th>
-                <th>Type</th>
-                <th>Value</th>
-                <th>Recorded At</th>
-              </tr>
-            </thead>
-            <tbody>
-              <%= for metric <- @metrics do %>
-                <tr>
-                  <td class="text-sm text-theme-muted">{metric.project_id}</td>
-                  <td>
-                    <span class={"inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium #{metric_type_class(metric.type)}"}>
-                      {format_metric_type(metric.type)}
-                    </span>
-                  </td>
-                  <td class="tabular-nums">{format_metric_value(metric)}</td>
-                  <td class="text-sm text-theme-muted">
-                    {DateTime.to_date(metric.inserted_at) |> Date.to_string()}
-                  </td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-        </div>
-
-        <%= if @metrics == [] do %>
-          <div class="theme-card px-6 py-8 text-center text-sm text-theme-muted">
-            No metrics recorded yet.
-          </div>
-        <% end %>
       </div>
+
+      <div class="theme-card px-4 py-4 sm:px-6">
+        <form
+          phx-change="select_project"
+          class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div class="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+            <label
+              for="project-select"
+              class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted"
+            >
+              Select Project
+            </label>
+            <select
+              id="project-select"
+              name="project_id"
+              class="w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white transition focus:border-white/30 focus:outline-none sm:w-64"
+              phx-value-project_id={@selected_project_id || ""}
+            >
+              <%= for project <- @projects do %>
+                <option value={project.id} selected={project.id == @selected_project_id}>
+                  {project.name}
+                </option>
+              <% end %>
+            </select>
+          </div>
+        </form>
+      </div>
+
+      <div class="grid gap-4 md:grid-cols-3">
+        <div
+          class="theme-card p-6"
+          title="Average percentage of time the system is operational and available"
+        >
+          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted">
+            Average Uptime
+          </p>
+          <p class="mt-3 text-3xl font-semibold text-emerald-300" data-testid="uptime-metric">
+            {format_percentage(@uptime_avg)}
+          </p>
+        </div>
+        <div
+          class="theme-card p-6"
+          title="Mean Time To Recovery - average time taken to resolve system issues"
+        >
+          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted">
+            Average MTTR
+          </p>
+          <p class="mt-3 text-3xl font-semibold text-amber-300" data-testid="mttr-metric">
+            {format_minutes(@mttr_avg)}
+          </p>
+        </div>
+        <div class="theme-card p-6" title="Average number of Linear issues processed per time period">
+          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted">
+            Average Linear Throughput
+          </p>
+          <p class="mt-3 text-3xl font-semibold text-sky-300" data-testid="linear-throughput-metric">
+            {format_throughput(@linear_throughput_avg)}
+          </p>
+        </div>
+      </div>
+
+      <div class="theme-card overflow-x-auto">
+        <table class="theme-table">
+          <thead>
+            <tr>
+              <th>Project ID</th>
+              <th>Type</th>
+              <th>Value</th>
+              <th>Recorded At</th>
+            </tr>
+          </thead>
+          <tbody>
+            <%= for metric <- @metrics do %>
+              <tr>
+                <td class="text-sm text-theme-muted">{metric.project_id}</td>
+                <td>
+                  <span class={"inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium #{metric_type_class(metric.type)}"}>
+                    {format_metric_type(metric.type)}
+                  </span>
+                </td>
+                <td class="tabular-nums">{format_metric_value(metric)}</td>
+                <td class="text-sm text-theme-muted">
+                  {DateTime.to_date(metric.inserted_at) |> Date.to_string()}
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+
+      <%= if @metrics == [] do %>
+        <div class="theme-card px-6 py-8 text-center text-sm text-theme-muted">
+          No metrics recorded yet.
+        </div>
+      <% end %>
     </div>
     """
   end
