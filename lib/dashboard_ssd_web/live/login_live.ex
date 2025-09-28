@@ -19,6 +19,16 @@ defmodule DashboardSSDWeb.LoginLive do
   end
 
   @impl true
+  def handle_event("start_oauth", _params, socket) do
+    redirect_to = socket.assigns[:redirect_to]
+    oauth_url = ~p"/auth/google?#{%{redirect_to: redirect_to}}"
+
+    {:noreply,
+     socket
+     |> push_event("open_oauth_popup", %{url: oauth_url})}
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <div class="min-h-screen flex items-center justify-center bg-theme-background px-4">
@@ -43,8 +53,9 @@ defmodule DashboardSSDWeb.LoginLive do
           <div class="space-y-6">
             <!-- Google OAuth Button -->
             <div>
-              <.link
-                href={~p"/auth/google?#{%{redirect_to: @redirect_to}}"}
+              <button
+                type="button"
+                phx-click="start_oauth"
                 class="w-full flex items-center justify-center gap-3 px-4 py-3 border border-theme-border rounded-xl text-theme-text bg-theme-surface hover:bg-theme-surface-muted transition-colors duration-200 group"
               >
                 <svg class="h-5 w-5" viewBox="0 0 24 24">
@@ -66,17 +77,7 @@ defmodule DashboardSSDWeb.LoginLive do
                   />
                 </svg>
                 <span class="text-sm font-medium">Continue with Google</span>
-              </.link>
-            </div>
-            
-    <!-- Divider -->
-            <div class="relative">
-              <div class="absolute inset-0 flex items-center">
-                <div class="w-full border-t border-theme-border"></div>
-              </div>
-              <div class="relative flex justify-center text-sm">
-                <span class="px-2 bg-theme-surface text-theme-text-muted">or</span>
-              </div>
+              </button>
             </div>
             
     <!-- Additional Info -->

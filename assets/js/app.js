@@ -183,6 +183,30 @@ document.addEventListener('DOMContentLoaded', initStickyHeader);
 document.addEventListener('phx:page-loading-stop', initStickyHeader);
 document.addEventListener('phx:update', initStickyHeader);
 
+// OAuth popup handling
+window.addEventListener("phx:open_oauth_popup", (event) => {
+  const { url } = event.detail;
+  const popup = window.open(
+    url,
+    "oauth-popup",
+    "width=500,height=600,scrollbars=yes,resizable=yes"
+  );
+
+  if (popup) {
+    // Check if popup is closed every 500ms
+    const checkClosed = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(checkClosed);
+        // Reload the page to check if authentication succeeded
+        window.location.reload();
+      }
+    }, 500);
+  } else {
+    // Fallback if popup was blocked
+    window.location.href = url;
+  }
+});
+
 // connect if there are any LiveViews on the page
 liveSocket.connect()
 
