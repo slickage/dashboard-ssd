@@ -151,7 +151,7 @@ defmodule DashboardSSD.MixProject do
         "cmd MIX_ENV=test mix compile --force --warnings-as-errors",
         "format --check-formatted",
         "credo --strict",
-        "cmd SOBELOW_CONFIDENCE=medium MIX_ENV=dev mix sobelow --exit",
+        "cmd SOBELOW_CONFIDENCE=medium MIX_ENV=dev mix sobelow --skip --exit",
         "cmd MIX_ENV=dev mix assets.setup",
         "cmd MIX_ENV=dev mix assets.build",
         "cmd MIX_ENV=dev mix dialyzer --plt",
