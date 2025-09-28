@@ -4,8 +4,9 @@ defmodule DashboardSSDWeb.HomeLive.Index do
 
   require Logger
 
+  alias DashboardSSD.Integrations.LinearUtils
   alias DashboardSSD.{Analytics, Clients, Deployments, Notifications, Projects}
-  alias DashboardSSD.Integrations
+  alias DashboardSSD.Analytics.Workload
   alias DashboardSSDWeb.Layouts
 
   @impl true
@@ -26,7 +27,7 @@ defmodule DashboardSSDWeb.HomeLive.Index do
      |> assign(:deployments, [])
      |> assign(:workload_summary, %{})
      |> assign(:analytics_summary, %{})
-     |> assign(:linear_enabled, linear_enabled?())
+     |> assign(:linear_enabled, LinearUtils.linear_enabled?())
      |> assign(:last_synced_at, nil)
      |> assign(:loaded, false)
      |> assign(:mobile_menu_open, false)}
@@ -144,147 +145,7 @@ defmodule DashboardSSDWeb.HomeLive.Index do
 
   # Summarize workload across all projects
   defp summarize_all_projects(projects) do
-    if linear_enabled?() do
-      do_summarize_projects(projects)
-    else
-      %{total: 0, in_progress: 0, finished: 0}
-    end
-  end
-
-  defp do_summarize_projects(projects) do
-    Enum.reduce(projects, %{total: 0, in_progress: 0, finished: 0}, fn project, acc ->
-      case fetch_linear_summary(project) do
-        %{total: t, in_progress: ip, finished: f} ->
-          %{total: acc.total + t, in_progress: acc.in_progress + ip, finished: acc.finished + f}
-
-        _ ->
-          acc
-      end
-    end)
-  end
-
-  # Fetch Linear summary for a single project (copied from ProjectsLive)
-  defp fetch_linear_summary(project) do
-    if Application.get_env(:dashboard_ssd, :env) == :test do
-      if Application.get_env(:tesla, :adapter) == Tesla.Mock do
-        do_fetch_linear_summary(project)
-      else
-        :unavailable
-      end
-    else
-      do_fetch_linear_summary(project)
-    end
-  end
-
-  defp do_fetch_linear_summary(project) do
-    case issue_nodes_for_project(project.name) do
-      {:ok, nodes} -> summarize_issue_nodes(nodes)
-      :empty -> %{total: 0, in_progress: 0, finished: 0}
-      :error -> :unavailable
-    end
-  end
-
-  # Issue nodes fetching logic (copied from ProjectsLive)
-  defp issue_nodes_for_project(name) do
-    eq_query = """
-    query IssuesByProject($name: String!, $first: Int!) {
-      issues(first: $first, filter: { project: { name: { eq: $name } } }) {
-        nodes { id state { name } }
-      }
-    }
-    """
-
-    contains_query = """
-    query IssuesByProjectContains($name: String!, $first: Int!) {
-      issues(first: $first, filter: { project: { name: { contains: $name } } }) {
-        nodes { id state { name } }
-      }
-    }
-    """
-
-    search_query = """
-    query IssueSearch($q: String!) {
-      issueSearch(query: $q, first: 50) {
-        nodes { id state { name } }
-      }
-    }
-    """
-
-    queries = [
-      {eq_query, %{"name" => name, "first" => 50}},
-      {contains_query, %{"name" => name, "first" => 50}},
-      {search_query, %{"q" => ~s(project:"#{name}")}}
-    ]
-
-    try_issue_queries(queries)
-  end
-
-  defp try_issue_queries([{query, vars} | rest]) do
-    case Integrations.linear_list_issues(query, vars) do
-      {:ok, %{"data" => %{"issues" => %{"nodes" => nodes}}}} when is_list(nodes) ->
-        {:ok, nodes}
-
-      {:ok, %{"data" => %{"issueSearch" => %{"nodes" => nodes}}}} when is_list(nodes) ->
-        {:ok, nodes}
-
-      {:ok, _} ->
-        try_issue_queries(rest)
-
-      {:error, _} ->
-        if rest == [], do: :error, else: try_issue_queries(rest)
-    end
-  end
-
-  defp try_issue_queries([]), do: :empty
-
-  # Summarize issue nodes (copied from ProjectsLive)
-  defp summarize_issue_nodes(nodes) when is_list(nodes) do
-    total = length(nodes)
-    {in_progress, finished} = summarize_nodes(nodes)
-    %{total: total, in_progress: in_progress, finished: finished}
-  end
-
-  defp summarize_nodes(nodes) do
-    Enum.reduce(nodes, {0, 0}, fn n, {ip, fin} ->
-      s = String.downcase(get_in(n, ["state", "name"]) || "")
-
-      done? =
-        Enum.any?(
-          [
-            "done",
-            "complete",
-            "completed",
-            "closed",
-            "merged",
-            "released",
-            "shipped",
-            "resolved"
-          ],
-          &String.contains?(s, &1)
-        )
-
-      inprog? =
-        Enum.any?(
-          [
-            "progress",
-            "doing",
-            "started",
-            "active",
-            "review",
-            "qa",
-            "testing",
-            "block",
-            "verify"
-          ],
-          &String.contains?(s, &1)
-        )
-
-      cond do
-        done? -> {ip, fin + 1}
-        inprog? -> {ip + 1, fin}
-        true -> {ip, fin}
-      end
-    end)
+    Workload.summarize_all_projects(projects)
   end
 
   # Load analytics summary
@@ -294,12 +155,6 @@ defmodule DashboardSSDWeb.HomeLive.Index do
       mttr: Analytics.calculate_mttr(),
       throughput: Analytics.calculate_linear_throughput()
     }
-  end
-
-  # Check if Linear is enabled
-  defp linear_enabled? do
-    token = Application.get_env(:dashboard_ssd, :integrations, [])[:linear_token]
-    is_binary(token) and String.trim(to_string(token)) != ""
   end
 
   # Function component: stat card
@@ -336,8 +191,8 @@ defmodule DashboardSSDWeb.HomeLive.Index do
     ip = summary[:in_progress] || 0
     fin = summary[:finished] || 0
 
-    done_pct = percent(fin, total)
-    ip_pct = percent(ip, total)
+    done_pct = Workload.percent(fin, total)
+    ip_pct = Workload.percent(ip, total)
     rest_pct = max(0, 100 - done_pct - ip_pct)
     queued = max(total - fin - ip, 0)
 
@@ -825,12 +680,6 @@ defmodule DashboardSSDWeb.HomeLive.Index do
   end
 
   defp format_success_rate(_), do: "0.0%"
-
-  defp percent(_n, 0), do: 0
-
-  defp percent(n, total) when is_integer(n) and is_integer(total) and total > 0 do
-    trunc(n * 100 / total)
-  end
 
   defp header_actions_for(nil), do: Layouts.default_header_actions(nil)
 

@@ -559,6 +559,151 @@ defmodule DashboardSSDWeb.CoreComponents do
   end
 
   @doc """
+  Renders a reusable search form.
+
+  ## Examples
+
+      <.search_form placeholder="Search clients..." query={@query} phx-submit="search" />
+  """
+  attr :placeholder, :string, default: "Search..."
+  attr :query, :string, required: true
+  attr :rest, :global
+
+  @spec search_form(map()) :: Rendered.t()
+  def search_form(assigns) do
+    ~H"""
+    <form {@rest}>
+      <div class="relative">
+        <input
+          type="text"
+          name="query"
+          value={@query}
+          placeholder={@placeholder}
+          class="w-full rounded-full border border-theme-border bg-theme-surface px-4 py-2 pl-10 text-theme-text placeholder-theme-text-muted focus:border-theme-primary focus:outline-none"
+        />
+        <.icon
+          name="hero-magnifying-glass-solid"
+          class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-theme-text-muted"
+        />
+      </div>
+    </form>
+    """
+  end
+
+  @doc """
+  Renders a status badge for connected/disconnected states.
+
+  ## Examples
+
+      <.status_badge state={%{connected: true, details: :ok}} />
+  """
+  attr :state, :map, required: true
+
+  @spec status_badge(map()) :: Rendered.t()
+  def status_badge(assigns) do
+    if assigns.state[:connected] do
+      ~H"""
+      <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium theme-status-connected">
+        Connected
+      </span>
+      """
+    else
+      ~H"""
+      <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium theme-status-disconnected">
+        Not connected
+      </span>
+      """
+    end
+  end
+
+  @doc """
+  Renders a health status dot.
+
+  ## Examples
+
+      <.health_dot status="ok" />
+  """
+  attr :status, :string, required: true
+
+  @spec health_dot(map()) :: Rendered.t()
+  def health_dot(assigns) do
+    status = String.downcase(to_string(assigns.status || ""))
+
+    {color_class, label} =
+      cond do
+        status in ["ok", "passing", "healthy", "up"] -> {"bg-emerald-400", "Up"}
+        status in ["degraded", "warn", "warning"] -> {"bg-amber-400", "Degraded"}
+        status in ["fail", "failing", "down", "error"] -> {"bg-rose-400", "Down"}
+        true -> {"bg-white/40", String.capitalize(status)}
+      end
+
+    assigns = assign(assigns, color: color_class, label: label)
+
+    ~H"""
+    <span class="inline-flex items-center gap-1" title={@label} aria-label={@label}>
+      <span class={"inline-block h-2.5 w-2.5 rounded-full #{@color}"} aria-hidden="true"></span>
+    </span>
+    """
+  end
+
+  @doc """
+  Renders a tasks summary cell with badges and progress bar.
+
+  ## Examples
+
+      <.tasks_cell summary={%{total: 10, in_progress: 3, finished: 5}} />
+  """
+  attr :summary, :map, required: true
+
+  @spec tasks_cell(map()) :: Rendered.t()
+  def tasks_cell(assigns) do
+    summary = assigns.summary || %{}
+    total = summary[:total] || summary["total"] || 0
+    ip = summary[:in_progress] || summary["in_progress"] || 0
+    fin = summary[:finished] || summary["finished"] || 0
+
+    done_pct = percent(fin, total)
+    ip_pct = percent(ip, total)
+    rest_pct = max(0, 100 - done_pct - ip_pct)
+
+    assigns =
+      assign(assigns,
+        total: total,
+        ip: ip,
+        fin: fin,
+        done_pct: done_pct,
+        ip_pct: ip_pct,
+        rest_pct: rest_pct
+      )
+
+    ~H"""
+    <div class="flex items-center gap-3">
+      <div class="grid w-36 shrink-0 grid-cols-3 gap-2">
+        <span class="flex items-center gap-1 text-xs text-theme-muted" title="Total">
+          <span class="inline-block h-2.5 w-2.5 rounded-full bg-white/40" aria-hidden="true"></span>
+          <span class="tabular-nums text-white/80">{@total}</span>
+        </span>
+        <span class="flex items-center gap-1 text-xs text-sky-200" title="In Progress">
+          <span class="inline-block h-2.5 w-2.5 rounded-full bg-sky-400" aria-hidden="true"></span>
+          <span class="tabular-nums">{@ip}</span>
+        </span>
+        <span class="flex items-center gap-1 text-xs text-emerald-200" title="Finished">
+          <span class="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400" aria-hidden="true">
+          </span>
+          <span class="tabular-nums">{@fin}</span>
+        </span>
+        <span class="hidden" data-total={@total} data-in-progress={@ip} data-finished={@fin}></span>
+      </div>
+      <div class="flex h-2 w-32 overflow-hidden rounded-full bg-white/10">
+        <div class="h-full bg-emerald-400" style={"width: #{@done_pct}%"}></div>
+        <div class="h-full bg-sky-400" style={"width: #{@ip_pct}%"}></div>
+        <div class="h-full bg-transparent" style={"width: #{@rest_pct}%"}></div>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
   Renders a back navigation link.
 
   ## Examples
@@ -704,5 +849,12 @@ defmodule DashboardSSDWeb.CoreComponents do
   @spec translate_errors(Keyword.t(), atom()) :: [String.t()]
   def translate_errors(errors, field) when is_list(errors) do
     for {^field, {msg, opts}} <- errors, do: translate_error({msg, opts})
+  end
+
+  # Helper function for percentage calculation
+  defp percent(_n, 0), do: 0
+
+  defp percent(n, total) when is_integer(n) and is_integer(total) and total > 0 do
+    trunc(n * 100 / total)
   end
 end
