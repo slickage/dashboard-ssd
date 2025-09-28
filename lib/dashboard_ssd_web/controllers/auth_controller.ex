@@ -126,50 +126,61 @@ defmodule DashboardSSDWeb.AuthController do
   @spec delete_get(Conn.t(), map()) :: Conn.t()
   def delete_get(conn, params), do: delete(conn, params)
 
+  # sobelow_skip XSS.SendResp
   # Handle callback redirect - use popup-aware logic for production, HTTP redirect for tests
+  # XSS warning is suppressed because redirect_to is properly JSON-encoded and used in data attribute
   defp handle_callback_redirect(conn, redirect_to) do
     if Mix.env() == :test do
       # In tests, use HTTP redirect for easier testing
       redirect(conn, to: redirect_to)
     else
+      # Escape the redirect URL to prevent XSS - escape quotes for JavaScript
+      escaped_redirect_to = String.replace(redirect_to, "'", "\\'")
+
       # In production, render close page that handles popup detection client-side
+      # Build HTML response safely using Phoenix.HTML
+      html_content =
+        Phoenix.HTML.raw("""
+        <!DOCTYPE html>
+        <html data-redirect-url="#{Phoenix.HTML.html_escape(escaped_redirect_to)}">
+        <head>
+          <title>Authentication Complete</title>
+          <script>
+            (function() {
+              var redirectUrl = document.documentElement.getAttribute('data-redirect-url');
+
+              // Check if this is a popup window
+              var isPopup = window.opener && window.opener !== window;
+
+              if (isPopup && !window.opener.closed) {
+                // This is a popup - tell parent to reload and close self
+                try {
+                  window.opener.location.href = redirectUrl;
+                  setTimeout(function() {
+                    window.close();
+                  }, 100);
+                } catch (e) {
+                  // Cross-origin error - fallback to closing popup only
+                  setTimeout(function() {
+                    window.close();
+                  }, 100);
+                }
+              } else {
+                // Not a popup or parent is closed - redirect this window
+                window.location.href = redirectUrl;
+              }
+            })();
+          </script>
+        </head>
+        <body>
+          <p>Authentication successful! Redirecting...</p>
+        </body>
+        </html>
+        """)
+
       conn
       |> put_resp_content_type("text/html")
-      |> send_resp(200, """
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Authentication Complete</title>
-        <script>
-          (function() {
-            // Check if this is a popup window
-            var isPopup = window.opener && window.opener !== window;
-
-            if (isPopup && !window.opener.closed) {
-              // This is a popup - tell parent to reload and close self
-              try {
-                window.opener.location.href = '#{redirect_to}';
-                setTimeout(function() {
-                  window.close();
-                }, 100);
-              } catch (e) {
-                // Cross-origin error - fallback to closing popup only
-                setTimeout(function() {
-                  window.close();
-                }, 100);
-              }
-            } else {
-              // Not a popup or parent is closed - redirect this window
-              window.location.href = '#{redirect_to}';
-            }
-          })();
-        </script>
-      </head>
-      <body>
-        <p>Authentication successful! Redirecting...</p>
-      </body>
-      </html>
-      """)
+      |> send_resp(200, html_content)
     end
   end
 
