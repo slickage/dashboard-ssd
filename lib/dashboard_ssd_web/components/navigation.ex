@@ -297,7 +297,6 @@ defmodule DashboardSSDWeb.Navigation do
     case URI.parse(path) do
       %URI{path: parsed_path} when is_binary(parsed_path) -> parsed_path
       %URI{} -> "/"
-      _ -> path || "/"
     end
   end
 

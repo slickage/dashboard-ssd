@@ -2,6 +2,7 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
   @moduledoc "LiveView for listing and managing clients."
   use DashboardSSDWeb, :live_view
 
+  alias DashboardSSD.Auth.Policy
   alias DashboardSSD.Clients
 
   @impl true
@@ -9,7 +10,7 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
   def mount(_params, _session, socket) do
     user = socket.assigns.current_user
 
-    if DashboardSSD.Auth.Policy.can?(user, :read, :clients) do
+    if Policy.can?(user, :read, :clients) do
       _ = Clients.subscribe()
 
       {:ok,

@@ -8,6 +8,7 @@ defmodule DashboardSSDWeb.AnalyticsLive.Index do
   use DashboardSSDWeb, :live_view
 
   alias DashboardSSD.Analytics
+  alias DashboardSSD.Auth.Policy
   alias DashboardSSD.Projects
 
   @impl true
@@ -15,7 +16,7 @@ defmodule DashboardSSDWeb.AnalyticsLive.Index do
   def mount(_params, _session, socket) do
     user = socket.assigns.current_user
 
-    if DashboardSSD.Auth.Policy.can?(user, :read, :analytics) do
+    if Policy.can?(user, :read, :analytics) do
       projects = Projects.list_projects()
       selected_project_id = if projects != [], do: hd(projects).id, else: nil
 

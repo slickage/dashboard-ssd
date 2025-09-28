@@ -4,6 +4,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
 
   require Logger
 
+  alias DashboardSSD.Auth.Policy
   alias DashboardSSD.{Clients, Projects}
   alias DashboardSSD.Deployments
   alias DashboardSSD.Integrations
@@ -13,7 +14,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
   def mount(_params, _session, socket) do
     user = socket.assigns.current_user
 
-    if DashboardSSD.Auth.Policy.can?(user, :read, :projects) do
+    if Policy.can?(user, :read, :projects) do
       {:ok,
        socket
        |> assign(:current_path, "/projects")
