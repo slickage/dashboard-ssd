@@ -8,29 +8,71 @@
       {assigns[:page_title] || "DashboardSSD"}
     </.live_title>
     <style>
-      /* Prevent FOUC by setting default dark theme immediately */
+      /* Prevent FOUC by setting critical styles immediately */
       :root {
         --theme-background: #06070d;
         --theme-surface: #0d1222;
+        --theme-surface-muted: #141b2e;
         --theme-border: rgba(255, 255, 255, 0.08);
         --theme-primary: #2c5dff;
         --theme-text: rgba(255, 255, 255, 0.92);
+        --theme-text-muted: rgba(255, 255, 255, 0.64);
+        --theme-font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', Arial, sans-serif;
       }
+
+      * {
+        box-sizing: border-box;
+      }
+
       body {
+        margin: 0;
+        padding: 0;
         background-color: var(--theme-background);
         color: var(--theme-text);
+        font-family: var(--theme-font-family);
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      /* Critical layout styles */
+      .theme-shell-gradient {
+        min-height: 100vh;
+        background-color: var(--theme-background);
+      }
+
+      .theme-card {
+        background: var(--theme-surface);
+        border-radius: 24px;
+        border: 1px solid var(--theme-border);
+      }
+
+      /* Prevent transitions during initial load to avoid flicker */
+      * {
+        transition: none !important;
+      }
+
+      /* Enable transitions after page loads */
+      html.theme-initialized * {
+        transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
       }
     </style>
     <script>
-      // Set theme immediately to prevent flicker
-      try {
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        document.documentElement.setAttribute('data-theme', savedTheme);
-      } catch (e) {
-        document.documentElement.setAttribute('data-theme', 'dark');
-      }
+      // Set theme immediately to prevent flicker - run as early as possible
+      (function() {
+        try {
+          const savedTheme = localStorage.getItem('theme') || 'dark';
+          document.documentElement.setAttribute('data-theme', savedTheme);
+          // Also set a class on html for CSS targeting
+          document.documentElement.classList.add('theme-initialized');
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          document.documentElement.classList.add('theme-initialized');
+        }
+      })();
     </script>
 
+    <link rel="preload" href={~p"/assets/app.css"} as="style" />
     <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
     <script defer phx-track-static type="text/javascript" src={~p"/assets/app.js"}>
     </script>
