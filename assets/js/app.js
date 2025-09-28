@@ -63,7 +63,7 @@ function initTheme() {
     themeToggle.removeEventListener('click', handleThemeToggle);
 
     // Get current theme and update UI
-    const currentTheme = html.getAttribute('data-theme') || 'dark';
+    const currentTheme = html.classList.contains('dark') ? 'dark' : 'light';
     updateToggleUI(currentTheme);
 
     // Add theme toggle event listener
@@ -73,7 +73,7 @@ function initTheme() {
 
 function handleThemeToggle() {
   const html = document.documentElement;
-  const currentTheme = html.getAttribute('data-theme');
+  const currentTheme = html.classList.contains('dark') ? 'dark' : 'light';
   const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
 
   setTheme(newTheme);
@@ -83,7 +83,7 @@ function handleThemeToggle() {
 function ensureThemeConsistency() {
   const html = document.documentElement;
   const savedTheme = localStorage.getItem('theme') || 'dark';
-  const currentTheme = html.getAttribute('data-theme');
+  const currentTheme = html.classList.contains('dark') ? 'dark' : 'light';
 
   // If theme doesn't match saved preference, update it
   if (currentTheme !== savedTheme) {
@@ -93,7 +93,13 @@ function ensureThemeConsistency() {
 
 function setTheme(theme) {
   const html = document.documentElement;
-  html.setAttribute('data-theme', theme);
+
+  if (theme === 'dark') {
+    html.classList.add('dark');
+  } else {
+    html.classList.remove('dark');
+  }
+
   localStorage.setItem('theme', theme);
 
   // Force a style recalculation to ensure theme applies immediately
