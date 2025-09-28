@@ -76,25 +76,6 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
     end
   end
 
-  # UI helpers
-  attr :state, :map, required: true
-
-  defp status_badge(assigns) do
-    if assigns.state[:connected] do
-      ~H"""
-      <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium theme-status-connected">
-        Connected
-      </span>
-      """
-    else
-      ~H"""
-      <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium theme-status-disconnected">
-        Not connected
-      </span>
-      """
-    end
-  end
-
   @impl true
   def render(assigns) do
     ~H"""
