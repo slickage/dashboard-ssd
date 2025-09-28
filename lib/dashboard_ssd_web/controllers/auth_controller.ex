@@ -6,6 +6,10 @@ defmodule DashboardSSDWeb.AuthController do
   alias DashboardSSD.Accounts
   alias Plug.Conn
 
+  require Logger
+
+  @test_env Mix.env() == :test
+
   # Store optional redirect_to param before Ueberauth halts the request phase
   plug :store_redirect_to when action in [:request]
 
@@ -38,7 +42,14 @@ defmodule DashboardSSDWeb.AuthController do
   # Matches the Ueberauth success case
   def callback(%{assigns: %{ueberauth_auth: _auth}} = conn, _params) do
     user = handle_ueberauth(conn)
-    redirect_to = get_session(conn, :redirect_to) || ~p"/"
+    raw_redirect = get_session(conn, :redirect_to)
+
+    redirect_to =
+      case raw_redirect do
+        {:safe, val} -> val
+        nil -> "/"
+        val -> val
+      end
 
     conn
     |> put_session(:user_id, user.id)
@@ -66,7 +77,14 @@ defmodule DashboardSSDWeb.AuthController do
           provider_id: code
         })
 
-      redirect_to = get_session(conn, :redirect_to) || ~p"/"
+      raw_redirect = get_session(conn, :redirect_to)
+
+      redirect_to =
+        case raw_redirect do
+          {:safe, val} -> val
+          nil -> "/"
+          val -> val
+        end
 
       conn
       |> put_session(:user_id, user.id)
@@ -126,10 +144,9 @@ defmodule DashboardSSDWeb.AuthController do
   @spec delete_get(Conn.t(), map()) :: Conn.t()
   def delete_get(conn, params), do: delete(conn, params)
 
-  # Handle callback redirect - use popup-aware logic for production, HTTP redirect for tests
-  # Note: Sobelow XSS warning is a false positive - redirect_to is properly escaped with Phoenix.HTML.html_escape
+  # sobelow_skip ["XSS.SendResp"]
   defp handle_callback_redirect(conn, redirect_to) do
-    if Mix.env() == :test do
+    if @test_env do
       # In tests, use HTTP redirect for easier testing
       redirect(conn, to: redirect_to)
     else
@@ -137,45 +154,44 @@ defmodule DashboardSSDWeb.AuthController do
       escaped_redirect_to = String.replace(redirect_to, "'", "\\'")
 
       # In production, render close page that handles popup detection client-side
-      # Build HTML response safely using Phoenix.HTML
-      html_content =
-        Phoenix.HTML.raw("""
-        <!DOCTYPE html>
-        <html data-redirect-url="#{Phoenix.HTML.html_escape(escaped_redirect_to)}">
-        <head>
-          <title>Authentication Complete</title>
-          <script>
-            (function() {
-              var redirectUrl = document.documentElement.getAttribute('data-redirect-url');
+      # Build HTML response as safe string
+      html_content = """
+      <!DOCTYPE html>
+      <html data-redirect-url="#{Phoenix.HTML.safe_to_string(Phoenix.HTML.html_escape(escaped_redirect_to))}">
+      <head>
+        <title>Authentication Complete</title>
+        <script>
+          (function() {
+            var redirectUrl = document.documentElement.getAttribute('data-redirect-url');
 
-              // Check if this is a popup window
-              var isPopup = window.opener && window.opener !== window;
+            // Check if this is a popup window
+            var isPopup = window.opener && window.opener !== window;
 
-              if (isPopup && !window.opener.closed) {
-                // This is a popup - tell parent to reload and close self
-                try {
-                  window.opener.location.href = redirectUrl;
-                  setTimeout(function() {
-                    window.close();
-                  }, 100);
-                } catch (e) {
-                  // Cross-origin error - fallback to closing popup only
-                  setTimeout(function() {
-                    window.close();
-                  }, 100);
-                }
-              } else {
-                // Not a popup or parent is closed - redirect this window
-                window.location.href = redirectUrl;
+            if (isPopup && !window.opener.closed) {
+              // This is a popup - tell parent to reload and close self
+              try {
+                window.opener.location.href = redirectUrl;
+                setTimeout(function() {
+                  window.close();
+                }, 100);
+              } catch (e) {
+                // Cross-origin error - fallback to closing popup only
+                setTimeout(function() {
+                  window.close();
+                }, 100);
               }
-            })();
-          </script>
-        </head>
-        <body>
-          <p>Authentication successful! Redirecting...</p>
-        </body>
-        </html>
-        """)
+            } else {
+              // Not a popup or parent is closed - redirect this window
+              window.location.href = redirectUrl;
+            }
+          })();
+        </script>
+      </head>
+      <body>
+        <p>Authentication successful! Redirecting...</p>
+      </body>
+      </html>
+      """
 
       conn
       |> put_resp_content_type("text/html")
@@ -185,8 +201,11 @@ defmodule DashboardSSDWeb.AuthController do
 
   defp store_redirect_to(conn, _opts) do
     case conn.params["redirect_to"] do
-      val when is_binary(val) and val != "" -> put_session(conn, :redirect_to, val)
-      _ -> conn
+      val when is_binary(val) and val != "" ->
+        put_session(conn, :redirect_to, val)
+
+      _ ->
+        conn
     end
   end
 end
