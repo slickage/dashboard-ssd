@@ -94,7 +94,7 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
               <button
                 type="button"
                 id="theme-toggle"
-                class="relative inline-flex h-6 w-11 items-center rounded-full bg-theme-border transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-theme-surface"
+                class="theme-toggle relative inline-flex h-6 w-11 items-center rounded-full bg-theme-border transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-theme-surface"
                 phx-click="toggle_theme"
               >
                 <span class="sr-only">Toggle theme</span>

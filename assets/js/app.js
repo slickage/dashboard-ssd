@@ -120,14 +120,14 @@ function updateToggleUI(theme) {
   if (theme === 'light') {
     toggle.classList.remove('translate-x-1');
     toggle.classList.add('translate-x-6');
-    track.classList.remove('bg-theme-border');
-    track.classList.add('bg-gray-200');
+    track.classList.remove('bg-gray-200');
+    track.classList.add('bg-theme-surface-muted');
     themeLabel.textContent = 'Light';
   } else {
     toggle.classList.remove('translate-x-6');
     toggle.classList.add('translate-x-1');
-    track.classList.remove('bg-gray-200');
-    track.classList.add('bg-theme-border');
+    track.classList.remove('bg-theme-surface-muted');
+    track.classList.add('bg-gray-200');
     themeLabel.textContent = 'Dark';
   }
 }

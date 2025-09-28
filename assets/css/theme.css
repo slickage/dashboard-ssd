@@ -278,6 +278,17 @@
     cursor: not-allowed;
   }
 
+  /* Theme toggle button - override global button styles */
+  .theme-toggle {
+    background-color: var(--theme-border) !important;
+    border: none !important;
+    color: inherit !important;
+  }
+
+  .theme-toggle:hover {
+    background-color: inherit !important;
+  }
+
   /* Link-style buttons that should be transparent */
   .theme-btn-link {
     background-color: transparent !important;
