@@ -29,8 +29,8 @@ module.exports = {
         }
       },
       fontFamily: {
-        theme: ["'Roboto'", "'Segoe UI'", "ui-sans-serif", "system-ui", "-apple-system", "sans-serif"],
-        sans: ["'Roboto'", "'Segoe UI'", "ui-sans-serif", "system-ui", "-apple-system", "sans-serif"]
+        theme: ["system-ui", "-apple-system", "BlinkMacSystemFont", "'Segoe UI'", "'Oxygen'", "'Ubuntu'", "'Cantarell'", "'Fira Sans'", "'Droid Sans'", "'Helvetica Neue'", "Arial", "sans-serif"],
+        sans: ["system-ui", "-apple-system", "BlinkMacSystemFont", "'Segoe UI'", "'Oxygen'", "'Ubuntu'", "'Cantarell'", "'Fira Sans'", "'Droid Sans'", "'Helvetica Neue'", "Arial", "sans-serif"]
       },
       boxShadow: {
         "theme-card": "0px 24px 60px -40px rgba(15, 23, 42, 0.25)",

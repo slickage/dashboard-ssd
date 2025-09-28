@@ -73,13 +73,19 @@ function initTheme() {
 
   function updateToggleUI(theme) {
     const toggle = themeToggle.querySelector('span:last-child');
+    const track = themeToggle;
+
     if (theme === 'light') {
       toggle.classList.remove('translate-x-1');
       toggle.classList.add('translate-x-6');
+      track.classList.remove('bg-theme-border');
+      track.classList.add('bg-theme-primary');
       themeLabel.textContent = 'Light';
     } else {
       toggle.classList.remove('translate-x-6');
       toggle.classList.add('translate-x-1');
+      track.classList.remove('bg-theme-primary');
+      track.classList.add('bg-theme-border');
       themeLabel.textContent = 'Dark';
     }
   }
@@ -90,6 +96,50 @@ document.addEventListener('DOMContentLoaded', initTheme);
 
 // Also initialize on LiveView navigation
 document.addEventListener('phx:page-loading-stop', initTheme);
+
+// Sticky header behavior
+function initStickyHeader() {
+  const header = document.getElementById('sticky-header');
+  if (!header) return;
+
+  let lastScrollY = window.scrollY;
+  let isScrollingDown = false;
+
+  function updateHeader() {
+    const currentScrollY = window.scrollY;
+    const scrollingDown = currentScrollY > lastScrollY;
+
+    // Update scroll direction
+    if (scrollingDown !== isScrollingDown) {
+      isScrollingDown = scrollingDown;
+
+      if (scrollingDown) {
+        // Scrolling down: let header scroll out of view naturally
+        header.classList.add('scrolling');
+      } else {
+        // Scrolling up: make header sticky again
+        header.classList.remove('scrolling');
+      }
+    }
+
+    lastScrollY = currentScrollY;
+  }
+
+  // Throttle scroll events for better performance
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      requestAnimationFrame(() => {
+        updateHeader();
+        ticking = false;
+      });
+      ticking = true;
+    }
+  });
+}
+
+// Initialize sticky header when DOM is ready
+document.addEventListener('DOMContentLoaded', initStickyHeader);
 
 // connect if there are any LiveViews on the page
 liveSocket.connect()

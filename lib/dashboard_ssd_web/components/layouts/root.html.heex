@@ -7,6 +7,20 @@
     <.live_title>
       {assigns[:page_title] || "DashboardSSD"}
     </.live_title>
+    <style>
+      /* Prevent FOUC by setting default dark theme immediately */
+      :root {
+        --theme-background: #06070d;
+        --theme-surface: #0d1222;
+        --theme-border: rgba(255, 255, 255, 0.08);
+        --theme-primary: #2c5dff;
+        --theme-text: rgba(255, 255, 255, 0.92);
+      }
+      body {
+        background-color: var(--theme-background);
+        color: var(--theme-text);
+      }
+    </style>
     <script>
       // Set theme immediately to prevent flicker
       try {
@@ -16,6 +30,7 @@
         document.documentElement.setAttribute('data-theme', 'dark');
       }
     </script>
+
     <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
     <script defer phx-track-static type="text/javascript" src={~p"/assets/app.js"}>
     </script>
