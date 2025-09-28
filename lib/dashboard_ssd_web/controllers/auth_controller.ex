@@ -44,7 +44,7 @@ defmodule DashboardSSDWeb.AuthController do
     |> put_session(:user_id, user.id)
     |> delete_session(:redirect_to)
     |> configure_session(renew: true)
-    |> redirect(to: redirect_to)
+    |> handle_callback_redirect(redirect_to)
   end
 
   # Test/stub path (no auth assigns present). Enables deterministic tests.
@@ -72,7 +72,7 @@ defmodule DashboardSSDWeb.AuthController do
       |> put_session(:user_id, user.id)
       |> delete_session(:redirect_to)
       |> configure_session(renew: true)
-      |> redirect(to: redirect_to)
+      |> handle_callback_redirect(redirect_to)
     else
       # No assigns and not in stub mode – treat like failure
       conn
@@ -125,6 +125,40 @@ defmodule DashboardSSDWeb.AuthController do
   @doc "Handle logout for GET requests."
   @spec delete_get(Conn.t(), map()) :: Conn.t()
   def delete_get(conn, params), do: delete(conn, params)
+
+  # Handle callback redirect - detect popup and handle appropriately
+  defp handle_callback_redirect(conn, redirect_to) do
+    # Check if this is a popup by looking for the popup parameter
+    is_popup = conn.params["popup"] == "true"
+
+    if is_popup do
+      # This is a popup - render a page that closes itself and tells parent to reload
+      conn
+      |> put_resp_content_type("text/html")
+      |> send_resp(200, """
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Authentication Complete</title>
+        <script>
+          // Tell parent window to reload
+          if (window.opener && !window.opener.closed) {
+            window.opener.location.reload();
+          }
+          // Close this popup
+          window.close();
+        </script>
+      </head>
+      <body>
+        <p>Authentication successful! This window will close automatically.</p>
+      </body>
+      </html>
+      """)
+    else
+      # Normal redirect for non-popup flows
+      redirect(conn, to: redirect_to)
+    end
+  end
 
   defp store_redirect_to(conn, _opts) do
     case conn.params["redirect_to"] do
