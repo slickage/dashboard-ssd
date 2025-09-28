@@ -106,7 +106,7 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
         </div>
       </div>
 
-      <div class="card overflow-x-auto">
+      <div class="theme-card overflow-x-auto">
         <table class="theme-table">
           <thead>
             <tr>

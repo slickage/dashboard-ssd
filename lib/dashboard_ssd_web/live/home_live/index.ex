@@ -212,7 +212,7 @@ defmodule DashboardSSDWeb.HomeLive.Index do
       )
 
     ~H"""
-    <div class="theme-card theme-gradient-border p-6 lg:p-8">
+    <div class="card theme-gradient-border p-6 lg:p-8">
       <div class="flex flex-col gap-6">
         <div class="flex items-start justify-between gap-4">
           <div>
@@ -287,7 +287,7 @@ defmodule DashboardSSDWeb.HomeLive.Index do
       )
 
     ~H"""
-    <div class="theme-card p-6 lg:p-8">
+    <div class="card p-6 lg:p-8">
       <div class="flex items-start justify-between">
         <div>
           <p class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted">
@@ -355,7 +355,7 @@ defmodule DashboardSSDWeb.HomeLive.Index do
       )
 
     ~H"""
-    <div class="theme-card p-6 lg:p-8">
+    <div class="card p-6 lg:p-8">
       <div class="flex items-start justify-between gap-4">
         <div>
           <p class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted">
@@ -425,7 +425,7 @@ defmodule DashboardSSDWeb.HomeLive.Index do
       )
 
     ~H"""
-    <div class="theme-card p-6 lg:p-8">
+    <div class="card p-6 lg:p-8">
       <div class="flex items-start justify-between gap-4">
         <div>
           <p class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted">
@@ -494,7 +494,7 @@ defmodule DashboardSSDWeb.HomeLive.Index do
     assigns = assign(assigns, :rows, rows)
 
     ~H"""
-    <div class="theme-card p-0">
+    <div class="card p-0">
       <div class="flex items-center justify-between px-6 py-5">
         <div>
           <p class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted">

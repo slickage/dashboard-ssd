@@ -227,7 +227,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
   def render(assigns) do
     ~H"""
     <div class="flex flex-col gap-8">
-      <div class="theme-card px-4 py-4 sm:px-6">
+      <div class="card px-4 py-4 sm:px-6">
         <form
           id="client-filter-form"
           phx-change="filter"
