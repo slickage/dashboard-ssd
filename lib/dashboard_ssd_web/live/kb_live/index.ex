@@ -2,13 +2,14 @@ defmodule DashboardSSDWeb.KbLive.Index do
   @moduledoc "Knowledge base search powered by Notion."
   use DashboardSSDWeb, :live_view
 
+  alias DashboardSSD.Auth.Policy
   alias DashboardSSD.Integrations
 
   @impl true
   def mount(_params, _session, socket) do
     user = socket.assigns.current_user
 
-    if DashboardSSD.Auth.Policy.can?(user, :read, :kb) do
+    if Policy.can?(user, :read, :kb) do
       {:ok,
        socket
        |> assign(:current_path, "/kb")
