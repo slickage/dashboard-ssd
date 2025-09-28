@@ -1,6 +1,6 @@
 <% conn = assigns[:conn] %>
 <% current_user = assigns[:current_user] || (conn && conn.assigns[:current_user]) %>
-<% current_path = assigns[:current_path] || (conn && Phoenix.Controller.current_path(conn)) %>
+<% current_path = assigns[:current_path] || "/" %>
 <% page_title = assigns[:page_title] || (conn && conn.assigns[:page_title]) || "Dashboard" %>
 <% section_label = Map.get(assigns, :theme_section, "Dashboard") %>
 <% version = Map.get(assigns, :theme_version, "v0.1.0") %>

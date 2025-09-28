@@ -59,19 +59,25 @@ function initTheme() {
   const themeLabel = document.getElementById('theme-label');
 
   if (themeToggle && themeLabel) {
+    // Remove existing event listener to prevent duplicates
+    themeToggle.removeEventListener('click', handleThemeToggle);
+
     // Get current theme and update UI
     const currentTheme = html.getAttribute('data-theme') || 'dark';
     updateToggleUI(currentTheme);
 
-    // Toggle theme on button click
-    themeToggle.addEventListener('click', () => {
-      const currentTheme = html.getAttribute('data-theme');
-      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-
-      setTheme(newTheme);
-      updateToggleUI(newTheme);
-    });
+    // Add theme toggle event listener
+    themeToggle.addEventListener('click', handleThemeToggle);
   }
+}
+
+function handleThemeToggle() {
+  const html = document.documentElement;
+  const currentTheme = html.getAttribute('data-theme');
+  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+  setTheme(newTheme);
+  updateToggleUI(newTheme);
 }
 
 function ensureThemeConsistency() {
@@ -89,6 +95,11 @@ function setTheme(theme) {
   const html = document.documentElement;
   html.setAttribute('data-theme', theme);
   localStorage.setItem('theme', theme);
+
+  // Force a style recalculation to ensure theme applies immediately
+  html.style.display = 'none';
+  html.offsetHeight; // Trigger reflow
+  html.style.display = '';
 }
 
 function updateToggleUI(theme) {
@@ -118,11 +129,11 @@ function updateToggleUI(theme) {
 // Initialize theme when DOM is ready
 document.addEventListener('DOMContentLoaded', initTheme);
 
-// Also initialize on LiveView navigation
-document.addEventListener('phx:page-loading-stop', () => {
-  // Small delay to ensure DOM is ready after navigation
-  setTimeout(initTheme, 10);
-});
+// Also initialize on LiveView navigation and updates
+document.addEventListener('phx:page-loading-stop', initTheme);
+
+// Re-initialize on LiveView updates (when DOM changes)
+document.addEventListener('phx:update', initTheme);
 
 // Sticky header behavior
 function initStickyHeader() {

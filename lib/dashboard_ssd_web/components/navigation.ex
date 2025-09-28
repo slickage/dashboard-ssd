@@ -2,7 +2,6 @@ defmodule DashboardSSDWeb.Navigation do
   @moduledoc "Shared navigation components for the theme layout."
   use DashboardSSDWeb, :html
 
-  alias DashboardSSD.Auth.Policy
   alias Phoenix.LiveView.Rendered
 
   import DashboardSSDWeb.Layouts, only: [user_initials: 1, user_display_name: 1, user_role: 1]
@@ -23,6 +22,7 @@ defmodule DashboardSSDWeb.Navigation do
   attr :current_user, :any, default: nil
   attr :current_path, :string, default: nil
   attr :variant, :atom, default: :sidebar
+
   attr :class, :string, default: ""
   attr :mobile_menu_open, :boolean, default: false
   attr :open, :boolean, default: false
@@ -249,7 +249,7 @@ defmodule DashboardSSDWeb.Navigation do
   defp filtered_items(user, :mobile), do: nav_items(user, :all)
   defp filtered_items(user, _), do: nav_items(user, :all)
 
-  defp nav_items(user, scope) do
+  defp nav_items(_user, scope) do
     items =
       [
         %{label: "Dashboard", path: ~p"/", icon: :home, group: :main},
@@ -259,19 +259,16 @@ defmodule DashboardSSDWeb.Navigation do
           label: "Knowledge Base",
           path: ~p"/kb",
           icon: :knowledge_base,
-          group: :main,
-          permission: {:read, :kb}
+          group: :main
         },
         %{
           label: "Analytics",
           path: ~p"/analytics",
           icon: :analytics,
-          group: :admin,
-          permission: {:read, :analytics}
+          group: :admin
         },
         %{label: "Settings", path: ~p"/settings", icon: :settings, group: :admin}
       ]
-      |> Enum.filter(&allowed?(&1, user))
 
     case scope do
       :all -> items
@@ -279,18 +276,28 @@ defmodule DashboardSSDWeb.Navigation do
     end
   end
 
-  defp allowed?(%{permission: {action, subject}}, user), do: Policy.can?(user, action, subject)
-  defp allowed?(_item, _user), do: true
-
-  defp nav_active?(nil, _path), do: false
-
   defp nav_active?(current_path, path) do
-    normalized_path = Map.get(URI.parse(current_path || ""), :path) || ""
+    # Handle nil or empty current_path
+    current_path = current_path || "/"
 
-    if path == ~p"/" do
-      normalized_path == "/"
+    # Debug logging removed
+
+    # Parse and normalize paths
+    current_normalized = normalize_path(current_path)
+    target_normalized = normalize_path(path)
+
+    if target_normalized == "/" do
+      current_normalized == "/"
     else
-      String.starts_with?(normalized_path, path)
+      String.starts_with?(current_normalized, target_normalized)
+    end
+  end
+
+  defp normalize_path(path) do
+    case URI.parse(path) do
+      %URI{path: parsed_path} when is_binary(parsed_path) -> parsed_path
+      %URI{} -> "/"
+      _ -> path || "/"
     end
   end
 
