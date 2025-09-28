@@ -15,6 +15,7 @@ defmodule DashboardSSDWeb.HomeLive.Index do
 
     {:ok,
      socket
+     |> assign(:current_path, "/")
      |> assign(:page_title, "Overview")
      |> assign(:theme_section, "Dashboard")
      |> assign(:theme_header_meta, nil)

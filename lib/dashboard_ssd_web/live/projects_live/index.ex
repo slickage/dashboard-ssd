@@ -11,16 +11,27 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
   @impl true
   @doc "Mount the Projects hub view and initialize state."
   def mount(_params, _session, socket) do
-    {:ok,
-     socket
-     |> assign(:page_title, "Projects")
-     |> assign(:client_id, nil)
-     |> assign(:projects, [])
-     |> assign(:clients, Clients.list_clients())
-     |> assign(:linear_enabled, linear_enabled?())
-     |> assign(:summaries, %{})
-     |> assign(:loaded, false)
-     |> assign(:mobile_menu_open, false)}
+    user = socket.assigns.current_user
+
+    if DashboardSSD.Auth.Policy.can?(user, :read, :projects) do
+      {:ok,
+       socket
+       |> assign(:current_path, "/projects")
+       |> assign(:page_title, "Projects")
+       |> assign(:client_id, nil)
+       |> assign(:projects, [])
+       |> assign(:clients, Clients.list_clients())
+       |> assign(:linear_enabled, linear_enabled?())
+       |> assign(:summaries, %{})
+       |> assign(:loaded, false)
+       |> assign(:mobile_menu_open, false)}
+    else
+      {:ok,
+       socket
+       |> assign(:current_path, "/projects")
+       |> put_flash(:error, "You don't have permission to access this page")
+       |> redirect(to: ~p"/")}
+    end
   end
 
   @impl true

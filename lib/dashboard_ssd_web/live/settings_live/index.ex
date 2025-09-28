@@ -10,6 +10,7 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
   def mount(_params, _session, socket) do
     {:ok,
      socket
+     |> assign(:current_path, "/settings")
      |> assign(:page_title, "Settings")
      |> assign(:integrations, integration_states(socket.assigns[:current_user]))
      |> assign(:mobile_menu_open, false)}

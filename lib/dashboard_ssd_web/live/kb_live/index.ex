@@ -6,13 +6,24 @@ defmodule DashboardSSDWeb.KbLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok,
-     socket
-     |> assign(:page_title, "Knowledge Base")
-     |> assign(:query, "")
-     |> assign(:results, [])
-     |> assign(:search_performed, false)
-     |> assign(:mobile_menu_open, false)}
+    user = socket.assigns.current_user
+
+    if DashboardSSD.Auth.Policy.can?(user, :read, :kb) do
+      {:ok,
+       socket
+       |> assign(:current_path, "/kb")
+       |> assign(:page_title, "Knowledge Base")
+       |> assign(:query, "")
+       |> assign(:results, [])
+       |> assign(:search_performed, false)
+       |> assign(:mobile_menu_open, false)}
+    else
+      {:ok,
+       socket
+       |> assign(:current_path, "/kb")
+       |> put_flash(:error, "You don't have permission to access this page")
+       |> redirect(to: ~p"/")}
+    end
   end
 
   @impl true

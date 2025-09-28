@@ -7,14 +7,25 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
   @impl true
   @doc "Mount the Clients index and subscribe to client updates."
   def mount(_params, _session, socket) do
-    _ = Clients.subscribe()
+    user = socket.assigns.current_user
 
-    {:ok,
-     socket
-     |> assign(:q, "")
-     |> assign(:clients, Clients.list_clients())
-     |> assign(:page_title, "Clients")
-     |> assign(:mobile_menu_open, false)}
+    if DashboardSSD.Auth.Policy.can?(user, :read, :clients) do
+      _ = Clients.subscribe()
+
+      {:ok,
+       socket
+       |> assign(:current_path, "/clients")
+       |> assign(:q, "")
+       |> assign(:clients, Clients.list_clients())
+       |> assign(:page_title, "Clients")
+       |> assign(:mobile_menu_open, false)}
+    else
+      {:ok,
+       socket
+       |> assign(:current_path, "/clients")
+       |> put_flash(:error, "You don't have permission to access this page")
+       |> redirect(to: ~p"/")}
+    end
   end
 
   @impl true

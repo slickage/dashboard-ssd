@@ -13,18 +13,27 @@ defmodule DashboardSSDWeb.AnalyticsLive.Index do
   @impl true
   @doc "Mount Analytics view and load current metrics."
   def mount(_params, _session, socket) do
-    projects = Projects.list_projects()
-    selected_project_id = if projects != [], do: hd(projects).id, else: nil
+    user = socket.assigns.current_user
 
-    socket =
-      socket
-      |> assign(:page_title, "Analytics")
-      |> assign(:projects, projects)
-      |> assign(:selected_project_id, selected_project_id)
-      |> load_metrics()
-      |> assign(:mobile_menu_open, false)
+    if DashboardSSD.Auth.Policy.can?(user, :read, :analytics) do
+      projects = Projects.list_projects()
+      selected_project_id = if projects != [], do: hd(projects).id, else: nil
 
-    {:ok, socket}
+      {:ok,
+       socket
+       |> assign(:current_path, "/analytics")
+       |> assign(:page_title, "Analytics")
+       |> assign(:projects, projects)
+       |> assign(:selected_project_id, selected_project_id)
+       |> load_metrics()
+       |> assign(:mobile_menu_open, false)}
+    else
+      {:ok,
+       socket
+       |> assign(:current_path, "/analytics")
+       |> put_flash(:error, "You don't have permission to access this page")
+       |> redirect(to: ~p"/")}
+    end
   end
 
   defp load_metrics(socket) do
