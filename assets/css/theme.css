@@ -32,10 +32,11 @@
   --theme-shadow-soft: 0px 18px 48px -24px rgba(0, 0, 0, 0.08);
 }
 
+/* Body styles - ensure no conflicts with inline CSS */
 body {
-  background-color: var(--theme-background);
-  color: var(--theme-text);
-  font-family: var(--theme-font-family);
+  background-color: var(--theme-background) !important;
+  color: var(--theme-text) !important;
+  font-family: var(--theme-font-family) !important;
 }
 
 .theme-shell-gradient {
@@ -54,9 +55,9 @@ body {
 }
 
 .theme-card {
-  background: var(--theme-surface);
+  background: var(--theme-surface) !important;
   border-radius: 24px;
-  border: 1px solid var(--theme-border);
+  border: 1px solid var(--theme-border) !important;
   box-shadow: var(--theme-shadow-card);
 }
 

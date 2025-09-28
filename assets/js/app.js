@@ -51,12 +51,15 @@ window.addEventListener("phx:download", (event) => {
 function initTheme() {
   const html = document.documentElement;
 
+  // Ensure theme is set correctly on initialization
+  ensureThemeConsistency();
+
   // Only set up toggle functionality if elements exist (settings page)
   const themeToggle = document.getElementById('theme-toggle');
   const themeLabel = document.getElementById('theme-label');
 
   if (themeToggle && themeLabel) {
-    // Get current theme from the HTML attribute (set by inline script)
+    // Get current theme and update UI
     const currentTheme = html.getAttribute('data-theme') || 'dark';
     updateToggleUI(currentTheme);
 
@@ -65,29 +68,50 @@ function initTheme() {
       const currentTheme = html.getAttribute('data-theme');
       const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
 
-      html.setAttribute('data-theme', newTheme);
-      localStorage.setItem('theme', newTheme);
+      setTheme(newTheme);
       updateToggleUI(newTheme);
     });
   }
+}
 
-  function updateToggleUI(theme) {
-    const toggle = themeToggle.querySelector('span:last-child');
-    const track = themeToggle;
+function ensureThemeConsistency() {
+  const html = document.documentElement;
+  const savedTheme = localStorage.getItem('theme') || 'dark';
+  const currentTheme = html.getAttribute('data-theme');
 
-    if (theme === 'light') {
-      toggle.classList.remove('translate-x-1');
-      toggle.classList.add('translate-x-6');
-      track.classList.remove('bg-theme-border');
-      track.classList.add('bg-theme-primary');
-      themeLabel.textContent = 'Light';
-    } else {
-      toggle.classList.remove('translate-x-6');
-      toggle.classList.add('translate-x-1');
-      track.classList.remove('bg-theme-primary');
-      track.classList.add('bg-theme-border');
-      themeLabel.textContent = 'Dark';
-    }
+  // If theme doesn't match saved preference, update it
+  if (currentTheme !== savedTheme) {
+    setTheme(savedTheme);
+  }
+}
+
+function setTheme(theme) {
+  const html = document.documentElement;
+  html.setAttribute('data-theme', theme);
+  localStorage.setItem('theme', theme);
+}
+
+function updateToggleUI(theme) {
+  const themeToggle = document.getElementById('theme-toggle');
+  const themeLabel = document.getElementById('theme-label');
+
+  if (!themeToggle || !themeLabel) return;
+
+  const toggle = themeToggle.querySelector('span:last-child');
+  const track = themeToggle;
+
+  if (theme === 'light') {
+    toggle.classList.remove('translate-x-1');
+    toggle.classList.add('translate-x-6');
+    track.classList.remove('bg-theme-border');
+    track.classList.add('bg-theme-primary');
+    themeLabel.textContent = 'Light';
+  } else {
+    toggle.classList.remove('translate-x-6');
+    toggle.classList.add('translate-x-1');
+    track.classList.remove('bg-theme-primary');
+    track.classList.add('bg-theme-border');
+    themeLabel.textContent = 'Dark';
   }
 }
 
@@ -95,7 +119,10 @@ function initTheme() {
 document.addEventListener('DOMContentLoaded', initTheme);
 
 // Also initialize on LiveView navigation
-document.addEventListener('phx:page-loading-stop', initTheme);
+document.addEventListener('phx:page-loading-stop', () => {
+  // Small delay to ensure DOM is ready after navigation
+  setTimeout(initTheme, 10);
+});
 
 // Sticky header behavior
 function initStickyHeader() {
