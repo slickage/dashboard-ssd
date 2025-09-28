@@ -43,7 +43,7 @@ defmodule DashboardSSDWeb.ClientsLiveTest do
   end
 
   test "anonymous is redirected", %{conn: conn} do
-    assert {:error, {:redirect, %{to: "/auth/google?redirect_to=/clients"}}} =
+    assert {:error, {:redirect, %{to: "/login?redirect_to=%2Fclients"}}} =
              live(conn, ~p"/clients")
   end
 

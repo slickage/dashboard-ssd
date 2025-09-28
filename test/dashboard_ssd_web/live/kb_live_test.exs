@@ -19,7 +19,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
   describe "knowledge base access" do
     test "redirects unauthenticated users", %{conn: conn} do
-      assert {:error, {:redirect, %{to: "/auth/google?redirect_to=/kb"}}} = live(conn, ~p"/kb")
+      assert {:error, {:redirect, %{to: "/login?redirect_to=%2Fkb"}}} = live(conn, ~p"/kb")
     end
 
     test "allows employees to view the knowledge base", %{conn: conn} do

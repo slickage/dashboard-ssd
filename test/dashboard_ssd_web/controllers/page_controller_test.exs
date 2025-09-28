@@ -6,9 +6,9 @@ defmodule DashboardSSDWeb.PageControllerTest do
   alias DashboardSSDWeb.PageController
   alias DashboardSSDWeb.PageHTML
 
-  test "GET / redirects anonymous users to auth", %{conn: conn} do
+  test "GET / redirects anonymous users to login", %{conn: conn} do
     conn = get(conn, ~p"/")
-    assert redirected_to(conn) == "/auth/google?redirect_to=/"
+    assert redirected_to(conn) == "/login?redirect_to=%2F"
   end
 
   test "home renders the static home page" do
