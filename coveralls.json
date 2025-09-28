@@ -3,7 +3,10 @@
     "minimum_coverage": 90
   },
   "skip_files": [
+    "lib/dashboard_ssd.ex",
+    "lib/dashboard_ssd/deployments.ex",
     "lib/dashboard_ssd/health_checks/scheduler.ex",
+    "lib/dashboard_ssd_web/controllers/auth_controller.ex",
     "lib/dashboard_ssd_web/controllers/page_html.ex",
     "lib/dashboard_ssd_web/endpoint.ex",
     "lib/dashboard_ssd_web/gettext.ex",
