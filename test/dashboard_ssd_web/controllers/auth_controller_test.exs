@@ -72,6 +72,8 @@ defmodule DashboardSSDWeb.AuthControllerTest do
     conn = get(conn, "/auth/google/callback")
 
     assert redirected_to(conn) == ~p"/"
-    assert get_flash(conn, :error) == "Authentication failed. Please try again."
+
+    assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
+             "Authentication failed. Please try again."
   end
 end

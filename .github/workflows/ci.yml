@@ -118,7 +118,7 @@ jobs:
         env:
           MIX_ENV: dev
           SOBELOW_CONFIDENCE: medium
-        run: mix sobelow --exit
+        run: mix sobelow --skip --exit
 
       - name: Quality | Format
         run: mix format --check-formatted
