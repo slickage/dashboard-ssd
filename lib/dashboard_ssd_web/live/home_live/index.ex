@@ -708,42 +708,40 @@ defmodule DashboardSSDWeb.HomeLive.Index do
       |> assign(:deployment_meta, deployment_meta_text(deployment_stats))
 
     ~H"""
-    <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex flex-col gap-8">
-        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <.stat_card title="Projects" value={@projects_total} meta="Tracked initiatives" tone={:sky} />
-          <.stat_card
-            title="Clients"
-            value={@clients_total}
-            meta="Partner organizations"
-            tone={:emerald}
-          />
-          <.stat_card
-            title="Alerts"
-            value={@alerts_total}
-            meta={@alerts_meta}
-            tone={if @alerts_total > 0, do: :rose, else: :emerald}
-          />
-          <.stat_card
-            title="CI Success"
-            value={format_success_rate(@deployment_stats.success_rate)}
-            meta={@deployment_meta}
-            tone={:violet}
-          />
-        </div>
-
-        <div class="grid gap-4 xl:grid-cols-[2fr,1fr]">
-          <.workload_card summary={@workload_summary} linear_enabled={@linear_enabled} />
-          <.analytics_card summary={@analytics_summary} />
-        </div>
-
-        <div class="grid gap-4 lg:grid-cols-2">
-          <.incidents_card alerts={@alerts} />
-          <.ci_status_card metrics={@deployment_stats} />
-        </div>
-
-        <.recent_projects projects={@projects} />
+    <div class="flex flex-col gap-8">
+      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <.stat_card title="Projects" value={@projects_total} meta="Tracked initiatives" tone={:sky} />
+        <.stat_card
+          title="Clients"
+          value={@clients_total}
+          meta="Partner organizations"
+          tone={:emerald}
+        />
+        <.stat_card
+          title="Alerts"
+          value={@alerts_total}
+          meta={@alerts_meta}
+          tone={if @alerts_total > 0, do: :rose, else: :emerald}
+        />
+        <.stat_card
+          title="CI Success"
+          value={format_success_rate(@deployment_stats.success_rate)}
+          meta={@deployment_meta}
+          tone={:violet}
+        />
       </div>
+
+      <div class="grid gap-4 xl:grid-cols-[2fr,1fr]">
+        <.workload_card summary={@workload_summary} linear_enabled={@linear_enabled} />
+        <.analytics_card summary={@analytics_summary} />
+      </div>
+
+      <div class="grid gap-4 lg:grid-cols-2">
+        <.incidents_card alerts={@alerts} />
+        <.ci_status_card metrics={@deployment_stats} />
+      </div>
+
+      <.recent_projects projects={@projects} />
     </div>
     """
   end

@@ -79,115 +79,110 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex flex-col gap-8">
-        <!-- Theme Settings -->
-        <div class="theme-card">
-          <div class="p-6">
-            <h3 class="text-lg font-semibold text-theme-text mb-4">Appearance</h3>
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm font-medium text-theme-text">Theme</p>
-                <p class="text-xs text-theme-text-muted">Choose your preferred theme</p>
-              </div>
-              <div class="flex items-center gap-3">
-                <span class="text-sm text-theme-text-muted" id="theme-label">Dark</span>
-                <button
-                  type="button"
-                  id="theme-toggle"
-                  class="relative inline-flex h-6 w-11 items-center rounded-full bg-theme-border transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-theme-surface"
-                  phx-click="toggle_theme"
-                >
-                  <span class="sr-only">Toggle theme</span>
-                  <span class="inline-block h-4 w-4 transform rounded-full bg-theme-primary shadow-sm transition-transform duration-200 ease-in-out translate-x-1">
-                  </span>
-                </button>
-              </div>
+    <div class="flex flex-col gap-8">
+      <!-- Theme Settings -->
+      <div class="theme-card">
+        <div class="p-6">
+          <h3 class="text-lg font-semibold text-theme-text mb-4">Appearance</h3>
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-theme-text">Theme</p>
+              <p class="text-xs text-theme-text-muted">Choose your preferred theme</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-sm text-theme-text-muted" id="theme-label">Dark</span>
+              <button
+                type="button"
+                id="theme-toggle"
+                class="relative inline-flex h-6 w-11 items-center rounded-full bg-theme-border transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-theme-surface"
+                phx-click="toggle_theme"
+              >
+                <span class="sr-only">Toggle theme</span>
+                <span class="inline-block h-4 w-4 transform rounded-full bg-theme-primary shadow-sm transition-transform duration-200 ease-in-out translate-x-1">
+                </span>
+              </button>
             </div>
           </div>
         </div>
+      </div>
 
-        <div class="theme-card overflow-x-auto">
-          <table class="theme-table">
-            <thead>
-              <tr>
-                <th>Integration</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Google Drive</td>
-                <td>
-                  <.status_badge state={@integrations.google} />
-                </td>
-                <td class="text-sm text-theme-muted">
-                  <%= if @integrations.google.connected do %>
-                    <span>Linked via Google OAuth</span>
-                  <% else %>
-                    <.link
-                      navigate={~p"/auth/google"}
-                      class="text-white/80 transition hover:text-white"
-                    >
-                      Connect Google
-                    </.link>
-                  <% end %>
-                </td>
-              </tr>
+      <div class="theme-card overflow-x-auto">
+        <table class="theme-table">
+          <thead>
+            <tr>
+              <th>Integration</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Google Drive</td>
+              <td>
+                <.status_badge state={@integrations.google} />
+              </td>
+              <td class="text-sm text-theme-muted">
+                <%= if @integrations.google.connected do %>
+                  <span>Linked via Google OAuth</span>
+                <% else %>
+                  <.link navigate={~p"/auth/google"} class="text-white/80 transition hover:text-white">
+                    Connect Google
+                  </.link>
+                <% end %>
+              </td>
+            </tr>
 
-              <tr>
-                <td>Linear</td>
-                <td>
-                  <.status_badge state={@integrations.linear} />
-                </td>
-                <td class="text-sm text-theme-muted">
-                  <%= if @integrations.linear.connected do %>
-                    <span>Configured via LINEAR_TOKEN</span>
-                  <% else %>
-                    <span>Set LINEAR_TOKEN or LINEAR_API_KEY</span>
-                  <% end %>
-                </td>
-              </tr>
+            <tr>
+              <td>Linear</td>
+              <td>
+                <.status_badge state={@integrations.linear} />
+              </td>
+              <td class="text-sm text-theme-muted">
+                <%= if @integrations.linear.connected do %>
+                  <span>Configured via LINEAR_TOKEN</span>
+                <% else %>
+                  <span>Set LINEAR_TOKEN or LINEAR_API_KEY</span>
+                <% end %>
+              </td>
+            </tr>
 
-              <tr>
-                <td>Slack</td>
-                <td>
-                  <.status_badge state={@integrations.slack} />
-                </td>
-                <td class="text-sm text-theme-muted">
-                  <%= if @integrations.slack.connected do %>
-                    <span>App token configured</span>
-                  <% else %>
-                    <span>Add SLACK_BOT_TOKEN</span>
-                  <% end %>
-                </td>
-              </tr>
+            <tr>
+              <td>Slack</td>
+              <td>
+                <.status_badge state={@integrations.slack} />
+              </td>
+              <td class="text-sm text-theme-muted">
+                <%= if @integrations.slack.connected do %>
+                  <span>App token configured</span>
+                <% else %>
+                  <span>Add SLACK_BOT_TOKEN</span>
+                <% end %>
+              </td>
+            </tr>
 
-              <tr>
-                <td>Notion</td>
-                <td>
-                  <.status_badge state={@integrations.notion} />
-                </td>
-                <td class="text-sm text-theme-muted">
-                  <%= if @integrations.notion.connected do %>
-                    <span>Integration token active</span>
-                  <% else %>
-                    <span>Add NOTION_TOKEN</span>
-                  <% end %>
-                </td>
-              </tr>
+            <tr>
+              <td>Notion</td>
+              <td>
+                <.status_badge state={@integrations.notion} />
+              </td>
+              <td class="text-sm text-theme-muted">
+                <%= if @integrations.notion.connected do %>
+                  <span>Integration token active</span>
+                <% else %>
+                  <span>Add NOTION_TOKEN</span>
+                <% end %>
+              </td>
+            </tr>
 
-              <tr>
-                <td>GitHub</td>
-                <td>
-                  <.status_badge state={@integrations.github} />
-                </td>
-                <td class="text-sm text-theme-muted">Coming soon</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+            <tr>
+              <td>GitHub</td>
+              <td>
+                <.status_badge state={@integrations.github} />
+              </td>
+              <td class="text-sm text-theme-muted">Coming soon</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
     """
