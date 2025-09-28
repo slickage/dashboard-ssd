@@ -126,9 +126,8 @@ defmodule DashboardSSDWeb.AuthController do
   @spec delete_get(Conn.t(), map()) :: Conn.t()
   def delete_get(conn, params), do: delete(conn, params)
 
-  # sobelow_skip XSS.SendResp
   # Handle callback redirect - use popup-aware logic for production, HTTP redirect for tests
-  # XSS warning is suppressed because redirect_to is properly JSON-encoded and used in data attribute
+  # Note: Sobelow XSS warning is a false positive - redirect_to is properly escaped with Phoenix.HTML.html_escape
   defp handle_callback_redirect(conn, redirect_to) do
     if Mix.env() == :test do
       # In tests, use HTTP redirect for easier testing
