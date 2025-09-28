@@ -54,35 +54,8 @@ body {
     var(--theme-background);
 }
 
-.theme-card {
-  background: var(--theme-surface) !important;
-  border-radius: 24px;
-  border: 1px solid var(--theme-border) !important;
-  box-shadow: var(--theme-shadow-card);
-}
-
-.theme-outline {
-  border-color: var(--theme-border);
-}
-
-.theme-divider {
-  height: 1px;
-  width: 100%;
-  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.08), transparent);
-}
-
 [data-theme="light"] .theme-divider {
   background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.08), transparent);
-}
-
-.theme-pill {
-  border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  padding: 0.125rem 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.82);
 }
 
 [data-theme="light"] .theme-pill {
