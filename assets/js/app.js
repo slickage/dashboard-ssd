@@ -179,6 +179,10 @@ function initStickyHeader() {
 // Initialize sticky header when DOM is ready
 document.addEventListener('DOMContentLoaded', initStickyHeader);
 
+// Also initialize on LiveView navigation and updates
+document.addEventListener('phx:page-loading-stop', initStickyHeader);
+document.addEventListener('phx:update', initStickyHeader);
+
 // connect if there are any LiveViews on the page
 liveSocket.connect()
 
