@@ -187,11 +187,21 @@ document.addEventListener('phx:update', initStickyHeader);
 window.addEventListener("phx:open_oauth_popup", (event) => {
   const { url } = event.detail;
 
-  // Calculate center position for popup
+  // Calculate center position for popup relative to current window
   const popupWidth = 500;
   const popupHeight = 600;
-  const left = (window.screen.width - popupWidth) / 2;
-  const top = (window.screen.height - popupHeight) / 2;
+
+  // Get current window position (cross-browser compatible)
+  const screenX = window.screenX || window.screenLeft || 0;
+  const screenY = window.screenY || window.screenTop || 0;
+
+  // Get available screen space for current monitor
+  const availWidth = window.screen.availWidth || window.screen.width;
+  const availHeight = window.screen.availHeight || window.screen.height;
+
+  // Center popup relative to current window position
+  const left = screenX + (availWidth - popupWidth) / 2;
+  const top = screenY + (availHeight - popupHeight) / 2;
 
   const popup = window.open(
     url,
