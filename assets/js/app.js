@@ -186,10 +186,17 @@ document.addEventListener('phx:update', initStickyHeader);
 // OAuth popup handling
 window.addEventListener("phx:open_oauth_popup", (event) => {
   const { url } = event.detail;
+
+  // Calculate center position for popup
+  const popupWidth = 500;
+  const popupHeight = 600;
+  const left = (window.screen.width - popupWidth) / 2;
+  const top = (window.screen.height - popupHeight) / 2;
+
   const popup = window.open(
     url,
     "oauth-popup",
-    "width=500,height=600,scrollbars=yes,resizable=yes"
+    `width=${popupWidth},height=${popupHeight},left=${left},top=${top},scrollbars=yes,resizable=yes`
   );
 
   if (popup) {
