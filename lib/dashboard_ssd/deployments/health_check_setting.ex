@@ -1,5 +1,5 @@
 defmodule DashboardSSD.Deployments.HealthCheckSetting do
-  @moduledoc "Per-project configuration for production health checks (HTTP or AWS ELBv2)."
+  @moduledoc "Per-project configuration for production health checks (HTTP, AWS ELBv2, or Custom)."
   use Ecto.Schema
   import Ecto.Changeset
   alias Ecto.Changeset
@@ -38,8 +38,8 @@ defmodule DashboardSSD.Deployments.HealthCheckSetting do
       :aws_target_group_arn,
       :enabled
     ])
-    |> validate_inclusion(:provider, ["http", "aws_elbv2"],
-      message: "must be http or aws_elbv2",
+    |> validate_inclusion(:provider, ["http", "aws_elbv2", "custom"],
+      message: "must be http, aws_elbv2, or custom",
       allow_nil: true
     )
     |> validate_required_when_enabled()
