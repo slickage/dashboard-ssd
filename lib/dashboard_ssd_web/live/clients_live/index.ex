@@ -30,7 +30,7 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
   end
 
   @impl true
-  @doc "Handle LiveView params for index/new/edit actions."
+  @doc "Handle LiveView params for index/new/edit/delete actions."
   def handle_params(params, _url, socket) do
     action = socket.assigns.live_action
 
@@ -39,15 +39,22 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
         {:noreply, socket |> assign(:params, params) |> refresh_clients()}
 
       :new ->
-        {:noreply, socket |> assign(:page_title, "New Client") |> assign(:params, params)}
+        {:noreply, socket |> assign(:params, params)}
 
       :edit ->
+        _client = Clients.get_client!(String.to_integer(params["id"]))
+
+        {:noreply,
+         socket
+         |> assign(:params, params)}
+
+      :delete ->
         client = Clients.get_client!(String.to_integer(params["id"]))
 
         {:noreply,
          socket
-         |> assign(:page_title, "Edit Client: #{client.name}")
-         |> assign(:params, params)}
+         |> assign(:params, params)
+         |> assign(:client, client)}
     end
   end
 
@@ -57,10 +64,14 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
     {:noreply, socket |> assign(:q, q) |> assign(:clients, Clients.search_clients(q))}
   end
 
-  def handle_event("delete", %{"id" => id}, socket) do
+  def handle_event("delete_client", %{"id" => id}, socket) do
     client = Clients.get_client!(String.to_integer(id))
     {:ok, _} = Clients.delete_client(client)
-    {:noreply, refresh_clients(socket)}
+
+    {:noreply,
+     socket
+     |> put_flash(:info, "Client deleted successfully")
+     |> push_navigate(to: ~p"/clients")}
   end
 
   @impl true
@@ -92,7 +103,7 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
           <div class="flex items-center gap-3">
             <.link
               navigate={~p"/clients/new"}
-              class="inline-flex items-center gap-2 rounded-full bg-theme-primary px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white shadow-theme-soft transition hover:bg-theme-primary-soft"
+              class="phx-submit-loading:opacity-75 rounded-full bg-theme-primary hover:bg-theme-primary-soft py-2 px-3 text-sm font-semibold leading-6 text-white active:text-white/80"
             >
               New Client
             </.link>
@@ -156,14 +167,12 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
                         Edit
                       </.link>
                       <span class="text-white/30">•</span>
-                      <button
-                        phx-click="delete"
-                        phx-value-id={c.id}
-                        onclick="return confirm('Delete this client?')"
-                        class="theme-btn-link text-rose-500 transition hover:text-rose-400"
+                      <.link
+                        navigate={~p"/clients/#{c.id}/delete"}
+                        class="text-rose-500 transition hover:text-rose-400"
                       >
                         Delete
-                      </button>
+                      </.link>
                     <% end %>
                   </td>
                 </tr>
@@ -184,6 +193,33 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
             client_id={@params["id"]}
             patch={~p"/clients"}
           />
+        </.modal>
+      <% end %>
+
+      <%= if @live_action == :delete do %>
+        <.modal id="delete-client-modal" show on_cancel={JS.navigate(~p"/clients")}>
+          <div class="flex flex-col gap-6">
+            <div class="flex items-center gap-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-full bg-rose-500/10">
+                <.icon name="hero-exclamation-triangle" class="h-6 w-6 text-rose-500" />
+              </div>
+              <div class="flex flex-col">
+                <h3 class="text-lg font-semibold text-white">Delete Client</h3>
+                <p class="text-sm text-theme-muted">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            <p class="text-sm text-theme-muted">
+              Are you sure you want to delete <strong class="text-white">{@client.name}</strong>?
+              This will permanently remove the client and cannot be undone.
+            </p>
+
+            <div class="flex justify-start">
+              <.button phx-click="delete_client" phx-value-id={@client.id} class="theme-btn-danger">
+                Delete Client
+              </.button>
+            </div>
+          </div>
         </.modal>
       <% end %>
     </div>

@@ -230,7 +230,23 @@ window.addEventListener("phx:open_oauth_popup", (event) => {
   }
 });
 
+// Flash auto-dismiss hook
+let Hooks = {}
+Hooks.AutoDismiss = {
+  mounted() {
+    const delay = parseInt(this.el.dataset.delay) || 5000
+    setTimeout(() => {
+      this.pushEvent("lv:clear-flash", {key: this.el.dataset.kind})
+    }, delay)
+  }
+}
+
 // connect if there are any LiveViews on the page
+liveSocket = new LiveSocket("/live", Socket, {
+  hooks: Hooks,
+  longPollFallbackMs: 2500,
+  params: {_csrf_token: csrfToken}
+})
 liveSocket.connect()
 
 // expose liveSocket on window for web console debug logs and latency simulation:

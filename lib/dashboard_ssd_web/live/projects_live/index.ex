@@ -58,9 +58,62 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
     {:noreply, assign(socket, :summaries, summaries)}
   end
 
+  @impl true
+  def handle_info({:project_updated, updated_project, flash_message, has_changes}, socket) do
+    # Update the project in the projects list (preload client association)
+    updated_project = Projects.get_project!(updated_project.id)
+
+    updated_projects =
+      Enum.map(socket.assigns.projects, fn
+        p when p.id == updated_project.id -> updated_project
+        p -> p
+      end)
+
+    socket = assign(socket, :projects, updated_projects)
+
+    # Reload health data and summaries if there were changes
+    socket =
+      if has_changes do
+        socket
+        |> assign(:health, load_existing_health(updated_projects))
+        |> assign(:summaries, %{})
+      else
+        socket
+      end
+
+    # Close the modal and navigate back to projects index
+    {:noreply,
+     socket
+     |> put_flash(:info, flash_message)
+     |> push_patch(to: ~p"/projects")}
+  end
+
   defp handle_params_edit(%{"id" => id}, socket) do
-    project = Projects.get_project!(String.to_integer(id))
-    {:noreply, assign(socket, :page_title, "Edit Project: #{project.name}")}
+    _project = Projects.get_project!(String.to_integer(id))
+
+    # Ensure projects data is loaded when in edit mode
+    if socket.assigns.loaded do
+      {:noreply, socket}
+    else
+      # If not loaded, load the data like in index mode
+      client_id = socket.assigns.client_id || nil
+      projects = fetch_projects(client_id)
+      spawn(fn -> run_checks_and_update(projects, self()) end)
+
+      socket =
+        socket
+        |> assign(:projects, projects)
+        |> assign(:health, load_existing_health(projects))
+        |> assign(:loaded, true)
+        |> assign(:summaries, %{})
+
+      if socket.assigns.linear_enabled do
+        pid = self()
+        spawn_reload_task(pid)
+      end
+
+      {:noreply, socket}
+    end
   end
 
   defp handle_params_index(params, socket) do
@@ -187,7 +240,11 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
     )
 
     summaries = summarize_projects(socket.assigns.projects)
-    {:noreply, assign(socket, :summaries, summaries)}
+
+    {:noreply,
+     socket
+     |> assign(:summaries, summaries)
+     |> put_flash(:info, "Tasks reloaded successfully")}
   end
 
   @impl true
@@ -355,25 +412,12 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         </div>
       <% end %>
       <%= if @live_action in [:edit] do %>
-        <.modal
-          id="project-modal"
-          show
-          on_cancel={
-            if @client_id in [nil, ""],
-              do: JS.patch(~p"/projects"),
-              else: JS.patch(~p"/projects?client_id=#{@client_id}")
-          }
-        >
+        <.modal id="project-modal" show on_cancel={JS.patch(~p"/projects")}>
           <.live_component
             module={DashboardSSDWeb.ProjectsLive.FormComponent}
             id={@params["id"]}
             action={@live_action}
             current_user={@current_user}
-            patch={
-              if @client_id in [nil, ""],
-                do: ~p"/projects?r=1",
-                else: ~p"/projects?client_id=#{@client_id}&r=1"
-            }
             project_id={@params["id"]}
           />
         </.modal>
