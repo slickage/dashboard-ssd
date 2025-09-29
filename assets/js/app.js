@@ -47,7 +47,206 @@ window.addEventListener("phx:download", (event) => {
   URL.revokeObjectURL(url);
 });
 
+// Theme switching functionality
+function initTheme() {
+  const html = document.documentElement;
+
+  // Ensure theme is set correctly on initialization
+  ensureThemeConsistency();
+
+  // Only set up toggle functionality if elements exist (settings page)
+  const themeToggle = document.getElementById('theme-toggle');
+  const themeLabel = document.getElementById('theme-label');
+
+  if (themeToggle && themeLabel) {
+    // Remove existing event listener to prevent duplicates
+    themeToggle.removeEventListener('click', handleThemeToggle);
+
+    // Get current theme and update UI
+    const currentTheme = html.classList.contains('dark') ? 'dark' : 'light';
+    updateToggleUI(currentTheme);
+
+    // Add theme toggle event listener
+    themeToggle.addEventListener('click', handleThemeToggle);
+  }
+}
+
+function handleThemeToggle() {
+  const html = document.documentElement;
+  const currentTheme = html.classList.contains('dark') ? 'dark' : 'light';
+  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+  setTheme(newTheme);
+  updateToggleUI(newTheme);
+}
+
+function ensureThemeConsistency() {
+  const html = document.documentElement;
+  const savedTheme = localStorage.getItem('theme') || 'dark';
+  const currentTheme = html.classList.contains('dark') ? 'dark' : 'light';
+
+  // If theme doesn't match saved preference, update it
+  if (currentTheme !== savedTheme) {
+    setTheme(savedTheme);
+  }
+}
+
+function setTheme(theme) {
+  const html = document.documentElement;
+
+  if (theme === 'dark') {
+    html.classList.add('dark');
+  } else {
+    html.classList.remove('dark');
+  }
+
+  localStorage.setItem('theme', theme);
+
+  // Force a style recalculation to ensure theme applies immediately
+  html.style.display = 'none';
+  html.offsetHeight; // Trigger reflow
+  html.style.display = '';
+}
+
+function updateToggleUI(theme) {
+  const themeToggle = document.getElementById('theme-toggle');
+  const themeLabel = document.getElementById('theme-label');
+
+  if (!themeToggle || !themeLabel) return;
+
+  const toggle = themeToggle.querySelector('span:last-child');
+  const track = themeToggle;
+
+  if (theme === 'light') {
+    toggle.classList.remove('translate-x-1');
+    toggle.classList.add('translate-x-6');
+    track.classList.remove('bg-gray-200');
+    track.classList.add('bg-theme-surface-muted');
+    themeLabel.textContent = 'Light';
+  } else {
+    toggle.classList.remove('translate-x-6');
+    toggle.classList.add('translate-x-1');
+    track.classList.remove('bg-theme-surface-muted');
+    track.classList.add('bg-gray-200');
+    themeLabel.textContent = 'Dark';
+  }
+}
+
+// Initialize theme when DOM is ready
+document.addEventListener('DOMContentLoaded', initTheme);
+
+// Also initialize on LiveView navigation and updates
+document.addEventListener('phx:page-loading-stop', initTheme);
+
+// Re-initialize on LiveView updates (when DOM changes)
+document.addEventListener('phx:update', initTheme);
+
+// Sticky header behavior
+function initStickyHeader() {
+  const header = document.getElementById('sticky-header');
+  if (!header) return;
+
+  let lastScrollY = window.scrollY;
+  let isScrollingDown = false;
+
+  function updateHeader() {
+    const currentScrollY = window.scrollY;
+    const scrollingDown = currentScrollY > lastScrollY;
+
+    // Update scroll direction
+    if (scrollingDown !== isScrollingDown) {
+      isScrollingDown = scrollingDown;
+
+      if (scrollingDown) {
+        // Scrolling down: let header scroll out of view naturally
+        header.classList.add('scrolling');
+      } else {
+        // Scrolling up: make header sticky again
+        header.classList.remove('scrolling');
+      }
+    }
+
+    lastScrollY = currentScrollY;
+  }
+
+  // Throttle scroll events for better performance
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      requestAnimationFrame(() => {
+        updateHeader();
+        ticking = false;
+      });
+      ticking = true;
+    }
+  });
+}
+
+// Initialize sticky header when DOM is ready
+document.addEventListener('DOMContentLoaded', initStickyHeader);
+
+// Also initialize on LiveView navigation and updates
+document.addEventListener('phx:page-loading-stop', initStickyHeader);
+document.addEventListener('phx:update', initStickyHeader);
+
+// OAuth popup handling
+window.addEventListener("phx:open_oauth_popup", (event) => {
+  const { url } = event.detail;
+
+  // Calculate center position for popup relative to current window
+  const popupWidth = 500;
+  const popupHeight = 600;
+
+  // Get current window position (cross-browser compatible)
+  const screenX = window.screenX || window.screenLeft || 0;
+  const screenY = window.screenY || window.screenTop || 0;
+
+  // Get available screen space for current monitor
+  const availWidth = window.screen.availWidth || window.screen.width;
+  const availHeight = window.screen.availHeight || window.screen.height;
+
+  // Center popup relative to current window position
+  const left = screenX + (availWidth - popupWidth) / 2;
+  const top = screenY + (availHeight - popupHeight) / 2;
+
+  const popup = window.open(
+    url,
+    "oauth-popup",
+    `width=${popupWidth},height=${popupHeight},left=${left},top=${top},scrollbars=yes,resizable=yes`
+  );
+
+  if (popup) {
+    // Check if popup is closed every 500ms
+    const checkClosed = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(checkClosed);
+        // Reload the page to check if authentication succeeded
+        window.location.reload();
+      }
+    }, 500);
+  } else {
+    // Fallback if popup was blocked
+    window.location.href = url;
+  }
+});
+
+// Flash auto-dismiss hook
+let Hooks = {}
+Hooks.AutoDismiss = {
+  mounted() {
+    const delay = parseInt(this.el.dataset.delay) || 5000
+    setTimeout(() => {
+      this.pushEvent("lv:clear-flash", {key: this.el.dataset.kind})
+    }, delay)
+  }
+}
+
 // connect if there are any LiveViews on the page
+liveSocket = new LiveSocket("/live", Socket, {
+  hooks: Hooks,
+  longPollFallbackMs: 2500,
+  params: {_csrf_token: csrfToken}
+})
 liveSocket.connect()
 
 // expose liveSocket on window for web console debug logs and latency simulation:

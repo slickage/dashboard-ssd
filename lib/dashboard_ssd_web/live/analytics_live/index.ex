@@ -8,22 +8,33 @@ defmodule DashboardSSDWeb.AnalyticsLive.Index do
   use DashboardSSDWeb, :live_view
 
   alias DashboardSSD.Analytics
+  alias DashboardSSD.Auth.Policy
   alias DashboardSSD.Projects
 
   @impl true
   @doc "Mount Analytics view and load current metrics."
   def mount(_params, _session, socket) do
-    projects = Projects.list_projects()
-    selected_project_id = if projects != [], do: hd(projects).id, else: nil
+    user = socket.assigns.current_user
 
-    socket =
-      socket
-      |> assign(:page_title, "Analytics")
-      |> assign(:projects, projects)
-      |> assign(:selected_project_id, selected_project_id)
-      |> load_metrics()
+    if Policy.can?(user, :read, :analytics) do
+      projects = Projects.list_projects()
+      selected_project_id = if projects != [], do: hd(projects).id, else: nil
 
-    {:ok, socket}
+      {:ok,
+       socket
+       |> assign(:current_path, "/analytics")
+       |> assign(:page_title, "Analytics")
+       |> assign(:projects, projects)
+       |> assign(:selected_project_id, selected_project_id)
+       |> load_metrics()
+       |> assign(:mobile_menu_open, false)}
+    else
+      {:ok,
+       socket
+       |> assign(:current_path, "/analytics")
+       |> put_flash(:error, "You don't have permission to access this page")
+       |> redirect(to: ~p"/")}
+    end
   end
 
   defp load_metrics(socket) do
@@ -79,6 +90,16 @@ defmodule DashboardSSDWeb.AnalyticsLive.Index do
   end
 
   @impl true
+  def handle_event("toggle_mobile_menu", _params, socket) do
+    {:noreply, assign(socket, mobile_menu_open: !socket.assigns.mobile_menu_open)}
+  end
+
+  @impl true
+  def handle_event("close_mobile_menu", _params, socket) do
+    {:noreply, assign(socket, mobile_menu_open: false)}
+  end
+
+  @impl true
   def render(assigns) do
     assigns =
       assign(
@@ -88,104 +109,106 @@ defmodule DashboardSSDWeb.AnalyticsLive.Index do
       )
 
     ~H"""
-    <div class="space-y-6">
-      <div class="flex items-center justify-between">
-        <h1 class="text-xl font-semibold">
-          {@page_title}
-          <%= if @selected_project do %>
-            <span class="text-zinc-600">- {@selected_project.name}</span>
-          <% end %>
-        </h1>
-        <div class="flex items-center gap-2">
+    <div class="flex flex-col gap-8">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-3">
           <button
             phx-click="refresh"
-            class="px-3 py-2 bg-zinc-100 text-zinc-900 text-sm rounded hover:bg-zinc-200"
+            class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold uppercase tracking-[0.16em] text-white transition hover:border-white/20 hover:bg-white/10"
           >
             Refresh
           </button>
           <button
             phx-click="export_csv"
-            class="px-3 py-2 bg-zinc-900 text-white text-sm rounded hover:bg-zinc-800"
+            class="phx-submit-loading:opacity-75 rounded-full bg-theme-primary hover:bg-theme-primary-soft py-2 px-3 text-sm font-semibold leading-6 text-white active:text-white/80"
           >
             Export CSV
           </button>
         </div>
       </div>
-      
-    <!-- Project Selector -->
-      <div class="flex items-center gap-4">
-        <label for="project-select" class="text-sm font-medium">Select Project:</label>
-        <form phx-change="select_project" class="flex-1 max-w-xs">
-          <select
-            id="project-select"
-            name="project_id"
-            class="w-full px-3 py-2 border border-zinc-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            phx-value-project_id={@selected_project_id || ""}
-          >
-            <%= for project <- @projects do %>
-              <option value={project.id} selected={project.id == @selected_project_id}>
-                {project.name}
-              </option>
-            <% end %>
-          </select>
+
+      <div class="theme-card px-4 py-4 sm:px-6">
+        <form
+          phx-change="select_project"
+          class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div class="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+            <label
+              for="project-select"
+              class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted"
+            >
+              Select Project
+            </label>
+            <select
+              id="project-select"
+              name="project_id"
+              class="w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white transition focus:border-white/30 focus:outline-none sm:w-64"
+              phx-value-project_id={@selected_project_id || ""}
+            >
+              <%= for project <- @projects do %>
+                <option value={project.id} selected={project.id == @selected_project_id}>
+                  {project.name}
+                </option>
+              <% end %>
+            </select>
+          </div>
         </form>
       </div>
-      
-    <!-- Summary Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+      <div class="grid gap-4 md:grid-cols-3">
         <div
-          class="rounded border p-4"
+          class="theme-card p-6"
           title="Average percentage of time the system is operational and available"
         >
-          <h3 class="text-sm font-medium text-zinc-600 mb-1">Average Uptime</h3>
-          <p class="text-2xl font-bold text-emerald-600" data-testid="uptime-metric">
+          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted">
+            Average Uptime
+          </p>
+          <p class="mt-3 text-3xl font-semibold text-emerald-300" data-testid="uptime-metric">
             {format_percentage(@uptime_avg)}
           </p>
         </div>
-
         <div
-          class="rounded border p-4"
+          class="theme-card p-6"
           title="Mean Time To Recovery - average time taken to resolve system issues"
         >
-          <h3 class="text-sm font-medium text-zinc-600 mb-1">Average MTTR</h3>
-          <p class="text-2xl font-bold text-amber-600" data-testid="mttr-metric">
+          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted">
+            Average MTTR
+          </p>
+          <p class="mt-3 text-3xl font-semibold text-amber-400" data-testid="mttr-metric">
             {format_minutes(@mttr_avg)}
           </p>
         </div>
-
-        <div
-          class="rounded border p-4"
-          title="Average number of Linear issues processed per time period"
-        >
-          <h3 class="text-sm font-medium text-zinc-600 mb-1">Average Linear Throughput</h3>
-          <p class="text-2xl font-bold text-blue-600" data-testid="linear-throughput-metric">
+        <div class="theme-card p-6" title="Average number of Linear issues processed per time period">
+          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted">
+            Average Linear Throughput
+          </p>
+          <p class="mt-3 text-3xl font-semibold text-sky-300" data-testid="linear-throughput-metric">
             {format_throughput(@linear_throughput_avg)}
           </p>
         </div>
       </div>
-      
-    <!-- Metrics Table -->
-      <div class="rounded border overflow-hidden">
-        <table class="w-full text-left text-sm">
-          <thead class="bg-zinc-50">
+
+      <div class="theme-card overflow-x-auto">
+        <table class="theme-table">
+          <thead>
             <tr>
-              <th class="px-3 py-2">Project ID</th>
-              <th class="px-3 py-2">Type</th>
-              <th class="px-3 py-2">Value</th>
-              <th class="px-3 py-2">Recorded At</th>
+              <th>Project ID</th>
+              <th>Type</th>
+              <th>Value</th>
+              <th>Recorded At</th>
             </tr>
           </thead>
           <tbody>
             <%= for metric <- @metrics do %>
-              <tr class="border-t">
-                <td class="px-3 py-2">{metric.project_id}</td>
-                <td class="px-3 py-2">
+              <tr>
+                <td class="text-sm text-theme-muted">{metric.project_id}</td>
+                <td>
                   <span class={"inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium #{metric_type_class(metric.type)}"}>
                     {format_metric_type(metric.type)}
                   </span>
                 </td>
-                <td class="px-3 py-2 tabular-nums">{format_metric_value(metric)}</td>
-                <td class="px-3 py-2 text-zinc-600">
+                <td class="tabular-nums">{format_metric_value(metric)}</td>
+                <td class="text-sm text-theme-muted">
                   {DateTime.to_date(metric.inserted_at) |> Date.to_string()}
                 </td>
               </tr>
@@ -195,7 +218,9 @@ defmodule DashboardSSDWeb.AnalyticsLive.Index do
       </div>
 
       <%= if @metrics == [] do %>
-        <p class="text-zinc-600 text-center py-8">No metrics recorded yet.</p>
+        <div class="theme-card px-6 py-8 text-center text-sm text-theme-muted">
+          No metrics recorded yet.
+        </div>
       <% end %>
     </div>
     """
@@ -220,10 +245,10 @@ defmodule DashboardSSDWeb.AnalyticsLive.Index do
 
   defp format_throughput(_), do: "N/A"
 
-  defp metric_type_class("uptime"), do: "bg-emerald-100 text-emerald-800"
-  defp metric_type_class("mttr"), do: "bg-amber-100 text-amber-800"
-  defp metric_type_class("linear_throughput"), do: "bg-blue-100 text-blue-800"
-  defp metric_type_class(_), do: "bg-zinc-100 text-zinc-800"
+  defp metric_type_class("uptime"), do: "bg-emerald-500/10 text-emerald-200"
+  defp metric_type_class("mttr"), do: "bg-amber-500/10 text-amber-200"
+  defp metric_type_class("linear_throughput"), do: "bg-sky-500/10 text-sky-200"
+  defp metric_type_class(_), do: "bg-white/10 text-white/70"
 
   defp format_metric_type("uptime"), do: "Uptime"
   defp format_metric_type("mttr"), do: "MTTR"

@@ -10,8 +10,10 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
   def mount(_params, _session, socket) do
     {:ok,
      socket
+     |> assign(:current_path, "/settings")
      |> assign(:page_title, "Settings")
-     |> assign(:integrations, integration_states(socket.assigns[:current_user]))}
+     |> assign(:integrations, integration_states(socket.assigns[:current_user]))
+     |> assign(:mobile_menu_open, false)}
   end
 
   @impl true
@@ -20,7 +22,8 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
     {:noreply,
      socket
      |> assign(:page_title, "Settings")
-     |> assign(:integrations, integration_states(socket.assigns[:current_user]))}
+     |> assign(:integrations, integration_states(socket.assigns[:current_user]))
+     |> assign(:mobile_menu_open, false)}
   end
 
   defp integration_states(nil) do
@@ -73,116 +76,131 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
     end
   end
 
-  # UI helpers
-  attr :state, :map, required: true
-
-  defp status_badge(assigns) do
-    if assigns.state[:connected] do
-      ~H"""
-      <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">
-        Connected
-      </span>
-      """
-    else
-      ~H"""
-      <span class="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">
-        Not connected
-      </span>
-      """
-    end
-  end
-
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="space-y-6">
-      <h1 class="text-xl font-semibold">{@page_title}</h1>
+    <div class="flex flex-col gap-8">
+      <!-- Theme Settings -->
+      <div class="card">
+        <div class="p-6">
+          <h3 class="text-lg font-semibold text-theme-text mb-4">Appearance</h3>
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-theme-text">Theme</p>
+              <p class="text-xs text-theme-text-muted">Choose your preferred theme</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-sm text-theme-text-muted" id="theme-label">Dark</span>
+              <button
+                type="button"
+                id="theme-toggle"
+                class="theme-toggle relative inline-flex h-6 w-11 items-center rounded-full bg-theme-border transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-theme-surface"
+                phx-click="toggle_theme"
+              >
+                <span class="sr-only">Toggle theme</span>
+                <span class="inline-block h-4 w-4 transform rounded-full bg-theme-primary shadow-sm transition-transform duration-200 ease-in-out translate-x-1">
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <div class="rounded border overflow-hidden">
-        <table class="w-full text-left text-sm">
-          <thead class="bg-zinc-50">
+      <div class="theme-card overflow-x-auto">
+        <table class="theme-table">
+          <thead>
             <tr>
-              <th class="px-3 py-2">Integration</th>
-              <th class="px-3 py-2">Status</th>
-              <th class="px-3 py-2">Action</th>
+              <th>Integration</th>
+              <th>Status</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            <tr class="border-t">
-              <td class="px-3 py-2">Google Drive</td>
-              <td class="px-3 py-2">
+            <tr>
+              <td>Google Drive</td>
+              <td>
                 <.status_badge state={@integrations.google} />
               </td>
-              <td class="px-3 py-2">
+              <td class="text-sm text-theme-muted">
                 <%= if @integrations.google.connected do %>
-                  <span class="text-zinc-500 text-xs">Linked via Google OAuth</span>
+                  <span>Linked via Google OAuth</span>
                 <% else %>
-                  <.link navigate={~p"/auth/google"} class="text-zinc-700 hover:underline">
+                  <.link navigate={~p"/auth/google"} class="text-white/80 transition hover:text-white">
                     Connect Google
                   </.link>
                 <% end %>
               </td>
             </tr>
 
-            <tr class="border-t">
-              <td class="px-3 py-2">Linear</td>
-              <td class="px-3 py-2">
+            <tr>
+              <td>Linear</td>
+              <td>
                 <.status_badge state={@integrations.linear} />
               </td>
-              <td class="px-3 py-2">
+              <td class="text-sm text-theme-muted">
                 <%= if @integrations.linear.connected do %>
-                  <span class="text-zinc-500 text-xs">Configured via LINEAR_TOKEN</span>
+                  <span>Configured via LINEAR_TOKEN</span>
                 <% else %>
-                  <span class="text-zinc-600 text-xs">Set LINEAR_TOKEN or LINEAR_API_KEY</span>
+                  <span>Set LINEAR_TOKEN or LINEAR_API_KEY</span>
                 <% end %>
               </td>
             </tr>
 
-            <tr class="border-t">
-              <td class="px-3 py-2">Slack</td>
-              <td class="px-3 py-2">
+            <tr>
+              <td>Slack</td>
+              <td>
                 <.status_badge state={@integrations.slack} />
               </td>
-              <td class="px-3 py-2">
+              <td class="text-sm text-theme-muted">
                 <%= if @integrations.slack.connected do %>
-                  <span class="text-zinc-500 text-xs">Configured via SLACK_BOT_TOKEN</span>
+                  <span>App token configured</span>
                 <% else %>
-                  <span class="text-zinc-600 text-xs">
-                    Set SLACK_BOT_TOKEN or SLACK_API_KEY (+ SLACK_CHANNEL)
-                  </span>
+                  <span>Add SLACK_BOT_TOKEN</span>
                 <% end %>
               </td>
             </tr>
 
-            <tr class="border-t">
-              <td class="px-3 py-2">Notion</td>
-              <td class="px-3 py-2">
+            <tr>
+              <td>Notion</td>
+              <td>
                 <.status_badge state={@integrations.notion} />
               </td>
-              <td class="px-3 py-2">
+              <td class="text-sm text-theme-muted">
                 <%= if @integrations.notion.connected do %>
-                  <span class="text-zinc-500 text-xs">Configured via NOTION_TOKEN</span>
+                  <span>Integration token active</span>
                 <% else %>
-                  <span class="text-zinc-600 text-xs">Set NOTION_TOKEN or NOTION_API_KEY</span>
+                  <span>Add NOTION_TOKEN</span>
                 <% end %>
               </td>
             </tr>
 
-            <tr class="border-t">
-              <td class="px-3 py-2">GitHub</td>
-              <td class="px-3 py-2">
-                <span class="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">
-                  Not connected
-                </span>
+            <tr>
+              <td>GitHub</td>
+              <td>
+                <.status_badge state={@integrations.github} />
               </td>
-              <td class="px-3 py-2">
-                <span class="text-zinc-600 text-xs">Coming soon</span>
-              </td>
+              <td class="text-sm text-theme-muted">Coming soon</td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
     """
+  end
+
+  @impl true
+  def handle_event("toggle_mobile_menu", _params, socket) do
+    {:noreply, assign(socket, mobile_menu_open: !socket.assigns.mobile_menu_open)}
+  end
+
+  @impl true
+  def handle_event("close_mobile_menu", _params, socket) do
+    {:noreply, assign(socket, mobile_menu_open: false)}
+  end
+
+  @impl true
+  def handle_event("toggle_theme", _params, socket) do
+    # Theme toggle is handled client-side via JavaScript
+    {:noreply, socket}
   end
 end

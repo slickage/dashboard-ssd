@@ -94,4 +94,77 @@ defmodule DashboardSSD.AccountsGetUserTest do
 
     assert Accounts.get_user!(user.id).email == "getuser@example.com"
   end
+
+  test "get_user_by_email/1 returns the user when found" do
+    role = Accounts.ensure_role!("employee")
+
+    {:ok, user} =
+      Accounts.create_user(%{email: "byemail@example.com", name: "ByEmail", role_id: role.id})
+
+    assert Accounts.get_user_by_email("byemail@example.com").id == user.id
+  end
+
+  test "get_user_by_email/1 returns nil when not found" do
+    assert Accounts.get_user_by_email("nonexistent@example.com") == nil
+  end
+
+  test "update_user/2 updates the user" do
+    role = Accounts.ensure_role!("employee")
+
+    {:ok, user} =
+      Accounts.create_user(%{email: "update@example.com", name: "Update", role_id: role.id})
+
+    {:ok, updated_user} = Accounts.update_user(user, %{name: "Updated Name"})
+
+    assert updated_user.name == "Updated Name"
+    assert updated_user.email == "update@example.com"
+  end
+
+  test "delete_user/1 deletes the user" do
+    role = Accounts.ensure_role!("employee")
+
+    {:ok, user} =
+      Accounts.create_user(%{email: "delete@example.com", name: "Delete", role_id: role.id})
+
+    {:ok, deleted_user} = Accounts.delete_user(user)
+
+    assert deleted_user.id == user.id
+    assert Accounts.get_user_by_email("delete@example.com") == nil
+  end
+
+  test "ensure_role!/1 returns existing role when found" do
+    # Create role first
+    role1 = Accounts.ensure_role!("existing_role")
+
+    # Call ensure_role! again with same name - should return existing role
+    role2 = Accounts.ensure_role!("existing_role")
+
+    assert role1.id == role2.id
+  end
+
+  test "ensure_role!/1 creates new role when not found" do
+    role = Accounts.ensure_role!("new_role")
+    assert role.name == "new_role"
+  end
+
+  test "upsert_user_with_identity assigns admin role to first user" do
+    # Clear all users and roles to test first user logic
+    DashboardSSD.Repo.delete_all(DashboardSSD.Accounts.User)
+    DashboardSSD.Repo.delete_all(DashboardSSD.Accounts.Role)
+
+    # First user should get admin role
+    user =
+      Accounts.upsert_user_with_identity("google", %{
+        email: "first@example.com",
+        name: "First User",
+        provider_id: "first-123",
+        token: "token",
+        refresh_token: "refresh",
+        expires_at: DateTime.utc_now()
+      })
+
+    # Preload the role association
+    user = DashboardSSD.Repo.preload(user, :role)
+    assert user.role.name == "admin"
+  end
 end

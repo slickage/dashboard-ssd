@@ -22,7 +22,7 @@ defmodule DashboardSSD.Projects do
 
   @doc "Fetch a project by id, raising if not found"
   @spec get_project!(pos_integer()) :: Project.t()
-  def get_project!(id), do: Repo.get!(Project, id)
+  def get_project!(id), do: Repo.get!(Project, id) |> Repo.preload(:client)
 
   @doc "Return a changeset for a project with proposed changes"
   @spec change_project(Project.t(), map()) :: Ecto.Changeset.t()

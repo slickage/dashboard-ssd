@@ -65,4 +65,15 @@ defmodule DashboardSSDWeb.AuthControllerTest do
 
     assert redirected_to(conn) == ~p"/"
   end
+
+  test "GET /auth/google/callback with ueberauth failure redirects with error", %{conn: conn} do
+    conn = init_test_session(conn, %{})
+    conn = assign(conn, :ueberauth_failure, %Ueberauth.Failure{errors: []})
+    conn = get(conn, "/auth/google/callback")
+
+    assert redirected_to(conn) == ~p"/"
+
+    assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
+             "Authentication failed. Please try again."
+  end
 end

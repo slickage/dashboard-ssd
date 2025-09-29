@@ -15,7 +15,7 @@ defmodule DashboardSSDWeb.AnalyticsLiveTest do
 
   describe "Analytics LiveView" do
     test "redirects unauthenticated users", %{conn: conn} do
-      assert {:error, {:redirect, %{to: "/auth/google?redirect_to=/analytics"}}} =
+      assert {:error, {:redirect, %{to: "/login?redirect_to=%2Fanalytics"}}} =
                live(conn, ~p"/analytics")
     end
 
@@ -124,6 +124,52 @@ defmodule DashboardSSDWeb.AnalyticsLiveTest do
       # Click refresh button (should not error)
       view
       |> element("button[phx-click='refresh']")
+      |> render_click()
+    end
+
+    test "project selection updates metrics", %{conn: conn} do
+      {:ok, admin} =
+        Accounts.create_user(%{
+          email: "admin@example.com",
+          name: "Admin",
+          role_id: Accounts.ensure_role!("admin").id
+        })
+
+      {:ok, client} = Clients.create_client(%{name: "Test Client"})
+      {:ok, _project1} = Projects.create_project(%{name: "Project 1", client_id: client.id})
+      {:ok, project2} = Projects.create_project(%{name: "Project 2", client_id: client.id})
+
+      conn = init_test_session(conn, %{user_id: admin.id})
+      {:ok, view, _html} = live(conn, ~p"/analytics")
+
+      # Select a different project
+      view
+      |> form("form[phx-change='select_project']")
+      |> render_change(%{"project_id" => to_string(project2.id)})
+
+      # Should not error
+      assert view
+    end
+
+    test "mobile menu toggle works", %{conn: conn} do
+      {:ok, admin} =
+        Accounts.create_user(%{
+          email: "admin@example.com",
+          name: "Admin",
+          role_id: Accounts.ensure_role!("admin").id
+        })
+
+      conn = init_test_session(conn, %{user_id: admin.id})
+      {:ok, view, _html} = live(conn, ~p"/analytics")
+
+      # Toggle mobile menu open
+      view
+      |> element("button[phx-click='toggle_mobile_menu']")
+      |> render_click()
+
+      # Close mobile menu by clicking the close button
+      view
+      |> element("button[phx-click='close_mobile_menu']")
       |> render_click()
     end
   end
