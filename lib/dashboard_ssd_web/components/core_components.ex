@@ -54,7 +54,11 @@ defmodule DashboardSSDWeb.CoreComponents do
       data-cancel={JS.exec(@on_cancel, "phx-remove")}
       class="relative z-50 hidden"
     >
-      <div id={"#{@id}-bg"} class="bg-zinc-50/90 fixed inset-0 transition-opacity" aria-hidden="true" />
+      <div
+        id={"#{@id}-bg"}
+        class="theme-modal-backdrop fixed inset-0 transition-opacity"
+        aria-hidden="true"
+      />
       <div
         class="fixed inset-0 overflow-y-auto"
         aria-labelledby={"#{@id}-title"}
@@ -70,16 +74,16 @@ defmodule DashboardSSDWeb.CoreComponents do
               phx-window-keydown={JS.exec("data-cancel", to: "##{@id}")}
               phx-key="escape"
               phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
-              class="shadow-zinc-700/10 ring-zinc-700/10 relative hidden rounded-2xl bg-white p-14 shadow-lg ring-1 transition"
+              class="theme-modal-content relative hidden rounded-2xl p-14 shadow-lg transition"
             >
               <div class="absolute top-6 right-5">
                 <button
                   phx-click={JS.exec("data-cancel", to: "##{@id}")}
                   type="button"
-                  class="-m-3 flex-none p-3 opacity-20 hover:opacity-40"
+                  class="inline-flex items-center justify-center rounded-md p-2 text-theme-muted hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
                   aria-label={gettext("close")}
                 >
-                  <.icon name="hero-x-mark-solid" class="h-5 w-5" />
+                  <.icon name="hero-x-mark-solid" class="h-6 w-6" />
                 </button>
               </div>
               <div id={"#{@id}-content"}>
@@ -118,10 +122,13 @@ defmodule DashboardSSDWeb.CoreComponents do
     <div
       :if={msg = render_slot(@inner_block) || Phoenix.Flash.get(@flash, @kind)}
       id={@id}
+      phx-hook="AutoDismiss"
+      data-delay="5000"
+      data-kind={@kind}
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
       role="alert"
       class={[
-        "fixed top-2 right-2 mr-2 w-80 sm:w-96 z-50 rounded-lg p-3 ring-1",
+        "fixed top-2 right-2 mr-2 w-80 sm:w-96 z-[60] rounded-lg p-3 ring-1",
         @kind == :info && "bg-emerald-50 text-emerald-800 ring-emerald-500 fill-cyan-900",
         @kind == :error && "bg-rose-50 text-rose-900 shadow-md ring-rose-500 fill-rose-900",
         @class
@@ -134,7 +141,12 @@ defmodule DashboardSSDWeb.CoreComponents do
         {@title}
       </p>
       <p class="mt-2 text-sm leading-5">{msg}</p>
-      <button type="button" class="group absolute top-1 right-1 p-2" aria-label={gettext("close")}>
+      <button
+        type="button"
+        class="group absolute top-1 right-1 p-2"
+        style="background-color: #8a9cc800; color: #000; border: 1px solid #8a9cc800;"
+        aria-label={gettext("close")}
+      >
         <.icon name="hero-x-mark-solid" class="h-5 w-5 opacity-40 group-hover:opacity-70" />
       </button>
     </div>
@@ -207,15 +219,21 @@ defmodule DashboardSSDWeb.CoreComponents do
     doc: "the arbitrary HTML attributes to apply to the form tag"
 
   slot :inner_block, required: true
-  slot :actions, doc: "the slot for form actions, such as a submit button"
+
+  slot :actions, doc: "the slot for form actions, such as a submit button" do
+    attr :class, :string
+  end
 
   @spec simple_form(map()) :: Rendered.t()
   def simple_form(assigns) do
     ~H"""
     <.form :let={f} for={@for} as={@as} {@rest}>
-      <div class="mt-10 space-y-8 bg-white">
+      <div class="mt-10 space-y-8 bg-theme-surface">
         {render_slot(@inner_block, f)}
-        <div :for={action <- @actions} class="mt-2 flex items-center justify-between gap-6">
+        <div
+          :for={action <- @actions}
+          class={action[:class] || "mt-2 flex items-center justify-between gap-6"}
+        >
           {render_slot(action, f)}
         </div>
       </div>
@@ -243,7 +261,7 @@ defmodule DashboardSSDWeb.CoreComponents do
     <button
       type={@type}
       class={[
-        "phx-submit-loading:opacity-75 rounded-lg bg-zinc-900 hover:bg-zinc-700 py-2 px-3",
+        "phx-submit-loading:opacity-75 rounded-full bg-theme-primary hover:bg-theme-primary-soft py-2 px-3",
         "text-sm font-semibold leading-6 text-white active:text-white/80",
         @class
       ]}
@@ -323,7 +341,7 @@ defmodule DashboardSSDWeb.CoreComponents do
 
     ~H"""
     <div>
-      <label class="flex items-center gap-4 text-sm leading-6 text-zinc-600">
+      <label class="flex items-center gap-4 text-sm leading-6 text-theme-text">
         <input type="hidden" name={@name} value="false" disabled={@rest[:disabled]} />
         <input
           type="checkbox"
@@ -331,7 +349,7 @@ defmodule DashboardSSDWeb.CoreComponents do
           name={@name}
           value="true"
           checked={@checked}
-          class="rounded border-zinc-300 text-zinc-900 focus:ring-0"
+          class="rounded border-theme-border text-theme-primary focus:ring-0"
           {@rest}
         />
         {@label}
@@ -348,7 +366,7 @@ defmodule DashboardSSDWeb.CoreComponents do
       <select
         id={@id}
         name={@name}
-        class="mt-2 block w-full rounded-md border border-gray-300 bg-white shadow-sm focus:border-zinc-400 focus:ring-0 sm:text-sm"
+        class="mt-2 block w-full rounded-md border border-theme-border bg-theme-surface text-theme-text shadow-sm focus:border-theme-primary focus:ring-0 sm:text-sm"
         multiple={@multiple}
         {@rest}
       >
@@ -368,8 +386,8 @@ defmodule DashboardSSDWeb.CoreComponents do
         id={@id}
         name={@name}
         class={[
-          "mt-2 block w-full rounded-lg text-zinc-900 focus:ring-0 sm:text-sm sm:leading-6 min-h-[6rem]",
-          @errors == [] && "border-zinc-300 focus:border-zinc-400",
+          "mt-2 block w-full rounded-lg text-theme-text bg-theme-surface focus:ring-0 sm:text-sm sm:leading-6 min-h-[6rem]",
+          @errors == [] && "border-theme-border focus:border-theme-primary",
           @errors != [] && "border-rose-400 focus:border-rose-400"
         ]}
         {@rest}
@@ -390,8 +408,8 @@ defmodule DashboardSSDWeb.CoreComponents do
         id={@id}
         value={Form.normalize_value(@type, @value)}
         class={[
-          "mt-2 block w-full rounded-lg text-zinc-900 focus:ring-0 sm:text-sm sm:leading-6",
-          @errors == [] && "border-zinc-300 focus:border-zinc-400",
+          "mt-2 block w-full rounded-lg text-theme-text bg-theme-surface focus:ring-0 sm:text-sm sm:leading-6",
+          @errors == [] && "border-theme-border focus:border-theme-primary",
           @errors != [] && "border-rose-400 focus:border-rose-400"
         ]}
         {@rest}
@@ -410,7 +428,7 @@ defmodule DashboardSSDWeb.CoreComponents do
   @spec label(map()) :: Rendered.t()
   def label(assigns) do
     ~H"""
-    <label for={@for} class="block text-sm font-semibold leading-6 text-zinc-800">
+    <label for={@for} class="block text-sm font-semibold leading-6 text-theme-text">
       {render_slot(@inner_block)}
     </label>
     """
@@ -490,12 +508,12 @@ defmodule DashboardSSDWeb.CoreComponents do
       end
 
     ~H"""
-    <div class="overflow-y-auto px-4 sm:overflow-visible sm:px-0">
-      <table class="w-[40rem] mt-11 sm:w-full">
-        <thead class="text-sm text-left leading-6 text-zinc-500">
+    <div class="theme-card overflow-x-auto px-4 sm:px-0">
+      <table class="theme-table min-w-[40rem]">
+        <thead>
           <tr>
-            <th :for={col <- @col} class="p-0 pb-4 pr-6 font-normal">{col[:label]}</th>
-            <th :if={@action != []} class="relative p-0 pb-4">
+            <th :for={col <- @col}>{col[:label]}</th>
+            <th :if={@action != []} class="text-right">
               <span class="sr-only">{gettext("Actions")}</span>
             </th>
           </tr>
@@ -503,31 +521,25 @@ defmodule DashboardSSDWeb.CoreComponents do
         <tbody
           id={@id}
           phx-update={match?(%LiveStream{}, @rows) && "stream"}
-          class="relative divide-y divide-zinc-100 border-t border-zinc-200 text-sm leading-6 text-zinc-700"
+          class="text-sm leading-6 text-white/80"
         >
-          <tr :for={row <- @rows} id={@row_id && @row_id.(row)} class="group hover:bg-zinc-50">
+          <tr :for={row <- @rows} id={@row_id && @row_id.(row)}>
             <td
               :for={{col, i} <- Enum.with_index(@col)}
               phx-click={@row_click && @row_click.(row)}
-              class={["relative p-0", @row_click && "hover:cursor-pointer"]}
+              class={["py-3 pr-6", @row_click && "cursor-pointer"]}
             >
-              <div class="block py-4 pr-6">
-                <span class="absolute -inset-y-px right-0 -left-4 group-hover:bg-zinc-50 sm:rounded-l-xl" />
-                <span class={["relative", i == 0 && "font-semibold text-zinc-900"]}>
-                  {render_slot(col, @row_item.(row))}
-                </span>
-              </div>
+              <span class={["block", i == 0 && "font-semibold text-white"]}>
+                {render_slot(col, @row_item.(row))}
+              </span>
             </td>
-            <td :if={@action != []} class="relative w-14 p-0">
-              <div class="relative whitespace-nowrap py-4 text-right text-sm font-medium">
-                <span class="absolute -inset-y-px -right-4 left-0 group-hover:bg-zinc-50 sm:rounded-r-xl" />
-                <span
-                  :for={action <- @action}
-                  class="relative ml-4 font-semibold leading-6 text-zinc-900 hover:text-zinc-700"
-                >
-                  {render_slot(action, @row_item.(row))}
-                </span>
-              </div>
+            <td :if={@action != []} class="w-32 py-3 text-right">
+              <span
+                :for={action <- @action}
+                class="ml-4 text-sm font-semibold text-white/80 transition hover:text-white"
+              >
+                {render_slot(action, @row_item.(row))}
+              </span>
             </td>
           </tr>
         </tbody>
@@ -560,6 +572,151 @@ defmodule DashboardSSDWeb.CoreComponents do
           <dd class="text-zinc-700">{render_slot(item)}</dd>
         </div>
       </dl>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a reusable search form.
+
+  ## Examples
+
+      <.search_form placeholder="Search clients..." query={@query} phx-submit="search" />
+  """
+  attr :placeholder, :string, default: "Search..."
+  attr :query, :string, required: true
+  attr :rest, :global
+
+  @spec search_form(map()) :: Rendered.t()
+  def search_form(assigns) do
+    ~H"""
+    <form {@rest}>
+      <div class="relative">
+        <input
+          type="text"
+          name="query"
+          value={@query}
+          placeholder={@placeholder}
+          class="w-full rounded-full border border-theme-border bg-theme-surface px-4 py-2 pl-10 text-theme-text placeholder-theme-text-muted focus:border-theme-primary focus:outline-none"
+        />
+        <.icon
+          name="hero-magnifying-glass-solid"
+          class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-theme-text-muted"
+        />
+      </div>
+    </form>
+    """
+  end
+
+  @doc """
+  Renders a status badge for connected/disconnected states.
+
+  ## Examples
+
+      <.status_badge state={%{connected: true, details: :ok}} />
+  """
+  attr :state, :map, required: true
+
+  @spec status_badge(map()) :: Rendered.t()
+  def status_badge(assigns) do
+    if assigns.state[:connected] do
+      ~H"""
+      <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium theme-status-connected">
+        Connected
+      </span>
+      """
+    else
+      ~H"""
+      <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium theme-status-disconnected">
+        Not connected
+      </span>
+      """
+    end
+  end
+
+  @doc """
+  Renders a health status dot.
+
+  ## Examples
+
+      <.health_dot status="ok" />
+  """
+  attr :status, :string, required: true
+
+  @spec health_dot(map()) :: Rendered.t()
+  def health_dot(assigns) do
+    status = String.downcase(to_string(assigns.status || ""))
+
+    {color_class, label} =
+      cond do
+        status in ["ok", "passing", "healthy", "up"] -> {"bg-emerald-400", "Up"}
+        status in ["degraded", "warn", "warning"] -> {"bg-amber-400", "Degraded"}
+        status in ["fail", "failing", "down", "error"] -> {"bg-rose-400", "Down"}
+        true -> {"bg-white/40", String.capitalize(status)}
+      end
+
+    assigns = assign(assigns, color: color_class, label: label)
+
+    ~H"""
+    <span class="inline-flex items-center gap-1" title={@label} aria-label={@label}>
+      <span class={"inline-block h-2.5 w-2.5 rounded-full #{@color}"} aria-hidden="true"></span>
+    </span>
+    """
+  end
+
+  @doc """
+  Renders a tasks summary cell with badges and progress bar.
+
+  ## Examples
+
+      <.tasks_cell summary={%{total: 10, in_progress: 3, finished: 5}} />
+  """
+  attr :summary, :map, required: true
+
+  @spec tasks_cell(map()) :: Rendered.t()
+  def tasks_cell(assigns) do
+    summary = assigns.summary || %{}
+    total = summary[:total] || summary["total"] || 0
+    ip = summary[:in_progress] || summary["in_progress"] || 0
+    fin = summary[:finished] || summary["finished"] || 0
+
+    done_pct = percent(fin, total)
+    ip_pct = percent(ip, total)
+    rest_pct = max(0, 100 - done_pct - ip_pct)
+
+    assigns =
+      assign(assigns,
+        total: total,
+        ip: ip,
+        fin: fin,
+        done_pct: done_pct,
+        ip_pct: ip_pct,
+        rest_pct: rest_pct
+      )
+
+    ~H"""
+    <div class="flex items-center gap-3">
+      <div class="grid w-36 shrink-0 grid-cols-3 gap-2">
+        <span class="flex items-center gap-1 text-xs text-theme-muted" title="Total">
+          <span class="inline-block h-2.5 w-2.5 rounded-full bg-white/40" aria-hidden="true"></span>
+          <span class="tabular-nums text-white/80">{@total}</span>
+        </span>
+        <span class="flex items-center gap-1 text-xs text-sky-200" title="In Progress">
+          <span class="inline-block h-2.5 w-2.5 rounded-full bg-sky-400" aria-hidden="true"></span>
+          <span class="tabular-nums">{@ip}</span>
+        </span>
+        <span class="flex items-center gap-1 text-xs text-emerald-200" title="Finished">
+          <span class="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400" aria-hidden="true">
+          </span>
+          <span class="tabular-nums">{@fin}</span>
+        </span>
+        <span class="hidden" data-total={@total} data-in-progress={@ip} data-finished={@fin}></span>
+      </div>
+      <div class="flex h-2 w-32 overflow-hidden rounded-full bg-white/10">
+        <div class="h-full bg-emerald-400" style={"width: #{@done_pct}%"}></div>
+        <div class="h-full bg-sky-400" style={"width: #{@ip_pct}%"}></div>
+        <div class="h-full bg-transparent" style={"width: #{@rest_pct}%"}></div>
+      </div>
     </div>
     """
   end
@@ -710,5 +867,12 @@ defmodule DashboardSSDWeb.CoreComponents do
   @spec translate_errors(Keyword.t(), atom()) :: [String.t()]
   def translate_errors(errors, field) when is_list(errors) do
     for {^field, {msg, opts}} <- errors, do: translate_error({msg, opts})
+  end
+
+  # Helper function for percentage calculation
+  defp percent(_n, 0), do: 0
+
+  defp percent(n, total) when is_integer(n) and is_integer(total) and total > 0 do
+    trunc(n * 100 / total)
   end
 end

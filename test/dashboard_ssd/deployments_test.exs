@@ -179,6 +179,201 @@ defmodule DashboardSSD.DeploymentsHealthChecksTest do
   end
 end
 
+defmodule DashboardSSD.DeploymentsCRUDTest do
+  use DashboardSSD.DataCase, async: true
+
+  alias DashboardSSD.{Clients, Deployments, Projects}
+
+  describe "deployments" do
+    setup do
+      {:ok, client} = Clients.create_client(%{name: "Deployments Client"})
+
+      {:ok, project} =
+        Projects.create_project(%{name: "Deployments Project", client_id: client.id})
+
+      {:ok, project: project}
+    end
+
+    test "list_deployments returns all deployments", %{project: project} do
+      {:ok, deployment1} =
+        Deployments.create_deployment(%{project_id: project.id, status: "ok", commit_sha: "abc"})
+
+      {:ok, deployment2} =
+        Deployments.create_deployment(%{
+          project_id: project.id,
+          status: "pending",
+          commit_sha: "def"
+        })
+
+      deployments = Deployments.list_deployments()
+      ids = Enum.map(deployments, & &1.id)
+      assert deployment1.id in ids
+      assert deployment2.id in ids
+    end
+
+    test "list_deployments_by_project returns deployments for project", %{project: project} do
+      {:ok, deployment} =
+        Deployments.create_deployment(%{project_id: project.id, status: "ok", commit_sha: "abc"})
+
+      {:ok, other_client} = Clients.create_client(%{name: "Other Client"})
+
+      {:ok, other_project} =
+        Projects.create_project(%{name: "Other Project", client_id: other_client.id})
+
+      {:ok, _other_deployment} =
+        Deployments.create_deployment(%{
+          project_id: other_project.id,
+          status: "ok",
+          commit_sha: "xyz"
+        })
+
+      deployments = Deployments.list_deployments_by_project(project.id)
+      assert length(deployments) == 1
+      assert hd(deployments).id == deployment.id
+    end
+
+    test "get_deployment! returns the deployment with given id", %{project: project} do
+      {:ok, deployment} =
+        Deployments.create_deployment(%{project_id: project.id, status: "ok", commit_sha: "abc"})
+
+      assert Deployments.get_deployment!(deployment.id).id == deployment.id
+    end
+
+    test "create_deployment with valid data creates a deployment", %{project: project} do
+      assert {:ok, %DashboardSSD.Deployments.Deployment{} = deployment} =
+               Deployments.create_deployment(%{
+                 project_id: project.id,
+                 status: "ok",
+                 commit_sha: "abc"
+               })
+
+      assert deployment.status == "ok"
+      assert deployment.commit_sha == "abc"
+    end
+
+    test "create_deployment with invalid data returns error changeset", %{project: project} do
+      assert {:error, %Ecto.Changeset{}} =
+               Deployments.create_deployment(%{project_id: project.id})
+    end
+
+    test "update_deployment with valid data updates the deployment", %{project: project} do
+      {:ok, deployment} =
+        Deployments.create_deployment(%{project_id: project.id, status: "ok", commit_sha: "abc"})
+
+      assert {:ok, updated_deployment} =
+               Deployments.update_deployment(deployment, %{status: "pending"})
+
+      assert updated_deployment.status == "pending"
+    end
+
+    test "update_deployment with invalid data returns error changeset", %{project: project} do
+      {:ok, deployment} =
+        Deployments.create_deployment(%{project_id: project.id, status: "ok", commit_sha: "abc"})
+
+      assert {:error, %Ecto.Changeset{}} =
+               Deployments.update_deployment(deployment, %{status: nil})
+    end
+
+    test "delete_deployment deletes the deployment", %{project: project} do
+      {:ok, deployment} =
+        Deployments.create_deployment(%{project_id: project.id, status: "ok", commit_sha: "abc"})
+
+      assert {:ok, %DashboardSSD.Deployments.Deployment{}} =
+               Deployments.delete_deployment(deployment)
+
+      assert_raise Ecto.NoResultsError, fn -> Deployments.get_deployment!(deployment.id) end
+    end
+  end
+
+  describe "health checks CRUD" do
+    setup do
+      {:ok, client} = Clients.create_client(%{name: "Health Client"})
+
+      {:ok, project} =
+        Projects.create_project(%{name: "Health Project", client_id: client.id})
+
+      {:ok, project: project}
+    end
+
+    test "list_health_checks returns all health checks", %{project: project} do
+      {:ok, health_check1} =
+        Deployments.create_health_check(%{project_id: project.id, status: "up"})
+
+      {:ok, health_check2} =
+        Deployments.create_health_check(%{project_id: project.id, status: "down"})
+
+      health_checks = Deployments.list_health_checks()
+      ids = Enum.map(health_checks, & &1.id)
+      assert health_check1.id in ids
+      assert health_check2.id in ids
+    end
+
+    test "list_health_checks_by_project returns health checks for project", %{project: project} do
+      {:ok, health_check} =
+        Deployments.create_health_check(%{project_id: project.id, status: "up"})
+
+      {:ok, other_client} = Clients.create_client(%{name: "Other Client"})
+
+      {:ok, other_project} =
+        Projects.create_project(%{name: "Other Project", client_id: other_client.id})
+
+      {:ok, _other_health_check} =
+        Deployments.create_health_check(%{project_id: other_project.id, status: "down"})
+
+      health_checks = Deployments.list_health_checks_by_project(project.id)
+      assert length(health_checks) == 1
+      assert hd(health_checks).id == health_check.id
+    end
+
+    test "get_health_check! returns the health check with given id", %{project: project} do
+      {:ok, health_check} =
+        Deployments.create_health_check(%{project_id: project.id, status: "up"})
+
+      assert Deployments.get_health_check!(health_check.id).id == health_check.id
+    end
+
+    test "create_health_check with valid data creates a health check", %{project: project} do
+      assert {:ok, %DashboardSSD.Deployments.HealthCheck{} = health_check} =
+               Deployments.create_health_check(%{project_id: project.id, status: "up"})
+
+      assert health_check.status == "up"
+    end
+
+    test "create_health_check with invalid data returns error changeset", %{project: project} do
+      assert {:error, %Ecto.Changeset{}} =
+               Deployments.create_health_check(%{project_id: project.id})
+    end
+
+    test "update_health_check with valid data updates the health check", %{project: project} do
+      {:ok, health_check} =
+        Deployments.create_health_check(%{project_id: project.id, status: "up"})
+
+      assert {:ok, updated_health_check} =
+               Deployments.update_health_check(health_check, %{status: "down"})
+
+      assert updated_health_check.status == "down"
+    end
+
+    test "update_health_check with invalid data returns error changeset", %{project: project} do
+      {:ok, health_check} =
+        Deployments.create_health_check(%{project_id: project.id, status: "up"})
+
+      assert {:error, %Ecto.Changeset{}} =
+               Deployments.update_health_check(health_check, %{status: nil})
+    end
+
+    test "delete_health_check deletes the health check", %{project: project} do
+      {:ok, health_check} =
+        Deployments.create_health_check(%{project_id: project.id, status: "up"})
+
+      assert {:ok, %DashboardSSD.Deployments.HealthCheck{}} =
+               Deployments.delete_health_check(health_check)
+
+      assert_raise Ecto.NoResultsError, fn -> Deployments.get_health_check!(health_check.id) end
+    end
+  end
+end
+
 defmodule DashboardSSD.DeploymentsChangesetTest do
   use DashboardSSD.DataCase, async: true
 

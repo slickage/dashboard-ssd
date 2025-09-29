@@ -19,7 +19,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
   describe "knowledge base access" do
     test "redirects unauthenticated users", %{conn: conn} do
-      assert {:error, {:redirect, %{to: "/auth/google?redirect_to=/kb"}}} = live(conn, ~p"/kb")
+      assert {:error, {:redirect, %{to: "/login?redirect_to=%2Fkb"}}} = live(conn, ~p"/kb")
     end
 
     test "allows employees to view the knowledge base", %{conn: conn} do
@@ -231,6 +231,28 @@ defmodule DashboardSSDWeb.KbLiveTest do
       |> render_submit()
 
       assert render(view) =~ "Unable to reach Notion"
+    end
+
+    test "mobile menu toggle works", %{conn: conn} do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "mobile@example.com",
+          name: "Mobile",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      # Toggle mobile menu open
+      view
+      |> element("button[phx-click='toggle_mobile_menu']")
+      |> render_click()
+
+      # Close mobile menu by clicking the close button
+      view
+      |> element("button[phx-click='close_mobile_menu']")
+      |> render_click()
     end
   end
 end

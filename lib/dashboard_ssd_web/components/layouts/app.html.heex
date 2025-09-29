@@ -1,4 +1,4 @@
-<header class="px-4 sm:px-6 lg:px-8">
+<header id="sticky-header" class="sticky-header px-4 sm:px-6 lg:px-8">
   <% cu = assigns[:current_user] || (assigns[:conn] && assigns.conn.assigns[:current_user]) %>
   <div class="flex items-center justify-between border-b border-zinc-100 py-3 text-sm">
     <div class="flex items-center gap-5">

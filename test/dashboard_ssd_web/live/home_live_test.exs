@@ -95,7 +95,7 @@ defmodule DashboardSSDWeb.HomeLiveTest do
   end
 
   test "anonymous is redirected to auth", %{conn: conn} do
-    assert {:error, {:redirect, %{to: "/auth/google?redirect_to=/"}}} = live(conn, ~p"/")
+    assert {:error, {:redirect, %{to: "/login?redirect_to=%2F"}}} = live(conn, ~p"/")
   end
 
   test "displays empty state when no data exists", %{conn: conn} do
@@ -110,10 +110,11 @@ defmodule DashboardSSDWeb.HomeLiveTest do
     {:ok, _view, html} = live(conn, ~p"/")
 
     # Should show zero counts
-    assert html =~ "0</div>"
-    assert html =~ "No projects found"
-    assert html =~ "No active incidents"
-    assert html =~ "No recent deployments"
+    assert html =~ "0"
+    assert html =~ "Tracked initiatives"
+    assert html =~ "Partner organizations"
+    assert html =~ "All clear"
+    assert html =~ "Awaiting pipeline runs"
   end
 
   test "refresh button reloads dashboard data", %{conn: conn} do
@@ -146,7 +147,8 @@ defmodule DashboardSSDWeb.HomeLiveTest do
     {:ok, _view, html} = live(conn, ~p"/")
 
     # Should show analytics section
-    assert html =~ "Analytics Summary"
+    assert html =~ "Analytics"
+    assert html =~ "Platform performance"
     assert html =~ "Uptime"
     assert html =~ "MTTR"
     assert html =~ "Throughput"
@@ -190,6 +192,37 @@ defmodule DashboardSSDWeb.HomeLiveTest do
     # Should show CI status section
     assert html =~ "CI Status"
     assert html =~ "Success rate"
+  end
+
+  test "CI status card renders per-status colors", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "ci-colors@example.com",
+        name: "CIColors",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    {:ok, project} = Projects.create_project(%{name: "CI Colors"})
+
+    Enum.each(
+      [
+        "success",
+        "failed",
+        "pending",
+        "unknown"
+      ],
+      fn status ->
+        {:ok, _} = Deployments.create_deployment(%{project_id: project.id, status: status})
+      end
+    )
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, _view, html} = live(conn, ~p"/")
+
+    assert html =~ "bg-emerald-400"
+    assert html =~ "bg-rose-500"
+    assert html =~ "bg-amber-400"
+    assert html =~ "bg-slate-500"
   end
 
   test "handle_info updates workload summary", %{conn: conn} do
@@ -259,8 +292,8 @@ defmodule DashboardSSDWeb.HomeLiveTest do
     conn = init_test_session(conn, %{user_id: adm.id})
     {:ok, _view, html} = live(conn, ~p"/")
 
-    # Should show workload summary
-    assert html =~ "Workload Summary"
+    # Should show workload section
+    assert html =~ "Workload"
 
     # Restore original env
     Application.put_env(:dashboard_ssd, :integrations, prev)
@@ -298,7 +331,7 @@ defmodule DashboardSSDWeb.HomeLiveTest do
 
     # Should still show dashboard even with API error
     assert html =~ "Dashboard"
-    assert html =~ "Workload Summary"
+    assert html =~ "Workload"
 
     Application.put_env(:dashboard_ssd, :integrations, prev)
   end
@@ -337,8 +370,8 @@ defmodule DashboardSSDWeb.HomeLiveTest do
     {:ok, _view, html} = live(conn, ~p"/")
 
     # Should show workload summary with zeros
-    assert html =~ "Workload Summary"
-    assert html =~ "0</div>"
+    assert html =~ "Workload"
+    assert html =~ "0"
 
     Application.put_env(:dashboard_ssd, :integrations, prev)
   end

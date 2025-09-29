@@ -25,68 +25,29 @@ defmodule DashboardSSDWeb.Router do
   scope "/", DashboardSSDWeb do
     pipe_through :browser
 
-    live_session :default,
+    live_session :public,
       on_mount: [{DashboardSSDWeb.UserAuth, :mount_current_user}],
-      session: {__MODULE__, :build_live_session, []} do
+      session: {__MODULE__, :build_live_session, []},
+      layout: false do
+      live "/login", LoginLive, :index
     end
 
-    live_session :require_authenticated,
+    live_session :authenticated,
       on_mount: [
         {DashboardSSDWeb.UserAuth, :mount_current_user},
         {DashboardSSDWeb.UserAuth, :ensure_authenticated}
       ],
-      session: {__MODULE__, :build_live_session, []} do
+      session: {__MODULE__, :build_live_session, []},
+      layout: {DashboardSSDWeb.Layouts, :theme} do
       live "/", HomeLive.Index, :index
-    end
-
-    live_session :clients_read,
-      on_mount: [
-        {DashboardSSDWeb.UserAuth, :mount_current_user},
-        {DashboardSSDWeb.UserAuth, {:require, :read, :clients}}
-      ],
-      session: {__MODULE__, :build_live_session, []} do
+      live "/settings", SettingsLive.Index, :index
       live "/clients", ClientsLive.Index, :index
       live "/clients/new", ClientsLive.Index, :new
       live "/clients/:id/edit", ClientsLive.Index, :edit
-    end
-
-    live_session :projects_read,
-      on_mount: [
-        {DashboardSSDWeb.UserAuth, :mount_current_user},
-        {DashboardSSDWeb.UserAuth, {:require, :read, :projects}}
-      ],
-      session: {__MODULE__, :build_live_session, []} do
+      live "/clients/:id/delete", ClientsLive.Index, :delete
       live "/projects", ProjectsLive.Index, :index
       live "/projects/:id/edit", ProjectsLive.Index, :edit
-    end
-
-    # Settings require authentication but no specific RBAC subject yet
-    live_session :settings_auth,
-      on_mount: [
-        {DashboardSSDWeb.UserAuth, :mount_current_user},
-        {DashboardSSDWeb.UserAuth, :ensure_authenticated}
-      ],
-      session: {__MODULE__, :build_live_session, []} do
-      live "/settings", SettingsLive.Index, :index
-    end
-
-    # Analytics requires admin permissions
-    live_session :analytics_admin,
-      on_mount: [
-        {DashboardSSDWeb.UserAuth, :mount_current_user},
-        {DashboardSSDWeb.UserAuth, {:require, :read, :analytics}}
-      ],
-      session: {__MODULE__, :build_live_session, []} do
       live "/analytics", AnalyticsLive.Index, :index
-    end
-
-    # Knowledge base accessible to any authenticated user with :read :kb rights
-    live_session :knowledge_base,
-      on_mount: [
-        {DashboardSSDWeb.UserAuth, :mount_current_user},
-        {DashboardSSDWeb.UserAuth, {:require, :read, :kb}}
-      ],
-      session: {__MODULE__, :build_live_session, []} do
       live "/kb", KbLive.Index, :index
     end
 

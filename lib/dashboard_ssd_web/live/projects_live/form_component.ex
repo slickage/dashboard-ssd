@@ -54,12 +54,20 @@ defmodule DashboardSSDWeb.ProjectsLive.FormComponent do
       _ = maybe_upsert_health_check_setting(socket.assigns.project, hc_params)
       hc_flash = maybe_run_health_check_now(socket.assigns.project, hc_params)
 
-      case Projects.update_project(socket.assigns.project, normalize_params(params)) do
-        {:ok, _} ->
-          {:noreply,
-           socket
-           |> put_flash(:info, hc_flash || "Project updated")
-           |> push_patch(to: socket.assigns.patch)}
+      normalized_params = normalize_params(params)
+      has_project_changes = project_changed?(socket.assigns.project, normalized_params)
+      has_hc_changes = health_check_changed?(socket.assigns.project, hc_params)
+
+      case Projects.update_project(socket.assigns.project, normalized_params) do
+        {:ok, updated_project} ->
+          # Send message to parent to update the project and close modal
+          send(
+            self(),
+            {:project_updated, updated_project, hc_flash || "Project updated",
+             has_project_changes or has_hc_changes}
+          )
+
+          {:noreply, socket}
 
         {:error, cs} ->
           {:noreply, assign(socket, :changeset, cs)}
@@ -133,6 +141,27 @@ defmodule DashboardSSDWeb.ProjectsLive.FormComponent do
 
   defp admin?(user), do: user && user.role && user.role.name == "admin"
 
+  defp project_changed?(project, params) do
+    project.name != params["name"] or
+      to_string(project.client_id) != params["client_id"]
+  end
+
+  defp health_check_changed?(project, hc_params) do
+    hc = Deployments.get_health_check_setting_by_project(project.id)
+
+    [
+      {:enabled, Map.get(hc_params, "enabled") == "on"},
+      {:provider, Map.get(hc_params, "provider")},
+      {:endpoint_url, Map.get(hc_params, "http_url")},
+      {:aws_region, Map.get(hc_params, "aws_region")},
+      {:aws_target_group_arn, Map.get(hc_params, "aws_target_group_arn")}
+    ]
+    |> Enum.any?(fn {field, new_value} ->
+      current_value = hc && Map.get(hc, field)
+      current_value != new_value
+    end)
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -205,9 +234,8 @@ defmodule DashboardSSDWeb.ProjectsLive.FormComponent do
           </div>
         </fieldset>
 
-        <:actions>
+        <:actions class="flex justify-start">
           <.button>Save</.button>
-          <.link patch={@patch} class="ml-2 text-zinc-700">Cancel</.link>
         </:actions>
       </.simple_form>
     </div>

@@ -56,7 +56,7 @@ defmodule DashboardSSDWeb do
     quote do
       use Phoenix.Controller,
         formats: [:html, :json],
-        layouts: [html: DashboardSSDWeb.Layouts]
+        layouts: [html: {DashboardSSDWeb.Layouts, :theme}]
 
       import Plug.Conn
       use Gettext, backend: DashboardSSDWeb.Gettext
@@ -72,7 +72,7 @@ defmodule DashboardSSDWeb do
   def live_view do
     quote do
       use Phoenix.LiveView,
-        layout: {DashboardSSDWeb.Layouts, :app}
+        layout: {DashboardSSDWeb.Layouts, :theme}
 
       unquote(html_helpers())
     end

@@ -82,7 +82,7 @@ defmodule DashboardSSDWeb.ProjectsLiveTest do
   end
 
   test "anonymous is redirected to auth", %{conn: conn} do
-    assert {:error, {:redirect, %{to: "/auth/google?redirect_to=/projects"}}} =
+    assert {:error, {:redirect, %{to: "/login?redirect_to=%2Fprojects"}}} =
              live(conn, ~p"/projects")
   end
 
@@ -142,10 +142,12 @@ defmodule DashboardSSDWeb.ProjectsLiveTest do
     render_change(form, %{"project" => %{"name" => "Rebranded", "client_id" => to_string(c2.id)}})
     render_submit(form, %{"project" => %{"name" => "Rebranded", "client_id" => to_string(c2.id)}})
 
-    assert_patch(view, ~p"/projects?r=1")
+    # Modal should close and project should be updated in place
     html = render(view)
     assert html =~ "Rebranded"
     assert html =~ "Globex"
+    # Modal should be closed
+    refute html =~ "Edit Project"
   end
 
   test "edit modal forbids non-admin", %{conn: conn} do
@@ -185,9 +187,11 @@ defmodule DashboardSSDWeb.ProjectsLiveTest do
     {:ok, view, _} = live(conn, ~p"/projects/#{p.id}/edit")
     form = element(view, "#project-form")
     render_submit(form, %{"project" => %{"name" => "Legacy", "client_id" => ""}})
-    assert_patch(view, ~p"/projects?r=1")
+    # Modal should close and project should be updated in place
     html = render(view)
     assert html =~ "Assign Client"
+    # Modal should be closed
+    refute html =~ "Edit Project"
   end
 
   test "validation error on missing name stays on modal", %{conn: conn} do

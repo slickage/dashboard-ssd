@@ -1,0 +1,12 @@
+
+description = "Ask clarifying questions about the specification. This is an ad-hoc command that can be used at any time."
+
+prompt = """
+Ask clarifying questions about the specification.
+
+When you need to ask a clarifying question, do this:
+
+1.  Identify the ambiguous or underspecified part of the specification.
+2.  Formulate a clear and concise question to resolve the ambiguity.
+3.  Present the question to the user and provide options if possible.
+"""
