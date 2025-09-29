@@ -104,6 +104,7 @@ defmodule DashboardSSDWeb.HomeLive.Index do
     socket =
       socket
       |> assign(:analytics_summary, analytics_summary)
+      |> put_flash(:info, "Data refreshed successfully")
 
     {:noreply, socket}
   end
@@ -212,7 +213,7 @@ defmodule DashboardSSDWeb.HomeLive.Index do
       )
 
     ~H"""
-    <div class="card theme-gradient-border p-6 lg:p-8">
+    <div class="card p-6 lg:p-8">
       <div class="flex flex-col gap-6">
         <div class="flex items-start justify-between gap-4">
           <div>
@@ -226,7 +227,7 @@ defmodule DashboardSSDWeb.HomeLive.Index do
               Issues synced from Linear across all active projects
             </p>
           </div>
-          <span class={["theme-badge", @status_class]}>
+          <span class={["theme-badge text-center", @status_class]}>
             {@status_label}
           </span>
         </div>
@@ -556,8 +557,8 @@ defmodule DashboardSSDWeb.HomeLive.Index do
   defp stat_tone_class(:sky), do: "text-sky-300"
   defp stat_tone_class(_), do: "text-theme-accent"
 
-  defp incidents_badge_class(0), do: "bg-emerald-500/10 text-emerald-200"
-  defp incidents_badge_class(_), do: "bg-rose-500/10 text-rose-200"
+  defp incidents_badge_class(0), do: "theme-status-connected"
+  defp incidents_badge_class(_), do: "theme-badge-error"
 
   defp incidents_badge_label(0), do: "Operational"
   defp incidents_badge_label(_), do: "Needs attention"
@@ -568,16 +569,16 @@ defmodule DashboardSSDWeb.HomeLive.Index do
   end
 
   defp workload_status(_total, _fin, _ip, false),
-    do: {"Integration disabled", "bg-amber-500/10 text-amber-200"}
+    do: {"Integration disabled", "theme-badge-warning"}
 
   defp workload_status(total, _fin, _ip, true) when total == 0,
-    do: {"Awaiting updates", "bg-sky-500/10 text-sky-200"}
+    do: {"Awaiting updates", "theme-badge-info"}
 
   defp workload_status(_total, fin, ip, true) when fin >= ip,
-    do: {"On track", "bg-emerald-500/10 text-emerald-200"}
+    do: {"On track", "theme-badge-success"}
 
   defp workload_status(_total, _fin, _ip, true),
-    do: {"Monitoring", "bg-rose-500/10 text-rose-200"}
+    do: {"Monitoring", "theme-badge-error"}
 
   defp deployment_metrics(deployments) do
     recent_raw = Enum.take(deployments, 10)

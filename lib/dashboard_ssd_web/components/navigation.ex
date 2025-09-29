@@ -51,20 +51,7 @@ defmodule DashboardSSDWeb.Navigation do
       aria-expanded="false"
     >
       <span class="sr-only">Open main menu</span>
-      <svg
-        class="block h-6 w-6"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke-width="1.5"
-        stroke="currentColor"
-        aria-hidden="true"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
-        />
-      </svg>
+      <.icon name="hero-bars-3-solid" class="h-6 w-6" />
     </button>
     """
   end
@@ -117,16 +104,7 @@ defmodule DashboardSSDWeb.Navigation do
               phx-click="close_mobile_menu"
             >
               <span class="sr-only">Close menu</span>
-              <svg
-                class="block h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width="1.5"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <.icon name="hero-x-mark-solid" class="h-6 w-6" />
             </button>
           </div>
           
@@ -172,19 +150,7 @@ defmodule DashboardSSDWeb.Navigation do
                   class="p-2 text-theme-muted hover:text-white transition-colors"
                   phx-click="close_mobile_menu"
                 >
-                  <svg
-                    class="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke-width="1.5"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m-3-6l3 3m0 0l-3 3m3-3H9"
-                    />
-                  </svg>
+                  <.icon name="hero-arrow-right-on-rectangle-solid" class="h-5 w-5" />
                 </.link>
               </div>
             </div>

@@ -6,6 +6,7 @@
     --theme-surface-raised: #1c2337;
     --theme-border: rgba(255, 255, 255, 0.08);
     --theme-primary: #024caa;
+    --theme-primary-rgb: 2, 76, 170;
     --theme-primary-soft: rgba(2, 76, 170, 0.12);
     --theme-accent: #60a5fa;
     --theme-text: rgba(255, 255, 255, 0.92);
@@ -18,19 +19,20 @@
 
   /* Light mode theme variables */
   .dark {
-    --theme-background: #f8fafc;
+    --theme-background: #eeeeee;
     --theme-surface: #ffffff;
-    --theme-surface-muted: #f1f5f9;
-    --theme-surface-raised: #e2e8f0;
-    --theme-border: rgba(0, 0, 0, 0.08);
-    --theme-primary: #c2b7d7;
-    --theme-primary-soft: rgba(194, 183, 215, 0.12);
-    --theme-accent: #3b82f6;
-    --theme-text: rgba(15, 23, 42, 0.92);
-    --theme-text-muted: rgba(51, 65, 85, 0.8);
+    --theme-surface-muted: #f8f9fa;
+    --theme-surface-raised: #e9ecef;
+    --theme-border: rgba(57, 62, 70, 0.15);
+    --theme-primary: #8a9cc8;
+    --theme-primary-rgb: 138, 156, 200;
+    --theme-primary-soft: rgba(138, 156, 200, 0.15);
+    --theme-accent: #8a9cc8;
+    --theme-text: #222831;
+    --theme-text-muted: rgba(34, 40, 49, 0.7);
     --theme-text-active: #ffffff;
-    --theme-shadow-card: 0px 32px 120px -40px rgba(0, 0, 0, 0.12);
-    --theme-shadow-soft: 0px 18px 48px -24px rgba(0, 0, 0, 0.08);
+    --theme-shadow-card: 0px 32px 120px -40px rgba(34, 40, 49, 0.08);
+    --theme-shadow-soft: 0px 18px 48px -24px rgba(34, 40, 49, 0.06);
   }
 
   /* Body styles - ensure no conflicts with inline CSS */
@@ -57,24 +59,24 @@
       var(--theme-background);
   }
 
-  .dark .theme-divider {
-    background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.08), transparent);
-  }
+   .dark .theme-divider {
+     background: linear-gradient(to right, transparent, rgba(57, 62, 70, 0.1), transparent);
+   }
 
-  .dark .theme-pill {
-    background: rgba(0, 0, 0, 0.04);
-    border: 1px solid rgba(0, 0, 0, 0.12);
-    color: rgba(0, 0, 0, 0.82);
-  }
+   .dark .theme-pill {
+     background: rgba(57, 62, 70, 0.05);
+     border: 1px solid rgba(57, 62, 70, 0.15);
+     color: rgba(34, 40, 49, 0.85);
+   }
 
   .theme-nav-surface {
-    background: linear-gradient(180deg, rgba(10, 13, 26, 0.94) 0%, rgba(5, 8, 18, 0.94) 100%);
+    background: linear-gradient(180deg, rgba(var(--theme-primary-rgb), 0.075) 0%, rgba(255, 255, 255, 0) 100%);
   }
 
-  .dark .theme-nav-surface {
-    background: linear-gradient(180deg, rgba(241, 245, 249, 0.94) 0%, rgba(226, 232, 240, 0.94) 100%);
-    border-right: 1px solid var(--theme-border);
-  }
+   .dark .theme-nav-surface {
+     background: linear-gradient(180deg, rgba(var(--theme-primary-rgb), 0.075) 0%, rgba(255, 255, 255, 0) 100%);
+     border-right: 1px solid var(--theme-border);
+   }
 
   .theme-nav-item {
     position: relative;
@@ -118,6 +120,47 @@
     font-weight: 500;
   }
 
+  /* Theme-aware badge variants */
+  .theme-badge-success {
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+  }
+
+  .dark .theme-badge-success {
+    background: rgba(16, 185, 129, 0.1);
+    color: #34d399;
+  }
+
+  .theme-badge-warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: #d97706;
+  }
+
+  .dark .theme-badge-warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: #fbbf24;
+  }
+
+  .theme-badge-error {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+  }
+
+  .dark .theme-badge-error {
+    background: rgba(239, 68, 68, 0.1);
+    color: #f87171;
+  }
+
+  .theme-badge-info {
+    background: rgba(59, 130, 246, 0.15);
+    color: #1d4ed8;
+  }
+
+  .dark .theme-badge-info {
+    background: rgba(59, 130, 246, 0.2);
+    color: #3b82f6;
+  }
+
   .theme-gradient-border {
     position: relative;
   }
@@ -134,9 +177,9 @@
     mask-composite: exclude;
   }
 
-  .dark .theme-gradient-border::before {
-    background: linear-gradient(120deg, rgba(0, 0, 0, 0.08), rgba(37, 99, 235, 0.18));
-  }
+   .dark .theme-gradient-border::before {
+     background: linear-gradient(120deg, rgba(57, 62, 70, 0.1), rgba(144, 146, 230, 0.25));
+   }
 
   .theme-gradient-border > * {
     position: relative;
@@ -174,9 +217,9 @@
     background: rgba(255, 255, 255, 0.05);
   }
 
-  .dark .theme-table thead {
-    background: rgba(0, 0, 0, 0.06);
-  }
+   .dark .theme-table thead {
+     background: rgba(57, 62, 70, 0.08);
+   }
 
   .theme-table thead th {
     padding: 0.75rem 1rem;
@@ -188,9 +231,9 @@
     text-align: left;
   }
 
-  .dark .theme-table thead th {
-    color: rgba(0, 0, 0, 0.85);
-  }
+   .dark .theme-table thead th {
+     color: rgba(34, 40, 49, 0.8);
+   }
 
   .theme-table tbody tr {
     border-top: 1px solid var(--theme-border);
@@ -205,9 +248,9 @@
     background: rgba(255, 255, 255, 0.04);
   }
 
-  .dark .theme-table tbody tr:hover {
-    background: rgba(0, 0, 0, 0.03);
-  }
+   .dark .theme-table tbody tr:hover {
+     background: rgba(57, 62, 70, 0.04);
+   }
 
   .theme-table tbody td {
     padding: 0.85rem 1rem;
@@ -248,12 +291,16 @@
   }
 
   /* Form elements theme styles */
-  input, textarea, select {
-    background-color: var(--theme-surface);
-    border: 1px solid var(--theme-border);
-    color: var(--theme-text);
-    transition: border-color 120ms ease, box-shadow 120ms ease;
-  }
+   input, textarea, select {
+     background-color: var(--theme-surface);
+     border: 1px solid var(--theme-border);
+     color: var(--theme-text);
+     transition: border-color 120ms ease, box-shadow 120ms ease;
+   }
+
+   .dark input, .dark textarea, .dark select {
+     background-color: var(--theme-surface-muted);
+   }
 
   input:focus, textarea:focus, select:focus {
     outline: none;
@@ -304,6 +351,33 @@
     background-color: transparent !important;
   }
 
+  /* Modal close button styling - matches hamburger menu */
+  .theme-modal-close {
+    background-color: transparent;
+    border: none;
+    color: var(--theme-text-muted);
+    transition: background-color 120ms ease, color 120ms ease;
+  }
+
+  .theme-modal-close:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+    color: var(--theme-text);
+  }
+
+  .dark .theme-modal-close:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+  }
+
+  .theme-modal-close:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+  }
+
+  .dark .theme-modal-close:focus {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+  }
+
   /* Reusable component classes */
   .btn-primary {
     @apply inline-flex items-center justify-center rounded-lg bg-theme-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-theme-primary-soft focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2;
@@ -347,12 +421,27 @@
     }
   }
 
-  @container (min-width: 400px) {
-    .dashboard-widget {
-      @apply p-8;
-    }
-  }
-}
+   @container (min-width: 400px) {
+     .dashboard-widget {
+       @apply p-8;
+     }
+   }
+
+   /* Modal theme styles */
+   .theme-modal-backdrop {
+     background: rgba(0, 0, 0, 0.5);
+   }
+
+   .dark .theme-modal-backdrop {
+     background: rgba(0, 0, 0, 0.7);
+   }
+
+   .theme-modal-content {
+     background: var(--theme-surface);
+     border: 1px solid var(--theme-border);
+     box-shadow: var(--theme-shadow-card);
+   }
+ }
 
 @layer utilities {
   /* Sticky header behavior */
@@ -425,5 +514,22 @@
   .dark .divide-white\/5 {
     border-color: rgba(0, 0, 0, 0.02) !important;
   }
-}
 
+  /* Light theme overrides for close button hover states */
+  .dark .hover\:bg-white\/10:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .dark .hover\:text-white:hover {
+    color: #ffffff !important;
+  }
+
+  /* Light theme overrides for close button hover states */
+  .hover\:bg-white\/10:hover {
+    background-color: rgba(0, 0, 0, 0.1) !important;
+  }
+
+  .hover\:text-white:hover {
+    color: var(--theme-text) !important;
+  }
+}

@@ -80,9 +80,8 @@ defmodule DashboardSSDWeb.ClientsLive.FormComponent do
         phx-submit="save"
       >
         <.input field={f[:name]} label="Name" />
-        <:actions>
+        <:actions class="flex justify-start">
           <.button>Save</.button>
-          <.link patch={@patch} class="ml-2 text-zinc-700">Cancel</.link>
         </:actions>
       </.simple_form>
     </div>

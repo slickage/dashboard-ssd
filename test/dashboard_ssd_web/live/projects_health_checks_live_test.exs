@@ -50,11 +50,12 @@ defmodule DashboardSSDWeb.ProjectsHealthChecksLiveTest do
       }
     })
 
-    assert_patch(view, ~p"/projects?r=1")
-
+    # Modal should close and project should be updated in place
     # No status inserted yet -> shows em dash
-    {:ok, _view2, html} = live(conn, ~p"/projects")
+    html = render(view)
     assert html =~ ">—<"
+    # Modal should be closed
+    refute html =~ "Edit Project"
   end
 
   test "Linear summaries are skipped in tests unless Tesla.Mock set" do
@@ -119,9 +120,11 @@ defmodule DashboardSSDWeb.ProjectsHealthChecksLiveTest do
       "hc" => %{"enabled" => "on", "provider" => "http", "http_url" => ""}
     })
 
-    assert_patch(view, ~p"/projects?r=1")
-    {:ok, _view2, html} = live(conn, ~p"/projects")
+    # Modal should close and project should be updated in place
+    html = render(view)
     assert html =~ ">—<"
+    # Modal should be closed
+    refute html =~ "Edit Project"
 
     # And setting should be disabled
     s = Deployments.get_health_check_setting_by_project(p.id)
@@ -173,11 +176,12 @@ defmodule DashboardSSDWeb.ProjectsHealthChecksLiveTest do
       "hc" => %{"enabled" => "on", "provider" => "http", "http_url" => "http://example/health"}
     })
 
-    assert_patch(view, ~p"/projects?r=1")
-
-    {:ok, _view2, html} = live(conn, ~p"/projects")
+    # Modal should close and project should be updated in place
+    html = render(view)
     # Dot (green) should be present for "up"
     assert html =~ "bg-emerald-400"
+    # Modal should be closed
+    refute html =~ "Edit Project"
 
     # Now disable
     {:ok, view3, _} = live(conn, ~p"/projects/#{p.id}/edit")
@@ -188,10 +192,11 @@ defmodule DashboardSSDWeb.ProjectsHealthChecksLiveTest do
       "hc" => %{"provider" => "http", "http_url" => "http://example/health"}
     })
 
-    assert_patch(view3, ~p"/projects?r=1")
-
-    {:ok, _view4, html2} = live(conn, ~p"/projects")
+    # Modal should close and project should be updated in place
+    html2 = render(view3)
     assert html2 =~ ">—<"
+    # Modal should be closed
+    refute html2 =~ "Edit Project"
   end
 
   test "dot colors reflect status (degraded amber, down red)", %{conn: conn} do

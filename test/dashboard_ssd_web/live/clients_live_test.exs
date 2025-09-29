@@ -127,4 +127,65 @@ defmodule DashboardSSDWeb.ClientsLiveTest do
     |> element("button[phx-click='close_mobile_menu']")
     |> render_click()
   end
+
+  test "admin can delete client via modal", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "adm-delete@example.com",
+        name: "A",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    {:ok, client} = Clients.create_client(%{name: "DeleteMe"})
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, _view, _html} = live(conn, ~p"/clients")
+
+    # Navigate to delete modal
+    {:ok, view, _} = live(conn, ~p"/clients/#{client.id}/delete")
+
+    # Verify modal shows
+    html = render(view)
+    assert html =~ "Delete Client"
+    assert html =~ "DeleteMe"
+    assert html =~ "This action cannot be undone"
+
+    # Confirm delete
+    view
+    |> element("button[phx-click='delete_client']")
+    |> render_click()
+
+    # Should redirect back to clients list
+    assert_redirect(view, ~p"/clients")
+
+    # Verify client was deleted
+    assert Clients.list_clients() == []
+  end
+
+  test "delete modal shows with proper content", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "adm-modal@example.com",
+        name: "A",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    {:ok, client} = Clients.create_client(%{name: "TestClient"})
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+
+    # Navigate to delete modal
+    {:ok, view, _} = live(conn, ~p"/clients/#{client.id}/delete")
+
+    # Verify modal content
+    html = render(view)
+    assert html =~ "Delete Client"
+    assert html =~ "TestClient"
+    assert html =~ "This action cannot be undone"
+    # button text
+    assert html =~ "Delete Client"
+
+    # Modal should have close button for cancellation
+    assert html =~ "aria-label=\"close\""
+  end
 end
