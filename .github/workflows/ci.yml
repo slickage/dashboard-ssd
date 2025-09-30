@@ -115,7 +115,7 @@ jobs:
         run: MIX_ENV=dev mix hex.outdated || true
 
       - name: Security | gitleaks
-        run: ./scripts/secret_scan.sh
+        run: ./scripts/ci/secret_scan.sh
 
       - name: Security | Sobelow
         env:
@@ -226,16 +226,14 @@ jobs:
         env:
           MIX_ENV: dev
         run: mix deps.get
+      - name: Install semantic-release
+        run: ./scripts/ci/install_semantic_release.sh
       - name: Semantic Release
         uses: cycjimmy/semantic-release-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           semantic_version: 23.1.1
-          extra_plugins: >
-            @semantic-release/changelog
-            @semantic-release/git
-            @semantic-release/exec
 
   deploy-pages:
     needs: docs-pages
