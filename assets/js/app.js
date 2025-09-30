@@ -234,10 +234,32 @@ window.addEventListener("phx:open_oauth_popup", (event) => {
 let Hooks = {}
 Hooks.AutoDismiss = {
   mounted() {
+    this.startTimer()
+  },
+  updated() {
+    this.resetTimer()
+  },
+  destroyed() {
+    this.clearTimer()
+  },
+  startTimer() {
     const delay = parseInt(this.el.dataset.delay) || 5000
-    setTimeout(() => {
-      this.pushEvent("lv:clear-flash", {key: this.el.dataset.kind})
+    this.timer = setTimeout(() => {
+      const connected = this.liveSocket?.isConnected?.() && this.el?.isConnected
+      if (connected) {
+        this.pushEvent("lv:clear-flash", {key: this.el.dataset.kind})
+      }
     }, delay)
+  },
+  resetTimer() {
+    this.clearTimer()
+    this.startTimer()
+  },
+  clearTimer() {
+    if (this.timer) {
+      clearTimeout(this.timer)
+      this.timer = null
+    }
   }
 }
 
@@ -254,4 +276,3 @@ liveSocket.connect()
 // >> liveSocket.enableLatencySim(1000)  // enabled for duration of browser session
 // >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket
-
