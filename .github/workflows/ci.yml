@@ -1,8 +1,8 @@
 name: CI
 
 env:
-  OTP_VERSION: '27.1'
-  ELIXIR_VERSION: '1.17.3'
+  OTP_VERSION: '27.1.2'
+  ELIXIR_VERSION: '1.18.0'
   MIX_ENV: test
   COVERALLS_MINIMUM_COVERAGE: 90
 
@@ -111,6 +111,9 @@ jobs:
       - name: Security | deps audit
         run: MIX_ENV=dev mix deps.audit
 
+      - name: Security | hex outdated
+        run: MIX_ENV=dev mix hex.outdated || true
+
       - name: Security | gitleaks
         run: ./scripts/secret_scan.sh
 
@@ -200,6 +203,39 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: doc
+
+  release:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup BEAM
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ env.OTP_VERSION }}
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+      - name: Install dependencies
+        env:
+          MIX_ENV: dev
+        run: mix deps.get
+      - name: Semantic Release
+        uses: cycjimmy/semantic-release-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          semantic_version: 23.1.1
+          extra_plugins: >
+            @semantic-release/changelog
+            @semantic-release/git
+            @semantic-release/exec
 
   deploy-pages:
     needs: docs-pages
