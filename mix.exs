@@ -5,7 +5,7 @@ defmodule DashboardSSD.MixProject do
     [
       app: :dashboard_ssd,
       version: "0.1.0",
-      elixir: "~> 1.14",
+      elixir: "~> 1.18",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
@@ -120,7 +120,7 @@ defmodule DashboardSSD.MixProject do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
-      {:git_hooks, "~> 0.7", only: :dev, runtime: false},
+      {:git_hooks, "~> 0.8", only: :dev, runtime: false},
       {:sobelow, "~> 0.13", only: :dev, runtime: false},
       {:excoveralls, "~> 0.18", only: :test, runtime: false},
       {:cloak_ecto, "~> 1.2"},
@@ -146,6 +146,7 @@ defmodule DashboardSSD.MixProject do
       check: [
         "hex.audit",
         "cmd MIX_ENV=dev mix deps.audit",
+        "cmd MIX_ENV=dev mix hex.outdated || true",
         "cmd SKIP_SECRET_SCAN=${SKIP_SECRET_SCAN:-false} ./scripts/secret_scan.sh",
         "cmd MIX_ENV=dev mix compile --force --warnings-as-errors",
         "cmd MIX_ENV=test mix compile --force --warnings-as-errors",
