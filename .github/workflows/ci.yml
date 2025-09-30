@@ -111,6 +111,9 @@ jobs:
       - name: Security | deps audit
         run: MIX_ENV=dev mix deps.audit
 
+      - name: Security | hex outdated
+        run: MIX_ENV=dev mix hex.outdated
+
       - name: Security | gitleaks
         run: ./scripts/secret_scan.sh
 
