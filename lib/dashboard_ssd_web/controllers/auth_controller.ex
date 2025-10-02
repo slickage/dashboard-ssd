@@ -204,7 +204,5 @@ defmodule DashboardSSDWeb.AuthController do
     end
   end
 
-  @test_env Application.compile_env(:dashboard_ssd, :test_env?, Mix.env() == :test)
-
-  defp test_env?, do: @test_env
+  defp test_env?, do: Application.get_env(:dashboard_ssd, :test_env?, false)
 end
