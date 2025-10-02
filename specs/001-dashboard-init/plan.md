@@ -181,7 +181,7 @@ ios/ or android/
    - Quickstart test = story validation steps
 
 5. **Update agent file incrementally** (O(1) operation):
-   - Run `/scripts/update-agent-context.sh [claude|gemini|copilot]` for your AI assistant
+   - Run `./.specify/scripts/bash/update-agent-context.sh [claude|gemini|copilot]` for your AI assistant
    - If exists: Add only NEW tech from current plan
    - Preserve manual additions between markers
    - Update recent changes (keep last 3)
@@ -194,7 +194,7 @@ ios/ or android/
 *This section describes what the /tasks command will do - DO NOT execute during /plan*
 
 **Task Generation Strategy**:
-- Load `/templates/tasks-template.md` as base
+- Load `/.specify/templates/tasks-template.md` as base
 - Generate tasks from Phase 1 design docs (contracts, data model, quickstart)
 - Each contract → contract test task [P]
 - Each entity → model creation task [P]
@@ -244,4 +244,4 @@ ios/ or android/
 - [ ] Complexity deviations documented
 
 ---
-*Based on Constitution v2.1.1 - See `/memory/constitution.md`*
+*Based on Constitution v2.1.1 - See `/.specify/memory/constitution.md`*
