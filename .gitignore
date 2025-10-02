@@ -33,11 +33,18 @@ dashboard_ssd-*.tar
 /priv/static/cache_manifest.json
 
 # In case you use Node.js/npm, you want to ignore these.
+/node_modules/
 npm-debug.log
 /assets/node_modules/
 
 # Local environment variables
 .env
+
+# Editor/tooling caches
+.elixir_ls/
+
+# Local server logs
+*.log
 
 # Opencode config
 opencode.json
