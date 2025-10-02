@@ -8,6 +8,7 @@
 import Config
 
 config :dashboard_ssd, :env, config_env()
+config :dashboard_ssd, :test_env?, false
 config :dashboard_ssd, :health_checks, interval_ms: 60_000, enabled: true
 config :dashboard_ssd, :analytics, collection_interval_ms: 300_000, enabled: true
 
