@@ -15,7 +15,7 @@ Run `mix setup` to install Elixir deps and prepare the database.
 
 1. `mix hex.audit`
 2. `mix deps.audit`
-3. `./scripts/ci/secret_scan.sh` (gitleaks-based secret scan)
+3. `./scripts/secret_scan.sh` (gitleaks-based secret scan)
 4. `mix compile --force --warnings-as-errors` (dev and test envs)
 5. `mix format --check-formatted`
 6. `mix credo --strict`
@@ -35,14 +35,14 @@ GitHub Actions (`.github/workflows/ci.yml`) mirrors the above steps, plus:
 - Publishes coverage using `mix coveralls.multiple --type local --type github`.
 - Runs docs coverage via `mix doctor --summary --raise`.
 
-Both the pre-push hook and CI use the same `scripts/ci/secret_scan.sh`, so secret
+Both the pre-push hook and CI use the same `scripts/secret_scan.sh`, so secret
 scanning must pass locally before code can be pushed.
 
 ## Git Hooks
 
 Project uses `git_hooks` with the following configuration (see `config/config.exs`):
 
-- `pre_push`: runs `./scripts/ci/secret_scan.sh` and `mix check`.
+- `pre_push`: runs `./scripts/secret_scan.sh` and `mix check`.
 - Hooks auto-install on `mix deps.get` in development; adjust via
   `SKIP_SECRET_SCAN=true` if you must temporarily bypass the secret scan.
 
@@ -50,7 +50,7 @@ Project uses `git_hooks` with the following configuration (see `config/config.ex
 
 **Security**
 - `mix deps.audit` / `mix hex.audit`: catch vulnerable Hex packages.
-- `./scripts/ci/secret_scan.sh`: gitleaks-based scan to prevent leaked credentials.
+- `./scripts/secret_scan.sh`: gitleaks-based scan to prevent leaked credentials.
 - `mix sobelow --exit`: Phoenix security lint (XSS, CSRF, config issues).
 
 **Quality & Style**
