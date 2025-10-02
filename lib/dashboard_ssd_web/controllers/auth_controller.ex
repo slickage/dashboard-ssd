@@ -5,8 +5,6 @@ defmodule DashboardSSDWeb.AuthController do
   use DashboardSSDWeb, :controller
   alias DashboardSSD.Accounts
   alias Plug.Conn
-  @test_env Mix.env() == :test
-
   # Store optional redirect_to param before Ueberauth halts the request phase
   plug :store_redirect_to when action in [:request]
 
@@ -143,7 +141,7 @@ defmodule DashboardSSDWeb.AuthController do
 
   # sobelow_skip ["XSS.SendResp"]
   defp handle_callback_redirect(conn, redirect_to) do
-    if @test_env do
+    if test_env?() do
       # In tests, use HTTP redirect for easier testing
       redirect(conn, to: redirect_to)
     else
@@ -205,4 +203,6 @@ defmodule DashboardSSDWeb.AuthController do
         conn
     end
   end
+
+  defp test_env?, do: Application.get_env(:dashboard_ssd, :test_env?, false)
 end
