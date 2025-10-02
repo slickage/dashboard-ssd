@@ -1,3 +1,17 @@
+# [1.1.0](https://github.com/slickage/dashboard-ssd/compare/v1.0.0...v1.1.0) (2025-10-02)
+
+
+### Bug Fixes
+
+* **auth:** remove unused logger require ([251abb3](https://github.com/slickage/dashboard-ssd/commit/251abb3e2c6c42516e54bbbc1d0d2477c3eebc7a))
+* **theme:** restore light shell gradient ([04289ce](https://github.com/slickage/dashboard-ssd/commit/04289ce9ed4731454ee60d2183441abdf13b9698))
+
+
+### Features
+
+* **theme:** enhance light shell gradient ([8e2b1a4](https://github.com/slickage/dashboard-ssd/commit/8e2b1a40777d161db92c590094a898ad272f05b7))
+* **ui:** show runtime app version in sidebar ([aaad850](https://github.com/slickage/dashboard-ssd/commit/aaad850fac0b4dc60c45aed52e21690131f88963))
+
 # 1.0.0 (2025-09-30)
 
 
