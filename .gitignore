@@ -35,10 +35,17 @@ dashboard_ssd-*.tar
 # In case you use Node.js/npm, you want to ignore these.
 /node_modules/
 npm-debug.log
+/node_modules/
 /assets/node_modules/
 
 # Local environment variables
 .env
+
+# Editor/tool caches
+.elixir_ls/
+
+# Local logs
+*.log
 
 # Editor/tooling caches
 .elixir_ls/
