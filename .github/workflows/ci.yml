@@ -115,7 +115,7 @@ jobs:
         run: MIX_ENV=dev mix hex.outdated || true
 
       - name: Security | gitleaks
-        run: ./scripts/ci/secret_scan.sh
+        run: ./scripts/secret_scan.sh
 
       - name: Security | Sobelow
         env:
@@ -227,7 +227,7 @@ jobs:
           MIX_ENV: dev
         run: mix deps.get
       - name: Install semantic-release
-        run: ./scripts/ci/install_semantic_release.sh
+        run: ./scripts/install_semantic_release.sh
       - name: Semantic Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
