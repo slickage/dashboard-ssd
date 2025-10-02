@@ -19,27 +19,27 @@
 
   /* Light mode theme variables */
   .dark {
-    --theme-background: #eeeeee;
-    --theme-surface: #ffffff;
-    --theme-surface-muted: #f8f9fa;
-    --theme-surface-raised: #e9ecef;
-    --theme-border: rgba(57, 62, 70, 0.15);
+    --theme-background: #eef1f9;
+    --theme-surface: #f6f7ff;
+    --theme-surface-muted: #eef1fb;
+    --theme-surface-raised: #e4e8f7;
+    --theme-border: rgba(57, 62, 70, 0.12);
     --theme-primary: #8a9cc8;
     --theme-primary-rgb: 138, 156, 200;
-    --theme-primary-soft: rgba(138, 156, 200, 0.15);
+    --theme-primary-soft: rgba(138, 156, 200, 0.18);
     --theme-accent: #8a9cc8;
     --theme-text: #222831;
-    --theme-text-muted: rgba(34, 40, 49, 0.7);
+    --theme-text-muted: rgba(34, 40, 49, 0.65);
     --theme-text-active: #ffffff;
-    --theme-shadow-card: 0px 32px 120px -40px rgba(34, 40, 49, 0.08);
-    --theme-shadow-soft: 0px 18px 48px -24px rgba(34, 40, 49, 0.06);
+    --theme-shadow-card: 0px 24px 90px -40px rgba(34, 40, 49, 0.1);
+    --theme-shadow-soft: 0px 18px 48px -24px rgba(34, 40, 49, 0.08);
   }
 
   /* Body styles - ensure no conflicts with inline CSS */
   body {
-    background-color: var(--theme-background) !important;
-    color: var(--theme-text) !important;
-    font-family: var(--theme-font-family) !important;
+    background-color: var(--theme-background);
+    color: var(--theme-text);
+    font-family: var(--theme-font-family);
   }
 }
 
@@ -100,13 +100,13 @@
   }
 
   .theme-nav-item[data-active="true"] {
-    color: var(--theme-text-active) !important;
-    background: var(--theme-primary) !important;
+    color: var(--theme-text-active);
+    background: var(--theme-primary);
   }
 
   .dark .theme-nav-item[data-active="true"] {
-    color: var(--theme-text) !important;
-    background: var(--theme-primary) !important;
+    color: var(--theme-text);
+    background: var(--theme-primary);
   }
 
   .theme-badge {
@@ -328,28 +328,28 @@
 
   /* Theme toggle button - override global button styles */
   .theme-toggle {
-    background-color: var(--theme-border) !important;
-    border: none !important;
-    color: inherit !important;
+    background-color: var(--theme-border);
+    border: none;
+    color: inherit;
   }
 
   .theme-toggle:hover {
-    background-color: inherit !important;
+    background-color: inherit;
   }
 
   /* Link-style buttons that should be transparent */
   .theme-btn-link {
-    background-color: transparent !important;
-    border: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    font-size: inherit !important;
-    line-height: inherit !important;
-    text-decoration: none !important;
+    background-color: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font-size: inherit;
+    line-height: inherit;
+    text-decoration: none;
   }
 
   .theme-btn-link:hover {
-    background-color: transparent !important;
+    background-color: transparent;
   }
 
   /* Modal close button styling - matches hamburger menu */
@@ -409,10 +409,7 @@
 
   /* Dashboard widgets with container queries */
   .dashboard-widget {
-    @apply border bg-theme-surface p-4;
-    border-radius: 24px;
-    box-shadow: var(--theme-shadow-card);
-    border-color: var(--theme-border);
+    @apply p-4;
     container-type: inline-size;
   }
 
@@ -422,11 +419,11 @@
     }
   }
 
-   @container (min-width: 400px) {
-     .dashboard-widget {
-       @apply p-8;
-     }
-   }
+  @container (min-width: 400px) {
+    .dashboard-widget {
+      @apply p-8;
+    }
+  }
 
    /* Modal theme styles */
    .theme-modal-backdrop {
@@ -460,23 +457,23 @@
 
   /* Light mode overrides for hardcoded white text */
   .dark .text-white {
-    color: var(--theme-text) !important;
+    color: var(--theme-text);
   }
 
   .dark .text-white\/80 {
-    color: var(--theme-text-muted) !important;
+    color: var(--theme-text-muted);
   }
 
   .dark .text-white\/70 {
-    color: rgba(0, 0, 0, 0.7) !important;
+    color: rgba(0, 0, 0, 0.7);
   }
 
   .dark .text-white\/30 {
-    color: rgba(0, 0, 0, 0.4) !important;
+    color: rgba(0, 0, 0, 0.4);
   }
 
   .dark .text-white\/90 {
-    color: rgba(0, 0, 0, 0.9) !important;
+    color: rgba(0, 0, 0, 0.9);
   }
 
   /* Override the above for buttons with colored backgrounds */
@@ -484,53 +481,53 @@
   .dark .bg-blue-500 .text-white,
   .dark .bg-blue-600 .text-white,
   .dark .bg-blue-700 .text-white {
-    color: #ffffff !important;
+    color: #ffffff;
   }
 
   /* Light mode overrides for background colors */
   .dark .bg-white\/5 {
-    background-color: rgba(0, 0, 0, 0.02) !important;
+    background-color: rgba(0, 0, 0, 0.02);
   }
 
   .dark .bg-white\/10 {
-    background-color: rgba(0, 0, 0, 0.04) !important;
+    background-color: rgba(0, 0, 0, 0.04);
   }
 
   .dark .bg-white\/40 {
-    background-color: rgba(0, 0, 0, 0.08) !important;
+    background-color: rgba(0, 0, 0, 0.08);
   }
 
   .dark .border-white\/10 {
-    border-color: rgba(0, 0, 0, 0.08) !important;
+    border-color: rgba(0, 0, 0, 0.08);
   }
 
   .dark .border-white\/20 {
-    border-color: rgba(0, 0, 0, 0.12) !important;
+    border-color: rgba(0, 0, 0, 0.12);
   }
 
   .dark .border-white\/30 {
-    border-color: rgba(0, 0, 0, 0.16) !important;
+    border-color: rgba(0, 0, 0, 0.16);
   }
 
   .dark .divide-white\/5 {
-    border-color: rgba(0, 0, 0, 0.02) !important;
+    border-color: rgba(0, 0, 0, 0.02);
   }
 
   /* Light theme overrides for close button hover states */
   .dark .hover\:bg-white\/10:hover {
-    background-color: rgba(255, 255, 255, 0.1) !important;
+    background-color: rgba(255, 255, 255, 0.1);
   }
 
   .dark .hover\:text-white:hover {
-    color: #ffffff !important;
+    color: #ffffff;
   }
 
   /* Light theme overrides for close button hover states */
   .hover\:bg-white\/10:hover {
-    background-color: rgba(0, 0, 0, 0.1) !important;
+    background-color: rgba(0, 0, 0, 0.1);
   }
 
   .hover\:text-white:hover {
-    color: var(--theme-text) !important;
+    color: var(--theme-text);
   }
 }
