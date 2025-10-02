@@ -5,9 +5,6 @@ defmodule DashboardSSDWeb.AuthController do
   use DashboardSSDWeb, :controller
   alias DashboardSSD.Accounts
   alias Plug.Conn
-
-  require Logger
-
   @test_env Mix.env() == :test
 
   # Store optional redirect_to param before Ueberauth halts the request phase
