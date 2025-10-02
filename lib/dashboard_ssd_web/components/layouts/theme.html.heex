@@ -3,7 +3,7 @@
 <% current_path = assigns[:current_path] || "/" %>
 <% page_title = assigns[:page_title] || (conn && conn.assigns[:page_title]) || "Dashboard" %>
 <% section_label = Map.get(assigns, :theme_section, "Dashboard") %>
-<% version = Map.get(assigns, :theme_version, "v0.1.0") %>
+<% version = Map.get(assigns, :theme_version, app_version()) %>
 <% header_meta = Map.get(assigns, :theme_header_meta) %>
 <% raw_header_actions = assigns[:theme_header_actions] %>
 <% header_actions =
