@@ -12,6 +12,18 @@ defmodule DashboardSSDWeb.Layouts do
 
   embed_templates "layouts/*"
 
+  @doc "Returns the current application version prefixed with 'v'."
+  @spec app_version() :: String.t()
+  def app_version do
+    :dashboard_ssd
+    |> Application.spec(:vsn)
+    |> case do
+      nil -> "v0.0.0"
+      vsn when is_list(vsn) -> "v" <> List.to_string(vsn)
+      vsn -> "v" <> to_string(vsn)
+    end
+  end
+
   @doc false
   @spec header_action_classes(atom()) :: String.t()
   def header_action_classes(:primary) do

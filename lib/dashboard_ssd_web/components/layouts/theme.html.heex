@@ -3,7 +3,7 @@
 <% current_path = assigns[:current_path] || "/" %>
 <% page_title = assigns[:page_title] || (conn && conn.assigns[:page_title]) || "Dashboard" %>
 <% section_label = Map.get(assigns, :theme_section, "Dashboard") %>
-<% version = Map.get(assigns, :theme_version, "v0.1.0") %>
+<% version = Map.get(assigns, :theme_version, app_version()) %>
 <% header_meta = Map.get(assigns, :theme_header_meta) %>
 <% raw_header_actions = assigns[:theme_header_actions] %>
 <% header_actions =
@@ -17,10 +17,7 @@
 <% user_initials = DashboardSSDWeb.Layouts.user_initials(current_user) %>
 <% user_display_name = DashboardSSDWeb.Layouts.user_display_name(current_user) %>
 
-<div
-  data-role="theme-shell"
-  class="theme-shell-gradient min-h-screen w-full bg-theme-background text-theme-text"
->
+<div data-role="theme-shell" class="theme-shell-gradient min-h-screen w-full text-theme-text">
   <aside class="theme-nav-surface fixed left-0 top-0 z-40 hidden h-screen w-[92px] border-r border-white/5 md:flex">
     <div class="flex h-full w-full flex-col items-center gap-10 px-4 py-10">
       <.link
