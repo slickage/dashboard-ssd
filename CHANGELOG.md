@@ -1,3 +1,12 @@
+## [1.1.1](https://github.com/slickage/dashboard-ssd/compare/v1.1.0...v1.1.1) (2025-10-08)
+
+
+### Bug Fixes
+
+* **auth:** avoid dialyzer false boolean warning ([4ac31f4](https://github.com/slickage/dashboard-ssd/commit/4ac31f4863804e88fc6b20f538b138a193c5312b))
+* **auth:** derive test redirect flag from config ([054dac3](https://github.com/slickage/dashboard-ssd/commit/054dac367b086a7eefbfc35ee3954c66fbdd4876))
+* **css:** add standard mask fallback ([6bbf4d1](https://github.com/slickage/dashboard-ssd/commit/6bbf4d14cebc93e1a9eed89ad852d10c287d692c))
+
 # [1.1.0](https://github.com/slickage/dashboard-ssd/compare/v1.0.0...v1.1.0) (2025-10-02)
 
 
