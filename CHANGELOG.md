@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/slickage/dashboard-ssd/compare/v1.3.0...v1.3.1) (2025-10-10)
+
+
+### Bug Fixes
+
+* correct Docker image tag for Elixir 1.18.0 and Erlang 27.1 ([e97e14a](https://github.com/slickage/dashboard-ssd/commit/e97e14a0017851cdc906b77f8dee43a8d56953aa))
+
 # [1.3.0](https://github.com/slickage/dashboard-ssd/compare/v1.2.1...v1.3.0) (2025-10-10)
 
 
