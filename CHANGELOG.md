@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/slickage/dashboard-ssd/compare/v1.2.0...v1.2.1) (2025-10-10)
+
+
+### Bug Fixes
+
+* install nodejs npm in Docker build stage ([aef9d00](https://github.com/slickage/dashboard-ssd/commit/aef9d006845f3b7bd7200f8e4428143ef156ac95))
+
 # [1.2.0](https://github.com/slickage/dashboard-ssd/compare/v1.1.1...v1.2.0) (2025-10-10)
 
 
