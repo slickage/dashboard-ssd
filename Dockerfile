@@ -1,8 +1,10 @@
 # Build stage
-FROM hexpm/elixir:1.15.7-erlang-26.2.1-debian-bullseye-20231009-slim AS build
+FROM hexpm/elixir:1.18.0-erlang-27.1.2-debian-bullseye-20231009-slim AS build
 
 # Install build dependencies
-RUN apt-get update -y && apt-get install -y build-essential git nodejs npm \
+RUN apt-get update -y && apt-get install -y build-essential git curl \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
     && apt-get clean && rm -f /var/lib/apt/lists/*_*
 
 # Prepare build dir
