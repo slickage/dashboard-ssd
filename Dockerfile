@@ -2,7 +2,7 @@
 FROM hexpm/elixir:1.15.7-erlang-26.2.1-debian-bullseye-20231009-slim AS build
 
 # Install build dependencies
-RUN apt-get update -y && apt-get install -y build-essential git \
+RUN apt-get update -y && apt-get install -y build-essential git nodejs npm \
     && apt-get clean && rm -f /var/lib/apt/lists/*_*
 
 # Prepare build dir
