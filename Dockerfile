@@ -1,5 +1,5 @@
 # Build stage
-FROM hexpm/elixir:1.18.0-erlang-27.1.2-debian-bullseye-20231009-slim AS build
+FROM hexpm/elixir:1.18.0-erlang-27.1-debian-bullseye-slim AS build
 
 # Install build dependencies
 RUN apt-get update -y && apt-get install -y build-essential git curl \
