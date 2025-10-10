@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/slickage/dashboard-ssd/compare/v1.1.1...v1.2.0) (2025-10-10)
+
+
+### Features
+
+* prepare repo for continuous deployment with Docker and GHCR ([ce8422b](https://github.com/slickage/dashboard-ssd/commit/ce8422b673031911842111b8b6b53fc2f4ea1842))
+
 ## [1.1.1](https://github.com/slickage/dashboard-ssd/compare/v1.1.0...v1.1.1) (2025-10-08)
 
 
