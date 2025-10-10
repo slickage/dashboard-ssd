@@ -70,3 +70,36 @@ Project uses `git_hooks` with the following configuration (see `config/config.ex
 - `mix docs`: generate HTML docs to ensure doctests compile.
   - Docs are built during CI; main-branch pushes (or a manual dispatch with
     `deploy_docs=true`) publish the contents of `doc/` to GitHub Pages.
+
+## Deployment
+
+### Docker Build & Run
+
+1. **Build image**:
+   ```bash
+   docker build -t dashboard-ssd .
+   ```
+
+2. **Run container**:
+   ```bash
+   docker run -p 4000:4000 \
+     -e DATABASE_URL="postgresql://user:pass@host:5432/db" \
+     -e SECRET_KEY_BASE="$(mix phx.gen.secret)" \
+     -e PHX_HOST="your-domain.com" \
+     dashboard-ssd
+   ```
+
+### Environment Variables
+
+Required for production (see `config/runtime.exs`):
+
+- `DATABASE_URL`: PostgreSQL connection
+- `SECRET_KEY_BASE`: Phoenix secret key
+- `PHX_HOST`: Domain for URLs
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: OAuth
+- `ENCRYPTION_KEY`: Base64-encoded key for data encryption
+- Integration tokens: `LINEAR_TOKEN`, `SLACK_BOT_TOKEN`, `NOTION_TOKEN`, etc.
+
+### CI/CD
+
+GitHub Actions builds and pushes Docker images to GHCR on successful main branch pushes. Images are tagged with branch, PR, and SHA.
