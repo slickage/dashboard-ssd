@@ -81,7 +81,30 @@ Required environment variables in `.env`:
 
 ### Deployment
 
-Ready to deploy? See Phoenix deployment guides: https://hexdocs.pm/phoenix/deployment.html
+#### Docker Deployment
+
+1. **Build the image**:
+   ```bash
+   docker build -t dashboard-ssd .
+   ```
+
+2. **Run the container**:
+   ```bash
+   docker run -p 4000:4000 -e DATABASE_URL=... -e SECRET_KEY_BASE=... dashboard-ssd
+   ```
+
+3. **Environment variables** (see config/runtime.exs for full list):
+   - `DATABASE_URL`: PostgreSQL connection string
+   - `SECRET_KEY_BASE`: Phoenix secret key
+   - `PHX_HOST`: Domain name
+   - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: OAuth
+   - Integration tokens: `LINEAR_TOKEN`, `SLACK_BOT_TOKEN`, etc.
+
+#### CI/CD
+
+The repository includes GitHub Actions for automated testing and Docker image publishing to GHCR on main branch pushes.
+
+For full deployment guides, see Phoenix documentation: https://hexdocs.pm/phoenix/deployment.html
 
 ## Architecture
 
