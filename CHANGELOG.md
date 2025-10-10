@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/slickage/dashboard-ssd/compare/v1.2.1...v1.3.0) (2025-10-10)
+
+
+### Features
+
+* update Docker image to match .tool-versions ([c6cbf15](https://github.com/slickage/dashboard-ssd/commit/c6cbf15f0026db09586bebfd84f06ac7178b15cd))
+
 ## [1.2.1](https://github.com/slickage/dashboard-ssd/compare/v1.2.0...v1.2.1) (2025-10-10)
 
 
