@@ -4,7 +4,6 @@ FROM elixir:1.18-otp-27-slim AS build
 # Install build dependencies
 RUN apt-get update -y && apt-get install -y build-essential git curl \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
     && apt-get clean && rm -f /var/lib/apt/lists/*_*
 
 # Prepare build dir
@@ -33,7 +32,7 @@ RUN mix deps.compile
 COPY assets assets
 
 # Install assets dependencies
-RUN cd assets && npm install
+RUN cd assets
 
 # Build assets
 RUN mix assets.deploy
