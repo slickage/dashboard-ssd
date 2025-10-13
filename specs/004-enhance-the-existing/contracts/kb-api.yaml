@@ -1,0 +1,182 @@
+openapi: 3.0.3
+info:
+  title: DashboardSSD Knowledge Base API
+  version: 0.1.0
+  description: REST endpoints powering the enhanced Knowledge Base Explorer LiveView.
+servers:
+  - url: https://dashboard-ssd.internal/api
+paths:
+  /kb/collections:
+    get:
+      summary: List curated knowledge base collections
+      tags: [KnowledgeBase]
+      operationId: listCollections
+      responses:
+        '200':
+          description: Collections available to the authenticated teammate
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Collection'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '502':
+          description: Notion upstream unavailable
+  /kb/collections/{collection_id}/documents:
+    get:
+      summary: List documents within a collection
+      tags: [KnowledgeBase]
+      operationId: listCollectionDocuments
+      parameters:
+        - name: collection_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Documents returned in recency order
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DocumentSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Collection not found or inaccessible
+        '502':
+          description: Notion upstream unavailable
+  /kb/documents/{document_id}:
+    get:
+      summary: Retrieve a full knowledge base document
+      tags: [KnowledgeBase]
+      operationId: getDocument
+      parameters:
+        - name: document_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Document payload
+          headers:
+            X-KB-Source:
+              description: Identifier of the upstream source (Notion)
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Document not found or access denied
+        '502':
+          description: Upstream failure when fetching Notion blocks
+components:
+  schemas:
+    Collection:
+      type: object
+      required: [id, name, document_count, last_document_updated_at]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        icon:
+          type: string
+          nullable: true
+        document_count:
+          type: integer
+        last_document_updated_at:
+          type: string
+          format: date-time
+        last_synced_at:
+          type: string
+          format: date-time
+    DocumentSummary:
+      type: object
+      required: [id, title, owner, last_updated_at]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+        owner:
+          type: string
+        last_updated_at:
+          type: string
+          format: date-time
+        share_url:
+          type: string
+    DocumentDetail:
+      allOf:
+        - $ref: '#/components/schemas/DocumentSummary'
+        - type: object
+          required: [rendered_blocks]
+          properties:
+            collection_id:
+              type: string
+            rendered_blocks:
+              type: array
+              items:
+                $ref: '#/components/schemas/RenderedBlock'
+    RenderedBlock:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [heading, paragraph, callout, image, code, table, unsupported]
+        text:
+          type: string
+          nullable: true
+        language:
+          type: string
+          nullable: true
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/RenderedBlock'
+        metadata:
+          type: object
+          additionalProperties: true
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
