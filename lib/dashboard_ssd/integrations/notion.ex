@@ -1,5 +1,6 @@
 defmodule DashboardSSD.Integrations.Notion do
   @moduledoc "Basic Notion API client (search)."
+  @behaviour DashboardSSD.Integrations.Notion.Behaviour
   use Tesla
 
   @base "https://api.notion.com"

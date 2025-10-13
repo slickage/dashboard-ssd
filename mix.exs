@@ -118,6 +118,7 @@ defmodule DashboardSSD.MixProject do
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.5"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:mox, "~> 1.1", only: :test},
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
       {:git_hooks, "~> 0.8", only: :dev, runtime: false},

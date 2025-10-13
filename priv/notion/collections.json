@@ -1,0 +1,16 @@
+{
+  "collections": [
+    {
+      "id": "db-example-handbook",
+      "name": "Company Handbook",
+      "description": "Sample curated collection used for local development.",
+      "icon": ":book:"
+    },
+    {
+      "id": "db-example-playbooks",
+      "name": "Engineering Playbooks",
+      "description": "Placeholder collection for integration tests and demos.",
+      "icon": ":gear:"
+    }
+  ]
+}
