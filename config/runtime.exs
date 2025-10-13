@@ -65,12 +65,108 @@ end
 
 # Integration tokens (optional; for local/dev usage)
 # Values read from environment; safe to be nil in non-dev envs.
+notion_token = System.get_env("NOTION_TOKEN") || System.get_env("NOTION_API_KEY")
+
+raw_curated_database_ids =
+  System.get_env("NOTION_CURATED_DATABASE_IDS") ||
+    System.get_env("NOTION_DATABASE_ALLOWLIST") ||
+    System.get_env("NOTION_COLLECTION_ALLOWLIST")
+
+knowledge_base_config =
+  Application.get_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, [])
+
+curated_collections_path = Keyword.get(knowledge_base_config, :curated_collections_path)
+
+{curated_collections_sample, fallback_curated_database_ids} =
+  if config_env() == :prod do
+    {[], []}
+  else
+    cond do
+      is_nil(curated_collections_path) ->
+        {[], []}
+
+      not Code.ensure_loaded?(Jason) ->
+        {[], []}
+
+      not File.exists?(curated_collections_path) ->
+        {[], []}
+
+      true ->
+        with {:ok, body} <- File.read(curated_collections_path),
+             {:ok, %{"collections" => collections}} when is_list(collections) <-
+               Jason.decode(body) do
+          normalized =
+            collections
+            |> Enum.map(fn collection ->
+              %{
+                "id" => Map.get(collection, "id"),
+                "name" => Map.get(collection, "name"),
+                "description" => Map.get(collection, "description"),
+                "icon" => Map.get(collection, "icon")
+              }
+            end)
+            |> Enum.reject(fn collection -> collection["id"] in [nil, ""] end)
+
+          ids =
+            normalized
+            |> Enum.map(& &1["id"])
+            |> Enum.filter(&(&1 && &1 != ""))
+            |> Enum.uniq()
+
+          {normalized, ids}
+        else
+          _ -> {[], []}
+        end
+    end
+  end
+
+knowledge_base_config =
+  knowledge_base_config
+  |> Keyword.put(:curated_collections, curated_collections_sample)
+  |> Keyword.put(:default_curated_database_ids, fallback_curated_database_ids)
+
+Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, knowledge_base_config)
+
+parsed_curated_database_ids =
+  case raw_curated_database_ids do
+    nil ->
+      []
+
+    value ->
+      value
+      |> String.split([",", "\n"], trim: true)
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == ""))
+      |> Enum.uniq()
+  end
+
+notion_curated_database_ids =
+  case parsed_curated_database_ids do
+    [] -> fallback_curated_database_ids
+    ids -> ids
+  end
+
+if config_env() == :prod do
+  if is_nil(notion_token) or notion_token == "" do
+    raise """
+    environment variable NOTION_TOKEN (or NOTION_API_KEY) is missing.
+    """
+  end
+
+  if notion_curated_database_ids == [] do
+    raise """
+    environment variable NOTION_CURATED_DATABASE_IDS is missing. Provide a comma-separated list of Notion database IDs.
+    """
+  end
+end
+
 config :dashboard_ssd, :integrations,
   # Accept both *_TOKEN and *_API_KEY naming
   linear_token: System.get_env("LINEAR_TOKEN") || System.get_env("LINEAR_API_KEY"),
   slack_bot_token: System.get_env("SLACK_BOT_TOKEN") || System.get_env("SLACK_API_KEY"),
   slack_channel: System.get_env("SLACK_CHANNEL"),
-  notion_token: System.get_env("NOTION_TOKEN") || System.get_env("NOTION_API_KEY"),
+  notion_token: notion_token,
+  notion_curated_database_ids: notion_curated_database_ids,
   # For Drive, prefer a direct access token if present; otherwise rely on user-scoped DB token
   drive_token:
     System.get_env("GOOGLE_DRIVE_TOKEN") ||

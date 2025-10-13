@@ -16,9 +16,9 @@
 
 **Purpose**: Confirm environment configuration and tooling support required by all stories
 
-- [ ] T001 [P] [Setup] Validate Notion credentials and curated database ID configuration in `config/runtime.exs` and `.env.example`; document expected variables in `docs/notion.md`.
-- [ ] T002 [P] [Setup] Introduce curated collection allowlist source (e.g., `priv/notion/collections.json`) and loader wiring in `config/config.exs` with sample data.
-- [ ] T003 [P] [Setup] Ensure Notion client test stubbing via Mox is available by updating `test/support/notion_mox.ex` and registering it in `test/test_helper.exs`.
+- [X] T001 [P] [Setup] Validate Notion credentials and curated database ID configuration in `config/runtime.exs` and `.env.example`; document expected variables in `docs/notion.md`.
+- [X] T002 [P] [Setup] Introduce curated collection allowlist source (e.g., `priv/notion/collections.json`) and loader wiring in `config/config.exs` with sample data.
+- [X] T003 [P] [Setup] Ensure Notion client test stubbing via Mox is available by updating `test/support/notion_mox.ex` and registering it in `test/test_helper.exs`.
 
 ---
 

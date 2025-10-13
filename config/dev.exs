@@ -2,7 +2,7 @@ import Config
 
 # Configure your database
 config :dashboard_ssd, DashboardSSD.Repo,
-  username: "boka",
+  username: "postgres",
   password: "postgres",
   hostname: "localhost",
   database: "dashboard_ssd_dev",
