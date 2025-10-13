@@ -55,3 +55,8 @@ npm-debug.log
 
 # Opencode config
 opencode.json
+
+# Codex CLI sensitive artifacts
+.codex/*
+!.codex/prompts/
+!.codex/prompts/**
