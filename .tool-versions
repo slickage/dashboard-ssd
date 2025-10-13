@@ -1,3 +1,5 @@
 erlang 27.1.2
 elixir 1.18.0-otp-27
 nodejs 20.11.0
+global nodejs 22.1.0
+local nodejs 22.1.0
