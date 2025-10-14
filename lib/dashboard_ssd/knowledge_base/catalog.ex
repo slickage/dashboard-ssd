@@ -12,6 +12,21 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
   @default_page_collection_id "kb:auto:pages"
   @page_collection_source "search:pages"
   @page_parent_types MapSet.new(["page_id", "workspace", "database_id"])
+  @block_type_atoms %{
+    "paragraph" => :paragraph,
+    "heading_1" => :heading_1,
+    "heading_2" => :heading_2,
+    "heading_3" => :heading_3,
+    "bulleted_list_item" => :bulleted_list_item,
+    "numbered_list_item" => :numbered_list_item,
+    "quote" => :quote,
+    "callout" => :callout,
+    "code" => :code,
+    "divider" => :divider,
+    "image" => :image,
+    "table" => :table,
+    "table_row" => :table_row
+  }
 
   @typedoc "Options accepted by catalog queries."
   @type opt ::
@@ -233,28 +248,26 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
   end
 
   defp fetch_documents_from_notion(token, collection_id, opts) do
-    cond do
-      page_collection?(collection_id) ->
-        fetch_documents_from_pages(token, opts)
+    if page_collection?(collection_id) do
+      fetch_documents_from_pages(token, opts)
+    else
+      page_size = clamp_page_size(Keyword.get(opts, :page_size, @auto_default_page_size))
 
-      true ->
-        page_size = clamp_page_size(Keyword.get(opts, :page_size, @auto_default_page_size))
+      case paginate_database_pages(token, collection_id, page_size) do
+        {:ok, pages} ->
+          now = DateTime.utc_now()
 
-        case paginate_database_pages(token, collection_id, page_size) do
-          {:ok, pages} ->
-            now = DateTime.utc_now()
+          documents =
+            pages
+            |> Enum.filter(&allowed_document?/1)
+            |> Enum.map(&build_document_summary(&1, collection_id, now))
+            |> Enum.sort_by(&(&1.last_updated_at || now), {:desc, DateTime})
 
-            documents =
-              pages
-              |> Enum.filter(&allowed_document?/1)
-              |> Enum.map(&build_document_summary(&1, collection_id, now))
-              |> Enum.sort_by(&(&1.last_updated_at || now), {:desc, DateTime})
+          {:ok, documents}
 
-            {:ok, documents}
-
-          {:error, reason} ->
-            {:error, reason}
-        end
+        {:error, reason} ->
+          {:error, reason}
+      end
     end
   end
 
@@ -365,9 +378,7 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
 
       documents =
         pages
-        |> Enum.filter(&page_parent_allowed?/1)
-        |> Enum.filter(&page_allowed_scope?(&1, include_ids, exclude_ids))
-        |> Enum.filter(&allowed_document?/1)
+        |> Enum.filter(&page_document_allowed?(&1, include_ids, exclude_ids))
         |> Enum.map(&build_document_summary(&1, collection_id, now))
         |> Enum.sort_by(&(&1.last_updated_at || now), {:desc, DateTime})
 
@@ -427,35 +438,45 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
     end
   end
 
-  defp page_parent_allowed?(page) do
-    case page_parent_type(page) do
-      nil -> false
-      type -> MapSet.member?(@page_parent_types, type)
-    end
+  defp page_document_allowed?(page, include_ids, exclude_ids) do
+    page_parent_allowed?(page) and
+      page_allowed_scope?(page, include_ids, exclude_ids) and
+      allowed_document?(page)
   end
 
+  defp page_parent_allowed?(page) do
+    type = page_parent_type(page)
+    not is_nil(type) and MapSet.member?(@page_parent_types, type)
+  end
+
+  # credo:disable-for-next-function Credo.Check.Refactor.CyclomaticComplexity
   defp page_allowed_scope?(page, include_ids, exclude_ids) do
     page_id = page_id(page) |> normalize_id()
     parent_id = page_parent_identifier(page)
 
-    exclude_target? =
-      fn value ->
-        value != nil and value != "" and MapSet.member?(exclude_ids, normalize_id(value))
-      end
+    include_ids_empty? = MapSet.size(include_ids) == 0
 
-    include_match? =
-      fn value ->
-        value != nil and value != "" and MapSet.member?(include_ids, normalize_id(value))
-      end
+    exclude_match? =
+      matches_scope?(exclude_ids, page_id) or matches_scope?(exclude_ids, parent_id)
 
     cond do
-      page_id == "" -> false
-      exclude_target?.(page_id) -> false
-      exclude_target?.(parent_id) -> false
-      MapSet.size(include_ids) == 0 -> true
-      include_match?.(page_id) -> true
-      include_match?.(parent_id) -> true
-      true -> false
+      page_id == "" ->
+        false
+
+      exclude_match? ->
+        false
+
+      include_ids_empty? ->
+        true
+
+      matches_scope?(include_ids, page_id) ->
+        true
+
+      matches_scope?(include_ids, parent_id) ->
+        true
+
+      true ->
+        false
     end
   end
 
@@ -471,14 +492,13 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
     end
   end
 
-  defp sorted_mapset_values(_), do: nil
-
   defp page_parent_type(page) do
     parent = Map.get(page, "parent") || Map.get(page, :parent)
 
-    cond do
-      is_map(parent) -> Map.get(parent, "type") || Map.get(parent, :type)
-      true -> nil
+    if is_map(parent) do
+      Map.get(parent, "type") || Map.get(parent, :type)
+    else
+      nil
     end
   end
 
@@ -495,6 +515,11 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
       _ -> nil
     end
   end
+
+  defp matches_scope?(_set, value) when value in [nil, ""], do: false
+  defp matches_scope?(set, value), do: MapSet.member?(set, normalize_id(value))
+
+  defp block_type_atom(type), do: Map.get(@block_type_atoms, type, :unsupported)
 
   defp auto_discover_page_size do
     kb_config()
@@ -699,97 +724,106 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
 
     base = %{
       id: Map.get(block, "id"),
-      type: type |> to_string() |> String.to_atom(),
+      type: block_type_atom(type),
       children: children
     }
 
-    case type do
-      "paragraph" ->
-        Map.put(base, :segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
+    apply_block_content(type, base, data)
+  end
 
-      "heading_1" ->
-        base
-        |> Map.put(:level, 1)
-        |> Map.put(:segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
+  defp apply_block_content("paragraph", base, data) do
+    Map.put(base, :segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
+  end
 
-      "heading_2" ->
-        base
-        |> Map.put(:level, 2)
-        |> Map.put(:segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
+  defp apply_block_content("heading_1", base, data) do
+    base
+    |> Map.put(:level, 1)
+    |> Map.put(:segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
+  end
 
-      "heading_3" ->
-        base
-        |> Map.put(:level, 3)
-        |> Map.put(:segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
+  defp apply_block_content("heading_2", base, data) do
+    base
+    |> Map.put(:level, 2)
+    |> Map.put(:segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
+  end
 
-      "bulleted_list_item" ->
-        base
-        |> Map.put(:style, :bullet)
-        |> Map.put(:segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
+  defp apply_block_content("heading_3", base, data) do
+    base
+    |> Map.put(:level, 3)
+    |> Map.put(:segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
+  end
 
-      "numbered_list_item" ->
-        base
-        |> Map.put(:style, :numbered)
-        |> Map.put(:segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
+  defp apply_block_content("bulleted_list_item", base, data) do
+    base
+    |> Map.put(:style, :bullet)
+    |> Map.put(:segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
+  end
 
-      "quote" ->
-        base
-        |> Map.put(:segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
+  defp apply_block_content("numbered_list_item", base, data) do
+    base
+    |> Map.put(:style, :numbered)
+    |> Map.put(:segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
+  end
 
-      "callout" ->
-        base
-        |> Map.put(:segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
-        |> Map.put(:icon, Map.get(data, "icon"))
+  defp apply_block_content("quote", base, data) do
+    Map.put(base, :segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
+  end
 
-      "code" ->
-        segments = segments_from_rich_text(Map.get(data, "rich_text", []))
-        plain_text = Enum.map_join(segments, "", &Map.get(&1, :text, ""))
+  defp apply_block_content("callout", base, data) do
+    base
+    |> Map.put(:segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
+    |> Map.put(:icon, Map.get(data, "icon"))
+  end
 
-        base
-        |> Map.put(:segments, segments)
-        |> Map.put(:language, Map.get(data, "language"))
-        |> Map.put(:plain_text, plain_text)
+  defp apply_block_content("code", base, data) do
+    segments = segments_from_rich_text(Map.get(data, "rich_text", []))
+    plain_text = Enum.map_join(segments, "", &Map.get(&1, :text, ""))
 
-      "divider" ->
-        base
+    base
+    |> Map.put(:segments, segments)
+    |> Map.put(:language, Map.get(data, "language"))
+    |> Map.put(:plain_text, plain_text)
+  end
 
-      "image" ->
-        image_source =
-          case Map.get(data, "type") do
-            "external" -> get_in(data, ["external", "url"])
-            "file" -> get_in(data, ["file", "url"])
-            _ -> nil
-          end
+  defp apply_block_content("divider", base, _data), do: base
 
-        base
-        |> Map.put(:source, image_source)
-        |> Map.put(:caption, segments_from_rich_text(Map.get(data, "caption", [])))
+  defp apply_block_content("image", base, data) do
+    image_source =
+      case Map.get(data, "type") do
+        "external" -> get_in(data, ["external", "url"])
+        "file" -> get_in(data, ["file", "url"])
+        _ -> nil
+      end
 
-      "table" ->
-        rows =
-          children
-          |> Enum.filter(&match?(%{type: :table_row}, &1))
+    base
+    |> Map.put(:source, image_source)
+    |> Map.put(:caption, segments_from_rich_text(Map.get(data, "caption", [])))
+  end
 
-        base
-        |> Map.put(:children, [])
-        |> Map.put(:rows, rows)
-        |> Map.put(:has_column_header?, Map.get(data, "has_column_header", false))
-        |> Map.put(:has_row_header?, Map.get(data, "has_row_header", false))
-        |> Map.put(:table_width, Map.get(data, "table_width"))
+  defp apply_block_content("table", base, data) do
+    rows = Enum.filter(base.children, &match?(%{type: :table_row}, &1))
 
-      "table_row" ->
-        cells =
-          data
-          |> Map.get("cells", [])
-          |> Enum.map(&segments_from_rich_text/1)
+    base
+    |> Map.put(:children, [])
+    |> Map.put(:rows, rows)
+    |> Map.put(:has_column_header?, Map.get(data, "has_column_header", false))
+    |> Map.put(:has_row_header?, Map.get(data, "has_row_header", false))
+    |> Map.put(:table_width, Map.get(data, "table_width"))
+  end
 
-        base
-        |> Map.put(:cells, cells)
-        |> Map.put(:children, [])
+  defp apply_block_content("table_row", base, data) do
+    cells =
+      data
+      |> Map.get("cells", [])
+      |> Enum.map(&segments_from_rich_text/1)
 
-      _ ->
-        Map.merge(base, %{type: :unsupported, raw_type: type})
-    end
+    base
+    |> Map.put(:cells, cells)
+    |> Map.put(:children, [])
+  end
+
+  defp apply_block_content(type, base, _data) do
+    Map.merge(base, %{type: :unsupported, raw_type: type})
   end
 
   defp build_collection(meta, body) do
@@ -1244,13 +1278,32 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
 
   defp segments_from_rich_text(_), do: []
 
-  defp normalize_annotations(annotations) when is_map(annotations) do
+  defp normalize_annotations(%{} = annotations) do
     Enum.reduce(annotations, %{}, fn {key, value}, acc ->
-      Map.put(acc, key |> to_string() |> String.to_atom(), value)
+      case annotation_atom(key) do
+        nil -> acc
+        atom_key -> Map.put(acc, atom_key, value)
+      end
     end)
   end
 
   defp normalize_annotations(_), do: %{}
+
+  defp annotation_atom(key) when is_atom(key), do: annotation_atom(Atom.to_string(key))
+
+  defp annotation_atom(key) when is_binary(key) do
+    case String.downcase(key) do
+      "bold" -> :bold
+      "italic" -> :italic
+      "strikethrough" -> :strikethrough
+      "underline" -> :underline
+      "code" -> :code
+      "color" -> :color
+      _ -> nil
+    end
+  end
+
+  defp annotation_atom(_), do: nil
 
   defp page_id(%{"id" => id}), do: id
   defp page_id(%{id: id}), do: id
@@ -1322,12 +1375,11 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
 
   defp rich_text_plain(rich_text) when is_list(rich_text) do
     rich_text
-    |> Enum.map(fn
+    |> Enum.map_join("", fn
       %{"plain_text" => text} -> text
       %{plain_text: text} -> text
       _ -> ""
     end)
-    |> Enum.join("")
     |> String.trim()
     |> case do
       "" -> nil
@@ -1391,25 +1443,35 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Refactor.Nesting
   defp owner_from_properties(properties) do
     properties
-    |> Enum.find_value(fn {_name, property} ->
-      case Map.get(property, "type") do
-        "people" ->
-          property
-          |> Map.get("people", [])
-          |> Enum.map(&owner_from_user/1)
-          |> Enum.reject(&is_nil/1)
-          |> case do
-            [] -> nil
-            names -> Enum.join(names, ", ")
-          end
-
-        _ ->
-          nil
-      end
-    end)
+    |> Enum.find_value(&owners_from_property/1)
   end
+
+  defp owners_from_property({_name, %{"type" => "people"} = property}) do
+    property
+    |> Map.get("people", [])
+    |> Enum.map(&owner_from_user/1)
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> nil
+      names -> Enum.join(names, ", ")
+    end
+  end
+
+  defp owners_from_property({_name, %{type: "people"} = property}) do
+    property
+    |> Map.get(:people, [])
+    |> Enum.map(&owner_from_user/1)
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> nil
+      names -> Enum.join(names, ", ")
+    end
+  end
+
+  defp owners_from_property(_), do: nil
 
   defp owner_from_user(%{"name" => name}) when is_binary(name) and name != "", do: name
   defp owner_from_user(%{name: name}) when is_binary(name) and name != "", do: name

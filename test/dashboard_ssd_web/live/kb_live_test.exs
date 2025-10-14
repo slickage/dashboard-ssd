@@ -6,6 +6,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
   alias DashboardSSD.Accounts
   alias DashboardSSD.Integrations.{Notion, NotionMock}
   alias DashboardSSD.KnowledgeBase.{Activity, Cache, Types}
+  alias DashboardSSDWeb.KbLive.Index
 
   setup :verify_on_exit!
 
@@ -83,6 +84,20 @@ defmodule DashboardSSDWeb.KbLiveTest do
       {:ok, _view, html} = live(conn, ~p"/kb")
 
       assert html =~ "Knowledge Base"
+    end
+
+    test "denies guests without permission", %{conn: conn} do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "guest@example.com",
+          name: "Guest",
+          role_id: Accounts.ensure_role!("guest").id
+        })
+
+      conn = init_test_session(conn, %{user_id: user.id})
+
+      assert {:error, {:redirect, %{to: "/", flash: %{"error" => message}}}} = live(conn, ~p"/kb")
+      assert message == "You don't have permission to access this page"
     end
   end
 
@@ -319,6 +334,225 @@ defmodule DashboardSSDWeb.KbLiveTest do
       html = render(view)
       assert html =~ "Project Kickoff"
       assert html =~ "Kickoff agenda"
+    end
+
+    test "selecting another collection updates the documents", %{conn: conn} do
+      Application.put_env(:dashboard_ssd, :integrations,
+        notion_token: "tok",
+        notion_curated_database_ids: ["db-handbook", "db-guides"]
+      )
+
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
+        curated_collections: [
+          %{"id" => "db-handbook", "name" => "Company Handbook"},
+          %{"id" => "db-guides", "name" => "Implementation Guides"}
+        ]
+      )
+
+      Cache.reset()
+      Notion.reset_circuits()
+
+      handbook_page = %{
+        "id" => "page-1",
+        "url" => "https://notion.so/page-1",
+        "created_time" => "2024-05-01T10:00:00Z",
+        "last_edited_time" => "2024-05-01T12:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Handbook"}]}
+        }
+      }
+
+      guide_page = %{
+        "id" => "page-2",
+        "url" => "https://notion.so/page-2",
+        "created_time" => "2024-05-02T10:00:00Z",
+        "last_edited_time" => "2024-05-02T12:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-guides"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Guide"}]}
+        }
+      }
+
+      NotionMock
+      |> stub(:query_database, fn "tok", db_id, _opts ->
+        case db_id do
+          "db-handbook" ->
+            {:ok,
+             %{
+               "results" => [handbook_page],
+               "has_more" => false,
+               "next_cursor" => nil
+             }}
+
+          "db-guides" ->
+            {:ok,
+             %{
+               "results" => [guide_page],
+               "has_more" => false,
+               "next_cursor" => nil
+             }}
+        end
+      end)
+      |> stub(:retrieve_page, fn "tok", page_id, _opts ->
+        case page_id do
+          "page-1" -> {:ok, handbook_page}
+          "page-2" -> {:ok, guide_page}
+        end
+      end)
+      |> stub(:retrieve_block_children, fn "tok", _page_id, _opts ->
+        {:ok, %{"results" => [], "has_more" => false, "next_cursor" => nil}}
+      end)
+
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "collections@example.com",
+          name: "Collections",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      _ = render(view)
+      assert has_element?(view, "button[phx-value-id='db-guides']")
+
+      render_click(element(view, "button", "Implementation Guides"))
+
+      html = render(view)
+      assert html =~ "Guide"
+    end
+
+    test "shows collection errors when curated fetch fails", %{conn: conn} do
+      NotionMock
+      |> expect(:query_database, 2, fn "tok", "db-handbook", _opts ->
+        {:error, {:http_error, 503, %{}}}
+      end)
+      |> expect(:list_databases, fn "tok", _opts ->
+        {:ok, %{"results" => [], "has_more" => false, "next_cursor" => nil}}
+      end)
+
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "collection-error@example.com",
+          name: "Collection Error",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, _view, html} = live(conn, ~p"/kb")
+
+      assert html =~ "HTTP error 503"
+    end
+
+    test "shows document errors when loading a collection fails", %{conn: conn} do
+      prev_kb = Application.get_env(:dashboard_ssd, DashboardSSD.KnowledgeBase)
+      prev_integrations = Application.get_env(:dashboard_ssd, :integrations)
+
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
+        curated_collections: [
+          %{"id" => "db-handbook", "name" => "Company Handbook"},
+          %{"id" => "db-guides", "name" => "Implementation Guides"}
+        ]
+      )
+
+      Application.put_env(:dashboard_ssd, :integrations,
+        notion_token: "tok",
+        notion_curated_database_ids: ["db-handbook", "db-guides"]
+      )
+
+      on_exit(fn ->
+        if prev_kb do
+          Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, prev_kb)
+        else
+          Application.delete_env(:dashboard_ssd, DashboardSSD.KnowledgeBase)
+        end
+
+        if prev_integrations do
+          Application.put_env(:dashboard_ssd, :integrations, prev_integrations)
+        else
+          Application.delete_env(:dashboard_ssd, :integrations)
+        end
+      end)
+
+      NotionMock
+      |> stub(:query_database, fn "tok", db_id, _opts ->
+        case db_id do
+          "db-handbook" ->
+            {:ok, %{"results" => [], "has_more" => false, "next_cursor" => nil}}
+
+          "db-guides" ->
+            {:ok, %{"results" => [], "has_more" => false, "next_cursor" => nil}}
+        end
+      end)
+
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "doc-error@example.com",
+          name: "Doc Error",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      NotionMock
+      |> expect(:query_database, fn "tok", "db-guides", _opts ->
+        {:error, :timeout}
+      end)
+
+      render_click(element(view, "button[phx-value-id='db-guides']"))
+      assert render(view) =~ "db-guides: timeout"
+    end
+
+    test "displays reader error when document cannot be loaded", %{conn: conn} do
+      page = %{
+        "id" => "page-1",
+        "url" => "https://notion.so/page-1",
+        "created_time" => "2024-05-01T10:00:00Z",
+        "last_edited_time" => "2024-05-01T12:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Welcome"}]}
+        }
+      }
+
+      NotionMock
+      |> expect(:query_database, 2, fn "tok", "db-handbook", _opts ->
+        {:ok, %{"results" => [page], "has_more" => false, "next_cursor" => nil}}
+      end)
+      |> expect(:retrieve_page, fn "tok", "page-1", _opts -> {:ok, page} end)
+      |> expect(:retrieve_block_children, fn "tok", "page-1", _opts ->
+        {:ok, %{"results" => [], "has_more" => false, "next_cursor" => nil}}
+      end)
+
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "reader-error@example.com",
+          name: "Reader Error",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      Cache.delete(:collections, {:document_detail, "page-1"})
+
+      NotionMock
+      |> expect(:retrieve_page, fn "tok", "page-1", _opts ->
+        {:error, {:http_error, 401, %{}}}
+      end)
+
+      render_click(element(view, "button[phx-value-id='page-1']"))
+
+      assigns =
+        view.pid
+        |> :sys.get_state()
+        |> Map.fetch!(:socket)
+        |> Map.fetch!(:assigns)
+
+      assert assigns.reader_error == %{document_id: "page-1", reason: {:http_error, 401, %{}}}
+      assert assigns.selected_document == nil
     end
   end
 
@@ -620,6 +854,231 @@ defmodule DashboardSSDWeb.KbLiveTest do
       view
       |> element("button[phx-click='close_mobile_menu']")
       |> render_click()
+    end
+  end
+
+  describe "event handling" do
+    test "open_search_result loads the selected document without reloading collection" do
+      Cache.reset()
+      Notion.reset_circuits()
+
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "open-search@example.com",
+          name: "Opener",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      page = %{
+        "id" => "page-open",
+        "url" => "https://notion.so/page-open",
+        "created_time" => "2024-05-10T09:00:00Z",
+        "last_edited_time" => "2024-05-11T10:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Open"}]}
+        }
+      }
+
+      NotionMock
+      |> expect(:retrieve_page, fn "tok", "page-open", _opts -> {:ok, page} end)
+      |> expect(:retrieve_block_children, fn "tok", "page-open", _opts ->
+        {:ok, %{"results" => [], "has_more" => false, "next_cursor" => nil}}
+      end)
+
+      {:ok, last_updated_at, _} = DateTime.from_iso8601("2024-05-11T10:00:00Z")
+
+      summary = %Types.DocumentSummary{
+        id: "page-open",
+        title: "Open",
+        collection_id: "db-handbook",
+        share_url: page["url"],
+        last_updated_at: last_updated_at,
+        summary: nil,
+        owner: nil,
+        tags: []
+      }
+
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          flash: %{},
+          current_user: user,
+          selected_collection_id: "db-handbook",
+          documents: [summary],
+          document_errors: [],
+          selected_document: nil,
+          selected_document_id: nil,
+          reader_error: nil,
+          recent_documents: [],
+          recent_errors: []
+        }
+      }
+
+      {:noreply, new_socket} =
+        Index.handle_event(
+          "open_search_result",
+          %{"id" => "page-open", "collection" => "db-handbook"},
+          socket
+        )
+
+      assert new_socket.assigns.selected_collection_id == "db-handbook"
+      assert new_socket.assigns.selected_document.id == "page-open"
+      assert new_socket.assigns.selected_document.title == "Open"
+      assert new_socket.assigns.selected_document_id == "page-open"
+
+      assert [%Types.RecentActivity{document_id: "page-open"}] =
+               new_socket.assigns.recent_documents
+    end
+
+    test "open_search_result keeps current state when collection id missing" do
+      Cache.reset()
+
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "open-empty@example.com",
+          name: "Empty",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      summary = %Types.DocumentSummary{
+        id: "page-empty",
+        collection_id: "db-handbook",
+        title: "Existing",
+        summary: nil,
+        owner: nil,
+        share_url: "https://notion.so/page-empty",
+        last_updated_at: DateTime.utc_now(),
+        synced_at: nil,
+        tags: [],
+        metadata: %{}
+      }
+
+      detail = %Types.DocumentDetail{
+        id: "page-empty",
+        collection_id: "db-handbook",
+        title: "Existing",
+        summary: nil,
+        owner: nil,
+        share_url: "https://notion.so/page-empty",
+        last_updated_at: summary.last_updated_at,
+        synced_at: nil,
+        rendered_blocks: [],
+        tags: [],
+        metadata: %{},
+        source: :cache
+      }
+
+      Cache.put(:collections, {:document_detail, "page-empty"}, detail, :timer.minutes(1))
+
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          flash: %{},
+          current_user: user,
+          selected_collection_id: "db-handbook",
+          documents: [summary],
+          document_errors: [],
+          selected_document: nil,
+          selected_document_id: nil,
+          reader_error: nil,
+          recent_documents: [],
+          recent_errors: []
+        }
+      }
+
+      {:noreply, new_socket} =
+        Index.handle_event(
+          "open_search_result",
+          %{"id" => "page-empty"},
+          socket
+        )
+
+      assert new_socket.assigns.selected_collection_id == "db-handbook"
+      assert new_socket.assigns.selected_document_id == "page-empty"
+    end
+
+    test "open_search_result loads new collection when id differs" do
+      Cache.reset()
+
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "open-new@example.com",
+          name: "New Collection",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      existing = %Types.DocumentSummary{
+        id: "page-old",
+        collection_id: "db-handbook",
+        title: "Old",
+        summary: nil,
+        owner: nil,
+        share_url: "https://notion.so/page-old",
+        last_updated_at: DateTime.utc_now(),
+        synced_at: nil,
+        tags: [],
+        metadata: %{}
+      }
+
+      new_doc = %Types.DocumentSummary{
+        id: "page-new",
+        collection_id: "db-guides",
+        title: "New Doc",
+        summary: "Fresh",
+        owner: "Owner",
+        share_url: "https://notion.so/page-new",
+        last_updated_at: DateTime.utc_now(),
+        synced_at: nil,
+        tags: ["Guide"],
+        metadata: %{}
+      }
+
+      detail = %Types.DocumentDetail{
+        id: "page-new",
+        collection_id: "db-guides",
+        title: "New Doc",
+        summary: "Fresh",
+        owner: "Owner",
+        share_url: "https://notion.so/page-new",
+        last_updated_at: new_doc.last_updated_at,
+        synced_at: nil,
+        rendered_blocks: [],
+        tags: ["Guide"],
+        metadata: %{},
+        source: :cache
+      }
+
+      Cache.put(:collections, {:documents, "db-guides"}, [new_doc], :timer.minutes(1))
+      Cache.put(:collections, {:document_detail, "page-new"}, detail, :timer.minutes(1))
+
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          flash: %{},
+          current_user: user,
+          selected_collection_id: "db-handbook",
+          documents: [existing],
+          document_errors: [],
+          selected_document: nil,
+          selected_document_id: nil,
+          reader_error: nil,
+          recent_documents: [],
+          recent_errors: []
+        }
+      }
+
+      {:noreply, new_socket} =
+        Index.handle_event(
+          "open_search_result",
+          %{"id" => "page-new", "collection" => "db-guides"},
+          socket
+        )
+
+      assert new_socket.assigns.selected_collection_id == "db-guides"
+      assert Enum.map(new_socket.assigns.documents, & &1.id) == ["page-new"]
+      assert new_socket.assigns.selected_document_id == "page-new"
+      assert new_socket.assigns.reader_error == nil
     end
   end
 

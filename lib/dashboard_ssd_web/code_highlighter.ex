@@ -48,6 +48,10 @@ defmodule DashboardSSDWeb.CodeHighlighter do
     "text" => "plain_text"
   }
 
+  @doc """
+  Highlights `code` using the configured Makeup style. When a lexer cannot be
+  resolved for the requested `language`, the code is safely HTML escaped.
+  """
   @spec highlight(String.t(), String.t() | nil) :: HTML.safe()
   def highlight(code, language \\ nil)
 
@@ -56,24 +60,27 @@ defmodule DashboardSSDWeb.CodeHighlighter do
   def highlight(code, language) when is_binary(code) do
     code = code |> normalize_code()
 
-    highlighted =
-      case lexer_for(language) do
-        {:ok, {lexer, lexer_opts}} ->
+    case lexer_for(language) do
+      {:ok, {lexer, lexer_opts}} ->
+        highlight =
           Makeup.highlight_inner_html(code,
             lexer: lexer,
             lexer_options: lexer_opts,
-            formatter_options: [highlight_tag: "span"]
+            formatter_options: [highlight_tag: "span"],
+            style: @style_name
           )
 
-        :error ->
-          code
-          |> HTML.html_escape()
-          |> HTML.safe_to_string()
-      end
+        {:safe, highlight}
 
-    HTML.raw(highlighted)
+      :error ->
+        HTML.html_escape(code)
+    end
   end
 
+  @doc """
+  Normalizes a language token into the CSS class used by the syntax highlighting
+  styles. Empty or unknown input falls back to the default language.
+  """
   @spec css_language(String.t() | nil) :: String.t()
   def css_language(nil), do: @default_language
   def css_language(""), do: @default_language
@@ -82,12 +89,6 @@ defmodule DashboardSSDWeb.CodeHighlighter do
     language
     |> normalized_language_name()
     |> sanitize_css_class()
-  end
-
-  @spec stylesheet() :: String.t()
-  def stylesheet do
-    Makeup.stylesheet(@style_name, ".kb-code")
-    |> HTML.raw()
   end
 
   defp lexer_for(nil), do: :error
@@ -100,7 +101,7 @@ defmodule DashboardSSDWeb.CodeHighlighter do
     |> Enum.find_value(:error, fn name ->
       case Makeup.Registry.get_lexer_by_name(name) do
         nil -> nil
-        lexer -> {:ok, lexer}
+        {lexer, opts} -> {:ok, {lexer, opts}}
       end
     end)
     |> case do
@@ -109,7 +110,7 @@ defmodule DashboardSSDWeb.CodeHighlighter do
 
         case Makeup.Registry.get_lexer_by_extension(extension) do
           nil -> :error
-          lexer -> {:ok, lexer}
+          {lexer, opts} -> {:ok, {lexer, opts}}
         end
 
       other ->
