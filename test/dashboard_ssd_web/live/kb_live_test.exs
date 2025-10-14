@@ -3,15 +3,19 @@ defmodule DashboardSSDWeb.KbLiveTest do
   import Phoenix.LiveViewTest
 
   alias DashboardSSD.Accounts
+  alias DashboardSSD.Integrations.Notion
 
   setup do
     Accounts.ensure_role!("admin")
     Accounts.ensure_role!("employee")
     Accounts.ensure_role!("client")
 
+    Notion.reset_circuits()
+
     on_exit(fn ->
       Application.delete_env(:dashboard_ssd, :integrations)
       System.delete_env("NOTION_TOKEN")
+      Notion.reset_circuits()
     end)
 
     :ok
