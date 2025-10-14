@@ -781,6 +781,148 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       assert summary.collection_id == "db-handbook"
     end
 
+    test "derives tags and owners from various property combinations" do
+      Cache.reset()
+      Notion.reset_circuits()
+
+      people_page = %{
+        "id" => "page-people",
+        "url" => "https://notion.so/page-people",
+        "created_time" => "2024-05-05T09:00:00Z",
+        "last_edited_time" => "2024-05-05T12:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "People"}]},
+          "Tags" => %{
+            "type" => "multi_select",
+            "multi_select" => [%{"name" => "Alpha"}, %{"name" => "Beta"}]
+          },
+          "Owner" => %{
+            "type" => "people",
+            "people" => [%{"name" => "Jane"}, %{"name" => "Jon"}]
+          }
+        }
+      }
+
+      fallback_page = %{
+        "id" => "page-fallback",
+        "url" => "https://notion.so/page-fallback",
+        "created_time" => "2024-05-06T09:00:00Z",
+        "last_edited_time" => "2024-05-06T11:00:00Z",
+        "last_edited_by" => %{"name" => "Editor"},
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Fallback"}]},
+          "Notes" => %{
+            "type" => "rich_text",
+            "rich_text" => [%{"plain_text" => "  Snippet text  "}]
+          }
+        }
+      }
+
+      NotionMock
+      |> expect(:query_database, fn "token", "db-handbook", _opts ->
+        {:ok,
+         %{
+           "results" => [fallback_page, people_page],
+           "has_more" => false,
+           "next_cursor" => nil
+         }}
+      end)
+
+      assert {:ok, %{documents: [first, second], errors: []}} =
+               Catalog.list_documents("db-handbook", cache?: false)
+
+      assert first.id == "page-fallback"
+      assert first.owner == "Editor"
+      assert first.summary == "Snippet text"
+      assert first.tags == []
+
+      assert second.id == "page-people"
+      assert second.owner == "Jane, Jon"
+      assert second.tags == ["Alpha", "Beta"]
+    end
+
+    test "normalizes identifiers and truncates long summaries" do
+      Cache.reset()
+      Notion.reset_circuits()
+
+      long_text = String.duplicate("Summary text ", 20)
+
+      properties =
+        [
+          {"OwnerAtom", %{type: "people", people: [%{name: "Atom"}]}},
+          {"Name", %{"type" => "title", "title" => [%{"plain_text" => "Normalized"}]}},
+          {"Summary",
+           %{
+             "type" => "rich_text",
+             "rich_text" => [%{"plain_text" => "  " <> long_text <> "  "}]
+           }},
+          {"Tags",
+           %{
+             "type" => "multi_select",
+             "multi_select" => [%{"name" => "Alpha"}, %{"name" => "Beta"}]
+           }}
+        ]
+        |> Enum.into(%{})
+
+      page = %{
+        "id" => "PAGE-UPPER-1234",
+        "url" => "https://notion.so/page-upper-1234",
+        "created_time" => "2024-05-07T09:00:00Z",
+        "last_edited_time" => "2024-05-07T10:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "DB-HANDBOOK"},
+        "properties" => properties
+      }
+
+      NotionMock
+      |> expect(:query_database, fn "token", "db-handbook", _opts ->
+        {:ok,
+         %{
+           "results" => [page],
+           "has_more" => false,
+           "next_cursor" => nil
+         }}
+      end)
+
+      assert {:ok, %{documents: [summary], errors: []}} =
+               Catalog.list_documents("db-handbook", cache?: false)
+
+      assert summary.id == "page-upper-1234"
+      assert summary.collection_id == "db-handbook"
+      assert summary.owner == "Atom"
+      assert summary.tags == ["Alpha", "Beta"]
+      assert String.ends_with?(summary.summary, "...")
+      assert summary.metadata[:last_edited_time] == "2024-05-07T10:00:00Z"
+    end
+
+    test "handles invalid timestamps by returning nil" do
+      Cache.reset()
+      Notion.reset_circuits()
+
+      page = %{
+        "id" => "page-invalid-ts",
+        "url" => "https://notion.so/page-invalid",
+        "created_time" => "invalid",
+        "last_edited_time" => "invalid",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Invalid TS"}]}
+        }
+      }
+
+      NotionMock
+      |> expect(:query_database, fn "token", "db-handbook", _opts ->
+        {:ok, %{"results" => [page], "has_more" => false, "next_cursor" => nil}}
+      end)
+
+      assert {:ok, %{documents: [summary], errors: []}} =
+               Catalog.list_documents("db-handbook", cache?: false)
+
+      assert summary.last_updated_at == nil
+      assert summary.metadata[:created_time] == "invalid"
+    end
+
     test "excludes documents whose type is not allowlisted" do
       Cache.reset()
       Notion.reset_circuits()
@@ -828,6 +970,61 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
 
       assert {:ok, %{documents: [], errors: [%{collection_id: "db-fail", reason: :timeout}]}} =
                Catalog.list_documents("db-fail")
+    end
+
+    test "paginates database documents across cursors" do
+      Cache.reset()
+      Notion.reset_circuits()
+
+      page_one = %{
+        "id" => "page-1",
+        "url" => "https://notion.so/page-1",
+        "created_time" => "2024-05-01T09:00:00Z",
+        "last_edited_time" => "2024-05-02T09:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Page One"}]}
+        }
+      }
+
+      page_two = %{
+        "id" => "page-2",
+        "url" => "https://notion.so/page-2",
+        "created_time" => "2024-05-03T09:00:00Z",
+        "last_edited_time" => "2024-05-04T09:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Page Two"}]}
+        }
+      }
+
+      NotionMock
+      |> expect(:query_database, fn "token", "db-handbook", opts ->
+        assert Keyword.get(opts, :start_cursor) == nil
+
+        {:ok,
+         %{
+           "results" => [page_one],
+           "has_more" => true,
+           "next_cursor" => "cursor-1"
+         }}
+      end)
+      |> expect(:query_database, fn "token", "db-handbook", opts ->
+        assert Keyword.get(opts, :start_cursor) == "cursor-1"
+
+        {:ok,
+         %{
+           "results" => [page_two],
+           "has_more" => false,
+           "next_cursor" => nil
+         }}
+      end)
+
+      assert {:ok, %{documents: documents, errors: []}} =
+               Catalog.list_documents("db-handbook", cache?: false)
+
+      assert Enum.map(documents, & &1.id) == ["page-2", "page-1"]
+      assert Enum.map(documents, & &1.title) == ["Page Two", "Page One"]
     end
   end
 
@@ -969,6 +1166,286 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       first_cell = first_row.cells |> hd() |> hd()
       assert first_cell.text == "Column A"
     end
+
+    test "marks unknown blocks as unsupported" do
+      page = %{
+        "id" => "page-unknown",
+        "url" => "https://notion.so/page-unknown",
+        "created_time" => "2024-05-12T09:00:00Z",
+        "last_edited_time" => "2024-05-12T12:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Mystery"}]}
+        }
+      }
+
+      blocks_response = %{
+        "results" => [
+          %{
+            "id" => "mystery",
+            "type" => "unsupported_type",
+            "has_children" => false,
+            "unsupported_type" => %{}
+          }
+        ],
+        "has_more" => false,
+        "next_cursor" => nil
+      }
+
+      NotionMock
+      |> expect(:retrieve_page, fn "token", "page-unknown", _opts -> {:ok, page} end)
+      |> expect(:retrieve_block_children, fn "token", "page-unknown", _opts ->
+        {:ok, blocks_response}
+      end)
+
+      assert {:ok, detail} = Catalog.get_document("page-unknown")
+      assert [%{type: :unsupported, raw_type: "unsupported_type"}] = detail.rendered_blocks
+    end
+
+    test "normalizes common block types" do
+      page = %{
+        "id" => "page-blocks",
+        "url" => "https://notion.so/page-blocks",
+        "created_time" => "2024-05-12T10:00:00Z",
+        "last_edited_time" => "2024-05-12T12:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Blocks"}]}
+        }
+      }
+
+      blocks_response = %{
+        "results" => [
+          %{
+            "id" => "para-1",
+            "type" => "paragraph",
+            "has_children" => false,
+            "paragraph" => %{"rich_text" => [%{"plain_text" => "Paragraph"}]}
+          },
+          %{
+            "id" => "heading-1",
+            "type" => "heading_1",
+            "has_children" => false,
+            "heading_1" => %{"rich_text" => [%{"plain_text" => "Heading"}]}
+          },
+          %{
+            "id" => "heading-2",
+            "type" => "heading_2",
+            "has_children" => false,
+            "heading_2" => %{"rich_text" => [%{"plain_text" => "Subheading"}]}
+          },
+          %{
+            "id" => "heading-3",
+            "type" => "heading_3",
+            "has_children" => false,
+            "heading_3" => %{"rich_text" => [%{"plain_text" => "Tertiary"}]}
+          },
+          %{
+            "id" => "bullet-1",
+            "type" => "bulleted_list_item",
+            "has_children" => false,
+            "bulleted_list_item" => %{"rich_text" => [%{"plain_text" => "Bullet"}]}
+          },
+          %{
+            "id" => "numbered-1",
+            "type" => "numbered_list_item",
+            "has_children" => false,
+            "numbered_list_item" => %{"rich_text" => [%{"plain_text" => "Number"}]}
+          },
+          %{
+            "id" => "quote-1",
+            "type" => "quote",
+            "has_children" => false,
+            "quote" => %{"rich_text" => [%{"plain_text" => "Quote"}]}
+          },
+          %{
+            "id" => "callout-1",
+            "type" => "callout",
+            "has_children" => false,
+            "callout" => %{
+              "icon" => %{"emoji" => "💡"},
+              "rich_text" => [%{plain_text: "Callout"}]
+            }
+          },
+          %{
+            "id" => "code-1",
+            "type" => "code",
+            "has_children" => false,
+            "code" => %{
+              "language" => "bash",
+              "rich_text" => [%{"plain_text" => "echo hi"}]
+            }
+          },
+          %{
+            "id" => "divider-1",
+            "type" => "divider",
+            "has_children" => false,
+            "divider" => %{}
+          },
+          %{
+            "id" => "image-1",
+            "type" => "image",
+            "has_children" => false,
+            "image" => %{
+              "type" => "external",
+              "external" => %{"url" => "https://example.com/img.png"},
+              "caption" => [%{"plain_text" => "Caption"}]
+            }
+          },
+          %{
+            "id" => "image-2",
+            "type" => "image",
+            "has_children" => false,
+            "image" => %{
+              "type" => "file",
+              "file" => %{"url" => "https://example.com/upload.png"},
+              "caption" => [%{"plain_text" => "Upload"}]
+            }
+          }
+        ],
+        "has_more" => false,
+        "next_cursor" => nil
+      }
+
+      NotionMock
+      |> expect(:retrieve_page, fn "token", "page-blocks", _opts -> {:ok, page} end)
+      |> expect(:retrieve_block_children, fn "token", "page-blocks", _opts ->
+        {:ok, blocks_response}
+      end)
+
+      assert {:ok, detail} = Catalog.get_document("page-blocks")
+
+      [
+        paragraph,
+        heading1,
+        heading2,
+        heading3,
+        bullet,
+        numbered,
+        quote,
+        callout,
+        code,
+        divider,
+        image_ext,
+        image_file
+      ] =
+        detail.rendered_blocks
+
+      assert paragraph.type == :paragraph
+      assert heading1.type == :heading_1 and heading1.level == 1
+      assert heading2.type == :heading_2 and heading2.level == 2
+      assert heading3.type == :heading_3 and heading3.level == 3
+      assert bullet.type == :bulleted_list_item and bullet.style == :bullet
+      assert numbered.type == :numbered_list_item and numbered.style == :numbered
+      assert quote.type == :quote
+      assert callout.type == :callout and callout.icon == %{"emoji" => "💡"}
+      assert code.type == :code and code.language == "bash" and code.plain_text == "echo hi"
+      assert divider.type == :divider
+      assert image_ext.type == :image and image_ext.source == "https://example.com/img.png"
+      assert image_file.type == :image and image_file.source == "https://example.com/upload.png"
+    end
+
+    test "paginates block children and captures unsupported blocks" do
+      page = %{
+        "id" => "page-paginate",
+        "url" => "https://notion.so/page-paginate",
+        "created_time" => "2024-05-12T09:00:00Z",
+        "last_edited_time" => "2024-05-12T11:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Pagination"}]}
+        }
+      }
+
+      first_batch = %{
+        "results" => [
+          %{
+            "id" => "block-1",
+            "type" => "paragraph",
+            "has_children" => false,
+            "paragraph" => %{"rich_text" => [%{"plain_text" => "First"}]}
+          }
+        ],
+        "has_more" => true,
+        "next_cursor" => "cursor-1"
+      }
+
+      second_batch = %{
+        "results" => [
+          %{
+            "id" => "block-2",
+            "type" => "mystery_block",
+            "has_children" => false,
+            "mystery_block" => %{}
+          }
+        ],
+        "has_more" => false,
+        "next_cursor" => nil
+      }
+
+      NotionMock
+      |> expect(:retrieve_page, fn "token", "page-paginate", _opts -> {:ok, page} end)
+      |> expect(:retrieve_block_children, fn "token", "page-paginate", opts ->
+        refute Keyword.has_key?(opts, :start_cursor)
+        {:ok, first_batch}
+      end)
+      |> expect(:retrieve_block_children, fn "token", "page-paginate", opts ->
+        assert Keyword.get(opts, :start_cursor) == "cursor-1"
+        {:ok, second_batch}
+      end)
+
+      assert {:ok, detail} = Catalog.get_document("page-paginate", cache?: false)
+      assert Enum.map(detail.rendered_blocks, & &1.type) == [:paragraph, :unsupported]
+
+      unsupported =
+        detail.rendered_blocks
+        |> Enum.find(&(&1.type == :unsupported))
+
+      assert unsupported.raw_type == "mystery_block"
+    end
+
+    test "returns error when page retrieval fails" do
+      NotionMock
+      |> expect(:retrieve_page, fn "token", "page-error", _opts -> {:error, :timeout} end)
+
+      assert {:error, :timeout} = Catalog.get_document("page-error", cache?: false)
+    end
+
+    test "handles block pagination errors by returning empty children" do
+      page = %{
+        "id" => "page-children",
+        "url" => "https://notion.so/page-children",
+        "created_time" => "2024-05-13T09:00:00Z",
+        "last_edited_time" => "2024-05-13T10:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Children"}]}
+        }
+      }
+
+      blocks = %{
+        "results" => [
+          %{
+            "id" => "block-parent",
+            "type" => "paragraph",
+            "has_children" => true,
+            "paragraph" => %{"rich_text" => [%{"plain_text" => "Parent"}]}
+          }
+        ],
+        "has_more" => false,
+        "next_cursor" => nil
+      }
+
+      NotionMock
+      |> expect(:retrieve_page, fn "token", "page-children", _opts -> {:ok, page} end)
+      |> expect(:retrieve_block_children, fn "token", "page-children", _opts -> {:ok, blocks} end)
+      |> expect(:retrieve_block_children, fn "token", "block-parent", _opts ->
+        {:error, :timeout}
+      end)
+
+      assert {:ok, detail} = Catalog.get_document("page-children", cache?: false)
+      assert [%{children: []}] = detail.rendered_blocks
+    end
   end
 
   describe "auto discover pages" do
@@ -1020,7 +1497,8 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
          }}
       end)
 
-      assert {:ok, %{collections: [collection], errors: []}} = Catalog.list_collections()
+      assert {:ok, %{collections: [collection], errors: []}} =
+               Catalog.list_collections(cache?: false)
 
       assert %Types.Collection{
                id: "kb:auto:pages",
@@ -1028,10 +1506,128 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
                document_count: 1
              } = collection
 
-      assert {:ok, %{documents: [document], errors: []}} = Catalog.list_documents("kb:auto:pages")
+      assert {:ok, %{documents: [document], errors: []}} =
+               Catalog.list_documents("kb:auto:pages", cache?: false)
+
       assert document.id == "page-1"
       assert document.title == "Onboarding Guide"
       assert document.collection_id == "kb:auto:pages"
+    end
+
+    test "paginates auto-discovered pages across cursors" do
+      first_page = %{
+        "results" => [
+          %{
+            "id" => "page-first",
+            "url" => "https://notion.so/page-first",
+            "last_edited_time" => "2024-06-06T09:00:00Z",
+            "parent" => %{"type" => "workspace"},
+            "properties" => %{
+              "Name" => %{"type" => "title", "title" => [%{"plain_text" => "First"}]},
+              "Type" => %{"type" => "select", "select" => %{"name" => "Wiki"}}
+            }
+          }
+        ],
+        "has_more" => true,
+        "next_cursor" => "cursor-1"
+      }
+
+      second_page = %{
+        "results" => [
+          %{
+            "id" => "page-second",
+            "url" => "https://notion.so/page-second",
+            "last_edited_time" => "2024-06-06T10:00:00Z",
+            "parent" => %{"type" => "workspace"},
+            "properties" => %{
+              "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Second"}]},
+              "Type" => %{"type" => "select", "select" => %{"name" => "Wiki"}}
+            }
+          }
+        ],
+        "has_more" => false,
+        "next_cursor" => nil
+      }
+
+      NotionMock
+      |> expect(:search, fn "token", "", opts ->
+        body = Keyword.fetch!(opts, :body)
+        refute Map.has_key?(body, :start_cursor)
+        {:ok, first_page}
+      end)
+      |> expect(:search, fn "token", "", opts ->
+        body = Keyword.fetch!(opts, :body)
+        assert Map.get(body, :start_cursor) == "cursor-1"
+        {:ok, second_page}
+      end)
+
+      assert {:ok, %{collections: [collection], errors: []}} =
+               Catalog.list_collections(cache?: false)
+
+      assert collection.document_count == 2
+
+      assert {:ok, %{documents: docs, errors: []}} =
+               Catalog.list_documents(collection.id, cache?: false)
+
+      assert Enum.map(docs, & &1.id) == ["page-second", "page-first"]
+    end
+
+    test "paginates Notion page search across cursors" do
+      first_batch = %{
+        "results" => [
+          %{
+            "id" => "page-first",
+            "url" => "https://notion.so/page-first",
+            "last_edited_time" => "2024-06-06T09:00:00Z",
+            "parent" => %{"type" => "workspace"},
+            "properties" => %{
+              "Name" => %{"type" => "title", "title" => [%{"plain_text" => "First"}]},
+              "Type" => %{"type" => "select", "select" => %{"name" => "Wiki"}}
+            }
+          }
+        ],
+        "has_more" => true,
+        "next_cursor" => "cursor-1"
+      }
+
+      second_batch = %{
+        "results" => [
+          %{
+            "id" => "page-second",
+            "url" => "https://notion.so/page-second",
+            "last_edited_time" => "2024-06-06T10:00:00Z",
+            "parent" => %{"type" => "workspace"},
+            "properties" => %{
+              "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Second"}]},
+              "Type" => %{"type" => "select", "select" => %{"name" => "Wiki"}}
+            }
+          }
+        ],
+        "has_more" => false,
+        "next_cursor" => nil
+      }
+
+      NotionMock
+      |> expect(:search, fn "token", "", opts ->
+        body = Keyword.fetch!(opts, :body)
+        refute Map.has_key?(body, :start_cursor)
+        {:ok, first_batch}
+      end)
+      |> expect(:search, fn "token", "", opts ->
+        body = Keyword.fetch!(opts, :body)
+        assert Map.get(body, :start_cursor) == "cursor-1"
+        {:ok, second_batch}
+      end)
+
+      assert {:ok, %{collections: [collection], errors: []}} =
+               Catalog.list_collections(cache?: false)
+
+      assert collection.document_count == 2
+
+      assert {:ok, %{documents: documents, errors: []}} =
+               Catalog.list_documents(collection.id, cache?: false)
+
+      assert Enum.map(documents, & &1.id) == ["page-second", "page-first"]
     end
 
     test "filters out pages with disallowed parents or type" do
@@ -1057,22 +1653,37 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
         }
       }
 
+      atom_parent_page = %{
+        "id" => "page-atom",
+        "url" => "https://notion.so/page-atom",
+        "last_edited_time" => "2024-06-02T11:00:00Z",
+        "parent" => %{type: "page_id", page_id: "parent-page"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Atom"}]},
+          "Type" => %{"type" => "select", "select" => %{"name" => "Wiki"}}
+        }
+      }
+
       NotionMock
       |> expect(:search, fn "token", "", _opts ->
         {:ok,
          %{
-           "results" => [blocked_page, allowed_page],
+           "results" => [blocked_page, allowed_page, atom_parent_page],
            "has_more" => false,
            "next_cursor" => nil
          }}
       end)
 
-      assert {:ok, %{collections: [collection], errors: []}} = Catalog.list_collections()
-      assert collection.document_count == 1
+      assert {:ok, %{collections: [collection], errors: []}} =
+               Catalog.list_collections(cache?: false)
 
-      assert {:ok, %{documents: [document], errors: []}} = Catalog.list_documents(collection.id)
-      assert document.id == "page-allowed"
-      assert document.title == "Team Handbook"
+      assert collection.document_count == 2
+
+      assert {:ok, %{documents: documents, errors: []}} =
+               Catalog.list_documents(collection.id, cache?: false)
+
+      assert Enum.map(documents, & &1.id) == ["page-atom", "page-allowed"]
+      assert Enum.map(documents, & &1.title) == ["Atom", "Team Handbook"]
     end
 
     test "restricts pages to include allowlist" do
@@ -1131,10 +1742,201 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
          }}
       end)
 
-      assert {:ok, %{collections: [collection], errors: []}} = Catalog.list_collections()
-      assert {:ok, %{documents: [document], errors: []}} = Catalog.list_documents(collection.id)
+      assert {:ok, %{collections: [collection], errors: []}} =
+               Catalog.list_collections(cache?: false)
+
+      assert {:ok, %{documents: [document], errors: doc_errors}} =
+               Catalog.list_documents(collection.id, cache?: false)
+
+      assert doc_errors == []
+
       assert document.id == "28c54068269180b485eaff844489f9ba"
       assert document.title == "KB Page"
+      assert collection.metadata[:include_ids] == ["28c54068269180b485eaff844489f9ba"]
+    end
+
+    test "excludes pages whose parents are on the blocklist" do
+      Application.put_env(:dashboard_ssd, :integrations,
+        notion_token: "token",
+        notion_curated_database_ids: ["parent-include"]
+      )
+
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
+        curated_collections: [],
+        auto_discover?: true,
+        auto_discover_mode: :pages,
+        allowed_document_type_values: ["Wiki"],
+        document_type_property_names: ["Type"],
+        allow_documents_without_type?: true,
+        exclude_database_ids: ["parent-blocked"]
+      )
+
+      Cache.reset()
+      Notion.reset_circuits()
+
+      blocked = %{
+        "id" => "page-blocked",
+        "url" => "https://notion.so/page-blocked",
+        "last_edited_time" => "2024-06-04T09:00:00Z",
+        "parent" => %{"type" => "page_id", "page_id" => "parent-blocked"},
+        "properties" => %{"Type" => %{"type" => "select", "select" => %{"name" => "Wiki"}}}
+      }
+
+      allowed = %{
+        "id" => "page-allowed",
+        "url" => "https://notion.so/page-allowed",
+        "last_edited_time" => "2024-06-04T08:00:00Z",
+        "parent" => %{"type" => "page_id", "page_id" => "parent-include"},
+        "properties" => %{"Type" => %{"type" => "select", "select" => %{"name" => "Wiki"}}}
+      }
+
+      NotionMock
+      |> expect(:search, fn "token", "", _opts ->
+        {:ok,
+         %{
+           "results" => [blocked, allowed],
+           "has_more" => false,
+           "next_cursor" => nil
+         }}
+      end)
+
+      assert {:ok, %{collections: [collection], errors: []}} =
+               Catalog.list_collections(cache?: false)
+
+      assert {:ok, %{documents: [document], errors: []}} =
+               Catalog.list_documents(collection.id, cache?: false)
+
+      assert document.id == "page-allowed"
+      assert collection.metadata[:exclude_ids] == ["parent-blocked"]
+    end
+
+    test "ignores pages with blank identifiers" do
+      NotionMock
+      |> expect(:search, fn "token", "", _opts ->
+        {:ok,
+         %{
+           "results" => [
+             %{
+               "id" => "",
+               "url" => "https://notion.so/ignore",
+               "last_edited_time" => "2024-06-05T09:00:00Z",
+               "parent" => %{"type" => "workspace"},
+               "properties" => %{
+                 "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Ignore"}]},
+                 "Type" => %{"type" => "select", "select" => %{"name" => "Wiki"}}
+               }
+             },
+             %{
+               "id" => "page-keep",
+               "url" => "https://notion.so/keep",
+               "last_edited_time" => "2024-06-05T10:00:00Z",
+               "parent" => %{"type" => "workspace"},
+               "properties" => %{
+                 "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Keep"}]},
+                 "Type" => %{"type" => "select", "select" => %{"name" => "Wiki"}}
+               }
+             }
+           ],
+           "has_more" => false,
+           "next_cursor" => nil
+         }}
+      end)
+
+      assert {:ok, %{collections: [collection], errors: []}} =
+               Catalog.list_collections(cache?: false)
+
+      assert collection.document_count == 1
+
+      assert {:ok, %{documents: [document], errors: []}} =
+               Catalog.list_documents(collection.id, cache?: false)
+
+      assert document.id == "page-keep"
+    end
+
+    test "returns errors when Notion page search fails" do
+      NotionMock
+      |> expect(:search, fn "token", "", _opts -> {:error, :timeout} end)
+
+      assert {:ok, %{collections: [], errors: [%{reason: :timeout}]}} =
+               Catalog.list_collections(cache?: false)
+    end
+
+    test "list_documents surfaces errors from page fetch" do
+      NotionMock
+      |> expect(:search, fn "token", "", _opts -> {:error, :timeout} end)
+
+      assert {:ok,
+              %{documents: [], errors: [%{collection_id: "kb:auto:pages", reason: :timeout}]}} =
+               Catalog.list_documents("kb:auto:pages", cache?: false)
+    end
+  end
+
+  describe "allowed_document?/1" do
+    setup do
+      prev_kb = Application.get_env(:dashboard_ssd, DashboardSSD.KnowledgeBase)
+
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
+        allowed_document_type_values: [:wiki, 42],
+        document_type_property_names: ["Type", :Status, 123],
+        allow_documents_without_type?: false
+      )
+
+      on_exit(fn ->
+        if prev_kb do
+          Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, prev_kb)
+        else
+          Application.delete_env(:dashboard_ssd, DashboardSSD.KnowledgeBase)
+        end
+      end)
+
+      :ok
+    end
+
+    test "accepts select and status properties" do
+      page = %{
+        "properties" => %{
+          "Type" => %{"type" => "select", "select" => %{"name" => "Wiki"}},
+          "Status" => %{
+            :type => :status,
+            :status => %{name: "Wiki"}
+          }
+        }
+      }
+
+      assert Catalog.allowed_document?(page)
+    end
+
+    test "supports multi-select with atom keys and numeric values" do
+      page = %{
+        "properties" => %{
+          "Type" => %{
+            type: "multi_select",
+            multi_select: [%{"name" => 123}, %{"name" => "Wiki"}]
+          }
+        }
+      }
+
+      assert Catalog.allowed_document?(page)
+    end
+
+    test "rejects documents without matching type" do
+      page = %{
+        "properties" => %{
+          "Type" => %{"type" => "select", "select" => %{"name" => "Task"}}
+        }
+      }
+
+      refute Catalog.allowed_document?(page)
+    end
+
+    test "allows documents without type when configured" do
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
+        allowed_document_type_values: ["wiki"],
+        document_type_property_names: ["Type"],
+        allow_documents_without_type?: true
+      )
+
+      assert Catalog.allowed_document?(%{"properties" => %{}})
     end
   end
 

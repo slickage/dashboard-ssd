@@ -52,6 +52,7 @@ defmodule DashboardSSDWeb.KbComponents do
   attr :selected_id, :any, default: nil
 
   @doc false
+  @spec collection_list(map()) :: Rendered.t()
   def collection_list(assigns) do
     ~H"""
     <section class="flex flex-col gap-3">
@@ -112,6 +113,7 @@ defmodule DashboardSSDWeb.KbComponents do
   attr :selected_id, :any, default: nil
 
   @doc false
+  @spec document_list(map()) :: Rendered.t()
   def document_list(assigns) do
     ~H"""
     <section class="flex flex-col gap-3">
@@ -173,6 +175,7 @@ defmodule DashboardSSDWeb.KbComponents do
   attr :error, :string, default: nil
 
   @doc false
+  @spec document_viewer(map()) :: Rendered.t()
   def document_viewer(assigns) do
     ~H"""
     <section class="flex flex-col gap-3">
@@ -317,6 +320,7 @@ defmodule DashboardSSDWeb.KbComponents do
   attr :block, :map, required: true
 
   @doc false
+  @spec kb_block(map()) :: Rendered.t()
   def kb_block(assigns) do
     ~H"""
     <%= case @block.type do %>
@@ -420,6 +424,7 @@ defmodule DashboardSSDWeb.KbComponents do
   attr :segments, :list, default: []
 
   @doc false
+  @spec kb_rich_text(map()) :: Rendered.t()
   def kb_rich_text(assigns) do
     ~H"""
     <%= for segment <- @segments do %>
