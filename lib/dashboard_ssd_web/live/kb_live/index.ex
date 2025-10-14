@@ -5,6 +5,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
   alias DashboardSSD.Auth.Policy
   alias DashboardSSD.Integrations
   alias DashboardSSD.KnowledgeBase.{Activity, Catalog}
+  alias DashboardSSDWeb.CodeHighlighter
 
   import DashboardSSDWeb.KbComponents
 
@@ -39,12 +40,14 @@ defmodule DashboardSSDWeb.KbLive.Index do
          selected_document_id: selected_document_id,
          reader_error: reader_error,
          recent_documents: recent_documents,
-         recent_errors: recent_errors
+         recent_errors: recent_errors,
+         code_stylesheet: CodeHighlighter.stylesheet()
        )}
     else
       {:ok,
        socket
        |> assign(:current_path, "/kb")
+       |> assign(:code_stylesheet, CodeHighlighter.stylesheet())
        |> put_flash(:error, "You don't have permission to access this page")
        |> redirect(to: ~p"/")}
     end
@@ -357,6 +360,9 @@ defmodule DashboardSSDWeb.KbLive.Index do
   def render(assigns) do
     ~H"""
     <div class="flex flex-col gap-8">
+      <style :if={@code_stylesheet} type="text/css" data-kb-code-style="true">
+        <%= @code_stylesheet %>
+      </style>
       <div class="grid gap-6 lg:grid-cols-[minmax(0,280px)_minmax(0,340px)_minmax(0,1fr)]">
         <div class="space-y-4">
           <.collection_list collections={@collections} selected_id={@selected_collection_id} />
