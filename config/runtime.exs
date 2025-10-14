@@ -77,6 +77,87 @@ knowledge_base_config =
 
 curated_collections_path = Keyword.get(knowledge_base_config, :curated_collections_path)
 
+parse_env_list = fn
+  nil, default ->
+    default
+
+  value, _default ->
+    value
+    |> String.split([",", "\n"], trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+end
+
+parse_env_boolean = fn
+  nil, default ->
+    default
+
+  value, default_value ->
+    value
+    |> String.trim()
+    |> String.downcase()
+    |> case do
+      v when v in ["1", "true", "yes", "on"] -> true
+      v when v in ["0", "false", "no", "off"] -> false
+      _ -> default_value
+    end
+end
+
+parse_discovery_mode = fn
+  nil, default ->
+    default
+
+  value, default ->
+    value
+    |> String.trim()
+    |> String.downcase()
+    |> case do
+      mode when mode in ["pages", "page"] -> :pages
+      mode when mode in ["databases", "database", "db", "databse"] -> :databases
+      _ -> default
+    end
+end
+
+allowed_document_type_values =
+  parse_env_list.(
+    System.get_env("NOTION_ALLOWED_PAGE_TYPES"),
+    Keyword.get(knowledge_base_config, :allowed_document_type_values, ["Wiki"])
+  )
+
+document_type_property_names =
+  parse_env_list.(
+    System.get_env("NOTION_PAGE_TYPE_PROPERTIES"),
+    Keyword.get(knowledge_base_config, :document_type_property_names, ["Type"])
+  )
+
+allow_documents_without_type? =
+  parse_env_boolean.(
+    System.get_env("NOTION_ALLOW_UNTYPED_DOCUMENTS"),
+    Keyword.get(knowledge_base_config, :allow_documents_without_type?, true)
+  )
+
+auto_discover_mode =
+  parse_discovery_mode.(
+    System.get_env("NOTION_KB_DISCOVERY_MODE"),
+    Keyword.get(knowledge_base_config, :auto_discover_mode, :databases)
+  )
+
+auto_page_collection_id =
+  System.get_env("NOTION_PAGE_COLLECTION_ID") ||
+    Keyword.get(knowledge_base_config, :auto_page_collection_id, "kb:auto:pages")
+
+auto_page_collection_name =
+  System.get_env("NOTION_PAGE_COLLECTION_NAME") ||
+    Keyword.get(knowledge_base_config, :auto_page_collection_name, "Wiki Pages")
+
+auto_page_collection_description =
+  System.get_env("NOTION_PAGE_COLLECTION_DESCRIPTION") ||
+    Keyword.get(
+      knowledge_base_config,
+      :auto_page_collection_description,
+      "Top-level pages from the company wiki"
+    )
+
 {curated_collections_sample, fallback_curated_database_ids} =
   if config_env() == :prod do
     {[], []}
@@ -124,6 +205,13 @@ knowledge_base_config =
   knowledge_base_config
   |> Keyword.put(:curated_collections, curated_collections_sample)
   |> Keyword.put(:default_curated_database_ids, fallback_curated_database_ids)
+  |> Keyword.put(:allowed_document_type_values, allowed_document_type_values)
+  |> Keyword.put(:document_type_property_names, document_type_property_names)
+  |> Keyword.put(:allow_documents_without_type?, allow_documents_without_type?)
+  |> Keyword.put(:auto_discover_mode, auto_discover_mode)
+  |> Keyword.put(:auto_page_collection_id, auto_page_collection_id)
+  |> Keyword.put(:auto_page_collection_name, auto_page_collection_name)
+  |> Keyword.put(:auto_page_collection_description, auto_page_collection_description)
 
 Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, knowledge_base_config)
 

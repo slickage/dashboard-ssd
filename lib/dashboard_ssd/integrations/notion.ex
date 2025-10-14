@@ -45,6 +45,36 @@ defmodule DashboardSSD.Integrations.Notion do
   def search(token, query), do: search(token, query, [])
 
   @impl true
+  @spec list_databases(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
+  def list_databases(token, opts \\ []) do
+    body =
+      %{filter: %{property: "object", value: "database"}}
+      |> maybe_put_map(:query, Keyword.get(opts, :query))
+      |> maybe_put_map(:sort, Keyword.get(opts, :sort))
+      |> maybe_put_map(:page_size, Keyword.get(opts, :page_size))
+      |> maybe_put_map(:start_cursor, Keyword.get(opts, :start_cursor))
+
+    request_opts =
+      opts
+      |> Keyword.put(:body, body)
+      |> Keyword.put_new(:circuit_breaker_key, :list_databases)
+      |> Keyword.put_new(:operation, :list_databases)
+
+    request_json(:post, "/v1/search", token, request_opts)
+  end
+
+  @impl true
+  @spec retrieve_page(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
+  def retrieve_page(token, page_id, opts \\ []) do
+    request_opts =
+      opts
+      |> Keyword.put_new(:circuit_breaker_key, {:retrieve_page, page_id})
+      |> Keyword.put_new(:operation, :retrieve_page)
+
+    request_json(:get, "/v1/pages/#{page_id}", token, request_opts)
+  end
+
+  @impl true
   @spec search(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def search(token, query, opts) do
     body = Map.merge(%{query: query}, Keyword.get(opts, :body, %{}))
@@ -261,6 +291,7 @@ defmodule DashboardSSD.Integrations.Notion do
     cond do
       String.ends_with?(path, "/search") -> :search
       String.contains?(path, "/databases/") -> :query_database
+      String.contains?(path, "/pages/") -> :retrieve_page
       String.contains?(path, "/blocks/") -> :retrieve_block_children
       true -> :request
     end
