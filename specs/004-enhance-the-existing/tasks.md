@@ -28,10 +28,10 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 [Foundational] Scaffold `lib/dashboard_ssd/knowledge_base` context (catalog/search/activity modules) with public API skeletons aligned to spec requirements and shared type definitions in `lib/dashboard_ssd/knowledge_base/types.ex`.
-- [ ] T005 [P] [Foundational] Extend `lib/dashboard_ssd/integrations/notion.ex` to support database query and block retrieval with exponential backoff/circuit breaker; cover behaviour with integration tests in `test/dashboard_ssd/integrations/notion_test.exs`.
-- [ ] T006 [P] [Foundational] Implement ETS-backed cache module `lib/dashboard_ssd/knowledge_base/cache.ex` plus supervision wiring in `lib/dashboard_ssd/application.ex`; verify behaviour with unit tests in `test/dashboard_ssd/knowledge_base/cache_test.exs`.
-- [ ] T007 [P] [Foundational] Add telemetry + structured logging for Notion calls in `lib/dashboard_ssd/knowledge_base/instrumentation.ex` and hook into Phoenix Telemetry publishers; confirm via instrumentation tests in `test/dashboard_ssd/knowledge_base/instrumentation_test.exs`.
+- [X] T004 [Foundational] Scaffold `lib/dashboard_ssd/knowledge_base` context (catalog/search/activity modules) with public API skeletons aligned to spec requirements and shared type definitions in `lib/dashboard_ssd/knowledge_base/types.ex`.
+- [X] T005 [P] [Foundational] Extend `lib/dashboard_ssd/integrations/notion.ex` to support database query and block retrieval with exponential backoff/circuit breaker; cover behaviour with integration tests in `test/dashboard_ssd/integrations/notion_test.exs`.
+- [X] T006 [P] [Foundational] Implement ETS-backed cache module `lib/dashboard_ssd/knowledge_base/cache.ex` plus supervision wiring in `lib/dashboard_ssd/application.ex`; verify behaviour with unit tests in `test/dashboard_ssd/knowledge_base/cache_test.exs`.
+- [X] T007 [P] [Foundational] Add telemetry + structured logging for Notion calls in `lib/dashboard_ssd/knowledge_base/instrumentation.ex` and hook into Phoenix Telemetry publishers; confirm via instrumentation tests in `test/dashboard_ssd/knowledge_base/instrumentation_test.exs`.
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
