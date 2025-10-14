@@ -52,4 +52,50 @@ defmodule DashboardSSD.KnowledgeBase.CacheTest do
     Cache.force_cleanup()
     assert :miss == Cache.get(:documents, :temp)
   end
+
+  test "delete removes individual entries" do
+    Cache.put(:documents, :delete_me, :value)
+    assert {:ok, :value} = Cache.get(:documents, :delete_me)
+    assert :ok = Cache.delete(:documents, :delete_me)
+    assert :miss == Cache.get(:documents, :delete_me)
+  end
+
+  test "put with negative ttl expires immediately" do
+    Cache.put(:documents, :negative_ttl, :value, -10)
+    assert :miss == Cache.get(:documents, :negative_ttl)
+  end
+
+  test "fetch respects custom ttl option" do
+    assert {:ok, :short_lived} =
+             Cache.fetch(:documents, :short, fn -> :short_lived end, ttl: 5)
+
+    Process.sleep(10)
+    assert :miss == Cache.get(:documents, :short)
+  end
+
+  test "fetch caches values returned in {:ok, value} tuples" do
+    assert {:ok, :tuple} = Cache.fetch(:documents, :tuple, fn -> {:ok, :tuple} end)
+    assert {:ok, :tuple} = Cache.get(:documents, :tuple)
+  end
+
+  test "start_link supports custom tables and cleanup interval" do
+    pid =
+      start_supervised!(
+        {Cache, [name: :cache_test_proc, table: :cache_test_table, cleanup_interval: 1]}
+      )
+
+    on_exit(fn ->
+      if :ets.whereis(:cache_test_table) != :undefined do
+        :ets.delete(:cache_test_table)
+      end
+    end)
+
+    assert :ets.whereis(:cache_test_table) != :undefined
+
+    send(pid, :cleanup)
+    Process.sleep(5)
+
+    GenServer.cast(pid, :force_cleanup)
+    Process.sleep(5)
+  end
 end

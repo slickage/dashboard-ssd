@@ -13,6 +13,31 @@ DashboardSSD relies on a Notion integration to fetch curated collections and doc
 
 For backward compatibility you may export `NOTION_DATABASE_ALLOWLIST` or `NOTION_COLLECTION_ALLOWLIST`. These values are parsed the same way as `NOTION_CURATED_DATABASE_IDS` and should contain the curated database IDs.
 
+## Optional Filters
+
+DashboardSSD can filter Notion documents so only wiki-style content appears in the Knowledge Base:
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `NOTION_ALLOWED_PAGE_TYPES` | Comma/newline separated list of select or status values that qualify a page as a wiki document. | `Wiki` |
+| `NOTION_PAGE_TYPE_PROPERTIES` | Comma/newline separated list of property names to inspect for those values (case-insensitive). | `Type` |
+| `NOTION_ALLOW_UNTYPED_DOCUMENTS` | When set to `false`, pages missing the configured property names are excluded. | `true` |
+
+Set these values when your Notion databases use different naming or taxonomies.
+
+## Discovery Mode
+
+By default the dashboard indexes curated Notion databases. To index standalone wiki pages instead, set:
+
+| Variable | Purpose | Notes |
+|----------|---------|-------|
+| `NOTION_KB_DISCOVERY_MODE` | Choose `pages` to read from the Notion Search API (`object=page`) instead of databases. | Results are filtered client-side so only `workspace` or `page` parents remain, which aligns with Notion's wiki hierarchy. |
+| `NOTION_PAGE_COLLECTION_ID` | Stable identifier for the aggregate collection that appears in the UI when page discovery is enabled. | Defaults to `kb:auto:pages`. |
+| `NOTION_PAGE_COLLECTION_NAME` | Display name shown in the collections list for the discovered pages. | Defaults to `Wiki Pages`. |
+| `NOTION_PAGE_COLLECTION_DESCRIPTION` | Optional description rendered under the collection title. | Defaults to `Top-level pages from the company wiki`. |
+
+Page discovery still honours the type filters above—only results whose configured property matches the allowlist (e.g. `Type = Wiki`) appear in the dashboard.
+
 ## Runtime Behaviour
 
 - Configuration lives in `config/runtime.exs` under the `:dashboard_ssd, :integrations` key.

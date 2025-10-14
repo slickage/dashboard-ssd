@@ -11,6 +11,7 @@ defmodule DashboardSSD.Integrations.NotionTest do
 
     on_exit(fn ->
       clear_circuit(:search)
+      clear_circuit(:list_databases)
       clear_circuit({:database_query, "db-id"})
       clear_circuit({:database_query, "db-fail"})
       clear_circuit({:block_children, "block-id"})
@@ -149,6 +150,60 @@ defmodule DashboardSSD.Integrations.NotionTest do
                  page_size: 100,
                  start_cursor: "cursor"
                )
+    end
+  end
+
+  describe "list_databases/2" do
+    test "uses search endpoint with database filter" do
+      Tesla.Mock.mock(fn
+        %{
+          method: :post,
+          url: "https://api.notion.com/v1/search",
+          headers: headers,
+          body: body
+        } ->
+          assert auth_header?(headers)
+          body_map = decode_body(body)
+          assert body_map["filter"] == %{"property" => "object", "value" => "database"}
+          assert body_map["page_size"] == 25
+          assert body_map["start_cursor"] == "cursor"
+          %Tesla.Env{status: 200, body: %{"results" => []}}
+      end)
+
+      assert {:ok, %{"results" => []}} =
+               Notion.list_databases(@token, page_size: 25, start_cursor: "cursor")
+    end
+
+    test "returns http_error tuple on failure" do
+      Tesla.Mock.mock(fn _ -> %Tesla.Env{status: 503, body: %{"error" => "unavailable"}} end)
+
+      assert {:error, {:http_error, 503, %{"error" => "unavailable"}}} =
+               Notion.list_databases(@token, [])
+    end
+  end
+
+  describe "retrieve_page/3" do
+    test "requests a specific page" do
+      Tesla.Mock.mock(fn
+        %{
+          method: :get,
+          url: "https://api.notion.com/v1/pages/page-id",
+          headers: headers
+        } ->
+          assert auth_header?(headers)
+          %Tesla.Env{status: 200, body: %{"id" => "page-id"}}
+      end)
+
+      assert {:ok, %{"id" => "page-id"}} = Notion.retrieve_page(@token, "page-id")
+    end
+
+    test "returns http_error tuple for failure" do
+      Tesla.Mock.mock(fn _ ->
+        %Tesla.Env{status: 404, body: %{"error" => "not_found"}}
+      end)
+
+      assert {:error, {:http_error, 404, %{"error" => "not_found"}}} =
+               Notion.retrieve_page(@token, "missing")
     end
   end
 
