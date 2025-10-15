@@ -22,6 +22,7 @@ DashboardSSD can filter Notion documents so only wiki-style content appears in t
 | `NOTION_ALLOWED_PAGE_TYPES` | Comma/newline separated list of select or status values that qualify a page as a wiki document. | `Wiki` |
 | `NOTION_PAGE_TYPE_PROPERTIES` | Comma/newline separated list of property names to inspect for those values (case-insensitive). | `Type` |
 | `NOTION_ALLOW_UNTYPED_DOCUMENTS` | When set to `false`, pages missing the configured property names are excluded. | `true` |
+| `NOTION_PAGE_TYPE_FILTER_EXEMPT_IDS` | Skip the type filter for the listed curated database IDs. | *(empty)* |
 
 Set these values when your Notion databases use different naming or taxonomies.
 

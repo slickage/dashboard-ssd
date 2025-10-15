@@ -1006,21 +1006,26 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
   defp include_document?(page) do
     allowed_types = allowed_document_type_values()
 
-    if MapSet.size(allowed_types) == 0 do
-      true
-    else
-      page_types = page_type_values(page)
+    cond do
+      skip_document_type_filter?(page) ->
+        true
 
-      cond do
-        Enum.any?(page_types, &MapSet.member?(allowed_types, &1)) ->
-          true
+      MapSet.size(allowed_types) == 0 ->
+        true
 
-        page_types == [] ->
-          allow_documents_without_type?()
+      true ->
+        page_types = page_type_values(page)
 
-        true ->
-          false
-      end
+        cond do
+          Enum.any?(page_types, &MapSet.member?(allowed_types, &1)) ->
+            true
+
+          page_types == [] ->
+            allow_documents_without_type?()
+
+          true ->
+            false
+        end
     end
   end
 
@@ -1038,6 +1043,24 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
     |> Enum.map(&normalize_property_key/1)
     |> Enum.reject(&(&1 == ""))
     |> MapSet.new()
+  end
+
+  defp document_type_filter_exempt_ids do
+    kb_config()
+    |> Keyword.get(:document_type_filter_exempt_ids, [])
+    |> Enum.map(&normalize_id/1)
+    |> Enum.reject(&(&1 == ""))
+    |> MapSet.new()
+  end
+
+  defp skip_document_type_filter?(page) do
+    case page_database_id(page) do
+      nil ->
+        false
+
+      database_id ->
+        MapSet.member?(document_type_filter_exempt_ids(), database_id)
+    end
   end
 
   defp allow_documents_without_type? do
