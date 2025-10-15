@@ -172,14 +172,9 @@ defmodule DashboardSSDWeb.KbComponents do
   def collection_tree(assigns) do
     ~H"""
     <section class="flex flex-col gap-3">
-      <header class="flex items-center justify-between gap-2">
-        <h3 class="text-xs font-semibold uppercase tracking-[0.16em] text-theme-muted">
-          Collections
-        </h3>
-        <span :if={Enum.any?(@collections)} class="text-xs text-theme-muted">
-          {Enum.count(@collections)}
-        </span>
-      </header>
+      <h3 class="text-xs font-semibold uppercase tracking-[0.16em] text-theme-muted">
+        Collections
+      </h3>
 
       <div
         :if={Enum.any?(@collection_errors)}
@@ -386,9 +381,6 @@ defmodule DashboardSSDWeb.KbComponents do
         <h3 class="text-xs font-semibold uppercase tracking-[0.16em] text-theme-muted">
           {@title}
         </h3>
-        <span :if={Enum.any?(@documents)} class="text-xs text-theme-muted">
-          {Enum.count(@documents)}
-        </span>
       </header>
 
       <div
