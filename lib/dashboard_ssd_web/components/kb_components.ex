@@ -19,14 +19,13 @@ defmodule DashboardSSDWeb.KbComponents do
       <%= cond do %>
         <% String.starts_with?(@icon, "http") -> %>
           <%= if String.ends_with?(@icon, ".svg") do %>
-            <object
-              data={@icon}
+            <embed
+              src={@icon}
               type="image/svg+xml"
               class={image_classes(@size)}
               width="16"
               height="16"
-            >
-            </object>
+            />
           <% else %>
             <img
               src={@icon}
@@ -34,7 +33,6 @@ defmodule DashboardSSDWeb.KbComponents do
               width="16"
               height="16"
               crossorigin="anonymous"
-              alt=""
             />
           <% end %>
         <% true -> %>
