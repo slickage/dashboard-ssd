@@ -59,7 +59,7 @@ defmodule DashboardSSD.KnowledgeBase.Types do
 
     @type t :: %__MODULE__{
             id: DashboardSSD.KnowledgeBase.Types.document_id(),
-            collection_id: DashboardSSD.KnowledgeBase.Types.collection_id(),
+            collection_id: DashboardSSD.KnowledgeBase.Types.collection_id() | nil,
             title: String.t(),
             summary: String.t() | nil,
             tags: [String.t()],
@@ -91,7 +91,7 @@ defmodule DashboardSSD.KnowledgeBase.Types do
 
     @type t :: %__MODULE__{
             id: DashboardSSD.KnowledgeBase.Types.document_id(),
-            collection_id: DashboardSSD.KnowledgeBase.Types.collection_id(),
+            collection_id: DashboardSSD.KnowledgeBase.Types.collection_id() | nil,
             title: String.t(),
             summary: String.t() | nil,
             tags: [String.t()],

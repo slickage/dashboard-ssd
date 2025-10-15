@@ -4,7 +4,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
 
   alias DashboardSSD.Auth.Policy
   alias DashboardSSD.Integrations
-  alias DashboardSSD.KnowledgeBase.{Activity, Catalog}
+  alias DashboardSSD.KnowledgeBase.{Activity, Catalog, Types}
 
   import DashboardSSDWeb.KbComponents
 
@@ -15,12 +15,14 @@ defmodule DashboardSSDWeb.KbLive.Index do
     if Policy.can?(user, :read, :kb) do
       {collections, collection_errors} = load_collections()
 
-      {selected_collection_id, documents, document_errors, selected_document,
-       selected_document_id,
-       reader_error} =
+      {selected_collection_id, documents_by_collection, document_errors, selected_document,
+       selected_document_id, reader_error,
+       expanded_collections} =
         preload_collections(collections)
 
       {recent_documents, recent_errors} = load_recent_documents(user)
+
+      documents = documents_for_collection(documents_by_collection, selected_collection_id)
 
       {:ok,
        assign(socket,
@@ -33,13 +35,17 @@ defmodule DashboardSSDWeb.KbLive.Index do
          collections: collections,
          collection_errors: collection_errors,
          selected_collection_id: selected_collection_id,
-         documents: documents,
          document_errors: document_errors,
+         documents_by_collection: documents_by_collection,
+         documents: documents,
          selected_document: selected_document,
          selected_document_id: selected_document_id,
          reader_error: reader_error,
          recent_documents: recent_documents,
-         recent_errors: recent_errors
+         recent_errors: recent_errors,
+         expanded_collections: expanded_collections,
+         search_dropdown_open: false,
+         search_feedback: nil
        )}
     else
       {:ok,
@@ -51,7 +57,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
   end
 
   @impl true
-  def handle_event("search", %{"query" => query}, socket) do
+  def handle_event("typeahead_search", %{"query" => query}, socket) do
     query = String.trim(query || "")
 
     if query == "" do
@@ -60,7 +66,9 @@ defmodule DashboardSSDWeb.KbLive.Index do
        |> assign(:query, "")
        |> assign(:results, [])
        |> assign(:search_performed, false)
-       |> put_flash(:error, "Enter a search term to look up Notion content.")}
+       |> assign(:search_dropdown_open, false)
+       |> assign(:search_feedback, "Enter a search term")
+       |> clear_flash(:error)}
     else
       case Integrations.notion_search(query) do
         {:ok, %{"results" => results}} ->
@@ -71,6 +79,8 @@ defmodule DashboardSSDWeb.KbLive.Index do
            |> assign(:query, query)
            |> assign(:results, parsed)
            |> assign(:search_performed, true)
+           |> assign(:search_dropdown_open, true)
+           |> assign(:search_feedback, nil)
            |> clear_flash(:error)}
 
         {:error, {:missing_env, _env}} ->
@@ -79,6 +89,8 @@ defmodule DashboardSSDWeb.KbLive.Index do
            |> assign(:query, query)
            |> assign(:results, [])
            |> assign(:search_performed, true)
+           |> assign(:search_dropdown_open, true)
+           |> assign(:search_feedback, nil)
            |> put_flash(:error, "Notion integration is not configured.")}
 
         {:error, reason} ->
@@ -87,9 +99,39 @@ defmodule DashboardSSDWeb.KbLive.Index do
            |> assign(:query, query)
            |> assign(:results, [])
            |> assign(:search_performed, true)
+           |> assign(:search_dropdown_open, true)
+           |> assign(:search_feedback, nil)
            |> put_flash(:error, error_message(reason))}
       end
     end
+  end
+
+  @impl true
+  def handle_event("clear_search", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:query, "")
+     |> assign(:results, [])
+     |> assign(:search_performed, false)
+     |> assign(:search_dropdown_open, false)
+     |> assign(:search_feedback, nil)
+     |> clear_flash(:error)}
+  end
+
+  @impl true
+  def handle_event("clear_search_key", %{"key" => key}, socket)
+      when key in ["Enter", " ", "Space"] do
+    handle_event("clear_search", %{}, socket)
+  end
+
+  @impl true
+  def handle_event("clear_search_key", _params, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("close_search_dropdown", _params, socket) do
+    {:noreply, assign(socket, :search_dropdown_open, false)}
   end
 
   @impl true
@@ -103,18 +145,63 @@ defmodule DashboardSSDWeb.KbLive.Index do
   end
 
   @impl true
-  def handle_event("select_collection", %{"id" => collection_id}, socket) do
-    {documents, document_errors} = load_documents(collection_id)
-    {selected_document, reader_error, selected_document_id} = preload_first_document(documents)
+  def handle_event("toggle_collection", %{"id" => raw_id}, socket) do
+    collection_id = blank_to_nil(raw_id)
 
-    {:noreply,
-     socket
-     |> assign(:selected_collection_id, collection_id)
-     |> assign(:documents, documents)
-     |> assign(:document_errors, document_errors)
-     |> assign(:selected_document, selected_document)
-     |> assign(:selected_document_id, selected_document_id)
-     |> assign(:reader_error, reader_error)}
+    cond do
+      is_nil(collection_id) ->
+        {:noreply, socket}
+
+      MapSet.member?(socket.assigns.expanded_collections, collection_id) ->
+        {:noreply,
+         assign(
+           socket,
+           :expanded_collections,
+           MapSet.delete(socket.assigns.expanded_collections, collection_id)
+         )}
+
+      true ->
+        {documents, document_errors} = load_documents(collection_id)
+
+        documents_by_collection = documents_map(socket)
+
+        existing_document_errors = document_errors_map(socket)
+
+        socket =
+          socket
+          |> assign(
+            :documents_by_collection,
+            Map.put(documents_by_collection, collection_id, documents)
+          )
+          |> assign(
+            :document_errors,
+            put_document_errors(existing_document_errors, collection_id, document_errors)
+          )
+          |> assign(
+            :expanded_collections,
+            MapSet.put(socket.assigns.expanded_collections, collection_id)
+          )
+          |> assign(:selected_collection_id, collection_id)
+          |> assign_documents(collection_id)
+
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("select_collection", params, socket) do
+    handle_event("toggle_collection", params, socket)
+  end
+
+  @impl true
+  def handle_event("toggle_collection_key", %{"id" => id, "key" => key}, socket)
+      when key in ["Enter", " ", "Space"] do
+    handle_event("toggle_collection", %{"id" => id}, socket)
+  end
+
+  @impl true
+  def handle_event("toggle_collection_key", _params, socket) do
+    {:noreply, socket}
   end
 
   @impl true
@@ -124,65 +211,107 @@ defmodule DashboardSSDWeb.KbLive.Index do
         record_document_view(socket.assigns[:current_user], document)
         {recent_documents, recent_errors} = load_recent_documents(socket.assigns[:current_user])
 
-        {:noreply,
-         socket
-         |> assign(:selected_document, document)
-         |> assign(:selected_document_id, document_id)
-         |> assign(:reader_error, nil)
-         |> assign(:recent_documents, recent_documents)
-         |> assign(:recent_errors, recent_errors)}
+        selected_collection_id = document.collection_id || socket.assigns.selected_collection_id
+
+        socket =
+          socket
+          |> ensure_documents_loaded(document.collection_id)
+          |> ensure_document_in_collection(document)
+          |> ensure_collection_expanded(document.collection_id)
+          |> assign(:selected_collection_id, selected_collection_id)
+          |> assign(:selected_document, document)
+          |> assign(:selected_document_id, document_id)
+          |> assign(:query, "")
+          |> assign(:results, [])
+          |> assign(:search_performed, false)
+          |> assign(:search_dropdown_open, false)
+          |> assign(:reader_error, nil)
+          |> assign(:recent_documents, recent_documents)
+          |> assign(:recent_errors, recent_errors)
+          |> assign(:search_feedback, nil)
+          |> assign_documents(selected_collection_id)
+
+        {:noreply, socket}
 
       {:error, reason} ->
         {:noreply,
          socket
          |> assign(:reader_error, %{document_id: document_id, reason: reason})
          |> assign(:selected_document, nil)
-         |> assign(:selected_document_id, nil)}
+         |> assign(:selected_document_id, nil)
+         |> assign(:search_dropdown_open, false)}
     end
   end
 
   @impl true
+  def handle_event("select_document_key", %{"id" => id, "key" => key}, socket)
+      when key in ["Enter", " ", "Space"] do
+    handle_event("select_document", %{"id" => id}, socket)
+  end
+
+  @impl true
+  def handle_event("select_document_key", _params, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("open_search_result_key", %{"key" => key} = params, socket)
+      when key in ["Enter", " ", "Space"] do
+    params = Map.delete(params, "key")
+    handle_event("open_search_result", params, socket)
+  end
+
+  @impl true
+  def handle_event("open_search_result_key", _params, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_event("open_search_result", %{"id" => document_id} = params, socket) do
-    collection_id = Map.get(params, "collection")
+    collection_id = params |> Map.get("collection") |> blank_to_nil()
 
-    {selected_collection_id, documents, document_errors} =
-      cond do
-        is_nil(collection_id) or collection_id == "" ->
-          {socket.assigns.selected_collection_id, socket.assigns.documents,
-           socket.assigns.document_errors}
-
-        collection_id == socket.assigns.selected_collection_id ->
-          {collection_id, socket.assigns.documents, socket.assigns.document_errors}
-
-        true ->
-          {docs, errs} = load_documents(collection_id)
-          {collection_id, docs, errs}
-      end
+    socket =
+      socket
+      |> ensure_documents_loaded(collection_id)
+      |> ensure_collection_expanded(collection_id)
 
     case load_document_detail(document_id) do
       {:ok, document} ->
         record_document_view(socket.assigns[:current_user], document)
         {recent_documents, recent_errors} = load_recent_documents(socket.assigns[:current_user])
 
-        {:noreply,
-         socket
-         |> assign(:selected_collection_id, selected_collection_id)
-         |> assign(:documents, documents)
-         |> assign(:document_errors, document_errors)
-         |> assign(:selected_document, document)
-         |> assign(:selected_document_id, document_id)
-         |> assign(:reader_error, nil)
-         |> assign(:recent_documents, recent_documents)
-         |> assign(:recent_errors, recent_errors)}
+        collection_id =
+          document.collection_id || collection_id || socket.assigns.selected_collection_id
+
+        socket =
+          socket
+          |> ensure_documents_loaded(collection_id)
+          |> ensure_document_in_collection(document)
+          |> ensure_collection_expanded(collection_id)
+          |> assign(
+            :selected_collection_id,
+            collection_id || socket.assigns.selected_collection_id
+          )
+          |> assign(:selected_document, document)
+          |> assign(:selected_document_id, document_id)
+          |> assign(:query, "")
+          |> assign(:results, [])
+          |> assign(:search_performed, false)
+          |> assign(:search_dropdown_open, false)
+          |> assign(:reader_error, nil)
+          |> assign(:recent_documents, recent_documents)
+          |> assign(:recent_errors, recent_errors)
+          |> assign(:search_feedback, nil)
+          |> assign_documents(collection_id)
+
+        {:noreply, socket}
 
       {:error, reason} ->
         {:noreply,
          socket
-         |> assign(:selected_collection_id, selected_collection_id)
-         |> assign(:documents, documents)
-         |> assign(:document_errors, document_errors)
          |> assign(:selected_document, nil)
          |> assign(:selected_document_id, nil)
+         |> assign(:search_dropdown_open, false)
          |> assign(:reader_error, %{document_id: document_id, reason: reason})}
     end
   end
@@ -280,20 +409,41 @@ defmodule DashboardSSDWeb.KbLive.Index do
 
   defp load_recent_documents(user) do
     case Activity.recent_documents(user) do
-      {:ok, docs} -> {docs, []}
+      {:ok, docs} -> {dedupe_recent_documents(docs), []}
       {:error, reason} -> {[], [%{reason: reason}]}
     end
   end
 
-  defp preload_collections([]), do: {nil, [], [], nil, nil, nil}
+  defp preload_collections([]), do: {nil, %{}, %{}, nil, nil, nil, MapSet.new()}
 
   defp preload_collections([first | _]) do
     collection_id = first.id
     {documents, document_errors} = load_documents(collection_id)
     {selected_document, reader_error, selected_document_id} = preload_first_document(documents)
 
-    {collection_id, documents, document_errors, selected_document, selected_document_id,
-     reader_error}
+    documents_by_collection =
+      if collection_id do
+        %{collection_id => documents}
+      else
+        %{}
+      end
+
+    document_errors_map =
+      if document_errors == [] do
+        %{}
+      else
+        %{collection_id => document_errors}
+      end
+
+    expanded =
+      if collection_id do
+        MapSet.new([collection_id])
+      else
+        MapSet.new()
+      end
+
+    {collection_id, documents_by_collection, document_errors_map, selected_document,
+     selected_document_id, reader_error, expanded}
   end
 
   defp load_documents(nil), do: {[], []}
@@ -304,6 +454,126 @@ defmodule DashboardSSDWeb.KbLive.Index do
       {:error, reason} -> {[], [%{collection_id: collection_id, reason: reason}]}
     end
   end
+
+  defp put_document_errors(errors_map, key, []), do: Map.delete(errors_map, key || :general)
+
+  defp put_document_errors(errors_map, key, errors),
+    do: Map.put(errors_map, key || :general, errors)
+
+  defp ensure_documents_loaded(socket, nil), do: socket
+
+  defp ensure_documents_loaded(socket, collection_id) do
+    documents_by_collection = documents_map(socket)
+
+    if Map.has_key?(documents_by_collection, collection_id) do
+      socket
+    else
+      {documents, errors} = load_documents(collection_id)
+      updated_documents = Map.put(documents_by_collection, collection_id, documents)
+      document_errors = document_errors_map(socket)
+
+      socket
+      |> assign(:documents_by_collection, updated_documents)
+      |> assign(
+        :document_errors,
+        put_document_errors(document_errors, collection_id, errors)
+      )
+    end
+  end
+
+  defp ensure_collection_expanded(socket, nil), do: socket
+
+  defp ensure_collection_expanded(socket, collection_id) do
+    assign(
+      socket,
+      :expanded_collections,
+      MapSet.put(expanded_collections(socket), collection_id)
+    )
+  end
+
+  defp ensure_document_in_collection(socket, %Types.DocumentDetail{} = document) do
+    collection_id = document.collection_id
+    documents_by_collection = documents_map(socket)
+
+    cond do
+      is_nil(collection_id) ->
+        socket
+
+      not Map.has_key?(documents_by_collection, collection_id) ->
+        socket
+
+      Enum.any?(Map.get(documents_by_collection, collection_id, []), &(&1.id == document.id)) ->
+        socket
+
+      true ->
+        summary =
+          struct!(
+            Types.DocumentSummary,
+            id: document.id,
+            collection_id: collection_id,
+            title: document.title,
+            summary: document.summary,
+            tags: document.tags,
+            owner: document.owner,
+            share_url: document.share_url,
+            last_updated_at: document.last_updated_at,
+            synced_at: document.synced_at
+          )
+
+        updated =
+          Map.update(documents_by_collection, collection_id, [summary], fn docs ->
+            [summary | docs]
+          end)
+
+        assign(socket, :documents_by_collection, updated)
+    end
+  end
+
+  defp documents_for_collection(_documents_by_collection, nil), do: []
+
+  defp documents_for_collection(documents_by_collection, collection_id) do
+    Map.get(documents_by_collection, collection_id, [])
+  end
+
+  defp documents_map(socket) do
+    Map.get(socket.assigns, :documents_by_collection, %{})
+  end
+
+  defp document_errors_map(socket) do
+    case Map.get(socket.assigns, :document_errors, %{}) do
+      value when is_map(value) -> value
+      _ -> %{}
+    end
+  end
+
+  defp expanded_collections(socket) do
+    case Map.get(socket.assigns, :expanded_collections) do
+      %MapSet{} = set -> set
+      _ -> MapSet.new()
+    end
+  end
+
+  defp assign_documents(socket, nil) do
+    docs =
+      documents_map(socket)
+      |> documents_for_collection(socket.assigns.selected_collection_id)
+
+    assign(socket, :documents, docs)
+  end
+
+  defp assign_documents(socket, collection_id) do
+    docs = documents_for_collection(documents_map(socket), collection_id)
+
+    assign(socket, :documents, docs)
+  end
+
+  defp dedupe_recent_documents(documents) when is_list(documents) do
+    Enum.uniq_by(documents, & &1.document_id)
+  end
+
+  defp blank_to_nil(nil), do: nil
+  defp blank_to_nil(""), do: nil
+  defp blank_to_nil(value), do: value
 
   defp preload_first_document([]), do: {nil, nil, nil}
 
@@ -330,18 +600,6 @@ defmodule DashboardSSDWeb.KbLive.Index do
     })
   end
 
-  defp format_collection_error(%{collection_id: id, reason: reason}),
-    do: "#{id}: #{format_reason(reason)}"
-
-  defp format_collection_error(%{reason: reason}), do: format_reason(reason)
-  defp format_collection_error(other), do: inspect(other)
-
-  defp format_document_error(%{collection_id: id, reason: reason}),
-    do: "#{id}: #{format_reason(reason)}"
-
-  defp format_document_error(%{reason: reason}), do: format_reason(reason)
-  defp format_document_error(other), do: inspect(other)
-
   defp format_reader_error(nil), do: nil
 
   defp format_reader_error(%{document_id: id, reason: reason}),
@@ -356,100 +614,121 @@ defmodule DashboardSSDWeb.KbLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="flex flex-col gap-8">
-      <div class="grid gap-6 lg:grid-cols-[minmax(0,280px)_minmax(0,340px)_minmax(0,1fr)]">
-        <div class="space-y-4">
-          <.collection_list collections={@collections} selected_id={@selected_collection_id} />
-
-          <%= if @collection_errors != [] do %>
-            <div class="rounded-md border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-200">
-              <p :for={error <- @collection_errors}>{format_collection_error(error)}</p>
-            </div>
-          <% end %>
-        </div>
-
-        <div class="space-y-4">
-          <.document_list documents={@documents} selected_id={@selected_document_id} />
-
-          <%= if @document_errors != [] do %>
-            <div class="rounded-md border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-200">
-              <p :for={error <- @document_errors}>{format_document_error(error)}</p>
-            </div>
-          <% end %>
-        </div>
-
-        <div class="space-y-4">
-          <.document_viewer document={@selected_document} error={format_reader_error(@reader_error)} />
-        </div>
-      </div>
-
-      <.recent_activity_list documents={@recent_documents} errors={@recent_errors} />
-
-      <div class="theme-card px-4 py-4 sm:px-6">
-        <form phx-submit="search" class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-          <div class="flex flex-1 items-center gap-3">
+    <div class="flex flex-col gap-6 lg:gap-8">
+      <section class="theme-card px-4 py-4 sm:px-6">
+        <form
+          phx-change="typeahead_search"
+          phx-submit="typeahead_search"
+          class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4"
+          autocomplete="off"
+        >
+          <div class="relative flex-1" phx-click-away="close_search_dropdown">
             <input
               type="search"
               name="query"
               value={@query}
               placeholder="Search the knowledge base"
-              class="w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white placeholder:text-theme-muted focus:border-white/30 focus:outline-none"
+              autocomplete="off"
+              phx-debounce="300"
+              phx-keydown="close_search_dropdown"
+              phx-key="escape"
+              class="w-full rounded-full border border-theme-border bg-theme-surfaceMuted px-4 py-2 pr-10 text-sm text-theme-text placeholder:text-theme-muted focus:border-theme-primary focus:outline-none"
+            />
+
+            <div
+              :if={@query != ""}
+              phx-click="clear_search"
+              phx-keydown="clear_search_key"
+              role="button"
+              tabindex="0"
+              class="absolute inset-y-0 right-3 flex items-center text-theme-muted transition hover:text-theme-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-primary/40 cursor-pointer"
+            >
+              <span class="sr-only">Clear search</span>
+              <.icon name="hero-x-mark" class="h-4 w-4" />
+            </div>
+
+            <div
+              :if={@search_dropdown_open and @results != []}
+              class="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-xl border border-theme-border bg-theme-surface shadow-theme-soft"
+            >
+              <ul class="flex flex-col divide-y divide-theme-border">
+                <%= for result <- @results do %>
+                  <li>
+                    <div
+                      phx-click="open_search_result"
+                      phx-value-id={result.id}
+                      phx-value-collection={result.collection_id}
+                      phx-keydown="open_search_result_key"
+                      role="button"
+                      tabindex="0"
+                      class="flex w-full cursor-pointer items-start gap-3 px-4 py-3 text-left text-sm text-theme-text transition hover:bg-theme-surfaceRaised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-primary/30"
+                    >
+                      <span :if={result.icon} class="text-xl leading-none text-theme-text">
+                        {result.icon}
+                      </span>
+                      <div class="flex flex-1 flex-col gap-1">
+                        <span class="text-sm font-medium text-theme-text">
+                          {result.title}
+                        </span>
+                        <p :if={result.last_edited} class="text-xs text-theme-muted">
+                          Updated {result.last_edited}
+                        </p>
+                        <a
+                          :if={result.url}
+                          href={result.url}
+                          class="text-xs text-theme-accent underline underline-offset-2"
+                          target="_blank"
+                          rel="noopener"
+                        >
+                          {result.url}
+                        </a>
+                      </div>
+                    </div>
+                  </li>
+                <% end %>
+              </ul>
+            </div>
+
+            <div
+              :if={@search_dropdown_open and @search_performed and @results == [] and @query != ""}
+              class="absolute left-0 right-0 top-full z-20 mt-2 rounded-xl border border-theme-border bg-theme-surface px-4 py-3 text-sm text-theme-muted"
+            >
+              No documents matched your search.
+            </div>
+          </div>
+          <p :if={@search_feedback} class="mt-2 text-xs text-theme-muted">
+            {@search_feedback}
+          </p>
+        </form>
+      </section>
+
+      <div class="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:items-start lg:gap-8">
+        <aside class="order-1 flex flex-col gap-6 lg:order-1">
+          <.collection_tree
+            collections={@collections}
+            collection_errors={@collection_errors}
+            documents_by_collection={@documents_by_collection}
+            document_errors={@document_errors}
+            expanded_ids={@expanded_collections}
+            selected_collection_id={@selected_collection_id}
+            selected_document_id={@selected_document_id}
+          />
+          <.recent_activity_list
+            documents={@recent_documents}
+            errors={@recent_errors}
+            selected_document_id={@selected_document_id}
+          />
+        </aside>
+
+        <section class="order-2 lg:order-2">
+          <div class="theme-card h-full min-h-[360px] px-4 py-4 sm:px-6 lg:min-h-[70vh]">
+            <.document_viewer
+              document={@selected_document}
+              error={format_reader_error(@reader_error)}
             />
           </div>
-          <button
-            type="submit"
-            class="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:border-white/20 hover:bg-white/10"
-          >
-            Search
-          </button>
-        </form>
+        </section>
       </div>
-
-      <%= cond do %>
-        <% @results != [] -> %>
-          <div class="flex flex-col gap-4">
-            <%= for result <- @results do %>
-              <button
-                type="button"
-                phx-click="open_search_result"
-                phx-value-id={result.id}
-                phx-value-collection={result.collection_id}
-                class="w-full text-left theme-card px-5 py-4 transition hover:border-white/20 hover:bg-white/5"
-              >
-                <div class="flex flex-wrap items-start gap-3">
-                  <span :if={result.icon} class="text-2xl leading-none">{result.icon}</span>
-                  <div class="flex flex-1 flex-col gap-1">
-                    <p class="text-lg font-semibold text-white">{result.title}</p>
-                    <p :if={result.last_edited} class="text-xs text-theme-muted">
-                      Updated {result.last_edited}
-                      <span :if={result.collection_id} class="ml-2">
-                        • Collection {result.collection_id}
-                      </span>
-                    </p>
-                  </div>
-                  <div>
-                    <a
-                      href={result.url}
-                      class="text-sm text-theme-accent underline"
-                      target="_blank"
-                      rel="noopener"
-                    >
-                      Open in Notion
-                    </a>
-                  </div>
-                </div>
-              </button>
-            <% end %>
-          </div>
-        <% @search_performed and @results == [] -> %>
-          <div class="rounded-md border border-white/10 bg-white/5 px-4 py-3 text-sm text-theme-muted">
-            No documents matched your search.
-          </div>
-        <% true -> %>
-          <div class="text-sm text-theme-muted">
-            Enter a search term above to explore everything inside the knowledge base.
-          </div>
-      <% end %>
     </div>
     """
   end
