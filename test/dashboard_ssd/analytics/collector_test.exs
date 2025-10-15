@@ -1,8 +1,7 @@
 defmodule DashboardSSD.Analytics.CollectorTest do
-  use DashboardSSD.DataCase, async: false
+  use DashboardSSD.DataCase, async: true
 
   import ExUnit.CaptureLog
-  import Mox
 
   alias DashboardSSD.Analytics.Collector
   alias DashboardSSD.Analytics.MetricSnapshot
@@ -75,15 +74,13 @@ defmodule DashboardSSD.Analytics.CollectorTest do
     end
 
     test "returns response time for successful requests" do
-      stub(DashboardSSD.Analytics.HTTPClientMock, :request, fn _url, _opts ->
-        {:ok, %Finch.Response{status: 200, body: "OK"}}
+      Tesla.Mock.mock(fn
+        %{method: :get, url: "http://example.com/"} ->
+          %Tesla.Env{status: 200, body: "OK"}
       end)
 
       url = "http://example.com/"
-
-      assert {:ok, response_time} =
-               Collector.collect_response_time(url, DashboardSSD.Analytics.HTTPClientMock)
-
+      assert {:ok, response_time} = Collector.collect_response_time(url)
       assert is_float(response_time)
       assert response_time >= 0
     end
@@ -160,16 +157,18 @@ defmodule DashboardSSD.Analytics.CollectorTest do
     test "collects http metrics for http provider" do
       project_id = project_id()
 
-      stub(DashboardSSD.Analytics.HTTPClientMock, :request, fn _url, _opts ->
-        {:ok, %Finch.Response{status: 200, body: "OK"}}
+      Tesla.Mock.mock(fn
+        %{method: :get, url: "http://example.com/"} ->
+          %Tesla.Env{status: 200, body: "OK"}
       end)
 
-      assert :ok ==
-               Collector.collect_http_metrics(
-                 project_id,
-                 "http://example.com/",
-                 DashboardSSD.Analytics.HTTPClientMock
-               )
+      setting = %DashboardSSD.Deployments.HealthCheckSetting{
+        project_id: project_id,
+        provider: "http",
+        endpoint_url: "http://example.com/"
+      }
+
+      assert :ok == Collector.collect_project_metrics(setting)
 
       # Check that metrics were created
       response_time_metric =
