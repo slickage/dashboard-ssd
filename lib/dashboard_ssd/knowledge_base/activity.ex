@@ -34,6 +34,7 @@ defmodule DashboardSSD.KnowledgeBase.Activity do
         %{
           "document_id" => document_id,
           "document_title" => attr_value(document_attrs, :document_title),
+          "document_icon" => attr_value(document_attrs, :document_icon),
           "document_share_url" => attr_value(document_attrs, :document_share_url)
         }
         |> Map.merge(metadata)
@@ -152,6 +153,7 @@ defmodule DashboardSSD.KnowledgeBase.Activity do
       user_id: user_id,
       document_id: details["document_id"] || details[:document_id],
       document_title: details["document_title"] || details[:document_title],
+      document_icon: details["document_icon"] || details[:document_icon],
       document_share_url: details["document_share_url"] || details[:document_share_url],
       occurred_at: convert_to_datetime(occurred_at),
       metadata:
@@ -162,6 +164,8 @@ defmodule DashboardSSD.KnowledgeBase.Activity do
           :document_id,
           "document_title",
           :document_title,
+          "document_icon",
+          :document_icon,
           "document_share_url",
           :document_share_url
         ])

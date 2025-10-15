@@ -600,6 +600,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
       user_id: socket.assigns[:current_user] && socket.assigns.current_user.id,
       document_id: document.id,
       document_title: document.title,
+      document_icon: document.icon,
       document_share_url: document.share_url,
       occurred_at: document.last_updated_at || DateTime.utc_now(),
       metadata: %{}
