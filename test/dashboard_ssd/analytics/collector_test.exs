@@ -1,5 +1,5 @@
 defmodule DashboardSSD.Analytics.CollectorTest do
-  use DashboardSSD.DataCase, async: true
+  use DashboardSSD.DataCase, async: false
 
   import ExUnit.CaptureLog
   import Mox
@@ -9,8 +9,6 @@ defmodule DashboardSSD.Analytics.CollectorTest do
   alias DashboardSSD.Clients
   alias DashboardSSD.Projects
   alias DashboardSSD.Repo
-
-  Mox.defmock(FinchMock, [])
 
   describe "calculate_mttr_from_uptimes/1" do
     test "returns :no_failures when no downtime metrics present" do
@@ -77,12 +75,15 @@ defmodule DashboardSSD.Analytics.CollectorTest do
     end
 
     test "returns response time for successful requests" do
-      expect(FinchMock, :request, fn _req, _opts ->
+      stub(DashboardSSD.Analytics.HTTPClientMock, :request, fn _url, _opts ->
         {:ok, %Finch.Response{status: 200, body: "OK"}}
       end)
 
       url = "http://example.com/"
-      assert {:ok, response_time} = Collector.collect_response_time(url)
+
+      assert {:ok, response_time} =
+               Collector.collect_response_time(url, DashboardSSD.Analytics.HTTPClientMock)
+
       assert is_float(response_time)
       assert response_time >= 0
     end
@@ -159,17 +160,16 @@ defmodule DashboardSSD.Analytics.CollectorTest do
     test "collects http metrics for http provider" do
       project_id = project_id()
 
-      expect(FinchMock, :request, fn _req, _opts ->
+      stub(DashboardSSD.Analytics.HTTPClientMock, :request, fn _url, _opts ->
         {:ok, %Finch.Response{status: 200, body: "OK"}}
       end)
 
-      setting = %DashboardSSD.Deployments.HealthCheckSetting{
-        project_id: project_id,
-        provider: "http",
-        endpoint_url: "http://example.com/"
-      }
-
-      assert :ok == Collector.collect_project_metrics(setting)
+      assert :ok ==
+               Collector.collect_http_metrics(
+                 project_id,
+                 "http://example.com/",
+                 DashboardSSD.Analytics.HTTPClientMock
+               )
 
       # Check that metrics were created
       response_time_metric =
