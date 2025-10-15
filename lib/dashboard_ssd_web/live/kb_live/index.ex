@@ -209,7 +209,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
     case load_document_detail(document_id) do
       {:ok, document} ->
         record_document_view(socket.assigns[:current_user], document)
-        {recent_documents, recent_errors} = load_recent_documents(socket.assigns[:current_user])
+        {recent_documents, recent_errors} = refresh_recent_documents(socket, document)
 
         selected_collection_id = document.collection_id || socket.assigns.selected_collection_id
 
@@ -278,7 +278,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
     case load_document_detail(document_id) do
       {:ok, document} ->
         record_document_view(socket.assigns[:current_user], document)
-        {recent_documents, recent_errors} = load_recent_documents(socket.assigns[:current_user])
+        {recent_documents, recent_errors} = refresh_recent_documents(socket, document)
 
         collection_id =
           document.collection_id || collection_id || socket.assigns.selected_collection_id
@@ -569,6 +569,76 @@ defmodule DashboardSSDWeb.KbLive.Index do
 
   defp dedupe_recent_documents(documents) when is_list(documents) do
     Enum.uniq_by(documents, & &1.document_id)
+  end
+
+  defp refresh_recent_documents(socket, %Types.DocumentDetail{} = document) do
+    existing_recent = socket.assigns[:recent_documents] || []
+    existing_errors = socket.assigns[:recent_errors] || []
+
+    {docs, errors} =
+      case socket.assigns[:current_user] do
+        nil ->
+          {existing_recent, existing_errors}
+
+        user ->
+          case Activity.recent_documents(user) do
+            {:ok, fetched} ->
+              {dedupe_recent_documents(fetched), []}
+
+            {:error, reason} ->
+              {existing_recent, [%{reason: reason}]}
+          end
+      end
+
+    base_docs =
+      case docs do
+        [] -> existing_recent
+        _ -> docs
+      end
+
+    updated =
+      base_docs
+      |> ensure_recent_document(document, socket)
+      |> Enum.take(Enum.max([length(base_docs), 1]))
+
+    {updated, errors}
+  end
+
+  defp ensure_recent_document([], document, socket) do
+    [recent_activity_entry(document, socket)]
+  end
+
+  defp ensure_recent_document(documents, document, socket) do
+    {found, remainder_reversed} =
+      Enum.reduce(documents, {nil, []}, fn entry, {match, acc} ->
+        if is_nil(match) and entry.document_id == document.id do
+          {entry, acc}
+        else
+          {match, [entry | acc]}
+        end
+      end)
+
+    remainder = Enum.reverse(remainder_reversed)
+
+    entry =
+      case found do
+        nil -> recent_activity_entry(document, socket)
+        _ -> found
+      end
+
+    [entry | remainder]
+  end
+
+  defp recent_activity_entry(document, socket) do
+    %Types.RecentActivity{
+      id: nil,
+      user_id: socket.assigns[:current_user] && socket.assigns.current_user.id,
+      document_id: document.id,
+      document_title: document.title,
+      document_share_url: document.share_url,
+      occurred_at: document.last_updated_at || DateTime.utc_now(),
+      metadata: %{}
+    }
   end
 
   defp blank_to_nil(nil), do: nil
