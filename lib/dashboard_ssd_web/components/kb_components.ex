@@ -18,16 +18,36 @@ defmodule DashboardSSDWeb.KbComponents do
     <%= if @icon do %>
       <%= cond do %>
         <% String.starts_with?(@icon, "http") -> %>
-          <img src={@icon} class={image_classes(@size)} alt="Document icon" />
+          <%= if String.ends_with?(@icon, ".svg") do %>
+            <object
+              data={@icon}
+              type="image/svg+xml"
+              class={image_classes(@size)}
+              width="16"
+              height="16"
+            >
+            </object>
+          <% else %>
+            <img
+              src={@icon}
+              class={image_classes(@size)}
+              width="16"
+              height="16"
+              crossorigin="anonymous"
+              alt=""
+            />
+          <% end %>
         <% true -> %>
           <span class={text_classes(@size)}>{@icon}</span>
       <% end %>
+    <% else %>
+      <span class="text-xs text-gray-500">[no icon]</span>
     <% end %>
     """
   end
 
-  defp image_classes("lg"), do: "w-6 h-6"
-  defp image_classes(_), do: "w-4 h-4"
+  defp image_classes("lg"), do: "w-6 h-6 inline-block"
+  defp image_classes(_), do: "w-4 h-4 inline-block"
 
   defp text_classes("lg"), do: "text-2xl"
   defp text_classes(_), do: "text-sm"
