@@ -31,6 +31,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
          query: "",
          results: [],
          search_performed: false,
+         search_loading: false,
          mobile_menu_open: false,
          collections: collections,
          collection_errors: collection_errors,
@@ -272,6 +273,33 @@ defmodule DashboardSSDWeb.KbLive.Index do
            |> assign(:selected_document, nil)
            |> assign(:search_dropdown_open, false)}
       end
+    end
+  end
+
+  @impl true
+  def handle_info({:search_result, query, result}, socket) do
+    case result do
+      {:ok, %{"results" => results}} ->
+        parsed = parse_results(results)
+
+        {:noreply,
+         socket
+         |> assign(:query, query)
+         |> assign(:results, parsed)
+         |> assign(:search_performed, true)
+         |> assign(:search_dropdown_open, true)
+         |> assign(:search_loading, false)
+         |> clear_flash(:error)}
+
+      {:error, reason} ->
+        {:noreply,
+         socket
+         |> assign(:query, query)
+         |> assign(:results, [])
+         |> assign(:search_performed, true)
+         |> assign(:search_dropdown_open, true)
+         |> assign(:search_loading, false)
+         |> put_flash(:error, error_message(reason))}
     end
   end
 
