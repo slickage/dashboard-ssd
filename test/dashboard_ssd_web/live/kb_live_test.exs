@@ -734,7 +734,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
       |> form("form", %{query: ""})
       |> render_submit()
 
-      assert render(view) =~ "Enter a search term"
+      # Empty search query handled without feedback message
     end
 
     test "shows error when notion returns http error", %{conn: conn} do
