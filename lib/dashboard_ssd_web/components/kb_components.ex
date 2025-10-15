@@ -38,8 +38,6 @@ defmodule DashboardSSDWeb.KbComponents do
         <% true -> %>
           <span class={text_classes(@size)}>{@icon}</span>
       <% end %>
-    <% else %>
-      <span class="text-xs text-gray-500">[no icon]</span>
     <% end %>
     """
   end
