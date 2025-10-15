@@ -49,124 +49,154 @@ defmodule DashboardSSDWeb.KbComponents do
   end
 
   attr :collections, :list, default: []
-  attr :selected_id, :any, default: nil
+  attr :collection_errors, :list, default: []
+  attr :documents_by_collection, :map, default: %{}
+  attr :document_errors, :map, default: %{}
+  attr :expanded_ids, :any, default: MapSet.new()
+  attr :selected_collection_id, :any, default: nil
+  attr :selected_document_id, :any, default: nil
 
   @doc false
-  @spec collection_list(map()) :: Rendered.t()
-  def collection_list(assigns) do
+  @spec collection_tree(map()) :: Rendered.t()
+  def collection_tree(assigns) do
     ~H"""
     <section class="flex flex-col gap-3">
-      <h3 class="text-sm font-semibold uppercase tracking-[0.16em] text-theme-muted">
-        Collections
-      </h3>
+      <header class="flex items-center justify-between gap-2">
+        <h3 class="text-xs font-semibold uppercase tracking-[0.16em] text-theme-muted">
+          Collections
+        </h3>
+        <span :if={Enum.any?(@collections)} class="text-xs text-theme-muted">
+          {Enum.count(@collections)}
+        </span>
+      </header>
 
-      <%= if Enum.empty?(@collections) do %>
-        <p class="text-sm text-theme-muted">
-          No curated collections are available yet.
-        </p>
-      <% else %>
-        <ul class="flex flex-col gap-3">
-          <%= for collection <- @collections do %>
-            <li>
-              <button
-                type="button"
-                phx-click="select_collection"
-                phx-value-id={collection.id}
-                class={
-                  [
-                    "w-full text-left rounded-lg border px-4 py-3 transition",
-                    "border-white/10 bg-white/5 hover:border-white/20",
-                    @selected_id == collection.id && "border-theme-accent bg-theme-accent/10"
-                  ]
-                  |> Enum.filter(& &1)
-                }
-              >
-                <div class="flex flex-col gap-1">
-                  <div class="flex items-start justify-between gap-2">
-                    <div class="flex items-center gap-2">
-                      <span :if={collection.icon} class="text-xl leading-none">
-                        {collection.icon}
-                      </span>
-                      <span class="text-base font-semibold text-white">{collection.name}</span>
+      <div
+        :if={Enum.any?(@collection_errors)}
+        class="rounded-md border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs text-amber-200"
+      >
+        <p :for={error <- @collection_errors}>{format_error(error)}</p>
+      </div>
+
+      <% general_doc_errors = Map.get(@document_errors, :general, []) %>
+      <div
+        :if={general_doc_errors != []}
+        class="rounded-md border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs text-amber-200"
+      >
+        <p :for={error <- general_doc_errors}>{format_error(error)}</p>
+      </div>
+
+      <p
+        :if={Enum.empty?(@collections) and Enum.empty?(@collection_errors)}
+        class="text-sm text-theme-muted"
+      >
+        No curated collections are available yet.
+      </p>
+      <p
+        :if={Enum.empty?(@collections) and Enum.empty?(@collection_errors)}
+        class="text-sm text-theme-muted"
+      >
+        No documents are available in this collection yet.
+      </p>
+
+      <div
+        :if={Enum.any?(@collections)}
+        class="rounded-lg border border-theme-border bg-theme-surface"
+      >
+        <div class="max-h-[28rem] overflow-y-auto px-2 py-3">
+          <ul class="flex flex-col gap-2">
+            <%= for collection <- @collections do %>
+              <% expanded? = MapSet.member?(@expanded_ids, collection.id) %>
+              <% selected? = @selected_collection_id == collection.id %>
+              <% documents = Map.get(@documents_by_collection, collection.id, []) %>
+              <% doc_errors = Map.get(@document_errors, collection.id, []) %>
+              <li class="flex flex-col gap-2">
+                <button
+                  type="button"
+                  phx-click="toggle_collection"
+                  phx-value-id={collection.id}
+                  class={
+                    [
+                      "flex w-full items-center justify-between gap-3 rounded-lg border border-theme-border border-opacity-60 px-4 py-3 text-left text-sm text-theme-text transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-primary/30 bg-theme-surfaceMuted cursor-pointer",
+                      selected? && "border-theme-border text-theme-text",
+                      not selected? && "hover:bg-theme-surfaceRaised"
+                    ]
+                    |> Enum.filter(& &1)
+                  }
+                  aria-expanded={expanded?}
+                  phx-keydown="toggle_collection_key"
+                >
+                  <div class="flex items-start gap-2">
+                    <span :if={collection.icon} class="mt-0.5 text-lg leading-none" aria-hidden="true">
+                      {collection.icon}
+                    </span>
+                    <div class="flex flex-col text-theme-text">
+                      <span class="text-sm font-semibold text-theme-text">{collection.name}</span>
+                      <p :if={collection.description} class="text-xs text-theme-muted">
+                        {collection.description}
+                      </p>
+                      <p :if={collection.last_document_updated_at} class="text-xs text-theme-muted">
+                        Updated {format_datetime(collection.last_document_updated_at)}
+                      </p>
                     </div>
-                    <span :if={not is_nil(collection.document_count)} class="theme-pill">
+                  </div>
+                  <div class="flex items-center gap-2 text-xs uppercase tracking-wide text-theme-muted">
+                    <span :if={not is_nil(collection.document_count)}>
                       {collection.document_count} docs
                     </span>
+                    <span class="text-lg leading-none">{if expanded?, do: "-", else: "+"}</span>
                   </div>
-                  <p :if={collection.description} class="text-sm text-theme-muted">
-                    {collection.description}
-                  </p>
-                  <p :if={collection.last_document_updated_at} class="text-xs text-theme-muted">
-                    Updated {format_datetime(collection.last_document_updated_at)}
-                  </p>
+                </button>
+
+                <div
+                  :if={doc_errors != []}
+                  class="rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs text-amber-200"
+                >
+                  <p :for={error <- doc_errors}>{format_error(error)}</p>
                 </div>
-              </button>
-            </li>
-          <% end %>
-        </ul>
-      <% end %>
-    </section>
-    """
-  end
 
-  attr :documents, :list, default: []
-  attr :selected_id, :any, default: nil
+                <ul
+                  :if={expanded? and documents != []}
+                  class="flex flex-col gap-1 border-l border-theme-border border-opacity-70 pl-3"
+                >
+                  <%= for document <- documents do %>
+                    <% document_selected? = @selected_document_id == document.id %>
+                    <li>
+                      <button
+                        type="button"
+                        phx-click="select_document"
+                        phx-value-id={document.id}
+                        class={
+                          [
+                            "flex w-full flex-col gap-1 rounded-md border border-transparent px-3 py-2 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-primary/30 cursor-pointer",
+                            document_selected? &&
+                              "bg-theme-primary text-theme-textActive border-theme-primary",
+                            not document_selected? &&
+                              "bg-theme-surface text-theme-text hover:bg-theme-surfaceRaised"
+                          ]
+                          |> Enum.filter(& &1)
+                        }
+                        phx-keydown="select_document_key"
+                      >
+                        <span class="text-sm font-medium text-theme-text">{document.title}</span>
+                        <p :if={document.summary} class="text-xs text-theme-muted">
+                          {document.summary}
+                        </p>
+                      </button>
+                    </li>
+                  <% end %>
+                </ul>
 
-  @doc false
-  @spec document_list(map()) :: Rendered.t()
-  def document_list(assigns) do
-    ~H"""
-    <section class="flex flex-col gap-3">
-      <h3 class="text-sm font-semibold uppercase tracking-[0.16em] text-theme-muted">
-        Documents
-      </h3>
-
-      <%= if Enum.empty?(@documents) do %>
-        <p class="text-sm text-theme-muted">
-          No documents are available in this collection yet.
-        </p>
-      <% else %>
-        <ul class="flex flex-col gap-3">
-          <%= for document <- @documents do %>
-            <li>
-              <button
-                type="button"
-                phx-click="select_document"
-                phx-value-id={document.id}
-                class={
-                  [
-                    "w-full text-left rounded-lg border px-4 py-3 transition",
-                    "border-white/10 bg-white/5 hover:border-white/20",
-                    @selected_id == document.id && "border-theme-accent bg-theme-accent/10"
-                  ]
-                  |> Enum.filter(& &1)
-                }
-              >
-                <div class="flex flex-col gap-1">
-                  <p class="text-base font-semibold text-white">{document.title}</p>
-                  <p :if={document.summary} class="text-sm text-theme-muted">
-                    {document.summary}
-                  </p>
-                  <div class="flex flex-wrap items-center gap-2 text-xs text-theme-muted">
-                    <span>Owner: {document.owner || "Unknown"}</span>
-                    <span :if={document.last_updated_at}>
-                      • Updated {format_datetime(document.last_updated_at)}
-                    </span>
-                  </div>
-                  <div :if={document.tags != []} class="flex flex-wrap gap-2">
-                    <span
-                      :for={tag <- document.tags}
-                      class="inline-flex items-center rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/80"
-                    >
-                      {tag}
-                    </span>
-                  </div>
-                </div>
-              </button>
-            </li>
-          <% end %>
-        </ul>
-      <% end %>
+                <p
+                  :if={expanded? and documents == [] and doc_errors == []}
+                  class="pl-2 text-xs text-theme-muted"
+                >
+                  No documents available yet.
+                </p>
+              </li>
+            <% end %>
+          </ul>
+        </div>
+      </div>
     </section>
     """
   end
@@ -235,19 +265,45 @@ defmodule DashboardSSDWeb.KbComponents do
   attr :documents, :list, default: []
   attr :errors, :list, default: []
   attr :title, :string, default: "Recently Viewed"
+  attr :selected_document_id, :any, default: nil
 
   @spec recent_activity_list(map()) :: Rendered.t()
   def recent_activity_list(assigns) do
     ~H"""
-    <section class="flex flex-col gap-3">
-      <h3 class="text-sm font-semibold uppercase tracking-[0.16em] text-theme-muted">
-        {@title}
-      </h3>
+    <section class="flex flex-col gap-2">
+      <header class="flex items-center justify-between gap-2">
+        <h3 class="text-xs font-semibold uppercase tracking-[0.16em] text-theme-muted">
+          {@title}
+        </h3>
+        <span :if={Enum.any?(@documents)} class="text-xs text-theme-muted">
+          {Enum.count(@documents)}
+        </span>
+      </header>
 
-      <ul :if={Enum.any?(@documents)} class="flex flex-col gap-3">
+      <div
+        :if={Enum.any?(@errors)}
+        class="rounded-md border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs text-amber-200"
+      >
+        <p :for={error <- @errors}>{format_error(error)}</p>
+      </div>
+
+      <ul :if={Enum.any?(@documents)} class="flex flex-col gap-2">
         <%= for doc <- @documents do %>
-          <li class="theme-card px-4 py-3">
-            <.recent_activity_entry document={doc} />
+          <% title = doc.document_title || doc.document_id %>
+          <li>
+            <div
+              phx-click="select_document"
+              phx-value-id={doc.document_id}
+              phx-keydown="select_document_key"
+              role="button"
+              tabindex="0"
+              class="group flex w-full cursor-pointer flex-col gap-1 rounded-md border border-transparent px-3 py-2 text-left text-sm text-white/80 transition hover:bg-white/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+            >
+              <span class="font-medium text-white group-hover:text-theme-accent">{title}</span>
+              <p class="text-xs uppercase tracking-wide text-theme-muted">
+                Viewed {format_datetime(doc.occurred_at)}
+              </p>
+            </div>
           </li>
         <% end %>
       </ul>
@@ -282,38 +338,6 @@ defmodule DashboardSSDWeb.KbComponents do
         </p>
       </div>
     </article>
-    """
-  end
-
-  attr :document, Types.RecentActivity, required: true
-
-  defp recent_activity_entry(assigns) do
-    title = assigns.document.document_title || assigns.document.document_id
-    url = assigns.document.document_share_url
-
-    assigns =
-      assigns
-      |> assign(:title, title)
-      |> assign(:url, url)
-
-    ~H"""
-    <div class="flex flex-col gap-1">
-      <%= if @url do %>
-        <a
-          href={@url}
-          class="text-sm font-medium text-white transition hover:text-theme-accent"
-          target="_blank"
-          rel="noopener"
-        >
-          {@title}
-        </a>
-      <% else %>
-        <span class="text-sm font-medium text-white">{@title}</span>
-      <% end %>
-      <p class="text-xs text-theme-muted">
-        Viewed {format_datetime(@document.occurred_at)}
-      </p>
-    </div>
     """
   end
 
