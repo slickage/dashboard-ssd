@@ -670,6 +670,7 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
       id: normalize_id(page_id(page)),
       collection_id: normalize_id(page_collection_id),
       title: page_title(page),
+      icon: page_icon(page),
       summary: page_summary(page),
       tags: page_tags(page),
       owner: page_owner(page),
@@ -690,6 +691,7 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
       id: normalize_id(page_id(page)),
       collection_id: normalize_id(page_collection_id),
       title: page_title(page),
+      icon: page_icon(page),
       summary: page_summary(page),
       owner: page_owner(page),
       share_url: page_url(page),
@@ -1359,6 +1361,25 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
       title -> title
     end
   end
+
+  defp page_icon(page) do
+    page
+    |> Map.get("icon")
+    |> page_icon_value()
+  end
+
+  defp page_icon_value(nil), do: nil
+  defp page_icon_value(%{"emoji" => emoji}) when is_binary(emoji), do: emoji
+  defp page_icon_value(%{"type" => "emoji", "emoji" => emoji}) when is_binary(emoji), do: emoji
+
+  defp page_icon_value(%{"type" => "file", "file" => %{"url" => url}}) when is_binary(url),
+    do: url
+
+  defp page_icon_value(%{"type" => "external", "external" => %{"url" => url}})
+       when is_binary(url),
+       do: url
+
+  defp page_icon_value(_), do: nil
 
   defp page_summary(page) do
     candidates = [

@@ -9,6 +9,29 @@ defmodule DashboardSSDWeb.KbComponents do
   alias DashboardSSDWeb.CodeHighlighter
   alias Phoenix.LiveView.Rendered
 
+  attr :icon, :string
+  attr :size, :string, default: "sm"
+
+  @spec document_icon(map()) :: Rendered.t()
+  def document_icon(assigns) do
+    ~H"""
+    <%= if @icon do %>
+      <%= cond do %>
+        <% String.starts_with?(@icon, "http") -> %>
+          <img src={@icon} class={image_classes(@size)} alt="Document icon" />
+        <% true -> %>
+          <span class={text_classes(@size)}>{@icon}</span>
+      <% end %>
+    <% end %>
+    """
+  end
+
+  defp image_classes("lg"), do: "w-6 h-6"
+  defp image_classes(_), do: "w-4 h-4"
+
+  defp text_classes("lg"), do: "text-2xl"
+  defp text_classes(_), do: "text-sm"
+
   attr :collections, :list, default: []
   attr :errors, :list, default: []
   attr :title, :string, default: "Curated Collections"
@@ -116,7 +139,10 @@ defmodule DashboardSSDWeb.KbComponents do
             >
               <div class="flex flex-col gap-2 text-left">
                 <div class="flex flex-col gap-1">
-                  <span class="text-sm font-medium text-theme-text">{document.title}</span>
+                  <div class="flex items-center gap-2">
+                    <.document_icon icon={document.icon} />
+                    <span class="text-sm font-medium text-theme-text">{document.title}</span>
+                  </div>
                   <p :if={document.summary} class="text-xs text-theme-muted">
                     {document.summary}
                   </p>
@@ -283,7 +309,10 @@ defmodule DashboardSSDWeb.KbComponents do
                         }
                         phx-keydown="select_document_key"
                       >
-                        <span class="text-sm font-medium text-theme-text">{document.title}</span>
+                        <div class="flex items-center gap-2">
+                          <.document_icon icon={document.icon} />
+                          <span class="text-sm font-medium text-theme-text">{document.title}</span>
+                        </div>
                         <p :if={document.summary} class="text-xs text-theme-muted">
                           {document.summary}
                         </p>
@@ -354,7 +383,10 @@ defmodule DashboardSSDWeb.KbComponents do
         <% true -> %>
           <article class="flex flex-col gap-6">
             <header class="border-b border-white/10 pb-3">
-              <h1 class="text-2xl font-semibold text-white">{@document.title}</h1>
+              <h1 class="text-2xl font-semibold text-white flex items-center gap-3">
+                <.document_icon icon={@document.icon} size="lg" />
+                <span>{@document.title}</span>
+              </h1>
               <div class="mt-2 flex flex-wrap items-center gap-4 text-sm text-theme-muted">
                 <span>Owner: {@document.owner || "Unknown"}</span>
                 <span :if={@document.last_updated_at}>
@@ -425,7 +457,10 @@ defmodule DashboardSSDWeb.KbComponents do
               tabindex="0"
               class="group flex w-full cursor-pointer flex-col gap-1 rounded-md border border-transparent px-3 py-2 text-left text-sm text-white/80 transition hover:bg-white/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
             >
-              <span class="font-medium text-white group-hover:text-theme-accent">{title}</span>
+              <div class="flex items-center gap-2">
+                <.document_icon icon={doc.document_icon} />
+                <span class="font-medium text-white group-hover:text-theme-accent">{title}</span>
+              </div>
               <p class="text-xs uppercase tracking-wide text-theme-muted">
                 Viewed {format_datetime(doc.occurred_at)}
               </p>
