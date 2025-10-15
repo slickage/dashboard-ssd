@@ -962,6 +962,47 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       assert {:ok, %{documents: [], errors: []}} = Catalog.list_documents("db-handbook")
     end
 
+    test "includes documents for exempt databases even when type is not allowlisted" do
+      Cache.reset()
+      Notion.reset_circuits()
+
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
+        curated_collections: [
+          %{"id" => "db-handbook", "name" => "Company Handbook"}
+        ],
+        allowed_document_type_values: ["Wiki"],
+        document_type_property_names: ["Type"],
+        allow_documents_without_type?: false,
+        document_type_filter_exempt_ids: ["db-handbook"]
+      )
+
+      page = %{
+        "id" => "page-task",
+        "url" => "https://notion.so/page-task",
+        "created_time" => "2024-06-01T09:00:00Z",
+        "last_edited_time" => "2024-06-01T12:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{
+            "type" => "title",
+            "title" => [%{"plain_text" => "Daily Tasks"}]
+          },
+          "Type" => %{
+            "type" => "select",
+            "select" => %{"name" => "Task"}
+          }
+        }
+      }
+
+      NotionMock
+      |> expect(:query_database, fn "token", "db-handbook", _opts ->
+        {:ok, %{"results" => [page], "has_more" => false, "next_cursor" => nil}}
+      end)
+
+      assert {:ok, %{documents: [summary], errors: []}} = Catalog.list_documents("db-handbook")
+      assert summary.id == "page-task"
+    end
+
     test "returns errors when query fails" do
       NotionMock
       |> expect(:query_database, fn "token", "db-fail", _opts ->
