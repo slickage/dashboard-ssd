@@ -70,13 +70,15 @@ defmodule DashboardSSD.KnowledgeBase.Activity do
         from a in "audits",
           where: a.user_id == ^user_id and a.action == ^@action,
           order_by: [desc: a.inserted_at],
-          limit: ^limit,
+          limit: 50,
           select: %{details: a.details, occurred_at: a.inserted_at}
 
       activities =
         query
         |> Repo.all()
         |> Enum.map(&to_recent_activity(user_id, &1))
+        |> dedupe_recent_documents()
+        |> Enum.take(limit)
 
       {:ok, activities}
     end
@@ -177,4 +179,8 @@ defmodule DashboardSSD.KnowledgeBase.Activity do
   end
 
   defp convert_to_datetime(_), do: DateTime.utc_now()
+
+  defp dedupe_recent_documents(activities) do
+    Enum.uniq_by(activities, & &1.document_id)
+  end
 end

@@ -588,13 +588,13 @@ defmodule DashboardSSDWeb.KbLive.Index do
     existing_recent = socket.assigns[:recent_documents] || []
     existing_errors = socket.assigns[:recent_errors] || []
 
-    {docs, errors} = fetch_recent_documents(socket, existing_recent, existing_errors)
-    base_docs = if docs == [], do: existing_recent, else: docs
+    {fetched_docs, errors} = fetch_recent_documents(socket, existing_recent, existing_errors)
 
     updated =
-      base_docs
-      |> upsert_recent_document(document, socket)
-      |> trim_recent_documents(length(base_docs))
+      fetched_docs
+      |> move_document_to_front(document, socket)
+      |> dedupe_recent_documents()
+      |> trim_recent_documents(5)
 
     {updated, errors}
   end
@@ -627,19 +627,15 @@ defmodule DashboardSSDWeb.KbLive.Index do
     end
   end
 
-  defp upsert_recent_document([], document, socket) do
-    [recent_activity_entry(document, socket)]
-  end
-
-  defp upsert_recent_document(documents, document, socket) do
-    entry = Enum.find(documents, &(&1.document_id == document.id))
-    entry = entry || recent_activity_entry(document, socket)
+  defp move_document_to_front(documents, document, socket) do
+    entry =
+      Enum.find(documents, &(&1.document_id == document.id)) ||
+        recent_activity_entry(document, socket)
 
     rest = Enum.reject(documents, &(&1.document_id == document.id))
     [entry | rest]
   end
 
-  defp trim_recent_documents(documents, 0), do: documents
   defp trim_recent_documents(documents, count), do: Enum.take(documents, count)
 
   defp blank_to_nil(nil), do: nil
