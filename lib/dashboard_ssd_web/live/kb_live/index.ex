@@ -46,8 +46,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
          recent_errors: recent_errors,
          expanded_collections: expanded_collections,
          search_dropdown_open: false,
-         pending_document_id: nil,
-         search_feedback: nil
+         pending_document_id: nil
        )}
     else
       {:ok,
@@ -69,7 +68,6 @@ defmodule DashboardSSDWeb.KbLive.Index do
        |> assign(:results, [])
        |> assign(:search_performed, false)
        |> assign(:search_dropdown_open, false)
-       |> assign(:search_feedback, "Enter a search term")
        |> clear_flash(:error)}
     else
       case Integrations.notion_search(query) do
@@ -82,7 +80,6 @@ defmodule DashboardSSDWeb.KbLive.Index do
            |> assign(:results, parsed)
            |> assign(:search_performed, true)
            |> assign(:search_dropdown_open, true)
-           |> assign(:search_feedback, nil)
            |> clear_flash(:error)}
 
         {:error, {:missing_env, _env}} ->
@@ -92,7 +89,6 @@ defmodule DashboardSSDWeb.KbLive.Index do
            |> assign(:results, [])
            |> assign(:search_performed, true)
            |> assign(:search_dropdown_open, true)
-           |> assign(:search_feedback, nil)
            |> put_flash(:error, "Notion integration is not configured.")}
 
         {:error, reason} ->
@@ -102,7 +98,6 @@ defmodule DashboardSSDWeb.KbLive.Index do
            |> assign(:results, [])
            |> assign(:search_performed, true)
            |> assign(:search_dropdown_open, true)
-           |> assign(:search_feedback, nil)
            |> put_flash(:error, error_message(reason))}
       end
     end
@@ -763,9 +758,6 @@ defmodule DashboardSSDWeb.KbLive.Index do
               No documents matched your search.
             </div>
           </div>
-          <p :if={@search_feedback} class="mt-2 text-xs text-theme-muted">
-            {@search_feedback}
-          </p>
         </form>
       </section>
 
