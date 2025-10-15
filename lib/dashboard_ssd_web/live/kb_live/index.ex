@@ -659,6 +659,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
     Activity.record_view(user, %{
       document_id: document.id,
       document_title: document.title,
+      document_icon: document.icon,
       document_share_url: document.share_url
     })
   end
