@@ -12,7 +12,7 @@ defmodule DashboardSSDWeb.Router do
 
     plug :put_secure_browser_headers, %{
       "content-security-policy" =>
-        "default-src 'self'; img-src 'self' data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+        "default-src 'self'; img-src 'self' data: https:; object-src 'self' https:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
     }
 
     plug DashboardSSDWeb.Plugs.CurrentUser
