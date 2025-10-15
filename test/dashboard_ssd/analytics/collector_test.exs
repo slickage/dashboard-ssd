@@ -2,12 +2,15 @@ defmodule DashboardSSD.Analytics.CollectorTest do
   use DashboardSSD.DataCase, async: true
 
   import ExUnit.CaptureLog
+  import Mox
 
   alias DashboardSSD.Analytics.Collector
   alias DashboardSSD.Analytics.MetricSnapshot
   alias DashboardSSD.Clients
   alias DashboardSSD.Projects
   alias DashboardSSD.Repo
+
+  Mox.defmock(FinchMock, [])
 
   describe "calculate_mttr_from_uptimes/1" do
     test "returns :no_failures when no downtime metrics present" do
@@ -31,6 +34,32 @@ defmodule DashboardSSD.Analytics.CollectorTest do
       assert {:ok, mttr} = Collector.calculate_mttr_from_uptimes(uptimes)
       assert mttr == 25.0
     end
+
+    test "returns no failures when uptimes list is empty" do
+      assert :no_failures = Collector.calculate_mttr_from_uptimes([])
+    end
+
+    test "handles single failure without recovery" do
+      uptimes = [
+        %{inserted_at: ~U[2024-05-01 10:00:00Z], value: 100},
+        %{inserted_at: ~U[2024-05-01 10:15:00Z], value: 0}
+      ]
+
+      assert :no_failures = Collector.calculate_mttr_from_uptimes(uptimes)
+    end
+
+    test "calculates mttr with multiple failures and recoveries" do
+      uptimes = [
+        %{inserted_at: ~U[2024-05-01 10:00:00Z], value: 100},
+        %{inserted_at: ~U[2024-05-01 10:10:00Z], value: 0},
+        %{inserted_at: ~U[2024-05-01 10:20:00Z], value: 100},
+        %{inserted_at: ~U[2024-05-01 10:30:00Z], value: 0},
+        %{inserted_at: ~U[2024-05-01 10:50:00Z], value: 100}
+      ]
+
+      assert {:ok, mttr} = Collector.calculate_mttr_from_uptimes(uptimes)
+      assert mttr == 15.0
+    end
   end
 
   describe "collect_response_time/1" do
@@ -45,6 +74,17 @@ defmodule DashboardSSD.Analytics.CollectorTest do
         end)
 
       assert log =~ "Error collecting response time for not a url"
+    end
+
+    test "returns response time for successful requests" do
+      expect(FinchMock, :request, fn _req, _opts ->
+        {:ok, %Finch.Response{status: 200, body: "OK"}}
+      end)
+
+      url = "http://example.com/"
+      assert {:ok, response_time} = Collector.collect_response_time(url)
+      assert is_float(response_time)
+      assert response_time >= 0
     end
   end
 
@@ -106,6 +146,42 @@ defmodule DashboardSSD.Analytics.CollectorTest do
 
       assert :ok == Collector.collect_project_metrics(setting)
     end
+
+    test "logs debug for aws_elbv2 provider" do
+      setting = %DashboardSSD.Deployments.HealthCheckSetting{
+        project_id: project_id(),
+        provider: "aws_elbv2"
+      }
+
+      assert :ok == Collector.collect_project_metrics(setting)
+    end
+
+    test "collects http metrics for http provider" do
+      project_id = project_id()
+
+      expect(FinchMock, :request, fn _req, _opts ->
+        {:ok, %Finch.Response{status: 200, body: "OK"}}
+      end)
+
+      setting = %DashboardSSD.Deployments.HealthCheckSetting{
+        project_id: project_id,
+        provider: "http",
+        endpoint_url: "http://example.com/"
+      }
+
+      assert :ok == Collector.collect_project_metrics(setting)
+
+      # Check that metrics were created
+      response_time_metric =
+        Repo.get_by(MetricSnapshot, project_id: project_id, type: "response_time")
+
+      uptime_metric = Repo.get_by(MetricSnapshot, project_id: project_id, type: "uptime")
+
+      assert response_time_metric
+      assert response_time_metric.value >= 0
+      assert uptime_metric
+      assert uptime_metric.value == 100.0
+    end
   end
 
   describe "collect_linear_throughput/1" do
@@ -131,6 +207,30 @@ defmodule DashboardSSD.Analytics.CollectorTest do
         ])
 
       assert [{^now, _}] = periods
+    end
+
+    test "returns empty list when no failures" do
+      periods =
+        Collector.find_failure_periods([
+          %{value: 100.0, inserted_at: DateTime.utc_now()}
+        ])
+
+      assert periods == []
+    end
+
+    test "handles multiple failure periods" do
+      now = DateTime.utc_now()
+
+      periods =
+        Collector.find_failure_periods([
+          %{value: 100.0, inserted_at: now},
+          %{value: 0.0, inserted_at: DateTime.add(now, 60, :second)},
+          %{value: 100.0, inserted_at: DateTime.add(now, 120, :second)},
+          %{value: 0.0, inserted_at: DateTime.add(now, 180, :second)},
+          %{value: 100.0, inserted_at: DateTime.add(now, 240, :second)}
+        ])
+
+      assert length(periods) == 2
     end
   end
 

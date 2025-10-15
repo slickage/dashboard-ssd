@@ -554,6 +554,131 @@ defmodule DashboardSSDWeb.KbLiveTest do
       assert assigns.reader_error == %{document_id: "page-1", reason: {:http_error, 401, %{}}}
       assert assigns.selected_document == nil
     end
+
+    test "selects document on keydown", %{conn: conn} do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "select-key@example.com",
+          name: "Select Key",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      page = %{
+        "id" => "page-1",
+        "url" => "https://notion.so/page-1",
+        "created_time" => "2024-05-01T10:00:00Z",
+        "last_edited_time" => "2024-05-01T12:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Key Select"}]}
+        }
+      }
+
+      NotionMock
+      |> expect(:query_database, 2, fn "tok", "db-handbook", _opts ->
+        {:ok, %{"results" => [page], "has_more" => false, "next_cursor" => nil}}
+      end)
+      |> stub(:retrieve_page, fn "tok", "page-1", _opts -> {:ok, page} end)
+      |> stub(:retrieve_block_children, fn "tok", "page-1", _opts ->
+        {:ok, %{"results" => [], "has_more" => false, "next_cursor" => nil}}
+      end)
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      view
+      |> element("button[phx-value-id='page-1']")
+      |> render_keydown(%{key: "Enter"})
+
+      html = render(view)
+      assert html =~ "Key Select"
+    end
+
+    test "toggles collection on keydown", %{conn: conn} do
+      Application.put_env(:dashboard_ssd, :integrations,
+        notion_token: "tok",
+        notion_curated_database_ids: ["db-handbook", "db-guides"]
+      )
+
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
+        curated_collections: [
+          %{"id" => "db-handbook", "name" => "Company Handbook"},
+          %{"id" => "db-guides", "name" => "Implementation Guides"}
+        ]
+      )
+
+      Cache.reset()
+      Notion.reset_circuits()
+
+      handbook_page = %{
+        "id" => "page-1",
+        "url" => "https://notion.so/page-1",
+        "created_time" => "2024-05-01T10:00:00Z",
+        "last_edited_time" => "2024-05-01T12:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Handbook"}]}
+        }
+      }
+
+      guide_page = %{
+        "id" => "page-2",
+        "url" => "https://notion.so/page-2",
+        "created_time" => "2024-05-02T10:00:00Z",
+        "last_edited_time" => "2024-05-02T12:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-guides"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Key Guide"}]}
+        }
+      }
+
+      NotionMock
+      |> stub(:query_database, fn "tok", db_id, _opts ->
+        case db_id do
+          "db-handbook" ->
+            {:ok,
+             %{
+               "results" => [handbook_page],
+               "has_more" => false,
+               "next_cursor" => nil
+             }}
+
+          "db-guides" ->
+            {:ok,
+             %{
+               "results" => [guide_page],
+               "has_more" => false,
+               "next_cursor" => nil
+             }}
+        end
+      end)
+      |> stub(:retrieve_page, fn "tok", page_id, _opts ->
+        case page_id do
+          "page-1" -> {:ok, handbook_page}
+          "page-2" -> {:ok, guide_page}
+        end
+      end)
+      |> stub(:retrieve_block_children, fn "tok", _page_id, _opts ->
+        {:ok, %{"results" => [], "has_more" => false, "next_cursor" => nil}}
+      end)
+
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "toggle-key@example.com",
+          name: "Toggle Key",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      view
+      |> element("button[phx-value-id='db-guides']")
+      |> render_keydown(%{key: "Enter"})
+
+      html = render(view)
+      assert html =~ "Key Guide"
+    end
   end
 
   describe "search" do
@@ -832,6 +957,86 @@ defmodule DashboardSSDWeb.KbLiveTest do
       |> render_submit()
 
       assert render(view) =~ "Unable to reach Notion"
+    end
+
+    test "clears search on x button keydown", %{conn: conn} do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "clear-key@example.com",
+          name: "Clear Key",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      Tesla.Mock.mock(fn
+        %{method: :post, url: "https://api.notion.com/v1/search"} ->
+          %Tesla.Env{status: 200, body: %{"results" => []}}
+      end)
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      view
+      |> form("form", %{query: "test"})
+      |> render_change()
+
+      assert render(view) =~ "test"
+
+      view
+      |> element("div[phx-click='clear_search']")
+      |> render_keydown(%{key: "Enter"})
+
+      html = render(view)
+      refute html =~ "test"
+    end
+
+    test "handles async search result", %{conn: conn} do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "async@example.com",
+          name: "Async",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      send(
+        view.pid,
+        {:search_result, "test",
+         {:ok,
+          %{
+            "results" => [
+              %{
+                "id" => "page-1",
+                "url" => "https://notion.so/page-1",
+                "last_edited_time" => "2024-05-01T12:00:00Z",
+                "properties" => %{
+                  "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Async Test"}]}
+                }
+              }
+            ]
+          }}}
+      )
+
+      html = render(view)
+      assert html =~ "Async Test"
+    end
+
+    test "handles async search error", %{conn: conn} do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "async-error@example.com",
+          name: "Async Error",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      send(view.pid, {:search_result, "test", {:error, :timeout}})
+
+      html = render(view)
+      assert html =~ "Unable to reach Notion"
     end
 
     test "mobile menu toggle works", %{conn: conn} do
