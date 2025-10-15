@@ -518,7 +518,7 @@ defmodule DashboardSSDWeb.KbComponents do
           <div :if={language} class="kb-code-header">
             {language}
           </div>
-          <pre class="kb-code-pre"><code class={"kb-code language-" <> CodeHighlighter.css_language(language)}><%= highlighted %></code></pre>
+          <pre class="kb-code-pre"><code class={"highlight kb-code language-" <> CodeHighlighter.css_language(language)}><%= highlighted %></code></pre>
         </div>
       <% :divider -> %>
         <hr class="border-white/10" />
