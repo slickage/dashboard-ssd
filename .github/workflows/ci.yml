@@ -18,17 +18,13 @@ on:
         default: 'false'
         required: false
 
-permissions:
-  contents: read
-  id-token: write
-  packages: write
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
+
     runs-on: ubuntu-latest
 
     services:
@@ -247,7 +243,11 @@ jobs:
         run: npx semantic-release --ci
 
   docker:
-    needs: build
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    needs: release
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
