@@ -915,12 +915,20 @@ defmodule DashboardSSDWeb.KbLiveTest do
         }
       }
 
-      {:noreply, new_socket} =
+      {:noreply, loading_socket} =
         Index.handle_event(
           "open_search_result",
           %{"id" => "page-open", "collection" => "db-handbook"},
           socket
         )
+
+      assert loading_socket.assigns.reader_loading
+      assert loading_socket.assigns.pending_document_id == "page-open"
+
+      assert_receive {:load_document, "page-open", opts}
+
+      {:noreply, new_socket} =
+        Index.handle_info({:load_document, "page-open", opts}, loading_socket)
 
       assert new_socket.assigns.selected_collection_id == "db-handbook"
       assert new_socket.assigns.selected_document.id == "page-open"
@@ -987,12 +995,20 @@ defmodule DashboardSSDWeb.KbLiveTest do
         }
       }
 
-      {:noreply, new_socket} =
+      {:noreply, loading_socket} =
         Index.handle_event(
           "open_search_result",
           %{"id" => "page-empty"},
           socket
         )
+
+      assert loading_socket.assigns.reader_loading
+      assert loading_socket.assigns.pending_document_id == "page-empty"
+
+      assert_receive {:load_document, "page-empty", opts}
+
+      {:noreply, new_socket} =
+        Index.handle_info({:load_document, "page-empty", opts}, loading_socket)
 
       assert new_socket.assigns.selected_collection_id == "db-handbook"
       assert new_socket.assigns.selected_document_id == "page-empty"
@@ -1068,12 +1084,20 @@ defmodule DashboardSSDWeb.KbLiveTest do
         }
       }
 
-      {:noreply, new_socket} =
+      {:noreply, loading_socket} =
         Index.handle_event(
           "open_search_result",
           %{"id" => "page-new", "collection" => "db-guides"},
           socket
         )
+
+      assert loading_socket.assigns.reader_loading
+      assert loading_socket.assigns.pending_document_id == "page-new"
+
+      assert_receive {:load_document, "page-new", opts}
+
+      {:noreply, new_socket} =
+        Index.handle_info({:load_document, "page-new", opts}, loading_socket)
 
       assert new_socket.assigns.selected_collection_id == "db-guides"
       assert Enum.map(new_socket.assigns.documents, & &1.id) == ["page-new"]

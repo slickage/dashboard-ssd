@@ -41,10 +41,12 @@ defmodule DashboardSSDWeb.KbLive.Index do
          selected_document: selected_document,
          selected_document_id: selected_document_id,
          reader_error: reader_error,
+         reader_loading: false,
          recent_documents: recent_documents,
          recent_errors: recent_errors,
          expanded_collections: expanded_collections,
          search_dropdown_open: false,
+         pending_document_id: nil,
          search_feedback: nil
        )}
     else
@@ -206,41 +208,15 @@ defmodule DashboardSSDWeb.KbLive.Index do
 
   @impl true
   def handle_event("select_document", %{"id" => document_id}, socket) do
-    case load_document_detail(document_id) do
-      {:ok, document} ->
-        record_document_view(socket.assigns[:current_user], document)
-        {recent_documents, recent_errors} = refresh_recent_documents(socket, document)
+    collection_id = collection_id_for_document(socket, document_id)
 
-        selected_collection_id = document.collection_id || socket.assigns.selected_collection_id
+    socket =
+      socket
+      |> assign(:selected_document_id, document_id)
+      |> assign(:selected_collection_id, collection_id || socket.assigns.selected_collection_id)
+      |> assign(:search_dropdown_open, false)
 
-        socket =
-          socket
-          |> ensure_documents_loaded(document.collection_id)
-          |> ensure_document_in_collection(document)
-          |> ensure_collection_expanded(document.collection_id)
-          |> assign(:selected_collection_id, selected_collection_id)
-          |> assign(:selected_document, document)
-          |> assign(:selected_document_id, document_id)
-          |> assign(:query, "")
-          |> assign(:results, [])
-          |> assign(:search_performed, false)
-          |> assign(:search_dropdown_open, false)
-          |> assign(:reader_error, nil)
-          |> assign(:recent_documents, recent_documents)
-          |> assign(:recent_errors, recent_errors)
-          |> assign(:search_feedback, nil)
-          |> assign_documents(selected_collection_id)
-
-        {:noreply, socket}
-
-      {:error, reason} ->
-        {:noreply,
-         socket
-         |> assign(:reader_error, %{document_id: document_id, reason: reason})
-         |> assign(:selected_document, nil)
-         |> assign(:selected_document_id, nil)
-         |> assign(:search_dropdown_open, false)}
-    end
+    {:noreply, start_document_load(socket, document_id, source: :collection)}
   end
 
   @impl true
@@ -272,47 +248,35 @@ defmodule DashboardSSDWeb.KbLive.Index do
 
     socket =
       socket
-      |> ensure_documents_loaded(collection_id)
-      |> ensure_collection_expanded(collection_id)
+      |> assign(:selected_document_id, document_id)
+      |> assign(:search_dropdown_open, false)
 
-    case load_document_detail(document_id) do
-      {:ok, document} ->
-        record_document_view(socket.assigns[:current_user], document)
-        {recent_documents, recent_errors} = refresh_recent_documents(socket, document)
+    {:noreply,
+     start_document_load(socket, document_id,
+       source: :search,
+       collection_id: collection_id
+     )}
+  end
 
-        collection_id =
-          document.collection_id || collection_id || socket.assigns.selected_collection_id
+  @impl true
+  def handle_info({:load_document, document_id, opts}, socket) do
+    if socket.assigns[:pending_document_id] != document_id do
+      {:noreply, socket}
+    else
+      case load_document_detail(document_id) do
+        {:ok, document} ->
+          record_document_view(socket.assigns[:current_user], document)
+          {:noreply, finish_document_load(socket, document, opts)}
 
-        socket =
-          socket
-          |> ensure_documents_loaded(collection_id)
-          |> ensure_document_in_collection(document)
-          |> ensure_collection_expanded(collection_id)
-          |> assign(
-            :selected_collection_id,
-            collection_id || socket.assigns.selected_collection_id
-          )
-          |> assign(:selected_document, document)
-          |> assign(:selected_document_id, document_id)
-          |> assign(:query, "")
-          |> assign(:results, [])
-          |> assign(:search_performed, false)
-          |> assign(:search_dropdown_open, false)
-          |> assign(:reader_error, nil)
-          |> assign(:recent_documents, recent_documents)
-          |> assign(:recent_errors, recent_errors)
-          |> assign(:search_feedback, nil)
-          |> assign_documents(collection_id)
-
-        {:noreply, socket}
-
-      {:error, reason} ->
-        {:noreply,
-         socket
-         |> assign(:selected_document, nil)
-         |> assign(:selected_document_id, nil)
-         |> assign(:search_dropdown_open, false)
-         |> assign(:reader_error, %{document_id: document_id, reason: reason})}
+        {:error, reason} ->
+          {:noreply,
+           socket
+           |> assign(:pending_document_id, nil)
+           |> assign(:reader_loading, false)
+           |> assign(:reader_error, %{document_id: document_id, reason: reason})
+           |> assign(:selected_document, nil)
+           |> assign(:search_dropdown_open, false)}
+      end
     end
   end
 
@@ -539,6 +503,14 @@ defmodule DashboardSSDWeb.KbLive.Index do
     Map.get(socket.assigns, :documents_by_collection, %{})
   end
 
+  defp collection_id_for_document(socket, document_id) do
+    socket
+    |> documents_map()
+    |> Enum.find_value(fn {collection_id, documents} ->
+      if Enum.any?(documents, &(&1.id == document_id)), do: collection_id
+    end)
+  end
+
   defp document_errors_map(socket) do
     case Map.get(socket.assigns, :document_errors, %{}) do
       value when is_map(value) -> value
@@ -565,6 +537,47 @@ defmodule DashboardSSDWeb.KbLive.Index do
     docs = documents_for_collection(documents_map(socket), collection_id)
 
     assign(socket, :documents, docs)
+  end
+
+  defp start_document_load(socket, document_id, opts) do
+    send(self(), {:load_document, document_id, opts})
+
+    socket
+    |> assign(:pending_document_id, document_id)
+    |> assign(:reader_loading, true)
+    |> assign(:reader_error, nil)
+  end
+
+  defp finish_document_load(socket, document, opts) do
+    {recent_documents, recent_errors} = refresh_recent_documents(socket, document)
+    collection_hint = Keyword.get(opts, :collection_id)
+
+    socket =
+      socket
+      |> ensure_documents_loaded(collection_hint)
+      |> ensure_documents_loaded(document.collection_id)
+      |> ensure_collection_expanded(collection_hint)
+      |> ensure_collection_expanded(document.collection_id)
+      |> ensure_document_in_collection(document)
+
+    selected_collection_id =
+      document.collection_id || collection_hint || socket.assigns.selected_collection_id
+
+    socket
+    |> assign(:pending_document_id, nil)
+    |> assign(:reader_loading, false)
+    |> assign(:selected_collection_id, selected_collection_id)
+    |> assign(:selected_document, document)
+    |> assign(:selected_document_id, document.id)
+    |> assign(:reader_error, nil)
+    |> assign(:query, "")
+    |> assign(:results, [])
+    |> assign(:search_performed, false)
+    |> assign(:search_dropdown_open, false)
+    |> assign(:recent_documents, recent_documents)
+    |> assign(:recent_errors, recent_errors)
+    |> assign(:search_feedback, nil)
+    |> assign_documents(selected_collection_id)
   end
 
   defp dedupe_recent_documents(documents) when is_list(documents) do
@@ -795,6 +808,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
             <.document_viewer
               document={@selected_document}
               error={format_reader_error(@reader_error)}
+              loading={@reader_loading}
             />
           </div>
         </section>
