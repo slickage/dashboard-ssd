@@ -49,6 +49,117 @@ defmodule DashboardSSDWeb.KbComponents do
   end
 
   attr :collections, :list, default: []
+  attr :selected_id, :any, default: nil
+  attr :empty_message, :string, default: "No curated collections are available yet."
+
+  @doc false
+  @spec collection_list(map()) :: Rendered.t()
+  def collection_list(assigns) do
+    ~H"""
+    <section class="flex flex-col gap-3">
+      <p :if={Enum.empty?(@collections)} class="text-sm text-theme-muted">
+        {@empty_message}
+      </p>
+
+      <ul :if={Enum.any?(@collections)} class="flex flex-col gap-2">
+        <%= for collection <- @collections do %>
+          <% selected? = @selected_id == collection.id %>
+          <li>
+            <button
+              type="button"
+              phx-click="select_collection"
+              phx-value-id={collection.id}
+              class={collection_item_classes(selected?)}
+            >
+              <div class="flex flex-col gap-1 text-left">
+                <span class="text-sm font-semibold text-theme-text">{collection.name}</span>
+                <p :if={collection.description} class="text-xs text-theme-muted">
+                  {collection.description}
+                </p>
+                <p :if={collection.last_document_updated_at} class="text-xs text-theme-muted">
+                  Updated {format_datetime(collection.last_document_updated_at)}
+                </p>
+              </div>
+              <span :if={not is_nil(collection.document_count)} class="text-xs text-theme-muted">
+                {collection.document_count} docs
+              </span>
+            </button>
+          </li>
+        <% end %>
+      </ul>
+    </section>
+    """
+  end
+
+  attr :documents, :list, default: []
+  attr :selected_id, :any, default: nil
+  attr :empty_message, :string, default: "No documents available yet."
+
+  @doc false
+  @spec document_list(map()) :: Rendered.t()
+  def document_list(assigns) do
+    ~H"""
+    <section class="flex flex-col gap-3">
+      <p :if={Enum.empty?(@documents)} class="text-sm text-theme-muted">
+        {@empty_message}
+      </p>
+
+      <ul :if={Enum.any?(@documents)} class="flex flex-col gap-2">
+        <%= for document <- @documents do %>
+          <% selected? = @selected_id == document.id %>
+          <li>
+            <button
+              type="button"
+              phx-click="select_document"
+              phx-value-id={document.id}
+              class={document_item_classes(selected?)}
+            >
+              <div class="flex flex-col gap-2 text-left">
+                <div class="flex flex-col gap-1">
+                  <span class="text-sm font-medium text-theme-text">{document.title}</span>
+                  <p :if={document.summary} class="text-xs text-theme-muted">
+                    {document.summary}
+                  </p>
+                </div>
+
+                <div :if={document.tags != []} class="flex flex-wrap gap-2">
+                  <span
+                    :for={tag <- document.tags}
+                    class="inline-flex items-center rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/80"
+                  >
+                    {tag}
+                  </span>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-3 text-xs text-theme-muted">
+                  <span :if={document.owner}>Owner: {document.owner}</span>
+                  <span :if={document.last_updated_at}>
+                    Updated {format_datetime(document.last_updated_at)}
+                  </span>
+                  <span :if={document.synced_at}>
+                    Synced {format_datetime(document.synced_at)}
+                  </span>
+                </div>
+
+                <a
+                  :if={document.share_url}
+                  href={document.share_url}
+                  class="text-xs text-theme-accent underline underline-offset-2"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  Open in Notion
+                </a>
+              </div>
+            </button>
+          </li>
+        <% end %>
+      </ul>
+    </section>
+    """
+  end
+
+  attr :collections, :list, default: []
   attr :collection_errors, :list, default: []
   attr :documents_by_collection, :map, default: %{}
   attr :document_errors, :map, default: %{}
@@ -492,6 +603,26 @@ defmodule DashboardSSDWeb.KbComponents do
       annotations[:strikethrough] && "line-through",
       annotations[:underline] && "underline",
       annotations[:code] && "kb-inline-code"
+    ]
+    |> Enum.filter(& &1)
+    |> Enum.join(" ")
+  end
+
+  defp collection_item_classes(selected?) do
+    [
+      "flex w-full items-center justify-between gap-3 rounded-lg border border-theme-border border-opacity-60 px-4 py-3 text-left text-sm text-theme-text transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-primary/30 bg-theme-surfaceMuted cursor-pointer",
+      selected? && "border-theme-border text-theme-text",
+      not selected? && "hover:bg-theme-surfaceRaised"
+    ]
+    |> Enum.filter(& &1)
+    |> Enum.join(" ")
+  end
+
+  defp document_item_classes(selected?) do
+    [
+      "flex w-full flex-col gap-2 rounded-lg border border-transparent px-4 py-3 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-theme-primary/30 bg-theme-surface cursor-pointer",
+      selected? && "border-theme-primary bg-theme-primary text-theme-textActive",
+      not selected? && "hover:bg-theme-surfaceRaised"
     ]
     |> Enum.filter(& &1)
     |> Enum.join(" ")

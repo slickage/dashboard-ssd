@@ -46,8 +46,8 @@ defmodule DashboardSSDWeb.KbComponentsTest do
       )
 
     assert html =~ "Welcome to the Handbook"
-    assert html =~ "https://example.com/page-1"
-    assert html =~ "2024-05-01"
+    assert html =~ "Viewed 2024-05-01 12:00"
+    refute html =~ "Notion"
   end
 
   test "collection_overview renders empty state" do
@@ -115,6 +115,83 @@ defmodule DashboardSSDWeb.KbComponentsTest do
     assert html =~ "Welcome"
     assert html =~ "Onboarding"
     assert html =~ "Jane"
+    assert html =~ "https://example.com"
+  end
+
+  test "collection_tree renders expanded documents and highlights selection" do
+    collections = [
+      %Types.Collection{
+        id: "db-a",
+        name: "A",
+        description: "Alpha docs",
+        document_count: 2,
+        last_document_updated_at: ~U[2024-05-01 12:00:00Z]
+      },
+      %Types.Collection{
+        id: "db-b",
+        name: "B",
+        description: nil,
+        document_count: 0,
+        last_document_updated_at: nil
+      }
+    ]
+
+    documents = %{
+      "db-a" => [
+        struct!(Types.DocumentSummary,
+          id: "page-1",
+          collection_id: "db-a",
+          title: "Welcome",
+          summary: "Intro",
+          owner: "Jane",
+          last_updated_at: ~U[2024-05-01 12:00:00Z]
+        )
+      ]
+    }
+
+    html =
+      render_component(&KbComponents.collection_tree/1,
+        collections: collections,
+        collection_errors: [],
+        documents_by_collection: documents,
+        document_errors: %{},
+        expanded_ids: MapSet.new(["db-a"]),
+        selected_collection_id: "db-a",
+        selected_document_id: "page-1"
+      )
+
+    assert html =~ "Alpha docs"
+    assert html =~ "Welcome"
+    assert html =~ "phx-value-id=\"page-1\""
+    assert html =~ "border-theme-border"
+  end
+
+  test "collection_tree surfaces document errors" do
+    collections = [
+      %Types.Collection{
+        id: "db-a",
+        name: "A",
+        description: nil,
+        document_count: 0,
+        last_document_updated_at: nil
+      }
+    ]
+
+    document_errors = %{"db-a" => [%{collection_id: "db-a", reason: :timeout}]}
+
+    html =
+      render_component(&KbComponents.collection_tree/1,
+        collections: collections,
+        collection_errors: [],
+        documents_by_collection: %{},
+        document_errors: document_errors,
+        expanded_ids: MapSet.new(["db-a"]),
+        selected_collection_id: nil,
+        selected_document_id: nil
+      )
+
+    assert html =~ "timeout"
+    refute html =~ "No documents available yet."
   end
 
   test "document_viewer renders blocks" do
