@@ -778,6 +778,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
             documents={@recent_documents}
             errors={@recent_errors}
             selected_document_id={@selected_document_id}
+            class="hidden lg:block"
           />
         </aside>
 
@@ -790,6 +791,13 @@ defmodule DashboardSSDWeb.KbLive.Index do
             />
           </div>
         </section>
+
+        <.recent_activity_list
+          documents={@recent_documents}
+          errors={@recent_errors}
+          selected_document_id={@selected_document_id}
+          class="order-3 lg:hidden"
+        />
       </div>
     </div>
     """

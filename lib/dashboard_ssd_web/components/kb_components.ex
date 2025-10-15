@@ -443,11 +443,12 @@ defmodule DashboardSSDWeb.KbComponents do
   attr :errors, :list, default: []
   attr :title, :string, default: "Recently Viewed"
   attr :selected_document_id, :any, default: nil
+  attr :class, :string, default: ""
 
   @spec recent_activity_list(map()) :: Rendered.t()
   def recent_activity_list(assigns) do
     ~H"""
-    <section class="flex flex-col gap-2">
+    <section class={["flex flex-col gap-2", @class]}>
       <header class="flex items-center justify-between gap-2">
         <h3 class="text-xs font-semibold uppercase tracking-[0.16em] text-theme-muted">
           {@title}
