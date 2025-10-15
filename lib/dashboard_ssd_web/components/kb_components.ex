@@ -581,11 +581,11 @@ defmodule DashboardSSDWeb.KbComponents do
       <%= if segment[:href] do %>
         <a
           href={segment.href}
-          class={segment_classes(segment) <> " underline text-theme-accent"}
+          class={link_classes(segment) <> " underline text-theme-accent"}
           target="_blank"
           rel="noopener"
         >
-          {segment[:text] || ""}
+          {String.trim(segment[:text] || "")}
         </a>
       <% else %>
         <span class={segment_classes(segment)}>{segment[:text] || ""}</span>
@@ -613,6 +613,20 @@ defmodule DashboardSSDWeb.KbComponents do
 
     [
       "whitespace-pre-wrap",
+      annotations[:bold] && "font-semibold",
+      annotations[:italic] && "italic",
+      annotations[:strikethrough] && "line-through",
+      annotations[:underline] && "underline",
+      annotations[:code] && "kb-inline-code"
+    ]
+    |> Enum.filter(& &1)
+    |> Enum.join(" ")
+  end
+
+  defp link_classes(segment) do
+    annotations = Map.get(segment, :annotations, %{}) || %{}
+
+    [
       annotations[:bold] && "font-semibold",
       annotations[:italic] && "italic",
       annotations[:strikethrough] && "line-through",
