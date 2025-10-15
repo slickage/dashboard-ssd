@@ -309,6 +309,7 @@ defmodule DashboardSSDWeb.KbComponents do
 
   attr :document, Types.DocumentDetail
   attr :error, :string, default: nil
+  attr :loading, :boolean, default: false
 
   @doc false
   @spec document_viewer(map()) :: Rendered.t()
@@ -320,6 +321,28 @@ defmodule DashboardSSDWeb.KbComponents do
       </h3>
 
       <%= cond do %>
+        <% @loading -> %>
+          <div class="flex min-h-[200px] items-center justify-center gap-2 text-sm text-theme-muted">
+            <svg
+              class="h-4 w-4 animate-spin text-theme-muted"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              role="img"
+              aria-label="Loading"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+            </svg>
+            <span>Loading document…</span>
+          </div>
         <% @error -> %>
           <div class="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
             {@error}
