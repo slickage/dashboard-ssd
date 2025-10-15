@@ -588,58 +588,15 @@ defmodule DashboardSSDWeb.KbLive.Index do
     existing_recent = socket.assigns[:recent_documents] || []
     existing_errors = socket.assigns[:recent_errors] || []
 
-    {docs, errors} =
-      case socket.assigns[:current_user] do
-        nil ->
-          {existing_recent, existing_errors}
-
-        user ->
-          case Activity.recent_documents(user) do
-            {:ok, fetched} ->
-              {dedupe_recent_documents(fetched), []}
-
-            {:error, reason} ->
-              {existing_recent, [%{reason: reason}]}
-          end
-      end
-
-    base_docs =
-      case docs do
-        [] -> existing_recent
-        _ -> docs
-      end
+    {docs, errors} = fetch_recent_documents(socket, existing_recent, existing_errors)
+    base_docs = if docs == [], do: existing_recent, else: docs
 
     updated =
       base_docs
-      |> ensure_recent_document(document, socket)
-      |> Enum.take(Enum.max([length(base_docs), 1]))
+      |> upsert_recent_document(document, socket)
+      |> trim_recent_documents(length(base_docs))
 
     {updated, errors}
-  end
-
-  defp ensure_recent_document([], document, socket) do
-    [recent_activity_entry(document, socket)]
-  end
-
-  defp ensure_recent_document(documents, document, socket) do
-    {found, remainder_reversed} =
-      Enum.reduce(documents, {nil, []}, fn entry, {match, acc} ->
-        if is_nil(match) and entry.document_id == document.id do
-          {entry, acc}
-        else
-          {match, [entry | acc]}
-        end
-      end)
-
-    remainder = Enum.reverse(remainder_reversed)
-
-    entry =
-      case found do
-        nil -> recent_activity_entry(document, socket)
-        _ -> found
-      end
-
-    [entry | remainder]
   end
 
   defp recent_activity_entry(document, socket) do
@@ -653,6 +610,37 @@ defmodule DashboardSSDWeb.KbLive.Index do
       metadata: %{}
     }
   end
+
+  defp fetch_recent_documents(socket, existing_recent, existing_errors) do
+    case socket.assigns[:current_user] do
+      nil ->
+        {existing_recent, existing_errors}
+
+      user ->
+        case Activity.recent_documents(user) do
+          {:ok, fetched} ->
+            {dedupe_recent_documents(fetched), []}
+
+          {:error, reason} ->
+            {existing_recent, [%{reason: reason}]}
+        end
+    end
+  end
+
+  defp upsert_recent_document([], document, socket) do
+    [recent_activity_entry(document, socket)]
+  end
+
+  defp upsert_recent_document(documents, document, socket) do
+    entry = Enum.find(documents, &(&1.document_id == document.id))
+    entry = entry || recent_activity_entry(document, socket)
+
+    rest = Enum.reject(documents, &(&1.document_id == document.id))
+    [entry | rest]
+  end
+
+  defp trim_recent_documents(documents, 0), do: documents
+  defp trim_recent_documents(documents, count), do: Enum.take(documents, count)
 
   defp blank_to_nil(nil), do: nil
   defp blank_to_nil(""), do: nil
