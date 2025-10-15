@@ -14,21 +14,6 @@ defmodule DashboardSSD.Analytics.Collector do
   import Ecto.Query, warn: false
   alias DashboardSSD.{Analytics, Deployments, Repo}
 
-  @doc false
-  defmodule HTTPClient do
-    @moduledoc false
-    @callback request(String.t(), keyword()) :: {:ok, Finch.Response.t()} | {:error, term()}
-  end
-
-  @doc false
-  defmodule FinchHTTPClient do
-    @moduledoc false
-
-    def request(url, opts) do
-      Finch.build(:get, url) |> Finch.request(DashboardSSD.Finch, opts)
-    end
-  end
-
   @doc """
   Collects all available metrics for all projects.
 
@@ -85,17 +70,11 @@ defmodule DashboardSSD.Analytics.Collector do
   """
   @spec collect_http_metrics(integer(), Deployments.HealthCheckSetting.t()) :: :ok
   def collect_http_metrics(project_id, %{endpoint_url: url} = _setting) when is_binary(url) do
-    collect_http_metrics(project_id, url, FinchHTTPClient)
-  end
-
-  @doc false
-  @spec collect_http_metrics(integer(), String.t(), HTTPClient.t()) :: :ok
-  def collect_http_metrics(project_id, url, http_client) do
     Logger.debug("Collecting HTTP metrics for project #{project_id}: #{url}")
 
     _start_time = System.monotonic_time(:millisecond)
 
-    case collect_response_time(url, http_client) do
+    case collect_response_time(url) do
       {:ok, response_time_ms} ->
         # Record response time metric
         {:ok, _} =
@@ -135,15 +114,9 @@ defmodule DashboardSSD.Analytics.Collector do
   """
   @spec collect_response_time(String.t()) :: {:ok, float()} | {:error, term()}
   def collect_response_time(url) do
-    collect_response_time(url, FinchHTTPClient)
-  end
-
-  @doc false
-  @spec collect_response_time(String.t(), HTTPClient.t()) :: {:ok, float()} | {:error, term()}
-  def collect_response_time(url, http_client) do
     start_time = System.monotonic_time(:millisecond)
 
-    case http_client.request(url, receive_timeout: 5000) do
+    case Finch.build(:get, url) |> Finch.request(DashboardSSD.Finch, receive_timeout: 5000) do
       {:ok, %Finch.Response{}} ->
         end_time = System.monotonic_time(:millisecond)
         response_time = end_time - start_time
@@ -158,30 +131,6 @@ defmodule DashboardSSD.Analytics.Collector do
       Logger.error("Error collecting response time for #{url}: #{inspect(e)}")
       {:error, e}
   end
-
-  @doc false
-  @spec collect_response_time(String.t(), (String.t(), keyword() ->
-                                             Finch.response() | {:error, term()})) ::
-          {:ok, float()} | {:error, term()}
-  def collect_response_time(url, http_client_fn) do
-    start_time = System.monotonic_time(:millisecond)
-
-    case http_client_fn.(url, receive_timeout: 5000) do
-      {:ok, %Finch.Response{}} ->
-        end_time = System.monotonic_time(:millisecond)
-        response_time = end_time - start_time
-        # Convert to float
-        {:ok, response_time * 1.0}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  rescue
-    e ->
-      Logger.error("Error collecting response time for #{url}: #{inspect(e)}")
-      {:error, e}
-  end
-end
 
   @doc """
   Collects Linear throughput metrics by analyzing recent Linear issues.
