@@ -218,20 +218,30 @@ defmodule DashboardSSDWeb.KbComponents do
         Collections
       </h3>
 
-      <div
-        :if={Enum.any?(@collection_errors)}
-        class="rounded-md border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs text-amber-200"
-      >
-        <p :for={error <- @collection_errors}>{format_error(error)}</p>
-      </div>
+      <%= if Enum.any?(@collection_errors) do %>
+        <%= if badge_only_errors?(@collection_errors) do %>
+          <div class="text-xs">
+            <p :for={error <- @collection_errors}>{format_error(error)}</p>
+          </div>
+        <% else %>
+          <div class="rounded-md border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
+            <p :for={error <- @collection_errors}>{format_error(error)}</p>
+          </div>
+        <% end %>
+      <% end %>
 
       <% general_doc_errors = Map.get(@document_errors, :general, []) %>
-      <div
-        :if={general_doc_errors != []}
-        class="rounded-md border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs text-amber-200"
-      >
-        <p :for={error <- general_doc_errors}>{format_error(error)}</p>
-      </div>
+      <%= if general_doc_errors != [] do %>
+        <%= if badge_only_errors?(general_doc_errors) do %>
+          <div class="text-xs">
+            <p :for={error <- general_doc_errors}>{format_error(error)}</p>
+          </div>
+        <% else %>
+          <div class="rounded-md border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
+            <p :for={error <- general_doc_errors}>{format_error(error)}</p>
+          </div>
+        <% end %>
+      <% end %>
 
       <p
         :if={Enum.empty?(@collections) and Enum.empty?(@collection_errors)}
@@ -455,12 +465,17 @@ defmodule DashboardSSDWeb.KbComponents do
         </h3>
       </header>
 
-      <div
-        :if={Enum.any?(@errors)}
-        class="rounded-md border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs text-amber-200"
-      >
-        <p :for={error <- @errors}>{format_error(error)}</p>
-      </div>
+      <%= if Enum.any?(@errors) do %>
+        <%= if badge_only_errors?(@errors) do %>
+          <div class="text-xs">
+            <p :for={error <- @errors}>{format_error(error)}</p>
+          </div>
+        <% else %>
+          <div class="rounded-md border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
+            <p :for={error <- @errors}>{format_error(error)}</p>
+          </div>
+        <% end %>
+      <% end %>
 
       <ul :if={Enum.any?(@documents)} class="flex flex-col gap-2">
         <%= for doc <- @documents do %>
@@ -727,13 +742,28 @@ defmodule DashboardSSDWeb.KbComponents do
   defp icon_to_string(%{emoji: emoji}), do: emoji
   defp icon_to_string(_), do: "💡"
 
+  defp badge_only_errors?(errors) when is_list(errors) do
+    Enum.all?(errors, fn
+      %{reason: {:missing_env, _}} -> true
+      {:missing_env, _} -> true
+      _ -> false
+    end)
+  end
+
   defp format_error(%{collection_id: id, reason: reason}) do
     "#{id}: #{friendly_reason(reason)}"
   end
 
+  defp format_error(%{reason: reason}), do: friendly_reason(reason)
+
   defp format_error(reason), do: friendly_reason(reason)
 
-  defp friendly_reason({:missing_env, env}), do: "Missing environment variable #{env}"
+  defp friendly_reason({:missing_env, env}),
+    do:
+      Phoenix.HTML.raw(
+        ~s(<span class="theme-badge theme-badge-warning">Missing environment variable #{env}</span>)
+      )
+
   defp friendly_reason({:http_error, status, _body}), do: "HTTP error #{status}"
   defp friendly_reason(reason) when is_atom(reason), do: Atom.to_string(reason)
   defp friendly_reason(reason), do: inspect(reason)
