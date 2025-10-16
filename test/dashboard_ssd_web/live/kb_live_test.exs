@@ -913,6 +913,166 @@ defmodule DashboardSSDWeb.KbLiveTest do
       assert rendered =~ "https://notion.so/pg"
     end
 
+    test "handles search results with properties but no title field", %{conn: conn} do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "no-title@example.com",
+          name: "No Title",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      Tesla.Mock.mock(fn
+        %{method: :post, url: "https://api.notion.com/v1/search"} ->
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "results" => [
+                %{
+                  "id" => "pg-no-title",
+                  "url" => "https://notion.so/pg-no-title",
+                  "last_edited_time" => "2024-05-01T12:00:00Z",
+                  "properties" => %{
+                    "Tags" => %{"type" => "multi_select", "multi_select" => []}
+                  }
+                }
+              ]
+            }
+          }
+      end)
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      view
+      |> form("form", %{query: "no title"})
+      |> render_submit()
+
+      rendered = render(view)
+      assert rendered =~ "Untitled"
+      assert rendered =~ "https://notion.so/pg-no-title"
+    end
+
+    test "handles search results with rich_text title", %{conn: conn} do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "rich-title@example.com",
+          name: "Rich Title",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      Tesla.Mock.mock(fn
+        %{method: :post, url: "https://api.notion.com/v1/search"} ->
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "results" => [
+                %{
+                  "id" => "pg-rich",
+                  "url" => "https://notion.so/pg-rich",
+                  "last_edited_time" => "2024-05-01T12:00:00Z",
+                  "properties" => %{
+                    "Name" => %{
+                      "type" => "rich_text",
+                      "rich_text" => [%{"plain_text" => "Rich Title"}]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+      end)
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      view
+      |> form("form", %{query: "rich"})
+      |> render_submit()
+
+      rendered = render(view)
+      assert rendered =~ "Rich Title"
+    end
+
+    test "handles search results with invalid last_edited_time", %{conn: conn} do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "invalid-date@example.com",
+          name: "Invalid Date",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      Tesla.Mock.mock(fn
+        %{method: :post, url: "https://api.notion.com/v1/search"} ->
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "results" => [
+                %{
+                  "id" => "pg-invalid",
+                  "url" => "https://notion.so/pg-invalid",
+                  "last_edited_time" => "invalid-date",
+                  "properties" => %{
+                    "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Invalid Date"}]}
+                  }
+                }
+              ]
+            }
+          }
+      end)
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      view
+      |> form("form", %{query: "invalid"})
+      |> render_submit()
+
+      rendered = render(view)
+      assert rendered =~ "Invalid Date"
+      # Should not show updated date since invalid
+      refute rendered =~ "Updated"
+    end
+
+    test "handles search results with emoji icon type", %{conn: conn} do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "emoji-type@example.com",
+          name: "Emoji Type",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      Tesla.Mock.mock(fn
+        %{method: :post, url: "https://api.notion.com/v1/search"} ->
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "results" => [
+                %{
+                  "id" => "pg-emoji",
+                  "url" => "https://notion.so/pg-emoji",
+                  "last_edited_time" => "2024-05-01T12:00:00Z",
+                  "icon" => %{"type" => "emoji", "emoji" => "🚀"},
+                  "properties" => %{
+                    "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Emoji Icon"}]}
+                  }
+                }
+              ]
+            }
+          }
+      end)
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      view
+      |> form("form", %{query: "emoji"})
+      |> render_submit()
+
+      rendered = render(view)
+      assert rendered =~ "🚀"
+      assert rendered =~ "Emoji Icon"
+    end
+
     test "handles generic notion errors", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
@@ -989,6 +1149,36 @@ defmodule DashboardSSDWeb.KbLiveTest do
       refute html =~ "test"
     end
 
+    test "clears search on x button click", %{conn: conn} do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "clear-click@example.com",
+          name: "Clear Click",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      Tesla.Mock.mock(fn
+        %{method: :post, url: "https://api.notion.com/v1/search"} ->
+          %Tesla.Env{status: 200, body: %{"results" => []}}
+      end)
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      view
+      |> form("form", %{query: "test"})
+      |> render_change()
+
+      assert render(view) =~ "test"
+
+      view
+      |> element("div[phx-click='clear_search']")
+      |> render_click()
+
+      html = render(view)
+      refute html =~ "test"
+    end
+
     test "handles async search result", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
@@ -1059,6 +1249,62 @@ defmodule DashboardSSDWeb.KbLiveTest do
       view
       |> element("button[phx-click='close_mobile_menu']")
       |> render_click()
+    end
+
+    test "close_mobile_menu sets mobile_menu_open to false", %{conn: conn} do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "close-menu@example.com",
+          name: "Close Menu",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      # First open the menu
+      view
+      |> element("button[phx-click='toggle_mobile_menu']")
+      |> render_click()
+
+      assigns = view.pid |> :sys.get_state() |> Map.fetch!(:socket) |> Map.fetch!(:assigns)
+      assert assigns.mobile_menu_open == true
+
+      # Now close it
+      view
+      |> element("button[phx-click='close_mobile_menu']")
+      |> render_click()
+
+      assigns = view.pid |> :sys.get_state() |> Map.fetch!(:socket) |> Map.fetch!(:assigns)
+      assert assigns.mobile_menu_open == false
+    end
+
+    test "toggle_mobile_menu closes when already open", %{conn: conn} do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "toggle-close@example.com",
+          name: "Toggle Close",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      # Open the menu
+      view
+      |> element("button[phx-click='toggle_mobile_menu']")
+      |> render_click()
+
+      assigns = view.pid |> :sys.get_state() |> Map.fetch!(:socket) |> Map.fetch!(:assigns)
+      assert assigns.mobile_menu_open == true
+
+      # Toggle again to close
+      view
+      |> element("button[phx-click='toggle_mobile_menu']")
+      |> render_click()
+
+      assigns = view.pid |> :sys.get_state() |> Map.fetch!(:socket) |> Map.fetch!(:assigns)
+      assert assigns.mobile_menu_open == false
     end
   end
 
@@ -1308,6 +1554,217 @@ defmodule DashboardSSDWeb.KbLiveTest do
       assert Enum.map(new_socket.assigns.documents, & &1.id) == ["page-new"]
       assert new_socket.assigns.selected_document_id == "page-new"
       assert new_socket.assigns.reader_error == nil
+    end
+
+    test "close_search_dropdown sets dropdown to false" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          search_dropdown_open: true
+        }
+      }
+
+      {:noreply, new_socket} = Index.handle_event("close_search_dropdown", %{}, socket)
+
+      assert new_socket.assigns.search_dropdown_open == false
+    end
+
+    test "toggle_collection ignores nil id" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          expanded_collections: MapSet.new()
+        }
+      }
+
+      {:noreply, new_socket} = Index.handle_event("toggle_collection", %{"id" => nil}, socket)
+
+      assert new_socket == socket
+    end
+
+    test "toggle_collection collapses when already expanded" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          expanded_collections: MapSet.new(["db-handbook"]),
+          documents_by_collection: %{},
+          document_errors: %{}
+        }
+      }
+
+      {:noreply, new_socket} =
+        Index.handle_event("toggle_collection", %{"id" => "db-handbook"}, socket)
+
+      assert MapSet.member?(new_socket.assigns.expanded_collections, "db-handbook") == false
+    end
+
+    test "toggle_collection expands when not expanded" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          expanded_collections: MapSet.new(),
+          documents_by_collection: %{},
+          document_errors: %{}
+        }
+      }
+
+      {:noreply, new_socket} =
+        Index.handle_event("toggle_collection", %{"id" => "db-guides"}, socket)
+
+      assert MapSet.member?(new_socket.assigns.expanded_collections, "db-guides") == true
+    end
+
+    test "clear_search_key ignores invalid key" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          query: "test",
+          results: [%{id: "1"}],
+          search_performed: true
+        }
+      }
+
+      {:noreply, new_socket} = Index.handle_event("clear_search_key", %{"key" => "A"}, socket)
+
+      assert new_socket == socket
+    end
+
+    test "clear_search_key handles space key" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          flash: %{},
+          query: "test",
+          results: [%{id: "1"}],
+          search_performed: true
+        }
+      }
+
+      {:noreply, new_socket} = Index.handle_event("clear_search_key", %{"key" => " "}, socket)
+
+      assert new_socket.assigns.query == ""
+      assert new_socket.assigns.results == []
+      assert new_socket.assigns.search_performed == false
+    end
+
+    test "open_search_result_key ignores invalid key" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{}
+        }
+      }
+
+      {:noreply, new_socket} =
+        Index.handle_event("open_search_result_key", %{"key" => "A"}, socket)
+
+      assert new_socket == socket
+    end
+
+    test "open_search_result_key handles Enter key" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          selected_collection_id: "db-handbook",
+          documents: [
+            %Types.DocumentSummary{id: "doc-1", collection_id: "db-handbook", title: "Test"}
+          ],
+          selected_document: nil,
+          selected_document_id: nil,
+          reader_error: nil,
+          search_dropdown_open: true
+        }
+      }
+
+      {:noreply, new_socket} =
+        Index.handle_event("open_search_result_key", %{"id" => "doc-1", "key" => "Enter"}, socket)
+
+      assert new_socket.assigns.selected_document_id == "doc-1"
+      assert new_socket.assigns.search_dropdown_open == false
+      assert new_socket.assigns.reader_loading == true
+    end
+
+    test "toggle_collection_key ignores invalid key" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          expanded_collections: MapSet.new()
+        }
+      }
+
+      {:noreply, new_socket} =
+        Index.handle_event("toggle_collection_key", %{"key" => "A"}, socket)
+
+      assert new_socket == socket
+    end
+
+    test "toggle_collection_key handles Enter key" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          expanded_collections: MapSet.new(),
+          documents_by_collection: %{},
+          document_errors: %{}
+        }
+      }
+
+      {:noreply, new_socket} =
+        Index.handle_event(
+          "toggle_collection_key",
+          %{"id" => "db-handbook", "key" => "Enter"},
+          socket
+        )
+
+      assert MapSet.member?(new_socket.assigns.expanded_collections, "db-handbook") == true
+    end
+
+    test "select_document_key ignores invalid key" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{}
+        }
+      }
+
+      {:noreply, new_socket} = Index.handle_event("select_document_key", %{"key" => "A"}, socket)
+
+      assert new_socket == socket
+    end
+
+    test "select_document_key handles Enter key" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          selected_collection_id: "db-handbook",
+          documents: [
+            %Types.DocumentSummary{id: "doc-1", collection_id: "db-handbook", title: "Test Doc"}
+          ],
+          selected_document: nil,
+          selected_document_id: nil,
+          reader_error: nil,
+          search_dropdown_open: true
+        }
+      }
+
+      {:noreply, new_socket} =
+        Index.handle_event("select_document_key", %{"id" => "doc-1", "key" => "Enter"}, socket)
+
+      assert new_socket.assigns.selected_document_id == "doc-1"
+      assert new_socket.assigns.selected_collection_id == "db-handbook"
+      assert new_socket.assigns.search_dropdown_open == false
+      assert new_socket.assigns.reader_loading == true
+      assert new_socket.assigns.pending_document_id == "doc-1"
+    end
+
+    test "handle_info ignores mismatched document_id" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          pending_document_id: "doc-1"
+        }
+      }
+
+      {:noreply, new_socket} = Index.handle_info({:load_document, "doc-2", %{}}, socket)
+
+      assert new_socket == socket
     end
   end
 

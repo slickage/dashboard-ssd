@@ -10,6 +10,9 @@ defmodule DashboardSSD.KnowledgeBase.Instrumentation do
   @event_prefix [:dashboard_ssd, :knowledge_base, :notion, :request]
   @stop_event @event_prefix ++ [:stop]
 
+  @doc """
+  Returns the telemetry event name for stop events.
+  """
   @spec event() :: [:dashboard_ssd | :knowledge_base | :notion | :request | :stop, ...]
   def event, do: @stop_event
 
@@ -71,12 +74,14 @@ defmodule DashboardSSD.KnowledgeBase.Instrumentation do
   @doc "Detaches the structured logging handler."
   @spec detach_logger(term()) :: :ok
   def detach_logger(id \\ __MODULE__) do
-    :telemetry.detach(id)
-  rescue
-    ArgumentError -> :ok
+    case :telemetry.detach(id) do
+      :ok -> :ok
+      {:error, :not_found} -> :ok
+    end
   end
 
   @doc false
+  @spec handle_event(term(), map(), map(), term()) :: :ok
   def handle_event(_event, measurements, metadata, _config) do
     duration_ms = System.convert_time_unit(measurements.duration, :native, :millisecond)
 

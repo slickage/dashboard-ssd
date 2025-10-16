@@ -25,7 +25,9 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
     "divider" => :divider,
     "image" => :image,
     "table" => :table,
-    "table_row" => :table_row
+    "table_row" => :table_row,
+    "to_do" => :to_do,
+    "bookmark" => :bookmark
   }
 
   @typedoc "Options accepted by catalog queries."
@@ -788,6 +790,22 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
   end
 
   defp apply_block_content("divider", base, _data), do: base
+
+  defp apply_block_content("to_do", base, data) do
+    segments = segments_from_rich_text(Map.get(data, "rich_text", []))
+    plain_text = Enum.map_join(segments, "", &Map.get(&1, :text, ""))
+
+    base
+    |> Map.put(:segments, segments)
+    |> Map.put(:checked, Map.get(data, "checked", false))
+    |> Map.put(:plain_text, plain_text)
+  end
+
+  defp apply_block_content("bookmark", base, data) do
+    base
+    |> Map.put(:url, Map.get(data, "url"))
+    |> Map.put(:caption, segments_from_rich_text(Map.get(data, "caption", [])))
+  end
 
   defp apply_block_content("image", base, data) do
     image_source =
