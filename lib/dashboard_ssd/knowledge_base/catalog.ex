@@ -207,6 +207,8 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
                  |> Enum.filter(&database_allowed?(&1, include_ids, exclude_ids))
                  |> Enum.map(&build_collection_from_database(&1, now))
 
+               collections = maybe_filter_empty_collections(token, collections, opts)
+
                {:ok, collections}
              end
            end,
@@ -218,6 +220,91 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
       {:error, reason} ->
         {:ok, %{collections: [], errors: [%{reason: reason}]}}
     end
+  end
+
+  defp maybe_filter_empty_collections(token, collections, opts) do
+    if hide_empty_collections?() or Keyword.get(opts, :hide_empty_collections, false) do
+      sample_size = Keyword.get(opts, :empty_check_page_size, 10)
+
+      Enum.filter(collections, fn col ->
+        case col.document_count do
+          count when is_integer(count) ->
+            count > 0
+
+          _ ->
+            if prefetch_empty_check?(opts) do
+              has_any_document?(token, col.id, sample_size)
+            else
+              true
+            end
+        end
+      end)
+    else
+      collections
+    end
+  end
+
+  defp has_any_document?(token, database_id, sample_size) do
+    query_opts = [
+      page_size: clamp_page_size(sample_size),
+      sorts: [
+        %{
+          "timestamp" => "last_edited_time",
+          "direction" => "descending"
+        }
+      ]
+    ]
+
+    case notion_client().query_database(token, database_id, query_opts) do
+      {:ok, body} ->
+        results = Map.get(body, "results", [])
+        Enum.any?(results, &allowed_document?/1)
+
+      # If we can't determine, keep the collection visible
+      {:error, _reason} ->
+        true
+    end
+  end
+
+  defp hide_empty_collections? do
+    cfg = Application.get_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, [])
+    default = Mix.env() != :test
+    cfg_flag = Keyword.get(cfg, :hide_empty_collections, default)
+
+    env_flag =
+      if Mix.env() == :test do
+        false
+      else
+        case System.get_env("KB_HIDE_EMPTY_COLLECTIONS") do
+          "1" -> true
+          "true" -> true
+          "TRUE" -> true
+          _ -> false
+        end
+      end
+
+    cfg_flag or env_flag
+  end
+
+  defp prefetch_empty_check?(opts) do
+    cfg = Application.get_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, [])
+    default = Mix.env() != :test
+    cfg_flag = Keyword.get(cfg, :prefetch_empty_check, default)
+    opt_flag = Keyword.get(opts, :prefetch_empty_check, false)
+
+    env_flag =
+      if Mix.env() == :test do
+        false
+      else
+        case System.get_env("KB_PREFETCH_EMPTY_CHECK") do
+          "1" -> true
+          "true" -> true
+          "TRUE" -> true
+          _ -> false
+        end
+      end
+
+    cfg_flag or env_flag or opt_flag
   end
 
   defp fetch_discovered_pages(token, opts) do
