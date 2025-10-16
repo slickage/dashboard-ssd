@@ -581,6 +581,20 @@ defmodule DashboardSSDWeb.KbComponents do
             <.kb_rich_text segments={@block.caption} />
           </figcaption>
         </figure>
+      <% :bookmark -> %>
+        <div class="flex flex-col gap-2">
+          <a
+            href={@block.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-blue-400 hover:text-blue-300 underline"
+          >
+            {@block.url}
+          </a>
+          <div :if={@block.caption != []} class="text-xs text-theme-muted">
+            <.kb_rich_text segments={@block.caption} />
+          </div>
+        </div>
       <% :table -> %>
         <% rows = Map.get(@block, :rows, @block.children || []) %>
         <% column_header? = Map.get(@block, :has_column_header?, false) %>
