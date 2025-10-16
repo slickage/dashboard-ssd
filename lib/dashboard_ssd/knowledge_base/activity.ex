@@ -127,12 +127,14 @@ defmodule DashboardSSD.KnowledgeBase.Activity do
 
   defp normalize_timestamp(%NaiveDateTime{} = ndt), do: NaiveDateTime.truncate(ndt, :second)
 
-  defp normalize_timestamp(other) do
-    case DateTime.from_naive(other, "Etc/UTC") do
-      {:ok, dt} -> DateTime.truncate(dt, :second) |> DateTime.to_naive()
+  defp normalize_timestamp(other) when is_binary(other) do
+    case NaiveDateTime.from_iso8601(other) do
+      {:ok, ndt} -> ndt
       _ -> normalize_timestamp(nil)
     end
   end
+
+  defp normalize_timestamp(_), do: normalize_timestamp(nil)
 
   defp normalize_metadata(meta) when is_map(meta) do
     meta
@@ -181,8 +183,6 @@ defmodule DashboardSSD.KnowledgeBase.Activity do
       _ -> DateTime.utc_now()
     end
   end
-
-  defp convert_to_datetime(_), do: DateTime.utc_now()
 
   defp dedupe_recent_documents(activities) do
     Enum.uniq_by(activities, & &1.document_id)

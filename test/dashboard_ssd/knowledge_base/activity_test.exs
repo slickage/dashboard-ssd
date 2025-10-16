@@ -8,7 +8,7 @@ defmodule DashboardSSD.KnowledgeBase.ActivityTest do
   alias DashboardSSD.KnowledgeBase.Types
   alias DashboardSSD.Repo
 
-  describe "record_view/3" do
+  describe "record_view" do
     test "persists audit rows with normalized details" do
       {:ok, user} =
         Accounts.create_user(%{
@@ -258,6 +258,159 @@ defmodule DashboardSSD.KnowledgeBase.ActivityTest do
 
       assert details == %{"document_id" => "doc-blank", "tag" => "present"}
     end
+
+    test "removes document fields with blank values" do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "blank-doc@example.com",
+          name: "Blank Doc",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      assert :ok =
+               Activity.record_view(user, %{
+                 document_id: "doc-blank-fields",
+                 document_title: "",
+                 document_icon: nil,
+                 document_share_url: "https://example.com"
+               })
+
+      details =
+        Repo.one(
+          from a in "audits",
+            where: a.user_id == ^user.id,
+            order_by: [desc: a.inserted_at],
+            limit: 1,
+            select: a.details
+        )
+
+      assert details == %{
+               "document_id" => "doc-blank-fields",
+               "document_share_url" => "https://example.com"
+             }
+    end
+
+    test "handles invalid timestamp gracefully" do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "invalid-ts@example.com",
+          name: "Invalid TS",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      assert :ok =
+               Activity.record_view(user, %{document_id: "doc-invalid-ts"}, occurred_at: 123)
+
+      # Should use current time, so inserted_at should be recent
+      inserted_at =
+        Repo.one(
+          from a in "audits",
+            where: a.user_id == ^user.id and a.action == "kb.viewed",
+            order_by: [desc: a.inserted_at],
+            limit: 1,
+            select: a.inserted_at
+        )
+
+      assert %NaiveDateTime{} = inserted_at
+      # Should be within last minute
+      assert NaiveDateTime.diff(NaiveDateTime.utc_now(), inserted_at) < 60
+    end
+
+    test "handles string timestamps gracefully" do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "string-ts@example.com",
+          name: "String TS",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      string_ts = "2024-05-01T12:00:00"
+
+      assert :ok =
+               Activity.record_view(user, %{document_id: "doc-string-ts"}, occurred_at: string_ts)
+
+      inserted_at =
+        Repo.one(
+          from a in "audits",
+            where: a.user_id == ^user.id and a.action == "kb.viewed",
+            order_by: [desc: a.inserted_at],
+            limit: 1,
+            select: a.inserted_at
+        )
+
+      assert inserted_at == ~N[2024-05-01 12:00:00]
+    end
+
+    test "handles invalid string timestamps gracefully" do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "invalid-string-ts@example.com",
+          name: "Invalid String TS",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      assert :ok =
+               Activity.record_view(user, %{document_id: "doc-invalid-string-ts"},
+                 occurred_at: "not-a-date"
+               )
+
+      inserted_at =
+        Repo.one(
+          from a in "audits",
+            where: a.user_id == ^user.id and a.action == "kb.viewed",
+            order_by: [desc: a.inserted_at],
+            limit: 1,
+            select: a.inserted_at
+        )
+
+      assert %NaiveDateTime{} = inserted_at
+      # Should be within last minute
+      assert NaiveDateTime.diff(NaiveDateTime.utc_now(), inserted_at) < 60
+    end
+
+    test "ignores non-map metadata" do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "non-map-meta@example.com",
+          name: "Non Map Meta",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      assert :ok = Activity.record_view(user, %{document_id: "doc-non-map"}, metadata: "invalid")
+
+      details =
+        Repo.one(
+          from a in "audits",
+            where: a.user_id == ^user.id,
+            order_by: [desc: a.inserted_at],
+            limit: 1,
+            select: a.details
+        )
+
+      assert details == %{"document_id" => "doc-non-map"}
+    end
+
+    test "accepts list attributes" do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "list-attrs@example.com",
+          name: "List Attrs",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      assert :ok = Activity.record_view(user, document_id: "doc-list", document_title: "List")
+
+      details =
+        Repo.one(
+          from a in "audits",
+            where: a.user_id == ^user.id,
+            order_by: [desc: a.inserted_at],
+            limit: 1,
+            select: a.details
+        )
+
+      assert details == %{"document_id" => "doc-list", "document_title" => "List"}
+    end
   end
 
   describe "recent_documents/2" do
@@ -347,6 +500,51 @@ defmodule DashboardSSD.KnowledgeBase.ActivityTest do
 
       assert {:ok, activities} = Activity.recent_documents(user, limit: 0)
       assert length(activities) == 5
+    end
+
+    test "dedupes recent documents by document_id", %{user: user} do
+      # Record multiple views of the same document
+      :ok = Activity.record_view(user, %{document_id: "doc-dup", document_title: "Duplicate"})
+
+      :ok =
+        Activity.record_view(user, %{document_id: "doc-dup", document_title: "Duplicate Again"})
+
+      :ok = Activity.record_view(user, %{document_id: "doc-other", document_title: "Other"})
+
+      assert {:ok, activities} = Activity.recent_documents(user, limit: 10)
+      assert length(activities) == 2
+      ids = Enum.map(activities, & &1.document_id)
+      assert "doc-dup" in ids
+      assert "doc-other" in ids
+    end
+
+    test "handles metadata with string keys", %{user: user} do
+      :ok =
+        Activity.record_view(user, %{document_id: "doc-string-meta"},
+          metadata: %{"string_key" => "value", atom_key: "atom_value"}
+        )
+
+      details =
+        Repo.one(
+          from a in "audits",
+            where: a.user_id == ^user.id,
+            order_by: [desc: a.inserted_at],
+            limit: 1,
+            select: a.details
+        )
+
+      assert details == %{
+               "document_id" => "doc-string-meta",
+               "string_key" => "value",
+               "atom_key" => "atom_value"
+             }
+    end
+
+    test "handles string limit gracefully", %{user: user} do
+      :ok = Activity.record_view(user, %{document_id: "doc-string-limit"})
+
+      assert {:ok, activities} = Activity.recent_documents(user, limit: "2")
+      assert length(activities) == 1
     end
 
     test "accepts maps containing user_id attribute", %{user: user} do

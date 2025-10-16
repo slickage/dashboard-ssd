@@ -89,7 +89,7 @@ defmodule DashboardSSD.Analytics.CollectorTest do
   describe "collect_mttr/1" do
     test "persists mttr metric when failures present" do
       project_id = project_id()
-      now = DateTime.utc_now() |> DateTime.truncate(:second)
+      now = DateTime.utc_now() |> DateTime.add(-1, :hour) |> DateTime.truncate(:second)
       later = DateTime.add(now, 20 * 60, :second)
 
       Repo.insert!(%MetricSnapshot{
@@ -106,12 +106,17 @@ defmodule DashboardSSD.Analytics.CollectorTest do
         inserted_at: later
       })
 
-      assert :ok == Collector.collect_mttr(project_id)
+      log =
+        capture_log(fn ->
+          assert :ok == Collector.collect_mttr(project_id)
+        end)
+
+      assert log =~ "Collected MTTR for project #{project_id}"
     end
 
     test "logs when no failures are present" do
       project_id = project_id()
-      now = DateTime.utc_now() |> DateTime.truncate(:second)
+      now = DateTime.utc_now() |> DateTime.add(-1, :hour) |> DateTime.truncate(:second)
 
       Repo.insert!(%MetricSnapshot{
         project_id: project_id,
@@ -120,7 +125,12 @@ defmodule DashboardSSD.Analytics.CollectorTest do
         inserted_at: now
       })
 
-      assert :ok == Collector.collect_mttr(project_id)
+      log =
+        capture_log(fn ->
+          assert :ok == Collector.collect_mttr(project_id)
+        end)
+
+      assert log =~ "No failures found for MTTR calculation in project #{project_id}"
     end
   end
 
@@ -133,7 +143,13 @@ defmodule DashboardSSD.Analytics.CollectorTest do
         provider: "custom"
       }
 
-      assert :ok == Collector.collect_project_metrics(setting)
+      log =
+        capture_log([level: :debug], fn ->
+          assert :ok == Collector.collect_project_metrics(setting)
+        end)
+
+      assert log =~
+               "Custom health check metrics collection not yet implemented for project #{project_id}"
     end
 
     test "handles unknown providers" do
@@ -142,7 +158,12 @@ defmodule DashboardSSD.Analytics.CollectorTest do
         provider: "unknown"
       }
 
-      assert :ok == Collector.collect_project_metrics(setting)
+      log =
+        capture_log([level: :debug], fn ->
+          assert :ok == Collector.collect_project_metrics(setting)
+        end)
+
+      assert log =~ "Unknown health check provider: unknown"
     end
 
     test "logs debug for aws_elbv2 provider" do
@@ -180,6 +201,28 @@ defmodule DashboardSSD.Analytics.CollectorTest do
       assert response_time_metric.value >= 0
       assert uptime_metric
       assert uptime_metric.value == 100.0
+    end
+
+    test "records downtime when http request fails" do
+      project_id = project_id()
+
+      setting = %DashboardSSD.Deployments.HealthCheckSetting{
+        project_id: project_id,
+        provider: "http",
+        endpoint_url: "http://127.0.0.1:9/"
+      }
+
+      assert :ok == Collector.collect_project_metrics(setting)
+
+      # Check that only uptime metric was created with 0.0
+      uptime_metric = Repo.get_by(MetricSnapshot, project_id: project_id, type: "uptime")
+
+      response_time_metric =
+        Repo.get_by(MetricSnapshot, project_id: project_id, type: "response_time")
+
+      assert uptime_metric
+      assert uptime_metric.value == 0.0
+      refute response_time_metric
     end
   end
 

@@ -337,6 +337,10 @@ defmodule DashboardSSD.Integrations.Notion do
 
   defp handle_request_result({:error, reason}, _context), do: {:error, reason}
 
+  @doc """
+  Resets all Notion API circuit breakers.
+  """
+  @spec reset_circuits() :: :ok
   def reset_circuits do
     keys = :persistent_term.get(@circuit_keys_key, MapSet.new())
 

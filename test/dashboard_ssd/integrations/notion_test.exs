@@ -49,6 +49,21 @@ defmodule DashboardSSD.Integrations.NotionTest do
       Tesla.Mock.mock(fn _ -> {:error, :econnrefused} end)
       assert {:error, :econnrefused} = Notion.search(@token, "q")
     end
+
+    test "merges body option into query payload" do
+      Tesla.Mock.mock(fn
+        %{body: body} ->
+          body_map = decode_body(body)
+          assert body_map["query"] == "test"
+          assert body_map["filter"] == %{"property" => "Type", "select" => %{"equals" => "Wiki"}}
+          %Tesla.Env{status: 200, body: %{"results" => []}}
+      end)
+
+      assert {:ok, %{"results" => []}} =
+               Notion.search(@token, "test",
+                 body: %{filter: %{property: "Type", select: %{equals: "Wiki"}}}
+               )
+    end
   end
 
   describe "query_database/3" do
@@ -179,6 +194,84 @@ defmodule DashboardSSD.Integrations.NotionTest do
 
       assert {:error, {:http_error, 503, %{"error" => "unavailable"}}} =
                Notion.list_databases(@token, [])
+    end
+
+    test "includes query and sort options in search body" do
+      Tesla.Mock.mock(fn
+        %{body: body} ->
+          body_map = decode_body(body)
+          assert body_map["query"] == "handbook"
+
+          assert body_map["sort"] == %{
+                   "direction" => "descending",
+                   "property" => "last_edited_time"
+                 }
+
+          %Tesla.Env{status: 200, body: %{"results" => []}}
+      end)
+
+      assert {:ok, %{"results" => []}} =
+               Notion.list_databases(@token,
+                 query: "handbook",
+                 sort: %{direction: "descending", property: "last_edited_time"}
+               )
+    end
+
+    test "retries on rate limiting and eventually succeeds" do
+      sleep = fn _ -> :ok end
+      parent = self()
+
+      Tesla.Mock.mock(fn
+        %{method: :post, url: "https://api.notion.com/v1/search"} ->
+          attempt = Process.get(:list_attempts, 0)
+          Process.put(:list_attempts, attempt + 1)
+
+          case attempt do
+            x when x < 2 ->
+              %Tesla.Env{status: 429, body: %{"error" => "rate_limited"}}
+
+            _ ->
+              send(parent, :list_retried)
+              %Tesla.Env{status: 200, body: %{"results" => []}}
+          end
+      end)
+
+      assert {:ok, %{"results" => []}} =
+               Notion.list_databases(@token,
+                 sleep: sleep,
+                 base_backoff_ms: 1,
+                 max_backoff_ms: 2,
+                 circuit_cooldown_ms: 20
+               )
+
+      assert_receive :list_retried
+      assert Process.get(:list_attempts) == 3
+    end
+
+    test "opens circuit after exhausting retry attempts" do
+      sleep = fn _ -> :ok end
+      time = fn :millisecond -> 100 end
+
+      Tesla.Mock.mock(fn _ -> %Tesla.Env{status: 429, body: %{"error" => "rate_limited"}} end)
+
+      assert {:error, {:http_error, 429, _}} =
+               Notion.list_databases(@token,
+                 sleep: sleep,
+                 base_backoff_ms: 1,
+                 max_backoff_ms: 1,
+                 max_attempts: 2,
+                 circuit_cooldown_ms: 50,
+                 time_provider: time
+               )
+
+      assert {:error, {:circuit_open, resume_at}} =
+               Notion.list_databases(@token,
+                 sleep: sleep,
+                 time_provider: time,
+                 circuit_cooldown_ms: 50
+               )
+
+      assert resume_at == 150
     end
   end
 
