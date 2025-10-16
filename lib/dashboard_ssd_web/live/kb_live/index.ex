@@ -161,28 +161,38 @@ defmodule DashboardSSDWeb.KbLive.Index do
       true ->
         {documents, document_errors} = load_documents(collection_id)
 
-        documents_by_collection = documents_map(socket)
+        # If the collection has no documents and no errors, remove it from the list
+        if documents == [] and document_errors == [] and
+             Map.has_key?(socket.assigns, :collections) do
+          filtered = Enum.reject(socket.assigns[:collections] || [], &(&1.id == collection_id))
 
-        existing_document_errors = document_errors_map(socket)
+          {:noreply,
+           socket
+           |> assign(:collections, filtered)
+           |> assign(:document_errors, document_errors_map(socket))}
+        else
+          documents_by_collection = documents_map(socket)
+          existing_document_errors = document_errors_map(socket)
 
-        socket =
-          socket
-          |> assign(
-            :documents_by_collection,
-            Map.put(documents_by_collection, collection_id, documents)
-          )
-          |> assign(
-            :document_errors,
-            put_document_errors(existing_document_errors, collection_id, document_errors)
-          )
-          |> assign(
-            :expanded_collections,
-            MapSet.put(socket.assigns.expanded_collections, collection_id)
-          )
-          |> assign(:selected_collection_id, collection_id)
-          |> assign_documents(collection_id)
+          socket =
+            socket
+            |> assign(
+              :documents_by_collection,
+              Map.put(documents_by_collection, collection_id, documents)
+            )
+            |> assign(
+              :document_errors,
+              put_document_errors(existing_document_errors, collection_id, document_errors)
+            )
+            |> assign(
+              :expanded_collections,
+              MapSet.put(socket.assigns.expanded_collections, collection_id)
+            )
+            |> assign(:selected_collection_id, collection_id)
+            |> assign_documents(collection_id)
 
-        {:noreply, socket}
+          {:noreply, socket}
+        end
     end
   end
 
@@ -385,7 +395,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
   defp load_collections do
     case Catalog.list_collections() do
       {:ok, %{collections: collections, errors: errors}} ->
-        {collections, errors}
+        {filter_collections_on_load(collections), errors}
 
       {:error, reason} ->
         {[], [%{reason: reason}]}
@@ -702,6 +712,36 @@ defmodule DashboardSSDWeb.KbLive.Index do
   defp format_reason({:http_error, status, _}), do: "HTTP error #{status}"
   defp format_reason(reason) when is_atom(reason), do: Atom.to_string(reason)
   defp format_reason(reason), do: inspect(reason)
+
+  defp filter_collections_on_load(collections) do
+    if hide_empty_collections?() do
+      Enum.reject(collections, fn col ->
+        is_integer(col.document_count) and col.document_count == 0
+      end)
+    else
+      collections
+    end
+  end
+
+  defp hide_empty_collections? do
+    cfg = Application.get_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, [])
+    default = Mix.env() != :test
+    cfg_flag = Keyword.get(cfg, :hide_empty_collections, default)
+
+    env_flag =
+      if Mix.env() == :test do
+        false
+      else
+        case System.get_env("KB_HIDE_EMPTY_COLLECTIONS") do
+          "1" -> true
+          "true" -> true
+          "TRUE" -> true
+          _ -> false
+        end
+      end
+
+    cfg_flag or env_flag
+  end
 
   @impl true
   def render(assigns) do
