@@ -411,6 +411,28 @@ defmodule DashboardSSD.KnowledgeBase.ActivityTest do
 
       assert details == %{"document_id" => "doc-list", "document_title" => "List"}
     end
+
+    test "handles list document attributes with integer id" do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "list-int@example.com",
+          name: "List Int",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      assert :ok = Activity.record_view(user, document_id: 123, document_title: "Int Doc")
+
+      details =
+        Repo.one(
+          from a in "audits",
+            where: a.user_id == ^user.id,
+            order_by: [desc: a.inserted_at],
+            limit: 1,
+            select: a.details
+        )
+
+      assert details == %{"document_id" => "123", "document_title" => "Int Doc"}
+    end
   end
 
   describe "recent_documents/2" do
@@ -554,6 +576,29 @@ defmodule DashboardSSD.KnowledgeBase.ActivityTest do
                Activity.recent_documents(%{user_id: user.id}, limit: 1)
     end
 
+    test "accepts string key user_id in map" do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "string-user@example.com",
+          name: "String User",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      assert :ok =
+               Activity.record_view(%{"user_id" => user.id}, %{document_id: "doc-string-user"})
+
+      audit =
+        Repo.one(
+          from a in "audits",
+            where: a.user_id == ^user.id,
+            order_by: [desc: a.inserted_at],
+            limit: 1,
+            select: a.details
+        )
+
+      assert audit == %{"document_id" => "doc-string-user"}
+    end
+
     test "handles audit rows without details data", %{user: user} do
       Repo.insert_all("audits", [
         %{
@@ -567,6 +612,23 @@ defmodule DashboardSSD.KnowledgeBase.ActivityTest do
       assert {:ok, [activity]} = Activity.recent_documents(user, limit: 1)
       assert activity.document_id == nil
       assert activity.metadata == %{}
+    end
+
+    test "handles DateTime timestamps in audit rows", %{user: user} do
+      dt = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      Repo.insert_all("audits", [
+        %{
+          user_id: user.id,
+          action: "kb.viewed",
+          details: %{"document_id" => "doc-dt-ts"},
+          inserted_at: dt
+        }
+      ])
+
+      assert {:ok, [activity]} = Activity.recent_documents(user, limit: 1)
+      assert activity.document_id == "doc-dt-ts"
+      assert activity.occurred_at == dt
     end
 
     test "returns error for invalid user" do
