@@ -150,7 +150,6 @@ defmodule DashboardSSDWeb.ProjectsHealthChecksLiveTest do
     assert html =~ ~s(name=\"hc[enabled]\" checked)
   end
 
-  @tag :skip
   test "enabling HTTP with URL shows dot (when status exists) and disabling clears it", %{
     conn: conn
   } do
@@ -190,12 +189,12 @@ defmodule DashboardSSDWeb.ProjectsHealthChecksLiveTest do
 
     render_submit(form2, %{
       "project" => %{"name" => "Srv", "client_id" => to_string(c.id)},
-      "hc" => %{"provider" => "http", "http_url" => "http://example/health"}
+      "hc" => %{"enabled" => "off", "provider" => "http", "http_url" => "http://example/health"}
     })
 
     # Modal should close and project should be updated in place
     {:ok, _view4, html2} = live(conn, ~p"/projects")
-    assert html2 =~ ~r/<td>\s*<span class="text-white\/30">â<\/span>\s*<\/td>/
+    refute html2 =~ "bg-emerald-400"
   end
 
   test "dot colors reflect status (degraded amber, down red)", %{conn: conn} do

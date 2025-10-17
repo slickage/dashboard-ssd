@@ -43,8 +43,23 @@ defmodule DashboardSSD.Integrations.LinearUtilsTest do
 
     test "returns :empty when all queries return invalid" do
       Tesla.Mock.mock(fn
-        %{method: :post, url: "https://api.linear.app/graphql"} ->
-          %Tesla.Env{status: 200, body: %{"data" => %{"issues" => %{"nodes" => nil}}}}
+        %{method: :post, url: "https://api.linear.app/graphql", body: body} ->
+          body_map = Jason.decode!(body)
+          query = body_map["query"]
+
+          cond do
+            String.contains?(query, "IssuesByProject($name: String!, $first: Int!)") ->
+              %Tesla.Env{status: 200, body: %{"data" => %{"issues" => %{"nodes" => nil}}}}
+
+            String.contains?(query, "IssuesByProjectContains($name: String!, $first: Int!)") ->
+              %Tesla.Env{status: 200, body: %{"data" => %{"issues" => %{"nodes" => nil}}}}
+
+            String.contains?(query, "IssueSearch($q: String!)") ->
+              %Tesla.Env{status: 200, body: %{"data" => %{"issueSearch" => %{"nodes" => nil}}}}
+
+            true ->
+              raise "Unexpected query in mock: #{query}"
+          end
       end)
 
       assert :empty = LinearUtils.issue_nodes_for_project("test")
