@@ -154,7 +154,7 @@ document_type_filter_exempt_ids =
 auto_discover? =
   parse_env_boolean.(
     System.get_env("NOTION_AUTO_DISCOVER"),
-    Keyword.get(knowledge_base_config, :auto_discover?, false)
+    Keyword.get(knowledge_base_config, :auto_discover?, true)
   )
 
 auto_discover_mode =
