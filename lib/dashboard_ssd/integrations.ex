@@ -63,13 +63,17 @@ defmodule DashboardSSD.Integrations do
 
   # Notion
   @spec notion_search(String.t()) :: {:ok, map()} | error()
+  @spec notion_search(String.t(), keyword()) :: {:ok, map()} | error()
   @doc """
   Search Notion for the given query string using the configured integration token.
   Returns `{:ok, map}` on success or `{:error, reason}` when configuration is missing.
+
+  Options:
+    * `:body` - additional body parameters for the search request
   """
-  def notion_search(query) do
+  def notion_search(query, opts \\ []) do
     with {:ok, token} <- fetch!(:notion_token, "NOTION_TOKEN") do
-      Notion.search(token, query)
+      Notion.search(token, query, opts)
     end
   end
 
