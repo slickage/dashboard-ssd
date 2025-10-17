@@ -659,58 +659,6 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
                Catalog.list_collections()
     end
 
-    test "auto discovery prunes empty databases when hide enabled" do
-      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
-        auto_discover?: true,
-        hide_empty_collections: true
-      )
-
-      Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
-
-      Cache.reset()
-      Notion.reset_circuits()
-
-      NotionMock
-      |> expect(:list_databases, fn "token", _opts ->
-        {:ok,
-         %{
-           "results" => [
-             %{"id" => "db-empty", "title" => [%{"plain_text" => "Empty"}], "properties" => %{}},
-             %{
-               "id" => "db-nonempty",
-               "title" => [%{"plain_text" => "Nonempty"}],
-               "properties" => %{}
-             }
-           ],
-           "has_more" => false,
-           "next_cursor" => nil
-         }}
-      end)
-      |> expect(:query_database, fn "token", "db-empty", _opts ->
-        {:ok, %{"results" => [], "has_more" => false, "next_cursor" => nil}}
-      end)
-      |> expect(:query_database, fn "token", "db-nonempty", _opts ->
-        {:ok,
-         %{
-           "results" => [
-             %{
-               "id" => "page-1",
-               "last_edited_time" => "2024-05-01T00:00:00Z",
-               "parent" => %{"type" => "database_id", "database_id" => "db-nonempty"},
-               "properties" => %{
-                 "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Doc"}]}
-               }
-             }
-           ],
-           "has_more" => false,
-           "next_cursor" => nil
-         }}
-      end)
-
-      assert {:ok, %{collections: collections, errors: []}} = Catalog.list_collections()
-      assert Enum.map(collections, & &1.id) == ["db-nonempty"]
-    end
-
     test "auto discovery does not prune when disabled" do
       Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
         auto_discover?: true,
@@ -855,6 +803,111 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
 
       assert {:ok, %{collections: [collection], errors: []}} = Catalog.list_collections()
       assert collection.id == "1234"
+    end
+
+    test "auto discovery prunes empty databases when hide enabled and document_count is present" do
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
+        auto_discover?: true,
+        hide_empty_collections: true
+      )
+
+      Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
+
+      Cache.reset()
+      Notion.reset_circuits()
+
+      NotionMock
+      |> expect(:list_databases, fn "token", _opts ->
+        {:ok,
+         %{
+           "results" => [
+             %{"id" => "db-empty", "title" => [%{"plain_text" => "Empty"}], "properties" => %{}},
+             %{
+               "id" => "db-nonempty",
+               "title" => [%{"plain_text" => "Nonempty"}],
+               "properties" => %{}
+             }
+           ],
+           "has_more" => false,
+           "next_cursor" => nil
+         }}
+      end)
+      |> expect(:query_database, fn "token", "db-empty", _opts ->
+        {:ok, %{"results" => [], "total" => 0, "has_more" => false, "next_cursor" => nil}}
+      end)
+      |> expect(:query_database, fn "token", "db-nonempty", _opts ->
+        {:ok,
+         %{
+           "results" => [
+             %{
+               "id" => "page-1",
+               "last_edited_time" => "2024-05-01T00:00:00Z",
+               "parent" => %{"type" => "database_id", "database_id" => "db-nonempty"},
+               "properties" => %{
+                 "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Doc"}]}
+               }
+             }
+           ],
+           "total" => 1,
+           "has_more" => false,
+           "next_cursor" => nil
+         }}
+      end)
+
+      assert {:ok, %{collections: collections, errors: []}} = Catalog.list_collections()
+      assert Enum.map(collections, & &1.id) == ["db-nonempty"]
+    end
+
+    test "auto discovery prunes empty databases when hide enabled" do
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
+        auto_discover?: true,
+        hide_empty_collections: true
+      )
+
+      Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
+
+      Cache.reset()
+      Notion.reset_circuits()
+
+      NotionMock
+      |> expect(:list_databases, fn "token", _opts ->
+        {:ok,
+         %{
+           "results" => [
+             %{"id" => "db-empty", "title" => [%{"plain_text" => "Empty"}], "properties" => %{}},
+             %{
+               "id" => "db-nonempty",
+               "title" => [%{"plain_text" => "Nonempty"}],
+               "properties" => %{}
+             }
+           ],
+           "has_more" => false,
+           "next_cursor" => nil
+         }}
+      end)
+      |> expect(:query_database, fn "token", "db-empty", _opts ->
+        {:ok, %{"results" => [], "has_more" => false, "next_cursor" => nil}}
+      end)
+      |> expect(:query_database, fn "token", "db-nonempty", _opts ->
+        {:ok,
+         %{
+           "results" => [
+             %{
+               "id" => "page-1",
+               "last_edited_time" => "2024-05-01T00:00:00Z",
+               "parent" => %{"type" => "database_id", "database_id" => "db-nonempty"},
+               "properties" => %{
+                 "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Doc"}]}
+               }
+             }
+           ],
+           "has_more" => false,
+           "next_cursor" => nil
+         }}
+      end)
+
+      assert {:ok, %{collections: collections, errors: []}} = Catalog.list_collections()
+      assert Enum.map(collections, & &1.id) == ["db-nonempty"]
     end
   end
 
@@ -1890,6 +1943,49 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       assert table.has_row_header? == false
       assert table.table_width == 1
     end
+
+    test "normalizes bookmark blocks" do
+      page = %{
+        "id" => "page-bookmark",
+        "url" => "https://notion.so/page-bookmark",
+        "created_time" => "2024-05-14T09:00:00Z",
+        "last_edited_time" => "2024-05-14T12:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Bookmark"}]}
+        }
+      }
+
+      blocks_response = %{
+        "results" => [
+          %{
+            "id" => "bookmark-1",
+            "type" => "bookmark",
+            "has_children" => false,
+            "bookmark" => %{
+              "url" => "https://example.com",
+              "caption" => [%{"plain_text" => "Link"}]
+            }
+          }
+        ],
+        "has_more" => false,
+        "next_cursor" => nil
+      }
+
+      NotionMock
+      |> expect(:retrieve_page, fn "token", "page-bookmark", _opts -> {:ok, page} end)
+      |> expect(:retrieve_block_children, fn "token", "page-bookmark", _opts ->
+        {:ok, blocks_response}
+      end)
+
+      assert {:ok, detail} = Catalog.get_document("page-bookmark")
+
+      [bookmark] = detail.rendered_blocks
+
+      assert bookmark.type == :bookmark
+      assert bookmark.url == "https://example.com"
+      assert bookmark.caption == [%{annotations: %{}, href: nil, text: "Link", type: nil}]
+    end
   end
 
   describe "auto discover pages" do
@@ -2387,6 +2483,29 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
   defp restore_env(%{notion_token: token, notion_api_key: api_key}) do
     set_env("NOTION_TOKEN", token)
     set_env("NOTION_API_KEY", api_key)
+  end
+
+  test "handles page collection discovery with custom settings" do
+    Application.delete_env(:dashboard_ssd, :integrations)
+    System.put_env("NOTION_TOKEN", "token")
+
+    Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
+      curated_collections: [],
+      auto_discover_enabled: true,
+      auto_discover_mode: :pages,
+      auto_page_collection_name: "Custom Pages"
+    )
+
+    Cache.reset()
+    Notion.reset_circuits()
+
+    NotionMock
+    |> expect(:search, fn "token", "", _opts ->
+      {:ok, %{"results" => [], "has_more" => false}}
+    end)
+
+    assert {:ok, %{collections: [collection], errors: []}} = Catalog.list_collections()
+    assert collection.name == "Custom Pages"
   end
 
   defp set_env(key, nil), do: System.delete_env(key)

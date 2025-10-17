@@ -230,6 +230,14 @@ window.addEventListener("phx:open_oauth_popup", (event) => {
   }
 });
 
+// Copy to clipboard functionality
+window.addEventListener("phx:copy-to-clipboard", (event) => {
+  const { text } = event.detail;
+  navigator.clipboard.writeText(text).catch(err => {
+    console.error('Failed to copy text: ', err);
+  });
+});
+
 // Flash auto-dismiss hook
 let Hooks = {}
 Hooks.AutoDismiss = {

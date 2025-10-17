@@ -365,6 +365,7 @@ defmodule DashboardSSDWeb.KbComponents do
   attr :document, Types.DocumentDetail
   attr :error, :string, default: nil
   attr :loading, :boolean, default: false
+  attr :share_url, :string, default: nil
 
   @doc false
   @spec document_viewer(map()) :: Rendered.t()
@@ -426,6 +427,15 @@ defmodule DashboardSSDWeb.KbComponents do
                   rel="noopener"
                 >
                   View in Notion
+                </a>
+                <a
+                  :if={@share_url}
+                  href="#"
+                  phx-click="copy_share_link"
+                  phx-value-url={@share_url}
+                  class="text-theme-accent underline"
+                >
+                  Copy URL
                 </a>
               </div>
               <div :if={@document.tags != []} class="mt-2 flex flex-wrap gap-2">

@@ -9,7 +9,12 @@ defmodule DashboardSSDWeb.KbLive.Index do
   import DashboardSSDWeb.KbComponents
 
   @impl true
-  def mount(_params, _session, socket) do
+  def handle_params(params, _uri, socket) do
+    {:noreply, maybe_load_document_from_params(socket, params)}
+  end
+
+  @impl true
+  def mount(params, _session, socket) do
     user = socket.assigns.current_user
 
     if Policy.can?(user, :read, :kb) do
@@ -24,31 +29,34 @@ defmodule DashboardSSDWeb.KbLive.Index do
 
       documents = documents_for_collection(documents_by_collection, selected_collection_id)
 
-      {:ok,
-       assign(socket,
-         current_path: "/kb",
-         page_title: "Knowledge Base",
-         query: "",
-         results: [],
-         search_performed: false,
-         search_loading: false,
-         mobile_menu_open: false,
-         collections: collections,
-         collection_errors: collection_errors,
-         selected_collection_id: selected_collection_id,
-         document_errors: document_errors,
-         documents_by_collection: documents_by_collection,
-         documents: documents,
-         selected_document: selected_document,
-         selected_document_id: selected_document_id,
-         reader_error: reader_error,
-         reader_loading: false,
-         recent_documents: recent_documents,
-         recent_errors: recent_errors,
-         expanded_collections: expanded_collections,
-         search_dropdown_open: false,
-         pending_document_id: nil
-       )}
+      socket =
+        assign(socket,
+          current_path: "/kb",
+          page_title: "Knowledge Base",
+          query: "",
+          results: [],
+          search_performed: false,
+          search_loading: false,
+          mobile_menu_open: false,
+          collections: collections,
+          collection_errors: collection_errors,
+          selected_collection_id: selected_collection_id,
+          document_errors: document_errors,
+          documents_by_collection: documents_by_collection,
+          documents: documents,
+          selected_document: selected_document,
+          selected_document_id: selected_document_id,
+          reader_error: reader_error,
+          reader_loading: false,
+          recent_documents: recent_documents,
+          recent_errors: recent_errors,
+          expanded_collections: expanded_collections,
+          search_dropdown_open: false,
+          pending_document_id: nil
+        )
+        |> maybe_load_document_from_params(params)
+
+      {:ok, socket}
     else
       {:ok,
        socket
@@ -57,6 +65,22 @@ defmodule DashboardSSDWeb.KbLive.Index do
        |> redirect(to: ~p"/")}
     end
   end
+
+  defp maybe_load_document_from_params(socket, %{"document_id" => document_id})
+       when is_binary(document_id) do
+    socket
+    |> assign(:pending_document_id, document_id)
+    |> assign(:reader_loading, true)
+    |> assign(:selected_document_id, document_id)
+    |> assign(:selected_document, nil)
+    |> assign(:reader_error, nil)
+    |> then(fn s ->
+      send(self(), {:load_document, document_id, [source: :url]})
+      s
+    end)
+  end
+
+  defp maybe_load_document_from_params(socket, _params), do: socket
 
   @impl true
   def handle_event("typeahead_search", %{"query" => query}, socket) do
@@ -213,19 +237,6 @@ defmodule DashboardSSDWeb.KbLive.Index do
   end
 
   @impl true
-  def handle_event("select_document", %{"id" => document_id}, socket) do
-    collection_id = collection_id_for_document(socket, document_id)
-
-    socket =
-      socket
-      |> assign(:selected_document_id, document_id)
-      |> assign(:selected_collection_id, collection_id || socket.assigns.selected_collection_id)
-      |> assign(:search_dropdown_open, false)
-
-    {:noreply, start_document_load(socket, document_id, source: :collection)}
-  end
-
-  @impl true
   def handle_event("select_document_key", %{"id" => id, "key" => key}, socket)
       when key in ["Enter", " ", "Space"] do
     handle_event("select_document", %{"id" => id}, socket)
@@ -234,6 +245,22 @@ defmodule DashboardSSDWeb.KbLive.Index do
   @impl true
   def handle_event("select_document_key", _params, socket) do
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("select_document", %{"id" => document_id}, socket) do
+    socket =
+      socket
+      |> assign(:selected_document_id, document_id)
+      |> assign(:search_dropdown_open, false)
+
+    {:noreply,
+     socket
+     |> push_patch(to: ~p"/kb?document_id=#{document_id}")
+     |> start_document_load(document_id,
+       source: :collection,
+       collection_id: socket.assigns[:selected_collection_id]
+     )}
   end
 
   @impl true
@@ -258,10 +285,20 @@ defmodule DashboardSSDWeb.KbLive.Index do
       |> assign(:search_dropdown_open, false)
 
     {:noreply,
-     start_document_load(socket, document_id,
+     socket
+     |> push_patch(to: ~p"/kb?document_id=#{document_id}")
+     |> start_document_load(document_id,
        source: :search,
        collection_id: collection_id
      )}
+  end
+
+  @impl true
+  def handle_event("copy_share_link", %{"url" => url}, socket) do
+    {:noreply,
+     socket
+     |> push_event("copy-to-clipboard", %{text: url})
+     |> put_flash(:info, "Share link copied to clipboard")}
   end
 
   @impl true
@@ -534,14 +571,6 @@ defmodule DashboardSSDWeb.KbLive.Index do
 
   defp documents_map(socket) do
     Map.get(socket.assigns, :documents_by_collection, %{})
-  end
-
-  defp collection_id_for_document(socket, document_id) do
-    socket
-    |> documents_map()
-    |> Enum.find_value(fn {collection_id, documents} ->
-      if Enum.any?(documents, &(&1.id == document_id)), do: collection_id
-    end)
   end
 
   defp document_errors_map(socket) do
@@ -841,6 +870,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
               document={@selected_document}
               error={format_reader_error(@reader_error)}
               loading={@reader_loading}
+              share_url={@selected_document && url(~p"/kb?document_id=#{@selected_document.id}")}
             />
           </div>
         </section>
