@@ -5,8 +5,6 @@ defmodule DashboardSSD.Application do
 
   use Application
 
-  require Logger
-
   @impl true
   def start(_type, _args) do
     children = [
@@ -29,15 +27,7 @@ defmodule DashboardSSD.Application do
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: DashboardSSD.Supervisor]
-
-    case Supervisor.start_link(children, opts) do
-      {:ok, pid} = result ->
-        # Add Phoenix.CodeReloader listener after Phoenix loads
-        add_phoenix_code_reloader_listener()
-        result
-      other ->
-        other
-    end
+    Supervisor.start_link(children, opts)
   end
 
   defp health_checks_child do
@@ -70,30 +60,5 @@ defmodule DashboardSSD.Application do
   def config_change(changed, _new, removed) do
     DashboardSSDWeb.Endpoint.config_change(changed, removed)
     :ok
-  end
-
-  # Add Phoenix.CodeReloader listener after application starts
-  defp add_phoenix_code_reloader_listener do
-    # Only add the listener if Phoenix.CodeReloader is available
-    if Code.ensure_loaded?(Phoenix.CodeReloader) do
-      try do
-        # Try to start the listener using the child spec
-        case Phoenix.CodeReloader.child_spec([]) do
-          %{start: {mod, fun, args}} = spec ->
-            case Supervisor.start_child(Mix.PubSub, spec) do
-              {:ok, _pid} ->
-                :ok
-              {:error, {:already_started, _pid}} ->
-                :ok
-              {:error, reason} ->
-                Logger.warning("Failed to start Phoenix.CodeReloader listener: #{inspect(reason)}")
-            end
-          _ ->
-            Logger.warning("Phoenix.CodeReloader.child_spec/1 returned invalid spec")
-        end
-      rescue
-        _ -> :ok # Ignore errors if listener can't be started
-      end
-    end
   end
 end
