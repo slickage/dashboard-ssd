@@ -223,26 +223,29 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
   end
 
   defp maybe_filter_empty_collections(token, collections, opts) do
-    if hide_empty_collections?() or Keyword.get(opts, :hide_empty_collections, false) do
-      sample_size = Keyword.get(opts, :empty_check_page_size, 10)
+    hide? = hide_empty_collections?() or Keyword.get(opts, :hide_empty_collections, false)
 
-      Enum.filter(collections, fn col ->
-        case col.document_count do
-          count when is_integer(count) ->
-            count > 0
-
-          _ ->
-            if hide_empty_collections?() or Keyword.get(opts, :hide_empty_collections, false) do
-              has_any_document?(token, col.id, sample_size)
-            else
-              true
-            end
-        end
-      end)
+    if hide? do
+      do_maybe_filter_empty(token, collections, opts)
     else
       collections
     end
   end
+
+  defp do_maybe_filter_empty(token, collections, opts) do
+    sample_size = Keyword.get(opts, :empty_check_page_size, 10)
+    prefetch? = prefetch_empty_check?(opts)
+
+    Enum.filter(collections, fn col ->
+      keep_collection?(token, col, prefetch?, sample_size)
+    end)
+  end
+
+  defp keep_collection?(_token, %{document_count: count}, _prefetch?, _sz) when is_integer(count),
+    do: count > 0
+
+  defp keep_collection?(_token, _col, false, _sz), do: true
+  defp keep_collection?(token, col, true, sz), do: has_any_document?(token, col.id, sz)
 
   defp has_any_document?(token, database_id, sample_size) do
     query_opts = [
