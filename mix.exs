@@ -15,6 +15,7 @@ defmodule DashboardSSD.MixProject do
       preferred_cli_env: [
         coveralls: :test,
         "coveralls.github": :test,
+        "coveralls.html": :test,
         sobelow: :dev
       ],
       docs: [
@@ -26,14 +27,10 @@ defmodule DashboardSSD.MixProject do
           "README.md": [title: "Overview"],
           "INTEGRATIONS.md": [title: "Integrations (Local)"],
           "NOTION.md": [title: "Notion Integration"],
-          "specs/001-dashboard-init/spec.md": [title: "001 MVP Spec"],
-          "specs/001-dashboard-init/tasks.md": [title: "001 Tasks"],
-          "specs/002-theme/spec.md": [title: "002 Theme Spec"],
-          "specs/002-theme/tasks.md": [title: "002 Tasks"],
-          "specs/003-prepare-this-repo/spec.md": [title: "003 Prepare Repo Spec"],
-          "specs/003-prepare-this-repo/tasks.md": [title: "003 Tasks"],
-          "specs/004-enhance-the-existing/spec.md": [title: "004 Enhance Existing Spec"],
-          "specs/004-enhance-the-existing/tasks.md": [title: "004 Tasks"]
+          "specs/001-dashboard-init/tasks.md": [title: "001 MVP Tasks"],
+          "specs/002-theme/tasks.md": [title: "002 Theme Tasks"],
+          "specs/003-prepare-this-repo/tasks.md": [title: "003 Prepare Repo Tasks"],
+          "specs/004-enhance-the-existing/tasks.md": [title: "004 Enhance Existing Tasks"]
         ],
         groups_for_extras: [
           "Getting Started": ["README.md"],

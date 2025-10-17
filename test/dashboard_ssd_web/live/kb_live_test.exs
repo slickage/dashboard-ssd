@@ -1766,6 +1766,261 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       assert new_socket == socket
     end
+
+    test "handle_info processes matching document_id" do
+      Cache.reset()
+
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "load-doc@example.com",
+          name: "Load Doc",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      page = %{
+        "id" => "page-load",
+        "url" => "https://notion.so/page-load",
+        "created_time" => "2024-05-01T10:00:00Z",
+        "last_edited_time" => "2024-05-01T12:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Load Test"}]}
+        }
+      }
+
+      NotionMock
+      |> expect(:retrieve_page, fn "tok", "page-load", _opts -> {:ok, page} end)
+      |> expect(:retrieve_block_children, fn "tok", "page-load", _opts ->
+        {:ok, %{"results" => [], "has_more" => false, "next_cursor" => nil}}
+      end)
+
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          current_user: user,
+          pending_document_id: "page-load",
+          reader_loading: true,
+          selected_document_id: "page-load",
+          selected_document: nil,
+          reader_error: nil,
+          collections: [
+            %DashboardSSD.KnowledgeBase.Types.Collection{
+              id: "db-handbook",
+              name: "Company Handbook"
+            }
+          ],
+          collection_errors: [],
+          selected_collection_id: "db-handbook",
+          document_errors: %{},
+          documents_by_collection: %{"db-handbook" => []},
+          documents: [],
+          recent_documents: [],
+          recent_errors: [],
+          expanded_collections: MapSet.new(),
+          search_dropdown_open: false,
+          query: "",
+          results: [],
+          search_performed: false
+        }
+      }
+
+      {:noreply, new_socket} =
+        Index.handle_info({:load_document, "page-load", [source: :url]}, socket)
+
+      assert new_socket.assigns.pending_document_id == nil
+      assert new_socket.assigns.reader_loading == false
+      assert new_socket.assigns.selected_document.id == "page-load"
+      assert new_socket.assigns.selected_document.title == "Load Test"
+      assert new_socket.assigns.selected_document_id == "page-load"
+      assert new_socket.assigns.reader_error == nil
+    end
+
+    test "handle_params loads document from URL params" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          pending_document_id: nil,
+          reader_loading: false,
+          selected_document_id: nil,
+          selected_document: nil,
+          reader_error: nil
+        }
+      }
+
+      {:noreply, new_socket} =
+        Index.handle_params(
+          %{"document_id" => "page-params"},
+          "http://example.com/kb?document_id=page-params",
+          socket
+        )
+
+      assert new_socket.assigns.pending_document_id == "page-params"
+      assert new_socket.assigns.reader_loading == true
+      assert new_socket.assigns.selected_document_id == "page-params"
+      assert new_socket.assigns.selected_document == nil
+
+      assert_receive {:load_document, "page-params", opts}
+      assert opts[:source] == :url
+    end
+
+    test "handle_params ignores params without document_id" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          pending_document_id: "existing",
+          reader_loading: true,
+          selected_document_id: "existing",
+          selected_document: nil,
+          reader_error: nil
+        }
+      }
+
+      {:noreply, new_socket} = Index.handle_params(%{}, "http://example.com/kb", socket)
+
+      assert new_socket == socket
+    end
+
+    test "copy_share_link sets flash message" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          flash: %{}
+        }
+      }
+
+      {:noreply, new_socket} =
+        Index.handle_event(
+          "copy_share_link",
+          %{"url" => "http://example.com/kb?document_id=test"},
+          socket
+        )
+
+      assert new_socket.assigns.flash == %{"info" => "Share link copied to clipboard"}
+    end
+
+    test "clear_search resets search state" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          query: "test query",
+          results: [%{id: "1"}],
+          search_performed: true,
+          search_dropdown_open: true,
+          flash: %{"error" => "some error"}
+        }
+      }
+
+      {:noreply, new_socket} = Index.handle_event("clear_search", %{}, socket)
+
+      assert new_socket.assigns.query == ""
+      assert new_socket.assigns.results == []
+      assert new_socket.assigns.search_performed == false
+      assert new_socket.assigns.search_dropdown_open == false
+      assert new_socket.assigns.flash == %{}
+    end
+
+    test "close_search_dropdown closes dropdown" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          search_dropdown_open: true
+        }
+      }
+
+      {:noreply, new_socket} = Index.handle_event("close_search_dropdown", %{}, socket)
+
+      assert new_socket.assigns.search_dropdown_open == false
+    end
+
+    test "toggle_mobile_menu toggles menu state" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          mobile_menu_open: false
+        }
+      }
+
+      {:noreply, new_socket} = Index.handle_event("toggle_mobile_menu", %{}, socket)
+
+      assert new_socket.assigns.mobile_menu_open == true
+
+      {:noreply, final_socket} = Index.handle_event("toggle_mobile_menu", %{}, new_socket)
+
+      assert final_socket.assigns.mobile_menu_open == false
+    end
+
+    test "close_mobile_menu closes menu" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          mobile_menu_open: true
+        }
+      }
+
+      {:noreply, new_socket} = Index.handle_event("close_mobile_menu", %{}, socket)
+
+      assert new_socket.assigns.mobile_menu_open == false
+    end
+
+    test "typeahead_search handles missing env error" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          query: "",
+          results: [],
+          search_performed: false,
+          search_loading: false,
+          search_dropdown_open: false,
+          flash: %{}
+        }
+      }
+
+      # Mock the missing env error by clearing integrations config
+      prev_integrations = Application.get_env(:dashboard_ssd, :integrations)
+      Application.delete_env(:dashboard_ssd, :integrations)
+
+      {:noreply, new_socket} =
+        Index.handle_event("typeahead_search", %{"query" => "test"}, socket)
+
+      # Restore config
+      if prev_integrations do
+        Application.put_env(:dashboard_ssd, :integrations, prev_integrations)
+      end
+
+      assert new_socket.assigns.query == "test"
+      assert new_socket.assigns.results == []
+      assert new_socket.assigns.search_performed == true
+      assert new_socket.assigns.search_dropdown_open == true
+      assert new_socket.assigns.flash == %{"error" => "Notion integration is not configured."}
+    end
+
+    test "typeahead_search handles generic error" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          query: "",
+          results: [],
+          search_performed: false,
+          search_loading: false,
+          search_dropdown_open: false,
+          flash: %{}
+        }
+      }
+
+      Tesla.Mock.mock(fn
+        %{method: :post, url: "https://api.notion.com/v1/search"} ->
+          {:error, :timeout}
+      end)
+
+      {:noreply, new_socket} =
+        Index.handle_event("typeahead_search", %{"query" => "test"}, socket)
+
+      assert new_socket.assigns.query == "test"
+      assert new_socket.assigns.results == []
+      assert new_socket.assigns.search_performed == true
+      assert new_socket.assigns.search_dropdown_open == true
+      assert new_socket.assigns.flash == %{"error" => "Unable to reach Notion (:timeout)."}
+    end
   end
 
   defp restore_env(%{notion_token: token, notion_api_key: api_key}) do

@@ -80,7 +80,7 @@
 
 ### Implementation for User Story 3
 
-- [ ] T017 [P] [US3] Implement `DashboardSSD.KnowledgeBase.Search.search/2` combining cached metadata filtering with Notion search fallback and collection grouping; add unit tests in `test/dashboard_ssd/knowledge_base/search_test.exs`.
+- [X] T017 [P] [US3] Implement `DashboardSSD.KnowledgeBase.Search.search/2` combining cached metadata filtering with Notion search fallback and collection grouping; add unit tests in `test/dashboard_ssd/knowledge_base/search_test.exs`.
 - [X] T018 [US3] Extend `lib/dashboard_ssd_web/live/kb_live/index.ex` search event handling for real-time filtering, grouping labels, and persistence of last query; update LiveView tests.
 - [X] T019 [P] [US3] Build document renderer components (`lib/dashboard_ssd_web/components/kb_components.ex`) supporting headings, paragraphs, callouts, images, code, tables, and unsupported notice; add component tests in `test/dashboard_ssd_web/components/kb_components_test.exs` with fixture blocks.
 - [ ] T020 [US3] Add metadata panel + share-link copy affordance within `lib/dashboard_ssd_web/live/kb_live/index.ex` and ensure audits log view events via `DashboardSSD.KnowledgeBase.Activity`; extend LiveView tests.
