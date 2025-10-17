@@ -95,7 +95,13 @@ defmodule DashboardSSDWeb.Navigation do
               </div>
               <div class="flex flex-col">
                 <span class="text-lg font-semibold text-white">DashboardSSD</span>
-                <span class="text-xs text-theme-muted">{@version}</span>
+                <a
+                  href="https://github.com/akinsey/dashboard-ssd"
+                  target="_blank"
+                  class="text-xs text-theme-muted hover:text-white transition-colors"
+                >
+                  {@version}
+                </a>
               </div>
             </div>
             <button
