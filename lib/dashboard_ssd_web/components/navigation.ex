@@ -6,6 +6,8 @@ defmodule DashboardSSDWeb.Navigation do
 
   import DashboardSSDWeb.Layouts, only: [user_initials: 1, user_display_name: 1, user_role: 1]
 
+  @github_releases_url "https://github.com/akinsey/dashboard-ssd/releases"
+
   @icon_class_map %{
     home: "hero-home-mini",
     projects: "hero-squares-2x2-mini",
@@ -96,7 +98,7 @@ defmodule DashboardSSDWeb.Navigation do
               <div class="flex flex-col">
                 <span class="text-lg font-semibold text-white">DashboardSSD</span>
                 <a
-                  href={DashboardSSDWeb.Layouts.github_releases_url()}
+                  href={github_releases_url()}
                   target="_blank"
                   class="text-xs text-theme-muted hover:text-white transition-colors"
                 >
@@ -173,7 +175,7 @@ defmodule DashboardSSDWeb.Navigation do
     ~H"""
     <div class="mt-auto flex flex-col items-center gap-6 text-xs text-theme-muted">
       <a
-        href={DashboardSSDWeb.Layouts.github_releases_url()}
+        href={github_releases_url()}
         target="_blank"
         class="theme-pill hover:bg-white/10 transition-colors"
       >
@@ -353,4 +355,8 @@ defmodule DashboardSSDWeb.Navigation do
   end
 
   defp icon_color_class(_variant, _active?), do: @default_icon_color
+
+  @doc "Returns the GitHub releases URL for the project."
+  @spec github_releases_url() :: String.t()
+  def github_releases_url, do: @github_releases_url
 end
