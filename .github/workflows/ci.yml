@@ -144,6 +144,11 @@ jobs:
         run: mix doctor --summary --raise
   release:
     needs: check
+    outputs:
+      # export release info from semantic release action
+      # for image build/push and CD update
+      new_release_published: ${{ steps.semantic.outputs.new_release_published }}
+      new_release_git_tag: ${{ steps.semantic.outputs.new_release_git_tag }}
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
@@ -155,21 +160,18 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Setup BEAM
-        uses: erlef/setup-beam@v1
+      # run semantic release action and export statuses
+      - name: Semantic release
+        uses: cycjimmy/semantic-release-action@v4
+        id: semantic
         with:
-          otp-version: ${{ env.OTP_VERSION }}
-          elixir-version: ${{ env.ELIXIR_VERSION }}
-      - name: Install dependencies
-        env:
-          MIX_ENV: dev
-        run: mix deps.get
-      - name: Install semantic-release
-        run: ./scripts/install_semantic_release.sh
-      - name: Semantic Release
+          extra_plugins: |
+            @semantic-release/exec
+            @semantic-release/changelog
+            @semantic-release/git
+            @semantic-release/github
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release --ci
   docs-pages:
     needs: release
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_docs == 'true')
