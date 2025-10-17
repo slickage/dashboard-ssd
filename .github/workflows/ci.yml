@@ -245,6 +245,7 @@ jobs:
             type=ref,event=pr
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ needs.release.outputs.new_release_git_tag }}
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
