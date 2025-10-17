@@ -24,13 +24,14 @@ defmodule DashboardSSD.MixProject do
         homepage_url: "https://github.com/akinsey/dashboard-ssd",
         extras: [
           "README.md": [title: "Overview"],
-          "docs/integrations.md": [title: "Integrations (Local)"],
+          "INTEGRATIONS.md": [title: "Integrations (Local)"],
+          "NOTION.md": [title: "Notion Integration"],
           "specs/001-dashboard-init/spec.md": [title: "MVP Spec"],
           "specs/001-dashboard-init/tasks.md": [title: "Tasks"]
         ],
         groups_for_extras: [
           "Getting Started": ["README.md"],
-          Guides: ["docs/integrations.md"],
+          Guides: ["INTEGRATIONS.md", "NOTION.md"],
           Specs: ["specs/001-dashboard-init/spec.md", "specs/001-dashboard-init/tasks.md"]
         ],
         nest_modules_by_prefix: [
@@ -63,7 +64,8 @@ defmodule DashboardSSD.MixProject do
         ],
         skip_undefined_reference_warnings_on: [
           "README.md",
-          "docs/integrations.md",
+          "INTEGRATIONS.md",
+          "NOTION.md",
           "specs/001-dashboard-init/spec.md",
           "specs/001-dashboard-init/tasks.md"
         ]
