@@ -45,11 +45,11 @@
 
 ### Implementation for User Story 1
 
-- [ ] T008 [P] [US1] Implement `DashboardSSD.KnowledgeBase.Catalog.list_collections/1` to merge Notion metadata and cache snapshots, including count/freshness calculations; add unit coverage in `test/dashboard_ssd/knowledge_base/catalog_test.exs`.
-- [ ] T009 [P] [US1] Implement `DashboardSSD.KnowledgeBase.Activity` to persist `kb.viewed` audits and fetch recent documents (max five) with fallbacks; test via `test/dashboard_ssd/knowledge_base/activity_test.exs`.
-- [ ] T010 [US1] Update `lib/dashboard_ssd_web/live/kb_live/index.ex` to load collections + recent activity on mount and expose assigns for the landing panel; add LiveView tests in `test/dashboard_ssd_web/live/kb_live_test.exs`.
-- [ ] T011 [P] [US1] Create reusable UI components for collection cards and recent list within `lib/dashboard_ssd_web/components/kb_components.ex` (and template partials if needed); add component rendering tests in `test/dashboard_ssd_web/components/kb_components_test.exs`.
-- [ ] T012 [US1] Implement empty-state and error message rendering for missing collections/notion failures inside `lib/dashboard_ssd_web/live/kb_live/index.ex`; extend LiveView tests to cover these scenarios.
+- [X] T008 [P] [US1] Implement `DashboardSSD.KnowledgeBase.Catalog.list_collections/1` to merge Notion metadata and cache snapshots, including count/freshness calculations; add unit coverage in `test/dashboard_ssd/knowledge_base/catalog_test.exs`.
+- [X] T009 [P] [US1] Implement `DashboardSSD.KnowledgeBase.Activity` to persist `kb.viewed` audits and fetch recent documents (max five) with fallbacks; test via `test/dashboard_ssd/knowledge_base/activity_test.exs`.
+- [X] T010 [US1] Update `lib/dashboard_ssd_web/live/kb_live/index.ex` to load collections + recent activity on mount and expose assigns for the landing panel; add LiveView tests in `test/dashboard_ssd_web/live/kb_live_test.exs`.
+- [X] T011 [P] [US1] Create reusable UI components for collection cards and recent list within `lib/dashboard_ssd_web/components/kb_components.ex` (and template partials if needed); add component rendering tests in `test/dashboard_ssd_web/components/kb_components_test.exs`.
+- [X] T012 [US1] Implement empty-state and error message rendering for missing collections/notion failures inside `lib/dashboard_ssd_web/live/kb_live/index.ex`; extend LiveView tests to cover these scenarios.
 
 **Checkpoint**: User Story 1 functional and demo-ready (MVP)
 
@@ -63,10 +63,10 @@
 
 ### Implementation for User Story 2
 
-- [ ] T013 [P] [US2] Implement `DashboardSSD.KnowledgeBase.Catalog.list_documents/2` to hydrate document summaries (title, excerpt, tags, owner, timestamps, share link) and cache results; cover with unit tests in `test/dashboard_ssd/knowledge_base/catalog_test.exs`.
-- [ ] T014 [US2] Enhance `lib/dashboard_ssd_web/live/kb_live/index.ex` to handle collection selection, load documents, persist last-selected collection in socket/session, and manage loading states; expand LiveView tests accordingly.
-- [ ] T015 [P] [US2] Build document list row/table components in `lib/dashboard_ssd_web/components/kb_components.ex` including tag/owner badges; add component tests in `test/dashboard_ssd_web/components/kb_components_test.exs`.
-- [ ] T016 [US2] Add empty-state + error banner handling for collection view (including retry action) in `lib/dashboard_ssd_web/live/kb_live/index.ex` and verify via LiveView tests.
+- [X] T013 [P] [US2] Implement `DashboardSSD.KnowledgeBase.Catalog.list_documents/2` to hydrate document summaries (title, excerpt, tags, owner, timestamps, share link) and cache results; cover with unit tests in `test/dashboard_ssd/knowledge_base/catalog_test.exs`.
+- [X] T014 [US2] Enhance `lib/dashboard_ssd_web/live/kb_live/index.ex` to handle collection selection, load documents, persist last-selected collection in socket/session, and manage loading states; expand LiveView tests accordingly.
+- [X] T015 [P] [US2] Build document list row/table components in `lib/dashboard_ssd_web/components/kb_components.ex` including tag/owner badges; add component tests in `test/dashboard_ssd_web/components/kb_components_test.exs`.
+- [X] T016 [US2] Add empty-state + error banner handling for collection view (including retry action) in `lib/dashboard_ssd_web/live/kb_live/index.ex` and verify via LiveView tests.
 
 **Checkpoint**: User Stories 1 & 2 independently functional
 
@@ -81,10 +81,10 @@
 ### Implementation for User Story 3
 
 - [ ] T017 [P] [US3] Implement `DashboardSSD.KnowledgeBase.Search.search/2` combining cached metadata filtering with Notion search fallback and collection grouping; add unit tests in `test/dashboard_ssd/knowledge_base/search_test.exs`.
-- [ ] T018 [US3] Extend `lib/dashboard_ssd_web/live/kb_live/index.ex` search event handling for real-time filtering, grouping labels, and persistence of last query; update LiveView tests.
-- [ ] T019 [P] [US3] Build document renderer components (`lib/dashboard_ssd_web/components/kb_renderer.ex`) supporting headings, paragraphs, callouts, images, code, tables, and unsupported notice; add component tests in `test/dashboard_ssd_web/components/kb_renderer_test.exs` with fixture blocks.
+- [X] T018 [US3] Extend `lib/dashboard_ssd_web/live/kb_live/index.ex` search event handling for real-time filtering, grouping labels, and persistence of last query; update LiveView tests.
+- [X] T019 [P] [US3] Build document renderer components (`lib/dashboard_ssd_web/components/kb_components.ex`) supporting headings, paragraphs, callouts, images, code, tables, and unsupported notice; add component tests in `test/dashboard_ssd_web/components/kb_components_test.exs` with fixture blocks.
 - [ ] T020 [US3] Add metadata panel + share-link copy affordance within `lib/dashboard_ssd_web/live/kb_live/index.ex` and ensure audits log view events via `DashboardSSD.KnowledgeBase.Activity`; extend LiveView tests.
-- [ ] T021 [US3] Implement error/retry flows for search, block fetch, and share-link issues with telemetry spans in `lib/dashboard_ssd_web/live/kb_live/index.ex`; verify via LiveView tests and instrumentation assertions.
+- [X] T021 [US3] Implement error/retry flows for search, block fetch, and share-link issues with telemetry spans in `lib/dashboard_ssd_web/live/kb_live/index.ex`; verify via LiveView tests and instrumentation assertions.
 
 **Checkpoint**: All user stories complete and independently testable
 
