@@ -12,12 +12,6 @@ defmodule DashboardSSD.MixProject do
       deps: deps(),
       dialyzer: dialyzer(),
       test_coverage: [tool: ExCoveralls],
-      listeners: [
-        %{
-          id: Phoenix.CodeReloader.MixListener,
-          start: {Phoenix.CodeReloader.MixListener, :start_link, [[]]}
-        }
-      ],
       preferred_cli_env: [
         coveralls: :test,
         "coveralls.github": :test,
