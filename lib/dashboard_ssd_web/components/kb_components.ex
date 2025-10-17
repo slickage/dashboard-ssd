@@ -493,7 +493,7 @@ defmodule DashboardSSDWeb.KbComponents do
 
             <div class="flex flex-col gap-4">
               <%= for block <- @document.rendered_blocks do %>
-                <.kb_block block={block} />
+                <.kb_block block={block} level={0} />
               <% end %>
             </div>
           </article>
@@ -589,6 +589,8 @@ defmodule DashboardSSDWeb.KbComponents do
   end
 
   attr :block, :map, required: true
+  attr :level, :integer, default: 0
+  attr :number, :integer, default: nil
 
   @doc """
   Renders a Notion block with appropriate HTML styling.
@@ -612,16 +614,16 @@ defmodule DashboardSSDWeb.KbComponents do
           <.kb_rich_text segments={@block.segments} />
         </p>
       <% :bulleted_list_item -> %>
-        <div class="pl-6 text-sm leading-relaxed text-white/90">
+        <div class={"#{list_padding(@level)} text-sm leading-relaxed text-white/90"}>
           <div class="flex items-start gap-2">
             <span class="pt-1 text-xs">•</span>
             <span><.kb_rich_text segments={@block.segments} /></span>
           </div>
         </div>
       <% :numbered_list_item -> %>
-        <div class="pl-6 text-sm leading-relaxed text-white/90">
+        <div class={"#{list_padding(@level)} text-sm leading-relaxed text-white/90"}>
           <div class="flex items-start gap-2">
-            <span class="pt-1 text-xs">•</span>
+            <span class="pt-1 text-xs">{@number || 1}.</span>
             <span><.kb_rich_text segments={@block.segments} /></span>
           </div>
         </div>
@@ -708,8 +710,8 @@ defmodule DashboardSSDWeb.KbComponents do
     <% end %>
 
     <div :if={@block.children != []} class="mt-2 flex flex-col gap-2">
-      <%= for child <- @block.children do %>
-        <.kb_block block={child} />
+      <%= for child <- assign_numbers_to_children(@block.children) do %>
+        <.kb_block block={child.block} level={@level + 1} number={child.number} />
       <% end %>
     </div>
     """
@@ -834,4 +836,27 @@ defmodule DashboardSSDWeb.KbComponents do
   defp friendly_reason({:http_error, status, _body}), do: "HTTP error #{status}"
   defp friendly_reason(reason) when is_atom(reason), do: Atom.to_string(reason)
   defp friendly_reason(reason), do: inspect(reason)
+
+  defp list_padding(level) do
+    case level do
+      0 -> "pl-6"
+      1 -> "pl-12"
+      2 -> "pl-18"
+      _ -> "pl-#{6 + level * 6}"
+    end
+  end
+
+  defp assign_numbers_to_children(children) do
+    {result, _} =
+      Enum.reduce(children, {[], nil}, fn child, {acc, counter} ->
+        if child.type == :numbered_list_item do
+          new_counter = (counter || 0) + 1
+          {[%{block: child, number: new_counter} | acc], new_counter}
+        else
+          {[%{block: child, number: nil} | acc], nil}
+        end
+      end)
+
+    Enum.reverse(result)
+  end
 end

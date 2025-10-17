@@ -4,7 +4,8 @@ defmodule DashboardSSDWeb.KbLive.Index do
 
   alias DashboardSSD.Auth.Policy
   alias DashboardSSD.Integrations
-  alias DashboardSSD.KnowledgeBase.{Activity, Catalog, Types}
+  alias DashboardSSD.Integrations.Notion
+  alias DashboardSSD.KnowledgeBase.{Activity, Cache, Catalog, Types}
 
   import DashboardSSDWeb.KbComponents
 
@@ -308,8 +309,15 @@ defmodule DashboardSSDWeb.KbLive.Index do
     if socket.assigns[:pending_document_id] != document_id do
       {:noreply, socket}
     else
-      case load_document_detail(document_id) do
-        {:ok, document} ->
+      case load_document_detail_with_cache_check(document_id) do
+        {:cached, document} ->
+          record_document_view(socket.assigns[:current_user], document)
+          socket = finish_document_load(socket, document, opts)
+          # Trigger background check for updates
+          send(self(), {:check_document_update, document_id, document.last_updated_at})
+          {:noreply, socket}
+
+        {:fetched, document} ->
           record_document_view(socket.assigns[:current_user], document)
           {:noreply, finish_document_load(socket, document, opts)}
 
@@ -322,6 +330,34 @@ defmodule DashboardSSDWeb.KbLive.Index do
            |> assign(:selected_document, nil)
            |> assign(:search_dropdown_open, false)}
       end
+    end
+  end
+
+  @impl true
+  def handle_info({:check_document_update, document_id, cached_last_updated}, socket) do
+    # Only check if this document is still the selected one
+    if socket.assigns[:selected_document_id] == document_id do
+      case check_document_updated(document_id, cached_last_updated) do
+        {:updated, new_document} ->
+          # Update the cache and refresh the UI
+          Cache.put(:collections, {:document_detail, document_id}, new_document)
+          record_document_view(socket.assigns[:current_user], new_document)
+
+          {:noreply,
+           socket
+           |> assign(:selected_document, new_document)
+           |> assign(:reader_error, nil)}
+
+        {:not_updated, _} ->
+          # Document hasn't changed, do nothing
+          {:noreply, socket}
+
+        {:error, _reason} ->
+          # Could not check for updates, silently ignore
+          {:noreply, socket}
+      end
+    else
+      {:noreply, socket}
     end
   end
 
@@ -716,11 +752,86 @@ defmodule DashboardSSDWeb.KbLive.Index do
     end
   end
 
+  defp load_document_detail_with_cache_check(nil), do: {:error, :invalid_document}
+
+  defp load_document_detail_with_cache_check(document_id) do
+    cache_key = {:document_detail, document_id}
+
+    case Cache.get(:collections, cache_key) do
+      {:ok, document} ->
+        {:cached, document}
+
+      :miss ->
+        case Catalog.get_document(document_id) do
+          {:ok, document} -> {:fetched, document}
+          {:error, reason} -> {:error, reason}
+        end
+    end
+  end
+
   defp load_document_detail(nil), do: {:error, :invalid_document}
 
   defp load_document_detail(document_id) do
     Catalog.get_document(document_id)
   end
+
+  defp check_document_updated(document_id, cached_last_updated) do
+    with {:ok, token} <- fetch_notion_token(),
+         {:ok, page} <- Notion.retrieve_page(token, document_id) do
+      notion_last_edited = parse_timestamp(Map.get(page, "last_edited_time"))
+
+      if notion_last_edited && cached_last_updated &&
+           DateTime.compare(notion_last_edited, cached_last_updated) == :gt do
+        # Document has been updated, fetch the full document
+        case Catalog.get_document(document_id, cache?: false) do
+          {:ok, document} -> {:updated, document}
+          {:error, reason} -> {:error, reason}
+        end
+      else
+        {:not_updated, notion_last_edited}
+      end
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp fetch_notion_token do
+    config = Application.get_env(:dashboard_ssd, :integrations, [])
+
+    token =
+      cond do
+        present?(Keyword.get(config, :notion_token)) ->
+          Keyword.get(config, :notion_token)
+
+        present?(System.get_env("NOTION_TOKEN")) ->
+          System.get_env("NOTION_TOKEN")
+
+        present?(System.get_env("NOTION_API_KEY")) ->
+          System.get_env("NOTION_API_KEY")
+
+        true ->
+          nil
+      end
+
+    if present?(token) do
+      {:ok, token}
+    else
+      {:error, {:missing_env, "NOTION_TOKEN"}}
+    end
+  end
+
+  defp parse_timestamp(nil), do: nil
+
+  defp parse_timestamp(timestamp) when is_binary(timestamp) do
+    case DateTime.from_iso8601(timestamp) do
+      {:ok, dt, _offset} -> dt
+      _ -> nil
+    end
+  end
+
+  defp parse_timestamp(_), do: nil
+
+  defp present?(value), do: not is_nil(value) and value != ""
 
   defp record_document_view(nil, _document), do: :ok
 
