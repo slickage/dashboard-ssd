@@ -108,13 +108,9 @@ defmodule DashboardSSD.MixProject do
 
   # Configure Mix listeners conditionally
   defp listeners do
-    # Only add Phoenix.CodeReloader listener if Phoenix is available and implements child_spec
-    if Code.ensure_loaded?(Phoenix.CodeReloader) and
-         function_exported?(Phoenix.CodeReloader, :child_spec, 1) do
-      [Phoenix.CodeReloader]
-    else
-      []
-    end
+    # Phoenix 1.8+ requires CodeReloader listener, but it's not available during early Mix tasks
+    # We'll add it programmatically after Phoenix loads
+    []
   end
 
   # Specifies your project dependencies.
