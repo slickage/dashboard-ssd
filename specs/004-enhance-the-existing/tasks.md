@@ -83,7 +83,7 @@
 - [X] T017 [P] [US3] Implement `DashboardSSD.KnowledgeBase.Search.search/2` combining cached metadata filtering with Notion search fallback and collection grouping; add unit tests in `test/dashboard_ssd/knowledge_base/search_test.exs`.
 - [X] T018 [US3] Extend `lib/dashboard_ssd_web/live/kb_live/index.ex` search event handling for real-time filtering, grouping labels, and persistence of last query; update LiveView tests.
 - [X] T019 [P] [US3] Build document renderer components (`lib/dashboard_ssd_web/components/kb_components.ex`) supporting headings, paragraphs, callouts, images, code, tables, and unsupported notice; add component tests in `test/dashboard_ssd_web/components/kb_components_test.exs` with fixture blocks.
-- [ ] T020 [US3] Add metadata panel + share-link copy affordance within `lib/dashboard_ssd_web/live/kb_live/index.ex` and ensure audits log view events via `DashboardSSD.KnowledgeBase.Activity`; extend LiveView tests.
+- [X] T020 [US3] Add metadata panel + share-link copy affordance within `lib/dashboard_ssd_web/live/kb_live/index.ex` and ensure audits log view events via `DashboardSSD.KnowledgeBase.Activity`; extend LiveView tests.
 - [X] T021 [US3] Implement error/retry flows for search, block fetch, and share-link issues with telemetry spans in `lib/dashboard_ssd_web/live/kb_live/index.ex`; verify via LiveView tests and instrumentation assertions.
 
 **Checkpoint**: All user stories complete and independently testable
@@ -94,10 +94,10 @@
 
 **Purpose**: Hardening, accessibility, documentation, and operational validation
 
-- [ ] T022 [P] [Polish] Perform accessibility review (keyboard focus order, ARIA labels, contrast) for `/kb` and adjust components in `lib/dashboard_ssd_web/components/kb_components.ex` as needed.
-- [ ] T023 [P] [Polish] Validate telemetry/log output by exercising Notion success/failure paths via `mix test` and review logs; tune configuration in `config/prod.exs` / `config/dev.exs`.
-- [ ] T024 [P] [Polish] Update knowledge base guides in `docs/` and quickstart checklists to reflect new flows, including `specs/004-enhance-the-existing/quickstart.md` sync.
-- [ ] T025 [Polish] Execute full quickstart validation (environment setup, `mix test`, `mix credo --strict`, `mix dialyzer`, and manual `/kb` smoke test) and record results in `specs/004-enhance-the-existing/quickstart.md` notes.
+- [X] T022 [P] [Polish] Perform accessibility review (keyboard focus order, ARIA labels, contrast) for `/kb` and adjust components in `lib/dashboard_ssd_web/components/kb_components.ex` as needed.
+- [X] T023 [P] [Polish] Validate telemetry/log output by exercising Notion success/failure paths via `mix test` and review logs; tune configuration in `config/prod.exs` / `config/dev.exs`.
+- [X] T024 [P] [Polish] Update knowledge base guides and quickstart checklists to reflect new flows, including `specs/004-enhance-the-existing/quickstart.md` sync.
+- [X] T025 [Polish] Execute full quickstart validation (environment setup, `mix test`, `mix credo --strict`, `mix dialyzer`, and manual `/kb` smoke test) and record results in `specs/004-enhance-the-existing/quickstart.md` notes.
 
 ---
 
