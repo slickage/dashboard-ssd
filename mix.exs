@@ -1,9 +1,6 @@
 defmodule DashboardSSD.MixProject do
   use Mix.Project
 
-  # Ensure Phoenix is loaded for conditional listener configuration
-  Code.ensure_loaded?(Phoenix.CodeReloader)
-
   def project do
     [
       app: :dashboard_ssd,
@@ -40,13 +37,9 @@ defmodule DashboardSSD.MixProject do
           "Getting Started": ["README.md"],
           Guides: ["INTEGRATIONS.md", "NOTION.md"],
           Specs: [
-            "specs/001-dashboard-init/spec.md",
             "specs/001-dashboard-init/tasks.md",
-            "specs/002-theme/spec.md",
             "specs/002-theme/tasks.md",
-            "specs/003-prepare-this-repo/spec.md",
             "specs/003-prepare-this-repo/tasks.md",
-            "specs/004-enhance-the-existing/spec.md",
             "specs/004-enhance-the-existing/tasks.md"
           ]
         ],
@@ -82,13 +75,9 @@ defmodule DashboardSSD.MixProject do
           "README.md",
           "INTEGRATIONS.md",
           "NOTION.md",
-          "specs/001-dashboard-init/spec.md",
           "specs/001-dashboard-init/tasks.md",
-          "specs/002-theme/spec.md",
           "specs/002-theme/tasks.md",
-          "specs/003-prepare-this-repo/spec.md",
           "specs/003-prepare-this-repo/tasks.md",
-          "specs/004-enhance-the-existing/spec.md",
           "specs/004-enhance-the-existing/tasks.md"
         ]
       ]
