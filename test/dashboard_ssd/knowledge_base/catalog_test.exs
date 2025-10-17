@@ -659,6 +659,86 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
                Catalog.list_collections()
     end
 
+    test "auto discovery prunes empty databases when hide enabled" do
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
+        auto_discover?: true,
+        hide_empty_collections: true
+      )
+
+      Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
+
+      Cache.reset()
+      Notion.reset_circuits()
+
+      NotionMock
+      |> expect(:list_databases, fn "token", _opts ->
+        {:ok,
+         %{
+           "results" => [
+             %{"id" => "db-empty", "title" => [%{"plain_text" => "Empty"}], "properties" => %{}},
+             %{
+               "id" => "db-nonempty",
+               "title" => [%{"plain_text" => "Nonempty"}],
+               "properties" => %{}
+             }
+           ],
+           "has_more" => false,
+           "next_cursor" => nil
+         }}
+      end)
+      |> expect(:query_database, fn "token", "db-empty", _opts ->
+        {:ok, %{"results" => [], "has_more" => false, "next_cursor" => nil}}
+      end)
+      |> expect(:query_database, fn "token", "db-nonempty", _opts ->
+        {:ok,
+         %{
+           "results" => [
+             %{
+               "id" => "page-1",
+               "last_edited_time" => "2024-05-01T00:00:00Z",
+               "parent" => %{"type" => "database_id", "database_id" => "db-nonempty"},
+               "properties" => %{
+                 "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Doc"}]}
+               }
+             }
+           ],
+           "has_more" => false,
+           "next_cursor" => nil
+         }}
+      end)
+
+      assert {:ok, %{collections: collections, errors: []}} = Catalog.list_collections()
+      assert Enum.map(collections, & &1.id) == ["db-nonempty"]
+    end
+
+    test "auto discovery does not prune when disabled" do
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
+        auto_discover?: true,
+        hide_empty_collections: false
+      )
+
+      Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
+
+      Cache.reset()
+      Notion.reset_circuits()
+
+      NotionMock
+      |> expect(:list_databases, fn "token", _opts ->
+        {:ok,
+         %{
+           "results" => [
+             %{"id" => "db-a", "title" => [%{"plain_text" => "A"}], "properties" => %{}},
+             %{"id" => "db-b", "title" => [%{"plain_text" => "B"}], "properties" => %{}}
+           ],
+           "has_more" => false,
+           "next_cursor" => nil
+         }}
+      end)
+
+      assert {:ok, %{collections: collections, errors: []}} = Catalog.list_collections()
+      assert Enum.map(collections, & &1.id) == ["db-a", "db-b"]
+    end
+
     test "returns an empty set when auto discovery is disabled and no curated data exists" do
       Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, auto_discover?: false)
       Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
