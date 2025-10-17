@@ -12,6 +12,8 @@ defmodule DashboardSSDWeb.Layouts do
 
   embed_templates "layouts/*"
 
+  @github_releases_url "https://github.com/akinsey/dashboard-ssd/releases"
+
   @doc "Returns the current application version prefixed with 'v'."
   @spec app_version() :: String.t()
   def app_version do
@@ -23,6 +25,10 @@ defmodule DashboardSSDWeb.Layouts do
       vsn -> "v" <> to_string(vsn)
     end
   end
+
+  @doc "Returns the GitHub releases URL for the project."
+  @spec github_releases_url() :: String.t()
+  def github_releases_url, do: @github_releases_url
 
   @doc false
   @spec header_action_classes(atom()) :: String.t()

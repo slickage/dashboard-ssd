@@ -96,7 +96,7 @@ defmodule DashboardSSDWeb.Navigation do
               <div class="flex flex-col">
                 <span class="text-lg font-semibold text-white">DashboardSSD</span>
                 <a
-                  href="https://github.com/akinsey/dashboard-ssd"
+                  href={DashboardSSDWeb.Layouts.github_releases_url()}
                   target="_blank"
                   class="text-xs text-theme-muted hover:text-white transition-colors"
                 >
@@ -163,6 +163,39 @@ defmodule DashboardSSDWeb.Navigation do
           <% end %>
         </div>
       </div>
+    </div>
+    """
+  end
+
+  @doc false
+  @spec sidebar_footer(map()) :: Rendered.t()
+  def sidebar_footer(assigns) do
+    ~H"""
+    <div class="mt-auto flex flex-col items-center gap-6 text-xs text-theme-muted">
+      <a
+        href={DashboardSSDWeb.Layouts.github_releases_url()}
+        target="_blank"
+        class="theme-pill hover:bg-white/10 transition-colors"
+      >
+        {assigns[:version] || "v0.1.0"}
+      </a>
+
+      <%= if assigns[:current_user] do %>
+        <.link
+          navigate={~p"/settings"}
+          class="theme-nav-item border border-white/10 bg-white/5 text-sm uppercase"
+          title={user_display_name(assigns[:current_user]) || "Open settings"}
+        >
+          <span class="sr-only">
+            <%= if user_display_name(assigns[:current_user]) do %>
+              Open settings for {user_display_name(assigns[:current_user])}
+            <% else %>
+              Open settings
+            <% end %>
+          </span>
+          <span>{user_initials(assigns[:current_user])}</span>
+        </.link>
+      <% end %>
     </div>
     """
   end

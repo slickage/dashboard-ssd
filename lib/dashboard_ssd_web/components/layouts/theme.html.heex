@@ -40,32 +40,10 @@
         />
       </div>
 
-      <div class="mt-auto flex flex-col items-center gap-6 text-xs text-theme-muted">
-        <a
-          href="https://github.com/akinsey/dashboard-ssd"
-          target="_blank"
-          class="theme-pill hover:bg-white/10 transition-colors"
-        >
-          {version}
-        </a>
-
-        <%= if current_user do %>
-          <.link
-            navigate={~p"/settings"}
-            class="theme-nav-item border border-white/10 bg-white/5 text-sm uppercase"
-            title={user_display_name || "Open settings"}
-          >
-            <span class="sr-only">
-              <%= if user_display_name do %>
-                Open settings for {user_display_name}
-              <% else %>
-                Open settings
-              <% end %>
-            </span>
-            <span>{user_initials}</span>
-          </.link>
-        <% end %>
-      </div>
+      <DashboardSSDWeb.Navigation.sidebar_footer
+        current_user={current_user}
+        version={version}
+      />
     </div>
   </aside>
 
