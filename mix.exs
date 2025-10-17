@@ -12,6 +12,7 @@ defmodule DashboardSSD.MixProject do
       deps: deps(),
       dialyzer: dialyzer(),
       test_coverage: [tool: ExCoveralls],
+      listeners: listeners(),
       preferred_cli_env: [
         coveralls: :test,
         "coveralls.github": :test,
@@ -104,6 +105,17 @@ defmodule DashboardSSD.MixProject do
   # Specifies which paths to compile per environment.
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
+
+  # Configure Mix listeners conditionally
+  defp listeners do
+    # Only add Phoenix.CodeReloader listener if Phoenix is available and implements child_spec
+    if Code.ensure_loaded?(Phoenix.CodeReloader) and
+         function_exported?(Phoenix.CodeReloader, :child_spec, 1) do
+      [Phoenix.CodeReloader]
+    else
+      []
+    end
+  end
 
   # Specifies your project dependencies.
   #
