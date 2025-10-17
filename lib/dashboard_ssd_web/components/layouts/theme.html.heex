@@ -14,8 +14,6 @@
   end %>
 <% header_summary = assigns[:theme_header_summary] %>
 <% mobile_menu_open = assigns[:mobile_menu_open] || false %>
-<% user_initials = DashboardSSDWeb.Layouts.user_initials(current_user) %>
-<% user_display_name = DashboardSSDWeb.Layouts.user_display_name(current_user) %>
 
 <div data-role="theme-shell" class="theme-shell-gradient min-h-screen w-full text-theme-text">
   <aside class="theme-nav-surface fixed left-0 top-0 z-40 hidden h-screen w-[92px] border-r border-white/5 md:flex">
