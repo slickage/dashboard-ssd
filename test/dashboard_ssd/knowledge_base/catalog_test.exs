@@ -600,6 +600,66 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       assert collection.metadata[:properties] == %{"Name" => %{"type" => "title"}}
     end
 
+    test "auto discovery handles emoji icons" do
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, auto_discover?: true)
+      Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
+
+      Cache.reset()
+      Notion.reset_circuits()
+
+      NotionMock
+      |> expect(:list_databases, fn "token", _opts ->
+        {:ok,
+         %{
+           "results" => [
+             %{
+               "id" => "db-emoji",
+               "title" => [%{"plain_text" => "Emoji DB"}],
+               "description" => [],
+               "icon" => %{"type" => "emoji", "emoji" => "📚"},
+               "last_edited_time" => "2024-05-04T00:00:00Z",
+               "properties" => %{}
+             }
+           ],
+           "has_more" => false,
+           "next_cursor" => nil
+         }}
+      end)
+
+      assert {:ok, %{collections: [collection], errors: []}} = Catalog.list_collections()
+      assert collection.icon == "📚"
+    end
+
+    test "auto discovery handles unknown icon types" do
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, auto_discover?: true)
+      Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
+
+      Cache.reset()
+      Notion.reset_circuits()
+
+      NotionMock
+      |> expect(:list_databases, fn "token", _opts ->
+        {:ok,
+         %{
+           "results" => [
+             %{
+               "id" => "db-unknown-icon",
+               "title" => [%{"plain_text" => "Unknown Icon DB"}],
+               "description" => [],
+               "icon" => %{"type" => "unknown", "unknown" => "value"},
+               "last_edited_time" => "2024-05-05T00:00:00Z",
+               "properties" => %{}
+             }
+           ],
+           "has_more" => false,
+           "next_cursor" => nil
+         }}
+      end)
+
+      assert {:ok, %{collections: [collection], errors: []}} = Catalog.list_collections()
+      assert collection.icon == nil
+    end
+
     test "auto discovery clamps configured page size to Notion limits" do
       Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
         auto_discover?: true,
@@ -1792,6 +1852,46 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       assert unsupported.raw_type == "mystery_block"
     end
 
+    test "handles block pagination errors during retrieval" do
+      page = %{
+        "id" => "page-paginate-error",
+        "url" => "https://notion.so/page-paginate-error",
+        "created_time" => "2024-05-12T09:00:00Z",
+        "last_edited_time" => "2024-05-12T11:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Pagination Error"}]}
+        }
+      }
+
+      first_batch = %{
+        "results" => [
+          %{
+            "id" => "block-1",
+            "type" => "paragraph",
+            "has_children" => false,
+            "paragraph" => %{"rich_text" => [%{"plain_text" => "First"}]}
+          }
+        ],
+        "has_more" => true,
+        "next_cursor" => "cursor-1"
+      }
+
+      NotionMock
+      |> expect(:retrieve_page, fn "token", "page-paginate-error", _opts -> {:ok, page} end)
+      |> expect(:retrieve_block_children, fn "token", "page-paginate-error", opts ->
+        refute Keyword.has_key?(opts, :start_cursor)
+        {:ok, first_batch}
+      end)
+      |> expect(:retrieve_block_children, fn "token", "page-paginate-error", opts ->
+        assert Keyword.get(opts, :start_cursor) == "cursor-1"
+        {:error, :pagination_timeout}
+      end)
+
+      assert {:error, :pagination_timeout} =
+               Catalog.get_document("page-paginate-error", cache?: false)
+    end
+
     test "handles block pagination with has_more but no next_cursor" do
       page = %{
         "id" => "page-incomplete",
@@ -2477,6 +2577,176 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       )
 
       assert Catalog.allowed_document?(%{"properties" => %{}})
+    end
+
+    test "excludes pages with parent identifiers in exclude_ids" do
+      Application.put_env(:dashboard_ssd, :integrations,
+        notion_token: "token",
+        notion_curated_database_ids: []
+      )
+
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
+        curated_collections: [],
+        auto_discover?: true,
+        auto_discover_mode: :pages,
+        exclude_database_ids: ["workspace"],
+        allowed_document_type_values: ["Wiki"],
+        document_type_property_names: ["Type"],
+        allow_documents_without_type?: false
+      )
+
+      Cache.reset()
+      Notion.reset_circuits()
+
+      excluded_page = %{
+        "id" => "page-excluded",
+        "url" => "https://notion.so/page-excluded",
+        "last_edited_time" => "2024-06-01T12:00:00Z",
+        "parent" => %{"type" => "workspace"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Excluded"}]},
+          "Type" => %{"type" => "select", "select" => %{"name" => "Wiki"}}
+        }
+      }
+
+      included_page = %{
+        "id" => "page-included",
+        "url" => "https://notion.so/page-included",
+        "last_edited_time" => "2024-06-01T13:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-other"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Included"}]},
+          "Type" => %{"type" => "select", "select" => %{"name" => "Wiki"}}
+        }
+      }
+
+      NotionMock
+      |> expect(:search, fn "token", "", _opts ->
+        {:ok,
+         %{
+           "results" => [excluded_page, included_page],
+           "has_more" => false,
+           "next_cursor" => nil
+         }}
+      end)
+
+      assert {:ok, %{documents: documents, errors: []}} =
+               Catalog.list_documents("kb:auto:pages", cache?: false)
+
+      assert Enum.map(documents, & &1.id) == ["page-included"]
+    end
+
+    test "excludes pages not in include_ids when include_ids is set" do
+      Application.put_env(:dashboard_ssd, :integrations,
+        notion_token: "token",
+        notion_curated_database_ids: ["db-allowed"]
+      )
+
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
+        curated_collections: [],
+        auto_discover?: true,
+        auto_discover_mode: :pages,
+        exclude_database_ids: [],
+        allowed_document_type_values: ["Wiki"],
+        document_type_property_names: ["Type"],
+        allow_documents_without_type?: false
+      )
+
+      Cache.reset()
+      Notion.reset_circuits()
+
+      excluded_page = %{
+        "id" => "page-excluded",
+        "url" => "https://notion.so/page-excluded",
+        "last_edited_time" => "2024-06-01T12:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-other"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Excluded"}]},
+          "Type" => %{"type" => "select", "select" => %{"name" => "Wiki"}}
+        }
+      }
+
+      included_page = %{
+        "id" => "page-included",
+        "url" => "https://notion.so/page-included",
+        "last_edited_time" => "2024-06-01T13:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-allowed"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Included"}]},
+          "Type" => %{"type" => "select", "select" => %{"name" => "Wiki"}}
+        }
+      }
+
+      NotionMock
+      |> expect(:search, fn "token", "", _opts ->
+        {:ok,
+         %{
+           "results" => [excluded_page, included_page],
+           "has_more" => false,
+           "next_cursor" => nil
+         }}
+      end)
+
+      assert {:ok, %{documents: documents, errors: []}} =
+               Catalog.list_documents("kb:auto:pages", cache?: false)
+
+      assert Enum.map(documents, & &1.id) == ["page-included"]
+    end
+
+    test "filters out pages with invalid parent types" do
+      Application.put_env(:dashboard_ssd, :integrations,
+        notion_token: "token",
+        notion_curated_database_ids: []
+      )
+
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
+        curated_collections: [],
+        auto_discover?: true,
+        auto_discover_mode: :pages,
+        allowed_document_type_values: ["Wiki"],
+        document_type_property_names: ["Type"],
+        allow_documents_without_type?: false
+      )
+
+      Cache.reset()
+      Notion.reset_circuits()
+
+      valid_page = %{
+        "id" => "page-valid",
+        "url" => "https://notion.so/page-valid",
+        "last_edited_time" => "2024-05-01T12:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-valid"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Valid"}]},
+          "Type" => %{"type" => "select", "select" => %{"name" => "Wiki"}}
+        }
+      }
+
+      invalid_page = %{
+        "id" => "page-invalid",
+        "url" => "https://notion.so/page-invalid",
+        "last_edited_time" => "2024-05-02T12:00:00Z",
+        "parent" => %{"type" => "block_id", "block_id" => "block-123"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Invalid"}]},
+          "Type" => %{"type" => "select", "select" => %{"name" => "Wiki"}}
+        }
+      }
+
+      NotionMock
+      |> expect(:search, fn "token", "", _opts ->
+        {:ok,
+         %{
+           "results" => [invalid_page, valid_page],
+           "has_more" => false,
+           "next_cursor" => nil
+         }}
+      end)
+
+      assert {:ok, %{documents: documents, errors: []}} =
+               Catalog.list_documents("kb:auto:pages", cache?: false)
+
+      assert Enum.map(documents, & &1.id) == ["page-valid"]
     end
   end
 
