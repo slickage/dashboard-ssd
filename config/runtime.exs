@@ -151,6 +151,12 @@ document_type_filter_exempt_ids =
     Keyword.get(knowledge_base_config, :document_type_filter_exempt_ids, [])
   )
 
+auto_discover? =
+  parse_env_boolean.(
+    System.get_env("NOTION_AUTO_DISCOVER"),
+    Keyword.get(knowledge_base_config, :auto_discover?, false)
+  )
+
 auto_discover_mode =
   parse_discovery_mode.(
     System.get_env("NOTION_KB_DISCOVERY_MODE"),
@@ -225,6 +231,7 @@ knowledge_base_config =
   |> Keyword.put(:document_type_property_names, document_type_property_names)
   |> Keyword.put(:document_type_filter_exempt_ids, document_type_filter_exempt_ids)
   |> Keyword.put(:allow_documents_without_type?, allow_documents_without_type?)
+  |> Keyword.put(:auto_discover?, auto_discover?)
   |> Keyword.put(:auto_discover_mode, auto_discover_mode)
   |> Keyword.put(:auto_page_collection_id, auto_page_collection_id)
   |> Keyword.put(:auto_page_collection_name, auto_page_collection_name)
