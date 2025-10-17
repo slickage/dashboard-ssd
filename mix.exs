@@ -133,7 +133,7 @@ defmodule DashboardSSD.MixProject do
       {:finch, "~> 0.13"},
       {:makeup_syntect, "~> 0.1"},
       {:makeup, "~> 1.1"},
-      {:makeup_elixir, "~> 0.16"},
+      {:makeup_elixir, "~> 1.0"},
       {:makeup_erlang, "~> 0.1"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
