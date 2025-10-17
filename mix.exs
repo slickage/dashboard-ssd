@@ -1,6 +1,9 @@
 defmodule DashboardSSD.MixProject do
   use Mix.Project
 
+  # Ensure Phoenix is loaded for conditional listener configuration
+  Code.ensure_loaded?(Phoenix.CodeReloader)
+
   def project do
     [
       app: :dashboard_ssd,
@@ -106,13 +109,6 @@ defmodule DashboardSSD.MixProject do
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
 
-  # Configure Mix listeners conditionally
-  defp listeners do
-    # Phoenix 1.8+ requires CodeReloader listener, but it's not available during early Mix tasks
-    # We'll add it programmatically after Phoenix loads
-    []
-  end
-
   # Specifies your project dependencies.
   #
   # Type `mix help deps` for examples and options.
@@ -212,5 +208,22 @@ defmodule DashboardSSD.MixProject do
       plt_local_path: "priv/plts",
       list_unused_filters: true
     ]
+  end
+
+  # Configure Mix listeners conditionally
+  defp listeners do
+    # Check if Phoenix is in deps and conditionally add CodeReloader listener
+    phoenix_in_deps? =
+      Enum.any?(deps(), fn
+        {:phoenix, _} -> true
+        {"phoenix", _} -> true
+        _ -> false
+      end)
+
+    if phoenix_in_deps? do
+      [Phoenix.CodeReloader]
+    else
+      []
+    end
   end
 end
