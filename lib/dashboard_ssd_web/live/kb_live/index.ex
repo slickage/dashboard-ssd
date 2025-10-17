@@ -95,7 +95,9 @@ defmodule DashboardSSDWeb.KbLive.Index do
        |> assign(:search_dropdown_open, false)
        |> clear_flash(:error)}
     else
-      case Integrations.notion_search(query) do
+      case Integrations.notion_search(query,
+             body: %{filter: %{property: "object", value: "page"}}
+           ) do
         {:ok, %{"results" => results}} ->
           parsed = parse_results(results)
 
