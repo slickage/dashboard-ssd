@@ -25,6 +25,7 @@ defmodule DashboardSSDWeb.KbComponents do
               class={image_classes(@size)}
               width="16"
               height="16"
+              alt="Document icon"
             />
           <% else %>
             <img
@@ -33,6 +34,7 @@ defmodule DashboardSSDWeb.KbComponents do
               width="16"
               height="16"
               crossorigin="anonymous"
+              alt="Document icon"
             />
           <% end %>
         <% true -> %>
@@ -109,6 +111,7 @@ defmodule DashboardSSDWeb.KbComponents do
               phx-click="select_collection"
               phx-value-id={collection.id}
               class={collection_item_classes(selected?)}
+              aria-label={"Select #{collection.name} collection"}
             >
               <div class="flex flex-col gap-1 text-left">
                 <span class="text-sm font-semibold text-theme-text">{collection.name}</span>
@@ -152,6 +155,7 @@ defmodule DashboardSSDWeb.KbComponents do
               phx-click="select_document"
               phx-value-id={document.id}
               class={document_item_classes(selected?)}
+              aria-label={"Select #{document.title} document"}
             >
               <div class="flex flex-col gap-2 text-left">
                 <div class="flex flex-col gap-1">
@@ -281,6 +285,7 @@ defmodule DashboardSSDWeb.KbComponents do
                     |> Enum.filter(& &1)
                   }
                   aria-expanded={expanded?}
+                  aria-label={"Toggle #{collection.name} collection"}
                   phx-keydown="toggle_collection_key"
                 >
                   <div class="flex items-start gap-2">
@@ -333,6 +338,7 @@ defmodule DashboardSSDWeb.KbComponents do
                           ]
                           |> Enum.filter(& &1)
                         }
+                        aria-label={"Select #{document.title} document"}
                         phx-keydown="select_document_key"
                       >
                         <div class="flex items-center gap-2">
@@ -497,6 +503,7 @@ defmodule DashboardSSDWeb.KbComponents do
               phx-keydown="select_document_key"
               role="button"
               tabindex="0"
+              aria-label={"Select #{title} document"}
               class="group flex w-full cursor-pointer flex-col gap-1 rounded-md border border-transparent px-3 py-2 text-left text-sm text-white/80 transition hover:bg-white/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
             >
               <div class="flex items-center gap-2">
@@ -601,7 +608,12 @@ defmodule DashboardSSDWeb.KbComponents do
         <hr class="border-white/10" />
       <% :image -> %>
         <figure class="flex flex-col gap-2">
-          <img :if={@block.source} src={@block.source} class="max-w-full rounded-md" />
+          <img
+            :if={@block.source}
+            src={@block.source}
+            class="max-w-full rounded-md"
+            alt="Document image"
+          />
           <figcaption :if={@block.caption != []} class="text-xs text-theme-muted">
             <.kb_rich_text segments={@block.caption} />
           </figcaption>
