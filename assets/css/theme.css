@@ -458,6 +458,11 @@
     top: auto;
   }
 
+  .sticky-header.no-sticky {
+    position: relative !important;
+    top: auto !important;
+  }
+
   /* Light mode overrides for hardcoded white text */
   .dark .text-white {
     color: var(--theme-text);
