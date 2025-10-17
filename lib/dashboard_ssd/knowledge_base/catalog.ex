@@ -82,7 +82,11 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
     end
   end
 
-  @doc false
+  @doc """
+  Checks if a Notion page should be included in the knowledge base.
+
+  Evaluates document type filters, allowed types, and exclusion rules.
+  """
   @spec allowed_document?(map()) :: boolean()
   def allowed_document?(page), do: include_document?(page)
 

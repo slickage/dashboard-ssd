@@ -12,7 +12,11 @@ defmodule DashboardSSDWeb.Layouts do
 
   embed_templates "layouts/*"
 
-  @doc "Returns the current application version prefixed with 'v'."
+  @doc """
+  Returns the current application version prefixed with 'v'.
+
+  Reads the version from the application specification.
+  """
   @spec app_version() :: String.t()
   def app_version do
     :dashboard_ssd
@@ -24,7 +28,14 @@ defmodule DashboardSSDWeb.Layouts do
     end
   end
 
-  @doc false
+  @doc """
+  Returns CSS classes for header action buttons based on variant.
+
+  ## Variants
+
+  - `:primary` - Primary action styling with theme colors
+  - `:ghost` - Subtle ghost button styling (default)
+  """
   @spec header_action_classes(atom()) :: String.t()
   def header_action_classes(:primary) do
     "phx-submit-loading:opacity-75 rounded-full bg-theme-primary hover:bg-theme-primary-soft py-2 px-3 text-sm font-semibold leading-6 text-white active:text-white/80"
@@ -36,7 +47,11 @@ defmodule DashboardSSDWeb.Layouts do
 
   def header_action_classes(_variant), do: header_action_classes(:ghost)
 
-  @doc false
+  @doc """
+  Returns default header actions based on user authentication state.
+
+  Returns sign-in action for unauthenticated users, logout action for authenticated users.
+  """
   @spec default_header_actions(nil | map()) :: [map()]
   def default_header_actions(nil) do
     [
@@ -50,7 +65,12 @@ defmodule DashboardSSDWeb.Layouts do
     ]
   end
 
-  @doc false
+  @doc """
+  Extracts user initials from name or email for display purposes.
+
+  Takes the first letter of each word in the name, or the first letter of the email.
+  Returns "?" if no name or email is available.
+  """
   @spec user_initials(nil | %{optional(:name) => String.t(), optional(:email) => String.t()}) ::
           String.t()
   def user_initials(nil), do: "?"
@@ -70,7 +90,12 @@ defmodule DashboardSSDWeb.Layouts do
 
   def user_initials(_), do: "?"
 
-  @doc false
+  @doc """
+  Returns the user's display name, preferring name over email.
+
+  Returns the trimmed name if available, otherwise the email address.
+  Returns nil if neither name nor email is available.
+  """
   @spec user_display_name(nil | %{optional(:name) => String.t(), optional(:email) => String.t()}) ::
           String.t() | nil
   def user_display_name(nil), do: nil
@@ -88,7 +113,11 @@ defmodule DashboardSSDWeb.Layouts do
 
   def user_display_name(_), do: nil
 
-  @doc "Returns the capitalized role name for the user."
+  @doc """
+  Returns the capitalized role name for the user.
+
+  Extracts and capitalizes the role name from the user struct.
+  """
   @spec user_role(nil | %{optional(:role) => %{optional(:name) => String.t()}}) ::
           String.t() | nil
   def user_role(nil), do: nil
