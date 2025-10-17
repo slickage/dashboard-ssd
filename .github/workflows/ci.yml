@@ -23,7 +23,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
   check:
     runs-on: ubuntu-latest
     services:
@@ -143,8 +142,36 @@ jobs:
         env:
           MIX_ENV: dev
         run: mix doctor --summary --raise
+  release:
+    needs: check
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup BEAM
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ env.OTP_VERSION }}
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+      - name: Install dependencies
+        env:
+          MIX_ENV: dev
+        run: mix deps.get
+      - name: Install semantic-release
+        run: ./scripts/install_semantic_release.sh
+      - name: Semantic Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release --ci
   docs-pages:
-    needs: build
+    needs: release
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_docs == 'true')
     runs-on: ubuntu-latest
     steps:
@@ -187,34 +214,6 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deploy
         uses: actions/deploy-pages@v4
-  release:
-    needs: build
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Setup BEAM
-        uses: erlef/setup-beam@v1
-        with:
-          otp-version: ${{ env.OTP_VERSION }}
-          elixir-version: ${{ env.ELIXIR_VERSION }}
-      - name: Install dependencies
-        env:
-          MIX_ENV: dev
-        run: mix deps.get
-      - name: Install semantic-release
-        run: ./scripts/install_semantic_release.sh
-      - name: Semantic Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release --ci
   docker:
     permissions:
       contents: read
