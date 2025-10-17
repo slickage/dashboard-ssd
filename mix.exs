@@ -26,13 +26,28 @@ defmodule DashboardSSD.MixProject do
           "README.md": [title: "Overview"],
           "INTEGRATIONS.md": [title: "Integrations (Local)"],
           "NOTION.md": [title: "Notion Integration"],
-          "specs/001-dashboard-init/spec.md": [title: "MVP Spec"],
-          "specs/001-dashboard-init/tasks.md": [title: "Tasks"]
+          "specs/001-dashboard-init/spec.md": [title: "001 MVP Spec"],
+          "specs/001-dashboard-init/tasks.md": [title: "001 Tasks"],
+          "specs/002-theme/spec.md": [title: "002 Theme Spec"],
+          "specs/002-theme/tasks.md": [title: "002 Tasks"],
+          "specs/003-prepare-this-repo/spec.md": [title: "003 Prepare Repo Spec"],
+          "specs/003-prepare-this-repo/tasks.md": [title: "003 Tasks"],
+          "specs/004-enhance-the-existing/spec.md": [title: "004 Enhance Existing Spec"],
+          "specs/004-enhance-the-existing/tasks.md": [title: "004 Tasks"]
         ],
         groups_for_extras: [
           "Getting Started": ["README.md"],
           Guides: ["INTEGRATIONS.md", "NOTION.md"],
-          Specs: ["specs/001-dashboard-init/spec.md", "specs/001-dashboard-init/tasks.md"]
+          Specs: [
+            "specs/001-dashboard-init/spec.md",
+            "specs/001-dashboard-init/tasks.md",
+            "specs/002-theme/spec.md",
+            "specs/002-theme/tasks.md",
+            "specs/003-prepare-this-repo/spec.md",
+            "specs/003-prepare-this-repo/tasks.md",
+            "specs/004-enhance-the-existing/spec.md",
+            "specs/004-enhance-the-existing/tasks.md"
+          ]
         ],
         nest_modules_by_prefix: [
           DashboardSSD,
@@ -67,7 +82,13 @@ defmodule DashboardSSD.MixProject do
           "INTEGRATIONS.md",
           "NOTION.md",
           "specs/001-dashboard-init/spec.md",
-          "specs/001-dashboard-init/tasks.md"
+          "specs/001-dashboard-init/tasks.md",
+          "specs/002-theme/spec.md",
+          "specs/002-theme/tasks.md",
+          "specs/003-prepare-this-repo/spec.md",
+          "specs/003-prepare-this-repo/tasks.md",
+          "specs/004-enhance-the-existing/spec.md",
+          "specs/004-enhance-the-existing/tasks.md"
         ]
       ]
     ]
