@@ -144,8 +144,7 @@ defmodule DashboardSSD.MixProject do
       {:cloak_ecto, "~> 1.2"},
       {:ueberauth, "~> 0.10"},
       {:ueberauth_google, "~> 0.10"},
-      {:doctor, "~> 0.22", only: :dev, runtime: false},
-      {:mix_audit, "~> 2.1", only: :dev, runtime: false}
+      {:doctor, "~> 0.22", only: :dev, runtime: false}
     ]
   end
 
