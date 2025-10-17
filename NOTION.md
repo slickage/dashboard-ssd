@@ -26,18 +26,27 @@ DashboardSSD can filter Notion documents so only wiki-style content appears in t
 
 Set these values when your Notion databases use different naming or taxonomies.
 
-## Discovery Mode
+## Auto-Discovery Mode
 
-By default the dashboard indexes curated Notion databases. To index standalone wiki pages instead, set:
+By default the dashboard indexes curated Notion databases. To enable automatic discovery of databases or pages, set:
 
-| Variable | Purpose | Notes |
-|----------|---------|-------|
-| `NOTION_KB_DISCOVERY_MODE` | Choose `pages` to read from the Notion Search API (`object=page`) instead of databases. | Results are filtered client-side so only `workspace` or `page` parents remain, which aligns with Notion's wiki hierarchy. |
-| `NOTION_PAGE_COLLECTION_ID` | Stable identifier for the aggregate collection that appears in the UI when page discovery is enabled. | Defaults to `kb:auto:pages`. |
-| `NOTION_PAGE_COLLECTION_NAME` | Display name shown in the collections list for the discovered pages. | Defaults to `Wiki Pages`. |
-| `NOTION_PAGE_COLLECTION_DESCRIPTION` | Optional description rendered under the collection title. | Defaults to `Top-level pages from the company wiki`. |
+| Variable | Purpose | Default | Notes |
+|----------|---------|---------|-------|
+| `NOTION_AUTO_DISCOVER` | Enable auto-discovery mode. | `false` | Set to `true` to discover databases or pages automatically. |
+| `NOTION_AUTO_DISCOVER_MODE` | Choose `databases` or `pages`. | `databases` | `databases`: Discover all accessible databases. `pages`: Discover top-level pages from the Notion Search API. |
+| `NOTION_INCLUDE_DATABASE_IDS` | Comma-separated list of database IDs to include in auto-discovery. | *(all)* | Only applies when mode is `databases`. |
+| `NOTION_EXCLUDE_DATABASE_IDS` | Comma-separated list of database IDs to exclude from auto-discovery. | *(none)* | Only applies when mode is `databases`. |
+| `NOTION_AUTO_DISCOVER_PAGE_SIZE` | Number of items to fetch per API call. | `50` | Clamped to Notion's limits (max 100). |
+| `NOTION_AUTO_DISCOVER_TTL` | Cache TTL in milliseconds. | `300000` (5 minutes) | How long to cache discovery results. |
+| `NOTION_PAGE_COLLECTION_ID` | Stable identifier for the aggregate collection that appears in the UI when page discovery is enabled. | `kb:auto:pages` | Only applies when mode is `pages`. |
+| `NOTION_PAGE_COLLECTION_NAME` | Display name shown in the collections list for the discovered pages. | `Wiki Pages` | Only applies when mode is `pages`. |
+| `NOTION_PAGE_COLLECTION_DESCRIPTION` | Optional description rendered under the collection title. | `Top-level pages from the company wiki` | Only applies when mode is `pages`. |
 
-Page discovery still honours the type filters above—only results whose configured property matches the allowlist (e.g. `Type = Wiki`) appear in the dashboard.
+When auto-discovery is enabled:
+- For `databases` mode: Discovers all accessible Notion databases, filtered by include/exclude lists. Results are filtered client-side to exclude empty databases unless configured otherwise.
+- For `pages` mode: Discovers top-level pages with `workspace` or `database_id` parents. Results are filtered client-side so only wiki-style content appears, honouring the type filters above (e.g., only pages with `Type = Wiki`).
+
+Note: Auto-discovery settings may also be configured in application config under `DashboardSSD.KnowledgeBase` if not set via environment variables.
 
 ## Runtime Behaviour
 
