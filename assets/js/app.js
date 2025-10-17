@@ -142,45 +142,59 @@ document.addEventListener('phx:page-loading-stop', initTheme);
 document.addEventListener('phx:update', initTheme);
 
 // Sticky header behavior
-function initStickyHeader() {
-  const header = document.getElementById('sticky-header');
-  if (!header) return;
+  function initStickyHeader() {
+    const header = document.getElementById('sticky-header');
+    if (!header) return;
 
-  let lastScrollY = window.scrollY;
-  let isScrollingDown = false;
+    let lastScrollY = window.scrollY;
+    let isScrollingDown = false;
 
-  function updateHeader() {
-    const currentScrollY = window.scrollY;
-    const scrollingDown = currentScrollY > lastScrollY;
+    function updateHeader() {
+      const currentScrollY = window.scrollY;
+      const scrollingDown = currentScrollY > lastScrollY;
 
-    // Update scroll direction
-    if (scrollingDown !== isScrollingDown) {
-      isScrollingDown = scrollingDown;
-
-      if (scrollingDown) {
-        // Scrolling down: let header scroll out of view naturally
-        header.classList.add('scrolling');
-      } else {
-        // Scrolling up: make header sticky again
-        header.classList.remove('scrolling');
+      const isKbPage = document.querySelector('[phx-click-away="close_search_dropdown"]') !== null;
+      let searchResultsVisible = false;
+      if (isKbPage) {
+        searchResultsVisible = document.querySelector('[phx-click-away="close_search_dropdown"] .absolute') !== null;
+        if (searchResultsVisible) {
+          header.classList.add('no-sticky');
+        } else {
+          header.classList.remove('no-sticky');
+        }
       }
+
+      // Update scroll direction
+      if (scrollingDown !== isScrollingDown) {
+        isScrollingDown = scrollingDown;
+
+        if (scrollingDown && (!isKbPage || (isKbPage && !searchResultsVisible))) {
+          // Scrolling down: let header scroll out of view naturally
+          header.classList.add('scrolling');
+        } else if (!scrollingDown && (!isKbPage || (isKbPage && !searchResultsVisible))) {
+          // Scrolling up: make header sticky again
+          header.classList.remove('scrolling');
+        }
+      }
+
+      lastScrollY = currentScrollY;
     }
 
-    lastScrollY = currentScrollY;
+    // Set initial state
+    updateHeader();
+
+    // Throttle scroll events for better performance
+    let ticking = false;
+    window.addEventListener('scroll', () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          updateHeader();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    });
   }
-
-  // Throttle scroll events for better performance
-  let ticking = false;
-  window.addEventListener('scroll', () => {
-    if (!ticking) {
-      requestAnimationFrame(() => {
-        updateHeader();
-        ticking = false;
-      });
-      ticking = true;
-    }
-  });
-}
 
 // Initialize sticky header when DOM is ready
 document.addEventListener('DOMContentLoaded', initStickyHeader);
