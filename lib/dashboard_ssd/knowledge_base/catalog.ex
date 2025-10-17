@@ -232,7 +232,7 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
             count > 0
 
           _ ->
-            if prefetch_empty_check?(opts) do
+            if hide_empty_collections?() or Keyword.get(opts, :hide_empty_collections, false) do
               has_any_document?(token, col.id, sample_size)
             else
               true
@@ -267,44 +267,8 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
   end
 
   defp hide_empty_collections? do
-    cfg = Application.get_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, [])
-    default = Mix.env() != :test
-    cfg_flag = Keyword.get(cfg, :hide_empty_collections, default)
-
-    env_flag =
-      if Mix.env() == :test do
-        false
-      else
-        case System.get_env("KB_HIDE_EMPTY_COLLECTIONS") do
-          "1" -> true
-          "true" -> true
-          "TRUE" -> true
-          _ -> false
-        end
-      end
-
-    cfg_flag or env_flag
-  end
-
-  defp prefetch_empty_check?(opts) do
-    cfg = Application.get_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, [])
-    default = Mix.env() != :test
-    cfg_flag = Keyword.get(cfg, :prefetch_empty_check, default)
-    opt_flag = Keyword.get(opts, :prefetch_empty_check, false)
-
-    env_flag =
-      if Mix.env() == :test do
-        false
-      else
-        case System.get_env("KB_PREFETCH_EMPTY_CHECK") do
-          "1" -> true
-          "true" -> true
-          "TRUE" -> true
-          _ -> false
-        end
-      end
-
-    cfg_flag or env_flag or opt_flag
+    Application.get_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, [])
+    |> Keyword.get(:hide_empty_collections, false)
   end
 
   defp fetch_discovered_pages(token, opts) do

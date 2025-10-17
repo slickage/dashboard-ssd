@@ -118,6 +118,15 @@ parse_discovery_mode = fn
     end
 end
 
+# hide empty collections if
+# raw_curated_database_ids is not set and env is not :test
+hide_empty_collections =
+  if !raw_curated_database_ids && config_env() != :test do
+    true
+  else
+    false
+  end
+
 allowed_document_type_values =
   parse_env_list.(
     System.get_env("NOTION_ALLOWED_PAGE_TYPES"),
@@ -209,6 +218,7 @@ auto_page_collection_description =
 
 knowledge_base_config =
   knowledge_base_config
+  |> Keyword.put(:hide_empty_collections, hide_empty_collections)
   |> Keyword.put(:curated_collections, curated_collections_sample)
   |> Keyword.put(:default_curated_database_ids, fallback_curated_database_ids)
   |> Keyword.put(:allowed_document_type_values, allowed_document_type_values)

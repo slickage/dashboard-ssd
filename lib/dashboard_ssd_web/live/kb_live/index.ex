@@ -724,23 +724,8 @@ defmodule DashboardSSDWeb.KbLive.Index do
   end
 
   defp hide_empty_collections? do
-    cfg = Application.get_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, [])
-    default = Mix.env() != :test
-    cfg_flag = Keyword.get(cfg, :hide_empty_collections, default)
-
-    env_flag =
-      if Mix.env() == :test do
-        false
-      else
-        case System.get_env("KB_HIDE_EMPTY_COLLECTIONS") do
-          "1" -> true
-          "true" -> true
-          "TRUE" -> true
-          _ -> false
-        end
-      end
-
-    cfg_flag or env_flag
+    Application.get_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, [])
+    |> Keyword.get(:hide_empty_collections, false)
   end
 
   @impl true
