@@ -41,7 +41,13 @@
       </div>
 
       <div class="mt-auto flex flex-col items-center gap-6 text-xs text-theme-muted">
-        <span class="theme-pill">{version}</span>
+        <a
+          href="https://github.com/akinsey/dashboard-ssd"
+          target="_blank"
+          class="theme-pill hover:bg-white/10 transition-colors"
+        >
+          {version}
+        </a>
 
         <%= if current_user do %>
           <.link
