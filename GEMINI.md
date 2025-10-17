@@ -1,24 +1,48 @@
-# dashboard-ssd Development Guidelines
+# Gemini Project: dashboard-ssd
 
-Auto-generated from all feature plans. Last updated: 2025-09-11
+## Project Overview
 
-## Active Technologies
--  +  (001-dashboard-init)
+This project is a modern dashboard for managing software development projects, clients, deployments, and integrations. It is built with Elixir and Phoenix, using LiveView for the frontend and Tailwind CSS for styling. The dashboard provides real-time updates and integrates with various tools like Linear, Slack, Notion, and Google Drive. User authentication is handled through Google OAuth, with role-based access control.
 
-## Project Structure
-```
-src/
-tests/
-```
+## Building and Running
 
-## Commands
-# Add commands for 
+### Prerequisites
 
-## Code Style
-: Follow standard conventions
+*   Elixir 1.18+
+*   Phoenix 1.7+
+*   PostgreSQL
+*   Node.js 20+
 
-## Recent Changes
-- 001-dashboard-init: Added  + 
+### Quick Start
 
-<!-- MANUAL ADDITIONS START -->
-<!-- MANUAL ADDITIONS END -->
+1.  **Clone and setup**:
+    ```bash
+    git clone https://github.com/akinsey/dashboard-ssd.git
+    cd dashboard-ssd
+    mix setup
+    ```
+
+2.  **Configure environment**:
+    ```bash
+    cp .env.example .env
+    # Edit .env with your API keys and secrets
+    ```
+
+3.  **Run the application**:
+    ```bash
+    mix phx.server
+    ```
+
+4.  **Visit**: [`localhost:4000`](http://localhost:4000)
+
+### Development Commands
+
+*   **Run tests**: `mix test`
+*   **Check code quality**: `mix check` (includes formatting, linting, dialyzer, tests, and docs)
+*   **Live reload**: Assets are compiled automatically with esbuild.
+
+## Development Conventions
+
+*   **Code Style**: The project follows the standard Elixir and Phoenix conventions. Use `mix format` to format the code and `mix credo --strict` to check for style issues.
+*   **Testing**: All new features should be accompanied by tests. The `mix check` command includes a test run.
+*   **Contributions**: Before pushing changes, ensure that `mix check` passes. Update documentation as needed.
