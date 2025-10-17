@@ -1,8 +1,8 @@
 defmodule DashboardSSD.Integrations.WrappersTest do
   use DashboardSSD.DataCase
 
-  alias DashboardSSD.Integrations
   alias DashboardSSD.Accounts.{ExternalIdentity, User}
+  alias DashboardSSD.Integrations
   alias DashboardSSD.Repo
 
   setup do
