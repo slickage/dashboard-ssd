@@ -93,7 +93,15 @@ defmodule DashboardSSDWeb.KbComponents do
   attr :selected_id, :any, default: nil
   attr :empty_message, :string, default: "No curated collections are available yet."
 
-  @doc false
+  @doc """
+  Renders a list of collections with selection functionality.
+
+  ## Assigns
+
+  - `collections` - List of collection structs to display
+  - `selected_id` - ID of the currently selected collection
+  - `empty_message` - Message to show when no collections exist
+  """
   @spec collection_list(map()) :: Rendered.t()
   def collection_list(assigns) do
     ~H"""
@@ -137,7 +145,15 @@ defmodule DashboardSSDWeb.KbComponents do
   attr :selected_id, :any, default: nil
   attr :empty_message, :string, default: "No documents available yet."
 
-  @doc false
+  @doc """
+  Renders a list of documents with selection functionality.
+
+  ## Assigns
+
+  - `documents` - List of document structs to display
+  - `selected_id` - ID of the currently selected document
+  - `empty_message` - Message to show when no documents exist
+  """
   @spec document_list(map()) :: Rendered.t()
   def document_list(assigns) do
     ~H"""
@@ -213,7 +229,19 @@ defmodule DashboardSSDWeb.KbComponents do
   attr :selected_collection_id, :any, default: nil
   attr :selected_document_id, :any, default: nil
 
-  @doc false
+  @doc """
+  Renders an expandable tree view of collections and their documents.
+
+  ## Assigns
+
+  - `collections` - List of collection structs
+  - `collection_errors` - List of collection-level errors
+  - `documents_by_collection` - Map of collection IDs to document lists
+  - `document_errors` - Map of collection IDs to document error lists
+  - `expanded_ids` - Set of expanded collection IDs
+  - `selected_collection_id` - ID of selected collection
+  - `selected_document_id` - ID of selected document
+  """
   @spec collection_tree(map()) :: Rendered.t()
   def collection_tree(assigns) do
     ~H"""
@@ -373,7 +401,16 @@ defmodule DashboardSSDWeb.KbComponents do
   attr :loading, :boolean, default: false
   attr :share_url, :string, default: nil
 
-  @doc false
+  @doc """
+  Renders a document viewer with content blocks and metadata.
+
+  ## Assigns
+
+  - `document` - DocumentDetail struct to display
+  - `error` - Error message if document failed to load
+  - `loading` - Whether the document is currently loading
+  - `share_url` - URL for sharing the document
+  """
   @spec document_viewer(map()) :: Rendered.t()
   def document_viewer(assigns) do
     ~H"""
@@ -553,7 +590,11 @@ defmodule DashboardSSDWeb.KbComponents do
 
   attr :block, :map, required: true
 
-  @doc false
+  @doc """
+  Renders a Notion block with appropriate HTML styling.
+
+  Supports various block types including headings, paragraphs, lists, quotes, code blocks, images, and tables.
+  """
   @spec kb_block(map()) :: Rendered.t()
   def kb_block(assigns) do
     ~H"""
@@ -676,7 +717,11 @@ defmodule DashboardSSDWeb.KbComponents do
 
   attr :segments, :list, default: []
 
-  @doc false
+  @doc """
+  Renders rich text segments with formatting annotations.
+
+  Supports bold, italic, strikethrough, underline, code, and links.
+  """
   @spec kb_rich_text(map()) :: Rendered.t()
   def kb_rich_text(assigns) do
     ~H"""

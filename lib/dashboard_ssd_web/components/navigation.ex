@@ -8,7 +8,11 @@ defmodule DashboardSSDWeb.Navigation do
 
   @github_releases_url "https://github.com/akinsey/dashboard-ssd/releases"
 
-  @doc "Returns the GitHub releases URL for the project."
+  @doc """
+  Returns the GitHub releases URL for the project.
+
+  Uses the configured module attribute for the releases page.
+  """
   @spec github_releases_url() :: String.t()
   def github_releases_url, do: @github_releases_url
 
@@ -45,7 +49,13 @@ defmodule DashboardSSDWeb.Navigation do
     |> render_nav()
   end
 
-  @doc false
+  @doc """
+  Renders a mobile menu button for toggling the mobile navigation drawer.
+
+  ## Assigns
+
+  - `class` - Additional CSS classes to apply to the button
+  """
   @spec mobile_menu_button(map()) :: Rendered.t()
   def mobile_menu_button(assigns) do
     ~H"""
@@ -62,7 +72,16 @@ defmodule DashboardSSDWeb.Navigation do
     """
   end
 
-  @doc false
+  @doc """
+  Renders the mobile navigation drawer with user menu and navigation items.
+
+  ## Assigns
+
+  - `current_user` - The current user struct
+  - `current_path` - The current path for active state
+  - `open` - Whether the drawer is open
+  - `version` - Application version to display
+  """
   @spec mobile_drawer(map()) :: Rendered.t()
   def mobile_drawer(assigns) do
     items = filtered_items(assigns.current_user, :mobile)
@@ -173,7 +192,14 @@ defmodule DashboardSSDWeb.Navigation do
     """
   end
 
-  @doc false
+  @doc """
+  Renders the sidebar footer with version link and user settings button.
+
+  ## Assigns
+
+  - `current_user` - The current user struct
+  - `version` - Application version to display
+  """
   @spec sidebar_footer(map()) :: Rendered.t()
   def sidebar_footer(assigns) do
     ~H"""
