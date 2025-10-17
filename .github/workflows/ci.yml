@@ -216,7 +216,7 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deploy
         uses: actions/deploy-pages@v4
-  docker:
+  build:
     permissions:
       contents: read
       id-token: write
