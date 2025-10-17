@@ -24,9 +24,8 @@ concurrency:
 
 jobs:
   build:
-
+  check:
     runs-on: ubuntu-latest
-
     services:
       postgres:
         image: postgres:15
@@ -41,20 +40,17 @@ jobs:
           --health-timeout 5s
           --health-retries 5
           --tmpfs /var/lib/postgresql/data:rw
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Setup BEAM
         id: beam
         uses: erlef/setup-beam@v1
         with:
           otp-version: ${{ env.OTP_VERSION }}
           elixir-version: ${{ env.ELIXIR_VERSION }}
-
       - name: Cache Hex / Rebar
         uses: actions/cache@v4
         with:
@@ -62,13 +58,11 @@ jobs:
             ~/.hex
             ~/.cache/rebar3
           key: ${{ runner.os }}-hex-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('**/mix.lock') }}
-
       - name: Cache Mix deps
         uses: actions/cache@v4
         with:
           path: deps
           key: ${{ runner.os }}-deps-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('**/mix.lock') }}
-
       - name: Cache Mix build
         uses: actions/cache@v4
         with:
@@ -78,13 +72,11 @@ jobs:
           key: ${{ runner.os }}-build-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('**/mix.lock', 'config/*.exs', 'config/**/*.exs') }}
           restore-keys: |
             ${{ runner.os }}-build-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-
-
       - name: Cache PLTs
         uses: actions/cache@v4
         with:
           path: priv/plts
           key: ${{ runner.os }}-plts-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('**/mix.lock') }}
-
       - name: Cache assets
         id: assets-cache
         uses: actions/cache@v4
@@ -95,39 +87,29 @@ jobs:
           key: ${{ runner.os }}-assets-${{ hashFiles('assets/package-lock.json', 'assets/yarn.lock', 'assets/mix.exs', 'assets/package.json') }}
           restore-keys: |
             ${{ runner.os }}-assets-
-
       - name: Install dependencies
         run: |
           mix deps.get
           MIX_ENV=dev mix deps.get
-
       - name: Security | Hex audit
         run: mix hex.audit
-
       - name: Security | deps audit
         run: MIX_ENV=dev mix deps.audit
-
       - name: Security | hex outdated
         run: MIX_ENV=dev mix hex.outdated || true
-
       - name: Security | gitleaks
         run: ./scripts/secret_scan.sh
-
       - name: Security | Sobelow
         env:
           MIX_ENV: dev
           SOBELOW_CONFIDENCE: medium
         run: mix sobelow --skip --exit
-
       - name: Quality | Format
         run: mix format --check-formatted
-
       - name: Quality | Credo
         run: mix credo --strict
-
       - name: Correctness | Compile (test warnings)
         run: mix compile --force --warnings-as-errors
-
       - name: Infrastructure | Assets
         env:
           MIX_ENV: dev
@@ -136,38 +118,31 @@ jobs:
             mix assets.setup
           fi
           mix assets.build
-
       - name: Infrastructure | Docs
         env:
           MIX_ENV: dev
         run: mix docs
-
       - name: Infrastructure | Prepare DB
         run: |
           mix ecto.create
           mix ecto.migrate
-
       - name: Correctness | Tests w/ coverage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EXUNIT_MAX_CASES: 20
         run: mix coveralls.multiple --type local --type github
-
       - name: Correctness | Dialyzer PLT
         env:
           MIX_ENV: dev
         run: mix dialyzer --plt
-
       - name: Correctness | Dialyzer
         env:
           MIX_ENV: dev
         run: mix dialyzer --format short
-
       - name: Correctness | Doctor
         env:
           MIX_ENV: dev
         run: mix doctor --summary --raise
-
   docs-pages:
     needs: build
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_docs == 'true')
@@ -212,7 +187,6 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deploy
         uses: actions/deploy-pages@v4
-
   release:
     needs: build
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -241,7 +215,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release --ci
-
   docker:
     permissions:
       contents: read
@@ -253,14 +226,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -271,7 +242,6 @@ jobs:
             type=ref,event=pr
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
