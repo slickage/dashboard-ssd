@@ -7,8 +7,8 @@ defmodule DashboardSSD.Accounts do
   around Ecto with clearly defined contracts.
   """
   import Ecto.Query, warn: false
-  alias DashboardSSD.Repo
   alias DashboardSSD.Accounts.{ExternalIdentity, Role, User}
+  alias DashboardSSD.Repo
 
   # Users
   @doc "List all users"
