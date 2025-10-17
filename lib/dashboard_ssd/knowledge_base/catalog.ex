@@ -234,7 +234,7 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
 
   defp do_maybe_filter_empty(token, collections, opts) do
     sample_size = Keyword.get(opts, :empty_check_page_size, 10)
-    prefetch? = prefetch_empty_check?(opts)
+    prefetch? = hide_empty_collections?()
 
     Enum.filter(collections, fn col ->
       keep_collection?(token, col, prefetch?, sample_size)
