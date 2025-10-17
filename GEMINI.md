@@ -9,7 +9,7 @@ This project is a modern dashboard for managing software development projects, c
 ### Prerequisites
 
 *   Elixir 1.18+
-*   Phoenix 1.7+
+*   Phoenix 1.8+
 *   PostgreSQL
 *   Node.js 20+
 

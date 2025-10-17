@@ -21,7 +21,7 @@ A modern, dark-themed dashboard for managing software development projects, clie
 ## Prerequisites
 
 - Elixir 1.18+
-- Phoenix 1.7+
+- Phoenix 1.8+
 - PostgreSQL
 - Node.js 20+
 
