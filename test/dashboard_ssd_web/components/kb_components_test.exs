@@ -253,4 +253,122 @@ defmodule DashboardSSDWeb.KbComponentsTest do
     assert html =~ "<table"
     assert html =~ "Column A"
   end
+
+  test "kb_block renders bulleted list with proper indentation" do
+    block = %{
+      type: :bulleted_list_item,
+      segments: [%{text: "Item 1", annotations: %{}}],
+      children: []
+    }
+
+    html = render_component(&KbComponents.kb_block/1, block: block, level: 0)
+
+    assert html =~ "pl-6"
+    assert html =~ "•"
+    assert html =~ "Item 1"
+  end
+
+  test "kb_block renders nested bulleted list with increased indentation" do
+    parent_block = %{
+      type: :bulleted_list_item,
+      segments: [%{text: "Parent", annotations: %{}}],
+      children: [
+        %{
+          type: :bulleted_list_item,
+          segments: [%{text: "Child", annotations: %{}}],
+          children: []
+        }
+      ]
+    }
+
+    html = render_component(&KbComponents.kb_block/1, block: parent_block, level: 0)
+
+    assert html =~ "pl-6"
+    assert html =~ "Parent"
+    assert html =~ "pl-12"
+    assert html =~ "Child"
+  end
+
+  test "kb_block renders numbered list with sequential numbering" do
+    block = %{
+      type: :numbered_list_item,
+      segments: [%{text: "First item", annotations: %{}}],
+      children: []
+    }
+
+    html = render_component(&KbComponents.kb_block/1, block: block, level: 0, number: 1)
+
+    assert html =~ "1."
+    assert html =~ "First item"
+  end
+
+  test "kb_block assigns numbers to nested numbered lists" do
+    parent_block = %{
+      type: :numbered_list_item,
+      segments: [%{text: "First", annotations: %{}}],
+      children: [
+        %{
+          type: :numbered_list_item,
+          segments: [%{text: "Second", annotations: %{}}],
+          children: []
+        },
+        %{
+          type: :numbered_list_item,
+          segments: [%{text: "Third", annotations: %{}}],
+          children: []
+        }
+      ]
+    }
+
+    html = render_component(&KbComponents.kb_block/1, block: parent_block, level: 0, number: 1)
+
+    assert html =~ "1."
+    assert html =~ "First"
+    assert html =~ "1."
+    assert html =~ "Second"
+    assert html =~ "2."
+    assert html =~ "Third"
+  end
+
+  test "kb_block handles mixed list types with proper numbering reset" do
+    parent_block = %{
+      type: :bulleted_list_item,
+      segments: [%{text: "Bullet", annotations: %{}}],
+      children: [
+        %{
+          type: :numbered_list_item,
+          segments: [%{text: "Numbered 1", annotations: %{}}],
+          children: []
+        },
+        %{
+          type: :numbered_list_item,
+          segments: [%{text: "Numbered 2", annotations: %{}}],
+          children: []
+        },
+        %{
+          type: :bulleted_list_item,
+          segments: [%{text: "Sub bullet", annotations: %{}}],
+          children: [
+            %{
+              type: :numbered_list_item,
+              segments: [%{text: "Reset to 1", annotations: %{}}],
+              children: []
+            }
+          ]
+        }
+      ]
+    }
+
+    html = render_component(&KbComponents.kb_block/1, block: parent_block, level: 0)
+
+    assert html =~ "•"
+    assert html =~ "Bullet"
+    assert html =~ "1."
+    assert html =~ "Numbered 1"
+    assert html =~ "2."
+    assert html =~ "Numbered 2"
+    assert html =~ "Sub bullet"
+    assert html =~ "1."
+    assert html =~ "Reset to 1"
+  end
 end

@@ -60,5 +60,9 @@ defmodule DashboardSSDWeb.CodeHighlighterTest do
     test "falls back to default when css class would be empty" do
       assert CodeHighlighter.css_language("!!!") == "text"
     end
+
+    test "returns default for empty string" do
+      assert CodeHighlighter.css_language("") == "text"
+    end
   end
 end
