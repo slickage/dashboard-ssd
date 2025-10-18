@@ -110,6 +110,11 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
           fetch_fun.()
         end
 
+      if cache? and match?({:ok, _}, result) do
+        {:ok, detail} = result
+        update_documents_cache(detail, ttl)
+      end
+
       result
     end
   end
@@ -1633,6 +1638,35 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
       {:ok, token}
     else
       {:error, {:missing_env, "NOTION_TOKEN"}}
+    end
+  end
+
+  defp update_documents_cache(detail, ttl) do
+    collection_id = detail.collection_id
+    cache_key = {:documents, collection_id}
+
+    case Cache.get(@cache_namespace, cache_key) do
+      {:ok, documents} ->
+        updated_documents = Enum.map(documents, &update_doc_if_match(&1, detail))
+        Cache.put(@cache_namespace, cache_key, updated_documents, ttl)
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp update_doc_if_match(doc, detail) do
+    if doc.id == detail.id do
+      %{
+        doc
+        | title: detail.title,
+          summary: detail.summary,
+          owner: detail.owner,
+          tags: detail.tags,
+          last_updated_at: detail.last_updated_at
+      }
+    else
+      doc
     end
   end
 
