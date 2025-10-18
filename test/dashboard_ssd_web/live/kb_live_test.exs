@@ -40,7 +40,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
     NotionMock
     |> stub(:query_database, fn _token, _id, _opts ->
-      {:ok, %{"results" => [], "has_more" => false}}
+      {:ok, %{"results" => [], "has_more" => false, "next_cursor" => nil}}
     end)
 
     Notion.reset_circuits()
@@ -482,7 +482,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
             {:ok, %{"results" => [], "has_more" => false, "next_cursor" => nil}}
 
           "db-guides" ->
-            {:ok, %{"results" => [], "has_more" => false, "next_cursor" => nil}}
+            {:error, :timeout}
         end
       end)
 
@@ -496,12 +496,6 @@ defmodule DashboardSSDWeb.KbLiveTest do
       conn = init_test_session(conn, %{user_id: user.id})
       {:ok, view, _html} = live(conn, ~p"/kb")
 
-      NotionMock
-      |> expect(:query_database, fn "tok", "db-guides", _opts ->
-        {:error, :timeout}
-      end)
-
-      render_click(element(view, "button[phx-value-id='db-guides']"))
       assert render(view) =~ "db-guides: timeout"
     end
 
@@ -521,9 +515,8 @@ defmodule DashboardSSDWeb.KbLiveTest do
       |> expect(:query_database, 2, fn "tok", "db-handbook", _opts ->
         {:ok, %{"results" => [page], "has_more" => false, "next_cursor" => nil}}
       end)
-      |> expect(:retrieve_page, fn "tok", "page-1", _opts -> {:ok, page} end)
-      |> expect(:retrieve_block_children, fn "tok", "page-1", _opts ->
-        {:ok, %{"results" => [], "has_more" => false, "next_cursor" => nil}}
+      |> expect(:retrieve_page, 3, fn "tok", "page-1", _opts ->
+        {:error, {:http_error, 401, %{}}}
       end)
 
       {:ok, user} =
@@ -537,11 +530,6 @@ defmodule DashboardSSDWeb.KbLiveTest do
       {:ok, view, _html} = live(conn, ~p"/kb")
 
       Cache.delete(:collections, {:document_detail, "page-1"})
-
-      NotionMock
-      |> expect(:retrieve_page, fn "tok", "page-1", _opts ->
-        {:error, {:http_error, 401, %{}}}
-      end)
 
       render_click(element(view, "button[phx-value-id='page-1']"))
 
@@ -592,6 +580,23 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       html = render(view)
       assert html =~ "Key Select"
+    end
+
+    test "toggles mobile menu", %{conn: conn} do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "mobile-menu@example.com",
+          name: "Mobile Menu",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      assert view |> element("button[phx-click='toggle_mobile_menu']") |> render_click()
+      assert view |> element("button[phx-click='close_mobile_menu']") |> has_element?()
+
+      assert view |> element("button[phx-click='close_mobile_menu']") |> render_click()
     end
 
     test "toggles collection on keydown", %{conn: conn} do
@@ -678,6 +683,276 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       html = render(view)
       assert html =~ "Key Guide"
+    end
+  end
+
+  describe "document caching" do
+    test "loading document uses cache when available", %{conn: conn} do
+      Cache.reset()
+
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "cache-hit@example.com",
+          name: "Cache Hit",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      {:ok, last_updated_at, _} = DateTime.from_iso8601("2024-05-01T12:00:00Z")
+
+      cached_document = %Types.DocumentDetail{
+        id: "cached-doc",
+        title: "Cached Document",
+        collection_id: "db-handbook",
+        share_url: "https://notion.so/cached-doc",
+        last_updated_at: last_updated_at,
+        rendered_blocks: [
+          %{type: :paragraph, segments: [%{text: "Cached content"}], children: []}
+        ],
+        tags: [],
+        metadata: %{},
+        source: :cache
+      }
+
+      page = %{
+        "id" => "cached-doc",
+        "url" => "https://notion.so/cached-doc",
+        "created_time" => "2024-05-01T10:00:00Z",
+        "last_edited_time" => "2024-05-01T12:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Cached Document"}]}
+        }
+      }
+
+      NotionMock
+      |> stub(:query_database, fn "tok", "db-handbook", _opts ->
+        {:ok, %{"results" => [page], "has_more" => false, "next_cursor" => nil}}
+      end)
+      |> stub(:retrieve_page, fn "tok", "cached-doc", _opts -> {:ok, page} end)
+      |> stub(:retrieve_block_children, fn "tok", "cached-doc", _opts ->
+        {:ok, %{"results" => [], "has_more" => false, "next_cursor" => nil}}
+      end)
+
+      Cache.put(:collections, {:document_detail, "cached-doc"}, cached_document)
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      # Select the document, which should use cache
+      view
+      |> element("button[phx-value-id='cached-doc']")
+      |> render_click()
+
+      html = render(view)
+      assert html =~ "Cached Document"
+      assert html =~ "Cached content"
+    end
+
+    test "loading document fetches when not cached", %{conn: conn} do
+      Cache.reset()
+
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "cache-miss@example.com",
+          name: "Cache Miss",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      page = %{
+        "id" => "fetched-doc",
+        "url" => "https://notion.so/fetched-doc",
+        "created_time" => "2024-05-01T10:00:00Z",
+        "last_edited_time" => "2024-05-01T12:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Fetched Document"}]}
+        }
+      }
+
+      NotionMock
+      |> stub(:query_database, fn "tok", "db-handbook", _opts ->
+        {:ok, %{"results" => [page], "has_more" => false, "next_cursor" => nil}}
+      end)
+      |> stub(:retrieve_page, fn "tok", "fetched-doc", _opts -> {:ok, page} end)
+      |> stub(:retrieve_block_children, fn "tok", "fetched-doc", _opts ->
+        {:ok,
+         %{
+           "results" => [
+             %{
+               "type" => "paragraph",
+               "paragraph" => %{"rich_text" => [%{"plain_text" => "Fetched content"}]}
+             }
+           ],
+           "has_more" => false,
+           "next_cursor" => nil
+         }}
+      end)
+      |> expect(:retrieve_page, fn "tok", "fetched-doc", _opts -> {:ok, page} end)
+      |> expect(:retrieve_block_children, fn "tok", "fetched-doc", _opts ->
+        {:ok,
+         %{
+           "results" => [
+             %{
+               "type" => "paragraph",
+               "paragraph" => %{"rich_text" => [%{"plain_text" => "Fetched content"}]}
+             }
+           ],
+           "has_more" => false,
+           "next_cursor" => nil
+         }}
+      end)
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      view
+      |> element("button[phx-value-id='fetched-doc']")
+      |> render_click()
+
+      html = render(view)
+      assert html =~ "Fetched Document"
+      assert html =~ "Fetched content"
+    end
+
+    test "background update check ignores when document not selected", %{conn: _conn} do
+      {:ok, _user} =
+        Accounts.create_user(%{
+          email: "ignore-update@example.com",
+          name: "Ignore Update",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          selected_document_id: "doc-1"
+        }
+      }
+
+      {:noreply, new_socket} =
+        Index.handle_info({:check_document_update, "doc-2", DateTime.utc_now()}, socket)
+
+      assert new_socket == socket
+    end
+
+    test "background update refreshes document when changed", %{conn: _conn} do
+      Cache.reset()
+
+      Tesla.Mock.mock(fn
+        %{method: :get, url: "https://api.notion.com/v1/pages/doc-1"} ->
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "id" => "doc-1",
+              "url" => "https://notion.so/doc-1",
+              "created_time" => "2024-05-01T10:00:00Z",
+              "last_edited_time" => "2024-05-02T12:00:00Z",
+              "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+              "properties" => %{
+                "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Updated Document"}]}
+              },
+              "blocks" => [
+                %{
+                  "type" => "paragraph",
+                  "paragraph" => %{"rich_text" => [%{"plain_text" => "Updated content"}]}
+                }
+              ]
+            }
+          }
+      end)
+
+      Application.put_env(:dashboard_ssd, :notion_client, NotionMock)
+
+      NotionMock
+      |> Mox.stub(:retrieve_page, fn _token, "doc-1", _opts ->
+        {:ok,
+         %{
+           "id" => "doc-1",
+           "url" => "https://notion.so/doc-1",
+           "created_time" => "2024-05-01T10:00:00Z",
+           "last_edited_time" => "2024-05-02T12:00:00Z",
+           "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+           "properties" => %{
+             "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Updated Document"}]}
+           },
+           "blocks" => [
+             %{
+               "type" => "paragraph",
+               "paragraph" => %{"rich_text" => [%{"plain_text" => "Updated content"}]}
+             }
+           ]
+         }}
+      end)
+      |> Mox.stub(:retrieve_block_children, fn _token, "doc-1", _opts ->
+        {:ok, %{"results" => [], "has_more" => false, "next_cursor" => nil}}
+      end)
+
+      document = %Types.DocumentDetail{
+        id: "doc-1",
+        collection_id: "db-handbook",
+        title: "Old Document",
+        rendered_blocks: [
+          %{
+            "type" => "paragraph",
+            "paragraph" => %{"rich_text" => [%{"plain_text" => "Old content"}]}
+          }
+        ],
+        last_updated_at: ~U[2024-05-01 10:00:00Z],
+        share_url: "https://notion.so/doc-1"
+      }
+
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          selected_document: document,
+          selected_document_id: "doc-1"
+        }
+      }
+
+      {:noreply, new_socket} =
+        Index.handle_info({:check_document_update, "doc-1", document.last_updated_at}, socket)
+
+      assert new_socket.assigns.selected_document.title == "Updated Document"
+      assert new_socket.assigns.selected_document.last_updated_at == ~U[2024-05-02 12:00:00Z]
+    end
+
+    test "loading document handles cache error gracefully", %{conn: conn} do
+      Cache.reset()
+
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "cache-error@example.com",
+          name: "Cache Error",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      page = %{
+        "id" => "error-doc",
+        "url" => "https://notion.so/error-doc",
+        "created_time" => "2024-05-01T10:00:00Z",
+        "last_edited_time" => "2024-05-01T12:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Error Document"}]}
+        }
+      }
+
+      NotionMock
+      |> stub(:query_database, fn "tok", "db-handbook", _opts ->
+        {:ok, %{"results" => [page], "has_more" => false, "next_cursor" => nil}}
+      end)
+      |> stub(:retrieve_page, fn "tok", "error-doc", _opts -> {:error, :network_error} end)
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      view
+      |> element("button[phx-value-id='error-doc']")
+      |> render_click()
+
+      socket = view.pid |> :sys.get_state() |> Map.fetch!(:socket)
+      assert socket.assigns.reader_error == %{document_id: "error-doc", reason: :network_error}
+      assert socket.assigns.selected_document == nil
     end
   end
 
@@ -1229,6 +1504,34 @@ defmodule DashboardSSDWeb.KbLiveTest do
       assert html =~ "Unable to reach Notion"
     end
 
+    test "search with no results shows empty state", %{conn: conn} do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "no-results@example.com",
+          name: "No Results",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      Tesla.Mock.mock(fn
+        %{method: :post, url: "https://api.notion.com/v1/search"} ->
+          %Tesla.Env{
+            status: 200,
+            body: %{"results" => []}
+          }
+
+        _ ->
+          %Tesla.Env{status: 404}
+      end)
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      # Search for something that doesn't exist
+      view |> form("form", %{query: "nonexistent"}) |> render_submit()
+
+      assert render(view) =~ "No documents matched your search."
+    end
+
     test "mobile menu toggle works", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
@@ -1710,11 +2013,50 @@ defmodule DashboardSSDWeb.KbLiveTest do
       {:noreply, new_socket} =
         Index.handle_event(
           "toggle_collection_key",
-          %{"id" => "db-handbook", "key" => "Enter"},
+          %{"id" => "db-guides", "key" => "Enter"},
           socket
         )
 
-      assert MapSet.member?(new_socket.assigns.expanded_collections, "db-handbook") == true
+      assert MapSet.member?(new_socket.assigns.expanded_collections, "db-guides") == true
+    end
+
+    test "toggle_collection removes empty collection from list", %{conn: conn} do
+      Cache.reset()
+      Notion.reset_circuits()
+
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "remove-empty@example.com",
+          name: "Remove Empty",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      Application.put_env(:dashboard_ssd, :integrations,
+        notion_token: "tok",
+        notion_curated_database_ids: ["db-empty"]
+      )
+
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
+        curated_collections: [%{"id" => "db-empty", "name" => "Empty Collection"}]
+      )
+
+      NotionMock
+      |> stub(:query_database, fn "tok", "db-empty", _opts ->
+        {:ok, %{"results" => [], "has_more" => false, "next_cursor" => nil}}
+      end)
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      # Initially should have the collection
+      assert has_element?(view, "button[phx-value-id='db-empty']")
+
+      # Toggle it to load documents (which are empty)
+      view |> element("button[phx-value-id='db-empty']") |> render_click()
+
+      # Should remove the collection since it has no documents
+      assigns = view.pid |> :sys.get_state() |> Map.fetch!(:socket) |> Map.fetch!(:assigns)
+      refute Enum.any?(assigns.collections, &(&1.id == "db-empty"))
     end
 
     test "select_document_key ignores invalid key" do

@@ -208,6 +208,7 @@ defmodule DashboardSSDWeb.HomeLiveTest do
       [
         "success",
         "failed",
+        "failure",
         "pending",
         "unknown"
       ],
@@ -376,6 +377,29 @@ defmodule DashboardSSDWeb.HomeLiveTest do
     Application.put_env(:dashboard_ssd, :integrations, prev)
   end
 
+  test "CI status shows low success rate warning", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "low-rate@example.com",
+        name: "Low Rate",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    {:ok, project} = Projects.create_project(%{name: "Low Rate Project"})
+
+    # Create mostly failed deployments
+    Enum.each(1..10, fn _ ->
+      {:ok, _} = Deployments.create_deployment(%{project_id: project.id, status: "failed"})
+    end)
+
+    {:ok, _} = Deployments.create_deployment(%{project_id: project.id, status: "success"})
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, _view, html} = live(conn, ~p"/")
+
+    assert html =~ "Monitoring last 10 runs"
+  end
+
   test "refresh updates workload summary when Linear enabled", %{conn: conn} do
     prev = Application.get_env(:dashboard_ssd, :integrations)
 
@@ -421,5 +445,57 @@ defmodule DashboardSSDWeb.HomeLiveTest do
     assert render(view) =~ "Dashboard"
 
     Application.put_env(:dashboard_ssd, :integrations, prev)
+  end
+
+  test "toggles mobile menu", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "mobile@example.com",
+        name: "Mobile",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    # Initially closed
+    assigns = view.pid |> :sys.get_state() |> Map.fetch!(:socket) |> Map.fetch!(:assigns)
+    assert assigns.mobile_menu_open == false
+
+    # Toggle open
+    view |> element("button[phx-click='toggle_mobile_menu']") |> render_click()
+
+    assigns = view.pid |> :sys.get_state() |> Map.fetch!(:socket) |> Map.fetch!(:assigns)
+    assert assigns.mobile_menu_open == true
+
+    # Toggle close
+    view |> element("button[phx-click='toggle_mobile_menu']") |> render_click()
+
+    assigns = view.pid |> :sys.get_state() |> Map.fetch!(:socket) |> Map.fetch!(:assigns)
+    assert assigns.mobile_menu_open == false
+  end
+
+  test "closes mobile menu", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "close-menu@example.com",
+        name: "Close Menu",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    # Open menu first
+    view |> element("button[phx-click='toggle_mobile_menu']") |> render_click()
+
+    assigns = view.pid |> :sys.get_state() |> Map.fetch!(:socket) |> Map.fetch!(:assigns)
+    assert assigns.mobile_menu_open == true
+
+    # Close menu
+    view |> element("button[phx-click='close_mobile_menu']") |> render_click()
+
+    assigns = view.pid |> :sys.get_state() |> Map.fetch!(:socket) |> Map.fetch!(:assigns)
+    assert assigns.mobile_menu_open == false
   end
 end
