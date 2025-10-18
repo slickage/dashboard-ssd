@@ -686,6 +686,21 @@ defmodule DashboardSSDWeb.KbLive.Index do
     |> assign(:recent_errors, recent_errors)
     |> assign(:search_feedback, nil)
     |> assign_documents(selected_collection_id)
+    |> reload_documents_for_selected_collection(selected_collection_id)
+  end
+
+  defp reload_documents_for_selected_collection(socket, selected_collection_id) do
+    documents_by_collection = socket.assigns.documents_by_collection
+    {documents, errors} = load_documents(selected_collection_id)
+    updated_documents = Map.put(documents_by_collection, selected_collection_id, documents)
+
+    document_errors =
+      put_document_errors(socket.assigns.document_errors, selected_collection_id, errors)
+
+    socket
+    |> assign(:documents_by_collection, updated_documents)
+    |> assign(:document_errors, document_errors)
+    |> assign(:documents, documents)
   end
 
   defp dedupe_recent_documents(documents) when is_list(documents) do
