@@ -53,7 +53,8 @@ defmodule DashboardSSDWeb.KbLive.Index do
           recent_errors: recent_errors,
           expanded_collections: expanded_collections,
           search_dropdown_open: false,
-          pending_document_id: nil
+          pending_document_id: nil,
+          force_update: nil
         )
         |> maybe_load_document_from_params(params)
 
@@ -320,14 +321,10 @@ defmodule DashboardSSDWeb.KbLive.Index do
     if socket.assigns[:selected_document_id] == document_id do
       case check_document_updated(document_id, cached_last_updated) do
         {:updated, new_document} ->
-          # Update the cache and refresh the UI
-          Cache.put(:collections, {:document_detail, document_id}, new_document)
-          record_document_view(socket.assigns[:current_user], new_document)
-
-          {:noreply,
-           socket
-           |> assign(:selected_document, new_document)
-           |> assign(:reader_error, nil)}
+          socket
+          |> update_document_cache_and_view(new_document, document_id)
+          |> update_ui_assigns_for_document(new_document)
+          |> then(&{:noreply, &1})
 
         {:not_updated, _} ->
           # Document hasn't changed, do nothing
@@ -367,6 +364,59 @@ defmodule DashboardSSDWeb.KbLive.Index do
          |> assign(:search_loading, false)
          |> put_flash(:error, error_message(reason))}
     end
+  end
+
+  defp update_document_cache_and_view(socket, new_document, document_id) do
+    Cache.put(:collections, {:document_detail, document_id}, new_document)
+    record_document_view(socket.assigns[:current_user], new_document)
+    socket
+  end
+
+  defp update_ui_assigns_for_document(socket, new_document) do
+    documents_by_collection = Map.get(socket.assigns, :documents_by_collection, %{})
+
+    # Find the collection that contains this document
+    {found_collection_id, current_docs} =
+      Enum.find(documents_by_collection, fn {_coll_id, docs} ->
+        Enum.any?(docs, &(&1.id == new_document.id))
+      end) || {nil, []}
+
+    socket =
+      if found_collection_id do
+        updated_docs = update_document_in_list(current_docs, new_document)
+        updated_map = Map.put(documents_by_collection, found_collection_id, updated_docs)
+        socket = assign(socket, :documents_by_collection, updated_map)
+
+        if Map.get(socket.assigns, :selected_collection_id) == found_collection_id do
+          assign(socket, :documents, updated_docs)
+        else
+          socket
+        end
+      else
+        socket
+      end
+
+    socket
+    |> assign(:selected_document, new_document)
+    |> assign(:reader_error, nil)
+    |> assign(:force_update, System.monotonic_time())
+  end
+
+  defp update_document_in_list(documents, new_document) do
+    Enum.map(documents, fn doc ->
+      if doc.id == new_document.id do
+        %{
+          doc
+          | title: new_document.title,
+            summary: new_document.summary,
+            owner: new_document.owner,
+            tags: new_document.tags,
+            last_updated_at: new_document.last_updated_at
+        }
+      else
+        doc
+      end
+    end)
   end
 
   defp handle_document_load_result(result, socket, document_id, opts) do
@@ -991,6 +1041,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
             expanded_ids={@expanded_collections}
             selected_collection_id={@selected_collection_id}
             selected_document_id={@selected_document_id}
+            key={@force_update}
           />
           <.recent_activity_list
             documents={@recent_documents}
