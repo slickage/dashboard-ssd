@@ -309,27 +309,8 @@ defmodule DashboardSSDWeb.KbLive.Index do
     if socket.assigns[:pending_document_id] != document_id do
       {:noreply, socket}
     else
-      case load_document_detail_with_cache_check(document_id) do
-        {:cached, document} ->
-          record_document_view(socket.assigns[:current_user], document)
-          socket = finish_document_load(socket, document, opts)
-          # Trigger background check for updates
-          send(self(), {:check_document_update, document_id, document.last_updated_at})
-          {:noreply, socket}
-
-        {:fetched, document} ->
-          record_document_view(socket.assigns[:current_user], document)
-          {:noreply, finish_document_load(socket, document, opts)}
-
-        {:error, reason} ->
-          {:noreply,
-           socket
-           |> assign(:pending_document_id, nil)
-           |> assign(:reader_loading, false)
-           |> assign(:reader_error, %{document_id: document_id, reason: reason})
-           |> assign(:selected_document, nil)
-           |> assign(:search_dropdown_open, false)}
-      end
+      load_document_detail_with_cache_check(document_id)
+      |> handle_document_load_result(socket, document_id, opts)
     end
   end
 
@@ -385,6 +366,33 @@ defmodule DashboardSSDWeb.KbLive.Index do
          |> assign(:search_dropdown_open, true)
          |> assign(:search_loading, false)
          |> put_flash(:error, error_message(reason))}
+    end
+  end
+
+  defp handle_document_load_result(result, socket, document_id, opts) do
+    case result do
+      {:cached, document} ->
+        record_document_view(socket.assigns[:current_user], document)
+        socket = finish_document_load(socket, document, opts)
+        # Trigger background check for updates (only in non-test environments)
+        unless Application.get_env(:dashboard_ssd, :test_env?, false) do
+          send(self(), {:check_document_update, document_id, document.last_updated_at})
+        end
+
+        {:noreply, socket}
+
+      {:fetched, document} ->
+        record_document_view(socket.assigns[:current_user], document)
+        {:noreply, finish_document_load(socket, document, opts)}
+
+      {:error, reason} ->
+        {:noreply,
+         socket
+         |> assign(:pending_document_id, nil)
+         |> assign(:reader_loading, false)
+         |> assign(:reader_error, %{document_id: document_id, reason: reason})
+         |> assign(:selected_document, nil)
+         |> assign(:search_dropdown_open, false)}
     end
   end
 
@@ -508,7 +516,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
       end
 
     expanded =
-      if collection_id do
+      if collection_id != nil and documents != [] do
         MapSet.new([collection_id])
       else
         MapSet.new()
