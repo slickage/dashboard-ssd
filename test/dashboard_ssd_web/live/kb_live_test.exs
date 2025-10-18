@@ -916,6 +916,105 @@ defmodule DashboardSSDWeb.KbLiveTest do
       assert new_socket.assigns.selected_document.last_updated_at == ~U[2024-05-02 12:00:00Z]
     end
 
+    test "background update refreshes documents_by_collection when document is found", %{
+      conn: _conn
+    } do
+      Cache.reset()
+
+      Tesla.Mock.mock(fn
+        %{method: :get, url: "https://api.notion.com/v1/pages/doc-1"} ->
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "id" => "doc-1",
+              "url" => "https://notion.so/doc-1",
+              "created_time" => "2024-05-01T10:00:00Z",
+              "last_edited_time" => "2024-05-02T12:00:00Z",
+              "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+              "properties" => %{
+                "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Updated Document"}]}
+              },
+              "blocks" => [
+                %{
+                  "type" => "paragraph",
+                  "paragraph" => %{"rich_text" => [%{"plain_text" => "Updated content"}]}
+                }
+              ]
+            }
+          }
+      end)
+
+      Application.put_env(:dashboard_ssd, :notion_client, NotionMock)
+
+      NotionMock
+      |> Mox.stub(:retrieve_page, fn _token, "doc-1", _opts ->
+        {:ok,
+         %{
+           "id" => "doc-1",
+           "url" => "https://notion.so/doc-1",
+           "created_time" => "2024-05-01T10:00:00Z",
+           "last_edited_time" => "2024-05-02T12:00:00Z",
+           "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+           "properties" => %{
+             "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Updated Document"}]}
+           },
+           "blocks" => [
+             %{
+               "type" => "paragraph",
+               "paragraph" => %{"rich_text" => [%{"plain_text" => "Updated content"}]}
+             }
+           ]
+         }}
+      end)
+      |> Mox.stub(:retrieve_block_children, fn _token, "doc-1", _opts ->
+        {:ok, %{"results" => [], "has_more" => false, "next_cursor" => nil}}
+      end)
+
+      _old_document = %Types.DocumentSummary{
+        id: "doc-1",
+        collection_id: "db-handbook",
+        title: "Old Document",
+        summary: "Old summary",
+        owner: "Old Owner",
+        tags: ["old"],
+        last_updated_at: ~U[2024-05-01 10:00:00Z],
+        share_url: "https://notion.so/doc-1",
+        synced_at: ~U[2024-05-01 10:00:00Z]
+      }
+
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          selected_document: %Types.DocumentDetail{
+            id: "doc-1",
+            collection_id: "db-handbook",
+            title: "Old Document",
+            rendered_blocks: [],
+            last_updated_at: ~U[2024-05-01 10:00:00Z],
+            share_url: "https://notion.so/doc-1"
+          },
+          selected_document_id: "doc-1",
+          documents_by_collection: %{
+            # Document not in this collection
+            "db-other" => []
+          },
+          selected_collection_id: "db-other"
+        }
+      }
+
+      {:noreply, new_socket} =
+        Index.handle_info({:check_document_update, "doc-1", ~U[2024-05-01 10:00:00Z]}, socket)
+
+      # Document should be updated and added to the appropriate collection
+      assert new_socket.assigns.selected_document.title == "Updated Document"
+      updated_collections = new_socket.assigns.documents_by_collection
+      assert Map.has_key?(updated_collections, "db-handbook")
+      handbook_docs = updated_collections["db-handbook"]
+      assert length(handbook_docs) == 1
+      assert hd(handbook_docs).id == "doc-1"
+      assert hd(handbook_docs).title == "Updated Document"
+    end
+
     test "loading document handles cache error gracefully", %{conn: conn} do
       Cache.reset()
 

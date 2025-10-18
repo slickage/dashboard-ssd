@@ -385,6 +385,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
       if found_collection_id do
         updated_docs = update_document_in_list(current_docs, new_document)
         updated_map = Map.put(documents_by_collection, found_collection_id, updated_docs)
+
         socket = assign(socket, :documents_by_collection, updated_map)
 
         if Map.get(socket.assigns, :selected_collection_id) == found_collection_id do
@@ -393,7 +394,34 @@ defmodule DashboardSSDWeb.KbLive.Index do
           socket
         end
       else
-        socket
+        # Document not found in any collection, add it to the appropriate collection
+        collection_id = new_document.collection_id
+
+        document_summary = %Types.DocumentSummary{
+          id: new_document.id,
+          collection_id: collection_id,
+          title: new_document.title,
+          summary: new_document.summary,
+          owner: new_document.owner,
+          tags: new_document.tags,
+          share_url: new_document.share_url,
+          last_updated_at: new_document.last_updated_at,
+          synced_at: new_document.synced_at
+        }
+
+        updated_map =
+          Map.update(documents_by_collection, collection_id, [document_summary], fn docs ->
+            update_document_in_list(docs, document_summary)
+          end)
+
+        socket = assign(socket, :documents_by_collection, updated_map)
+
+        if Map.get(socket.assigns, :selected_collection_id) == collection_id do
+          updated_docs = Map.get(updated_map, collection_id, [])
+          assign(socket, :documents, updated_docs)
+        else
+          socket
+        end
       end
 
     socket
