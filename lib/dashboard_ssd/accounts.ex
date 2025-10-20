@@ -7,45 +7,77 @@ defmodule DashboardSSD.Accounts do
   around Ecto with clearly defined contracts.
   """
   import Ecto.Query, warn: false
-  alias DashboardSSD.Repo
   alias DashboardSSD.Accounts.{ExternalIdentity, Role, User}
+  alias DashboardSSD.Repo
 
   # Users
-  @doc "List all users"
+  @doc """
+  Lists all users ordered by insertion time.
+
+  Returns a list of User structs.
+  """
   @spec list_users() :: [User.t()]
   def list_users, do: Repo.all(User)
 
-  @doc "Return a changeset for a user with potential changes"
+  @doc """
+  Returns a changeset for tracking user changes.
+
+  Validates the given attributes against the user schema.
+  """
   @spec change_user(User.t(), map()) :: Ecto.Changeset.t()
   def change_user(%User{} = user, attrs \\ %{}), do: User.changeset(user, attrs)
 
-  @doc "Fetch a user by id, raising if not found"
+  @doc """
+  Fetches a user by ID.
+
+  Raises Ecto.NoResultsError if the user does not exist.
+  """
   @spec get_user!(pos_integer()) :: User.t()
   def get_user!(id), do: Repo.get!(User, id)
 
-  @doc "Fetch a user by email or return nil"
+  @doc """
+  Fetches a user by email address.
+
+  Returns the User struct or nil if not found.
+  """
   @spec get_user_by_email(String.t()) :: User.t() | nil
   def get_user_by_email(email), do: Repo.get_by(User, email: email)
 
-  @doc "Ensure a role exists by name, creating it if missing"
+  @doc """
+  Ensures a role exists by name.
+
+  Creates the role if it doesn't exist, otherwise returns the existing one.
+  """
   @spec ensure_role!(String.t()) :: Role.t()
   def ensure_role!(name) do
     Repo.get_by(Role, name: name) || %Role{} |> Role.changeset(%{name: name}) |> Repo.insert!()
   end
 
-  @doc "Create a new user from attributes"
+  @doc """
+  Creates a new user with the given attributes.
+
+  Returns {:ok, user} on success or {:error, changeset} on validation failure.
+  """
   @spec create_user(map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def create_user(attrs) do
     %User{} |> User.changeset(attrs) |> Repo.insert()
   end
 
-  @doc "Update a user with attributes"
+  @doc """
+  Updates an existing user with the given attributes.
+
+  Returns {:ok, user} on success or {:error, changeset} on validation failure.
+  """
   @spec update_user(User.t(), map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def update_user(%User{} = user, attrs) do
     user |> User.changeset(attrs) |> Repo.update()
   end
 
-  @doc "Delete a user"
+  @doc """
+  Deletes a user from the database.
+
+  Returns {:ok, user} on success or {:error, changeset} on constraint violation.
+  """
   @spec delete_user(User.t()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def delete_user(%User{} = user) do
     Repo.delete(user)

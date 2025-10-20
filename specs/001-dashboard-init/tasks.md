@@ -57,10 +57,10 @@
  - [x] T040 Implement Home LiveView to display projects, clients, workload (including a summary of tasks from Linear), incidents, and CI status.
 
 ## Phase 3.6: Polish
-- [ ] T041 [P] Write unit tests for all contexts and LiveViews.
-- [ ] T042 [P] Write end-to-end tests for critical user flows.
-- [ ] T043 [P] Update documentation (`README.md`, `quickstart.md`, etc.).
-- [ ] T044 [P] Perform manual testing based on `quickstart.md` and user stories.
+- [x] T041 [P] Write unit tests for all contexts and LiveViews.
+- [x] T042 [P] Write end-to-end tests for critical user flows.
+- [x] T043 [P] Update documentation (`README.md`, `quickstart.md`, etc.).
+- [x] T044 [P] Perform manual testing based on `quickstart.md` and user stories.
 
 ## Dependencies
 - Setup tasks (T001-T004) must be completed first.

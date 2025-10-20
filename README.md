@@ -20,16 +20,16 @@ A modern, dark-themed dashboard for managing software development projects, clie
 
 ## Prerequisites
 
-- Elixir 1.15+
-- Phoenix 1.7+
+- Elixir 1.18+
+- Phoenix 1.8+
 - PostgreSQL
-- Node.js 18+ (for assets)
+- Node.js 20+
 
 ## Quick Start
 
 1. **Clone and setup**:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/akinsey/dashboard-ssd.git
    cd dashboard-ssd
    mix setup
    ```
@@ -69,9 +69,10 @@ Required environment variables in `.env`:
 
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: Google OAuth
 - `LINEAR_TOKEN`: Linear API access
-- `SLACK_TOKEN`: Slack API access
+- `SLACK_API_KEY`: Slack API access
+- `SLACK_CHANNEL`: Slack channel for notifications
 - `NOTION_TOKEN`: Notion API access
-- `GOOGLE_DRIVE_CREDENTIALS`: Google Drive service account JSON
+- `ENCRYPTION_KEY`: Base64-encoded encryption key for sensitive data
 
 ### Testing
 
@@ -98,7 +99,9 @@ Required environment variables in `.env`:
    - `SECRET_KEY_BASE`: Phoenix secret key
    - `PHX_HOST`: Domain name
    - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: OAuth
-   - Integration tokens: `LINEAR_TOKEN`, `SLACK_BOT_TOKEN`, etc.
+   - Integration tokens: `LINEAR_TOKEN`, `SLACK_API_KEY`, `NOTION_TOKEN`
+   - `SLACK_CHANNEL`: Slack channel for notifications
+   - `ENCRYPTION_KEY`: Encryption key for sensitive data
 
 #### CI/CD
 

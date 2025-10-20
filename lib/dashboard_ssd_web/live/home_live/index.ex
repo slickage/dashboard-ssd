@@ -4,9 +4,9 @@ defmodule DashboardSSDWeb.HomeLive.Index do
 
   require Logger
 
-  alias DashboardSSD.Integrations.LinearUtils
   alias DashboardSSD.{Analytics, Clients, Deployments, Notifications, Projects}
   alias DashboardSSD.Analytics.Workload
+  alias DashboardSSD.Integrations.LinearUtils
   alias DashboardSSDWeb.Layouts
 
   @impl true

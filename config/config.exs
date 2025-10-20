@@ -17,6 +17,9 @@ config :dashboard_ssd,
   ecto_repos: [DashboardSSD.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+# Default Notion client implementation; tests override as needed.
+config :dashboard_ssd, :notion_client, DashboardSSD.Integrations.Notion
+
 # Use bigints for primary and foreign keys
 config :dashboard_ssd, DashboardSSD.Repo,
   migration_primary_key: [name: :id, type: :bigserial],
@@ -111,6 +114,19 @@ if config_env() == :dev do
       ]
     ]
 end
+
+# Provide curated Notion collection samples for local development. Runtime configuration
+# will prefer environment variables, but dev/test environments can fall back to this data.
+config :dashboard_ssd, DashboardSSD.KnowledgeBase,
+  curated_collections_path: Path.expand("../priv/notion/collections.json", __DIR__),
+  document_type_property_names: ["Type"],
+  allowed_document_type_values: ["Wiki"],
+  document_type_filter_exempt_ids: [],
+  allow_documents_without_type?: true,
+  auto_discover_mode: :databases,
+  auto_page_collection_id: "kb:auto:pages",
+  auto_page_collection_name: "Wiki Pages",
+  auto_page_collection_description: "Top-level pages from the company wiki"
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

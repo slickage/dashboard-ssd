@@ -65,12 +65,220 @@ end
 
 # Integration tokens (optional; for local/dev usage)
 # Values read from environment; safe to be nil in non-dev envs.
+notion_token = System.get_env("NOTION_TOKEN") || System.get_env("NOTION_API_KEY")
+
+raw_curated_database_ids =
+  System.get_env("NOTION_CURATED_DATABASE_IDS") ||
+    System.get_env("NOTION_DATABASE_ALLOWLIST") ||
+    System.get_env("NOTION_COLLECTION_ALLOWLIST")
+
+knowledge_base_config =
+  Application.get_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, [])
+
+curated_collections_path = Keyword.get(knowledge_base_config, :curated_collections_path)
+
+parse_env_list = fn
+  nil, default ->
+    default
+
+  value, _default ->
+    value
+    |> String.split([",", "\n"], trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+end
+
+parse_env_boolean = fn
+  nil, default ->
+    default
+
+  value, default_value ->
+    value
+    |> String.trim()
+    |> String.downcase()
+    |> case do
+      v when v in ["1", "true", "yes", "on"] -> true
+      v when v in ["0", "false", "no", "off"] -> false
+      _ -> default_value
+    end
+end
+
+parse_discovery_mode = fn
+  nil, default ->
+    default
+
+  value, default ->
+    value
+    |> String.trim()
+    |> String.downcase()
+    |> case do
+      mode when mode in ["pages", "page"] -> :pages
+      mode when mode in ["databases", "database", "db", "databse"] -> :databases
+      _ -> default
+    end
+end
+
+# hide empty collections if
+# raw_curated_database_ids is not set and env is not :test
+hide_empty_collections =
+  if !raw_curated_database_ids && config_env() != :test do
+    true
+  else
+    false
+  end
+
+allowed_document_type_values =
+  parse_env_list.(
+    System.get_env("NOTION_ALLOWED_PAGE_TYPES"),
+    Keyword.get(knowledge_base_config, :allowed_document_type_values, ["Wiki"])
+  )
+
+document_type_property_names =
+  parse_env_list.(
+    System.get_env("NOTION_PAGE_TYPE_PROPERTIES"),
+    Keyword.get(knowledge_base_config, :document_type_property_names, ["Type"])
+  )
+
+allow_documents_without_type? =
+  parse_env_boolean.(
+    System.get_env("NOTION_ALLOW_UNTYPED_DOCUMENTS"),
+    Keyword.get(knowledge_base_config, :allow_documents_without_type?, true)
+  )
+
+document_type_filter_exempt_ids =
+  parse_env_list.(
+    System.get_env("NOTION_PAGE_TYPE_FILTER_EXEMPT_IDS"),
+    Keyword.get(knowledge_base_config, :document_type_filter_exempt_ids, [])
+  )
+
+auto_discover? =
+  parse_env_boolean.(
+    System.get_env("NOTION_AUTO_DISCOVER"),
+    Keyword.get(knowledge_base_config, :auto_discover?, true)
+  )
+
+auto_discover_mode =
+  parse_discovery_mode.(
+    System.get_env("NOTION_KB_DISCOVERY_MODE"),
+    Keyword.get(knowledge_base_config, :auto_discover_mode, :databases)
+  )
+
+auto_page_collection_id =
+  System.get_env("NOTION_PAGE_COLLECTION_ID") ||
+    Keyword.get(knowledge_base_config, :auto_page_collection_id, "kb:auto:pages")
+
+auto_page_collection_name =
+  System.get_env("NOTION_PAGE_COLLECTION_NAME") ||
+    Keyword.get(knowledge_base_config, :auto_page_collection_name, "Wiki Pages")
+
+auto_page_collection_description =
+  System.get_env("NOTION_PAGE_COLLECTION_DESCRIPTION") ||
+    Keyword.get(
+      knowledge_base_config,
+      :auto_page_collection_description,
+      "Top-level pages from the company wiki"
+    )
+
+{curated_collections_sample, fallback_curated_database_ids} =
+  if config_env() == :prod do
+    {[], []}
+  else
+    cond do
+      is_nil(curated_collections_path) ->
+        {[], []}
+
+      not Code.ensure_loaded?(Jason) ->
+        {[], []}
+
+      not File.exists?(curated_collections_path) ->
+        {[], []}
+
+      true ->
+        with {:ok, body} <- File.read(curated_collections_path),
+             {:ok, %{"collections" => collections}} when is_list(collections) <-
+               Jason.decode(body) do
+          normalized =
+            collections
+            |> Enum.map(fn collection ->
+              %{
+                "id" => Map.get(collection, "id"),
+                "name" => Map.get(collection, "name"),
+                "description" => Map.get(collection, "description"),
+                "icon" => Map.get(collection, "icon")
+              }
+            end)
+            |> Enum.reject(fn collection -> collection["id"] in [nil, ""] end)
+
+          ids =
+            normalized
+            |> Enum.map(& &1["id"])
+            |> Enum.filter(&(&1 && &1 != ""))
+            |> Enum.uniq()
+
+          {normalized, ids}
+        else
+          _ -> {[], []}
+        end
+    end
+  end
+
+knowledge_base_config =
+  knowledge_base_config
+  |> Keyword.put(:hide_empty_collections, hide_empty_collections)
+  |> Keyword.put(:curated_collections, curated_collections_sample)
+  |> Keyword.put(:default_curated_database_ids, fallback_curated_database_ids)
+  |> Keyword.put(:allowed_document_type_values, allowed_document_type_values)
+  |> Keyword.put(:document_type_property_names, document_type_property_names)
+  |> Keyword.put(:document_type_filter_exempt_ids, document_type_filter_exempt_ids)
+  |> Keyword.put(:allow_documents_without_type?, allow_documents_without_type?)
+  |> Keyword.put(:auto_discover?, auto_discover?)
+  |> Keyword.put(:auto_discover_mode, auto_discover_mode)
+  |> Keyword.put(:auto_page_collection_id, auto_page_collection_id)
+  |> Keyword.put(:auto_page_collection_name, auto_page_collection_name)
+  |> Keyword.put(:auto_page_collection_description, auto_page_collection_description)
+
+Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, knowledge_base_config)
+
+parsed_curated_database_ids =
+  case raw_curated_database_ids do
+    nil ->
+      []
+
+    value ->
+      value
+      |> String.split([",", "\n"], trim: true)
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == ""))
+      |> Enum.uniq()
+  end
+
+notion_curated_database_ids =
+  case parsed_curated_database_ids do
+    [] -> fallback_curated_database_ids
+    ids -> ids
+  end
+
+if config_env() == :prod do
+  if is_nil(notion_token) or notion_token == "" do
+    raise """
+    environment variable NOTION_TOKEN (or NOTION_API_KEY) is missing.
+    """
+  end
+
+  if notion_curated_database_ids == [] do
+    raise """
+    environment variable NOTION_CURATED_DATABASE_IDS is missing. Provide a comma-separated list of Notion database IDs.
+    """
+  end
+end
+
 config :dashboard_ssd, :integrations,
   # Accept both *_TOKEN and *_API_KEY naming
   linear_token: System.get_env("LINEAR_TOKEN") || System.get_env("LINEAR_API_KEY"),
   slack_bot_token: System.get_env("SLACK_BOT_TOKEN") || System.get_env("SLACK_API_KEY"),
   slack_channel: System.get_env("SLACK_CHANNEL"),
-  notion_token: System.get_env("NOTION_TOKEN") || System.get_env("NOTION_API_KEY"),
+  notion_token: notion_token,
+  notion_curated_database_ids: notion_curated_database_ids,
   # For Drive, prefer a direct access token if present; otherwise rely on user-scoped DB token
   drive_token:
     System.get_env("GOOGLE_DRIVE_TOKEN") ||

@@ -49,15 +49,17 @@ defmodule DashboardSSD.Analytics.Collector do
         collect_mttr(project_id)
 
       "aws_elbv2" ->
-        Logger.debug("AWS ELBv2 metrics collection not yet implemented for project #{project_id}")
+        Logger.warning(
+          "AWS ELBv2 metrics collection not yet implemented for project #{project_id}"
+        )
 
       "custom" ->
-        Logger.debug(
+        Logger.warning(
           "Custom health check metrics collection not yet implemented for project #{project_id}"
         )
 
       _ ->
-        Logger.debug("Unknown health check provider: #{setting.provider}")
+        Logger.warning("Unknown health check provider: #{setting.provider}")
     end
   end
 
@@ -180,10 +182,10 @@ defmodule DashboardSSD.Analytics.Collector do
             value: mttr_minutes
           })
 
-        Logger.debug("Collected MTTR for project #{project_id}: #{mttr_minutes} minutes")
+        Logger.warning("Collected MTTR for project #{project_id}: #{mttr_minutes} minutes")
 
       :no_failures ->
-        Logger.debug("No failures found for MTTR calculation in project #{project_id}")
+        Logger.warning("No failures found for MTTR calculation in project #{project_id}")
     end
   end
 

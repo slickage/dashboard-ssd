@@ -45,19 +45,21 @@
 
 @layer components {
   .theme-shell-gradient {
-    background:
+    background-color: var(--theme-background);
+    background-image:
       radial-gradient(circle at top left, rgba(44, 93, 255, 0.22), transparent 55%),
-      radial-gradient(circle at bottom right, rgba(255, 79, 0, 0.16), transparent 45%),
-      var(--theme-background);
+      radial-gradient(circle at bottom right, rgba(255, 79, 0, 0.16), transparent 45%);
     background-attachment: fixed;
+    background-repeat: no-repeat;
+    background-size: 100vw 100vh, 100vw 100vh;
   }
 
   .dark .theme-shell-gradient {
-    background:
+    background-image:
       radial-gradient(circle at top left, rgba(var(--theme-primary-rgb), 0.28), transparent 55%),
       radial-gradient(circle at bottom right, rgba(249, 115, 22, 0.18), transparent 45%),
-      radial-gradient(circle at top right, rgba(96, 165, 250, 0.18), transparent 60%),
-      var(--theme-background);
+      radial-gradient(circle at top right, rgba(96, 165, 250, 0.18), transparent 60%);
+    background-size: 100vw 100vh, 100vw 100vh, 100vw 100vh;
   }
 
    .dark .theme-divider {
@@ -454,6 +456,11 @@
   .sticky-header.scrolling {
     position: relative;
     top: auto;
+  }
+
+  .sticky-header.no-sticky {
+    position: relative !important;
+    top: auto !important;
   }
 
   /* Light mode overrides for hardcoded white text */

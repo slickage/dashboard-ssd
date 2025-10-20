@@ -9,25 +9,46 @@ defmodule DashboardSSD.Clients do
 
   @topic "clients"
 
-  @doc "Subscribe to client change notifications."
+  @doc """
+  Subscribes the current process to client change notifications.
+
+  Listen for PubSub broadcasts when clients are created, updated, or deleted.
+  """
   @spec subscribe() :: :ok
   def subscribe do
     PubSub.subscribe(DashboardSSD.PubSub, @topic)
   end
 
-  @doc "List all clients"
+  @doc """
+  Lists all clients ordered by insertion time.
+
+  Returns a list of Client structs.
+  """
   @spec list_clients() :: [Client.t()]
   def list_clients, do: Repo.all(Client)
 
-  @doc "Fetch a client by id, raising if not found"
+  @doc """
+  Fetches a client by ID.
+
+  Raises Ecto.NoResultsError if the client does not exist.
+  """
   @spec get_client!(pos_integer()) :: Client.t()
   def get_client!(id), do: Repo.get!(Client, id)
 
-  @doc "Return a changeset for a client with proposed changes"
+  @doc """
+  Returns a changeset for tracking client changes.
+
+  Validates the given attributes against the client schema.
+  """
   @spec change_client(Client.t(), map()) :: Ecto.Changeset.t()
   def change_client(%Client{} = client, attrs \\ %{}), do: Client.changeset(client, attrs)
 
-  @doc "Create a new client"
+  @doc """
+  Creates a new client with the given attributes.
+
+  Broadcasts a PubSub notification on successful creation.
+  Returns {:ok, client} on success or {:error, changeset} on validation failure.
+  """
   @spec create_client(map()) :: {:ok, Client.t()} | {:error, Ecto.Changeset.t()}
   def create_client(attrs) do
     %Client{}
@@ -36,7 +57,12 @@ defmodule DashboardSSD.Clients do
     |> broadcast(:created)
   end
 
-  @doc "Update an existing client"
+  @doc """
+  Updates an existing client with the given attributes.
+
+  Broadcasts a PubSub notification on successful update.
+  Returns {:ok, client} on success or {:error, changeset} on validation failure.
+  """
   @spec update_client(Client.t(), map()) :: {:ok, Client.t()} | {:error, Ecto.Changeset.t()}
   def update_client(%Client{} = client, attrs) do
     client
@@ -45,7 +71,12 @@ defmodule DashboardSSD.Clients do
     |> broadcast(:updated)
   end
 
-  @doc "Delete a client"
+  @doc """
+  Deletes a client from the database.
+
+  Broadcasts a PubSub notification on successful deletion.
+  Returns {:ok, client} on success or {:error, changeset} on constraint violation.
+  """
   @spec delete_client(Client.t()) :: {:ok, Client.t()} | {:error, Ecto.Changeset.t()}
   def delete_client(%Client{} = client) do
     client
@@ -53,7 +84,11 @@ defmodule DashboardSSD.Clients do
     |> broadcast(:deleted)
   end
 
-  @doc "Search clients by name (case-insensitive, partial match)."
+  @doc """
+  Searches clients by name using case-insensitive partial matching.
+
+  Returns a list of matching Client structs.
+  """
   @spec search_clients(String.t()) :: [Client.t()]
   def search_clients(term) when is_binary(term) do
     like = "%" <> String.replace(term, "%", "\\%") <> "%"
@@ -62,7 +97,11 @@ defmodule DashboardSSD.Clients do
 
   def search_clients(_), do: list_clients()
 
-  @doc "Ensure a client with the given name exists, returning it."
+  @doc """
+  Ensures a client with the given name exists.
+
+  Creates the client if it doesn't exist, otherwise returns the existing one.
+  """
   @spec ensure_client!(String.t()) :: Client.t()
   def ensure_client!(name) when is_binary(name) do
     Repo.get_by(Client, name: name) ||
