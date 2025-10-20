@@ -146,7 +146,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
 
   @impl true
   def handle_event("clear_search_key", %{"key" => key}, socket)
-      when key in ["Enter", " ", "Space"] do
+      when key in ["Enter", "Escape", " ", "Space"] do
     handle_event("clear_search", %{}, socket)
   end
 
@@ -1008,7 +1008,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
               placeholder="Search the knowledge base"
               autocomplete="off"
               phx-debounce="300"
-              phx-keydown="close_search_dropdown"
+              phx-keydown="clear_search_key"
               phx-key="escape"
               class="w-full rounded-full border border-theme-border bg-theme-surfaceMuted px-4 py-2 pr-10 text-sm text-theme-text placeholder:text-theme-muted focus:border-theme-primary focus:outline-none"
             />
