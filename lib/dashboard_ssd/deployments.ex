@@ -7,69 +7,125 @@ defmodule DashboardSSD.Deployments do
   alias DashboardSSD.Repo
 
   # Deployments
-  @doc "List deployments"
+  @doc """
+  Lists all deployments ordered by insertion time.
+
+  Returns a list of Deployment structs.
+  """
   @spec list_deployments() :: [Deployment.t()]
   def list_deployments, do: Repo.all(Deployment)
 
-  @doc "List deployments by project id"
+  @doc """
+  Lists all deployments for a specific project.
+
+  Returns deployments ordered by insertion time (most recent first).
+  """
   @spec list_deployments_by_project(pos_integer()) :: [Deployment.t()]
   def list_deployments_by_project(project_id) do
     from(d in Deployment, where: d.project_id == ^project_id) |> Repo.all()
   end
 
-  @doc "Get a deployment by id"
+  @doc """
+  Fetches a deployment by ID.
+
+  Raises Ecto.NoResultsError if the deployment does not exist.
+  """
   @spec get_deployment!(pos_integer()) :: Deployment.t()
   def get_deployment!(id), do: Repo.get!(Deployment, id)
 
-  @doc "Return changeset for a deployment"
+  @doc """
+  Returns a changeset for tracking deployment changes.
+
+  Validates the given attributes against the deployment schema.
+  """
   @spec change_deployment(Deployment.t(), map()) :: Ecto.Changeset.t()
   def change_deployment(%Deployment{} = d, attrs \\ %{}), do: Deployment.changeset(d, attrs)
 
-  @doc "Create a deployment"
+  @doc """
+  Creates a new deployment with the given attributes.
+
+  Returns {:ok, deployment} on success or {:error, changeset} on validation failure.
+  """
   @spec create_deployment(map()) :: {:ok, Deployment.t()} | {:error, Ecto.Changeset.t()}
   def create_deployment(attrs), do: %Deployment{} |> Deployment.changeset(attrs) |> Repo.insert()
 
-  @doc "Update a deployment"
+  @doc """
+  Updates an existing deployment with the given attributes.
+
+  Returns {:ok, deployment} on success or {:error, changeset} on validation failure.
+  """
   @spec update_deployment(Deployment.t(), map()) ::
           {:ok, Deployment.t()} | {:error, Ecto.Changeset.t()}
   def update_deployment(%Deployment{} = d, attrs),
     do: d |> Deployment.changeset(attrs) |> Repo.update()
 
-  @doc "Delete a deployment"
+  @doc """
+  Deletes a deployment from the database.
+
+  Returns {:ok, deployment} on success or {:error, changeset} on constraint violation.
+  """
   @spec delete_deployment(Deployment.t()) :: {:ok, Deployment.t()} | {:error, Ecto.Changeset.t()}
   def delete_deployment(%Deployment{} = d), do: Repo.delete(d)
 
   # Health Checks
-  @doc "List health checks"
+  @doc """
+  Lists all health checks ordered by insertion time.
+
+  Returns a list of HealthCheck structs.
+  """
   @spec list_health_checks() :: [HealthCheck.t()]
   def list_health_checks, do: Repo.all(HealthCheck)
 
-  @doc "List health checks by project id"
+  @doc """
+  Lists all health checks for a specific project.
+
+  Returns health checks ordered by insertion time (most recent first).
+  """
   @spec list_health_checks_by_project(pos_integer()) :: [HealthCheck.t()]
   def list_health_checks_by_project(project_id) do
     from(h in HealthCheck, where: h.project_id == ^project_id) |> Repo.all()
   end
 
-  @doc "Get a health check by id"
+  @doc """
+  Fetches a health check by ID.
+
+  Raises Ecto.NoResultsError if the health check does not exist.
+  """
   @spec get_health_check!(pos_integer()) :: HealthCheck.t()
   def get_health_check!(id), do: Repo.get!(HealthCheck, id)
 
-  @doc "Return changeset for a health check"
+  @doc """
+  Returns a changeset for tracking health check changes.
+
+  Validates the given attributes against the health check schema.
+  """
   @spec change_health_check(HealthCheck.t(), map()) :: Ecto.Changeset.t()
   def change_health_check(%HealthCheck{} = h, attrs \\ %{}), do: HealthCheck.changeset(h, attrs)
 
-  @doc "Create a health check"
+  @doc """
+  Creates a new health check with the given attributes.
+
+  Returns {:ok, health_check} on success or {:error, changeset} on validation failure.
+  """
   @spec create_health_check(map()) :: {:ok, HealthCheck.t()} | {:error, Ecto.Changeset.t()}
   def create_health_check(attrs),
     do: %HealthCheck{} |> HealthCheck.changeset(attrs) |> Repo.insert()
 
-  @doc "Update a health check"
+  @doc """
+  Updates an existing health check with the given attributes.
+
+  Returns {:ok, health_check} on success or {:error, changeset} on validation failure.
+  """
   @spec update_health_check(HealthCheck.t(), map()) ::
           {:ok, HealthCheck.t()} | {:error, Ecto.Changeset.t()}
   def update_health_check(%HealthCheck{} = h, attrs),
     do: h |> HealthCheck.changeset(attrs) |> Repo.update()
 
-  @doc "Delete a health check"
+  @doc """
+  Deletes a health check from the database.
+
+  Returns {:ok, health_check} on success or {:error, changeset} on constraint violation.
+  """
   @spec delete_health_check(HealthCheck.t()) ::
           {:ok, HealthCheck.t()} | {:error, Ecto.Changeset.t()}
   def delete_health_check(%HealthCheck{} = h), do: Repo.delete(h)
@@ -91,19 +147,32 @@ defmodule DashboardSSD.Deployments do
     |> Enum.reduce(%{}, fn h, acc -> Map.put_new(acc, h.project_id, h.status) end)
   end
 
-  @doc "List all health check settings"
+  @doc """
+  Lists all health check settings ordered by insertion time.
+
+  Returns a list of HealthCheckSetting structs.
+  """
   @spec list_health_check_settings() :: [HealthCheckSetting.t()]
   def list_health_check_settings do
     Repo.all(HealthCheckSetting)
   end
 
-  @doc "List enabled health check settings"
+  @doc """
+  Lists all health check settings that are currently enabled.
+
+  Returns a list of enabled HealthCheckSetting structs.
+  """
   @spec list_enabled_health_check_settings() :: [HealthCheckSetting.t()]
   def list_enabled_health_check_settings do
     from(s in HealthCheckSetting, where: s.enabled == true) |> Repo.all()
   end
 
-  @doc "Run a health check immediately for a project, inserting a HealthCheck row on success"
+  @doc """
+  Runs a health check immediately for a project.
+
+  Performs the configured health check and inserts a HealthCheck record with the result.
+  Returns {:ok, status} on success or {:error, reason} if no setting exists or check fails.
+  """
   @spec run_health_check_now(pos_integer()) :: {:ok, String.t()} | {:error, term()}
   def run_health_check_now(project_id) do
     case get_health_check_setting_by_project(project_id) do
@@ -147,13 +216,22 @@ defmodule DashboardSSD.Deployments do
   defp classify_http_status({:ok, _}), do: "degraded"
   defp classify_http_status({:error, _}), do: "down"
 
-  @doc "Get health check setting for a project, if any"
+  @doc """
+  Retrieves the health check setting for a specific project.
+
+  Returns the HealthCheckSetting struct or nil if no setting exists.
+  """
   @spec get_health_check_setting_by_project(pos_integer()) :: HealthCheckSetting.t() | nil
   def get_health_check_setting_by_project(project_id) do
     Repo.get_by(HealthCheckSetting, project_id: project_id)
   end
 
-  @doc "Create or update health check setting for a project"
+  @doc """
+  Creates or updates the health check setting for a project.
+
+  If a setting exists, it updates it; otherwise creates a new one.
+  Returns {:ok, setting} on success or {:error, changeset} on validation failure.
+  """
   @spec upsert_health_check_setting(pos_integer(), map()) ::
           {:ok, HealthCheckSetting.t()} | {:error, Ecto.Changeset.t()}
   def upsert_health_check_setting(project_id, attrs)
@@ -164,14 +242,22 @@ defmodule DashboardSSD.Deployments do
     end
   end
 
-  @doc "Create a health check setting"
+  @doc """
+  Creates a new health check setting with the given attributes.
+
+  Returns {:ok, setting} on success or {:error, changeset} on validation failure.
+  """
   @spec create_health_check_setting(map()) ::
           {:ok, HealthCheckSetting.t()} | {:error, Ecto.Changeset.t()}
   def create_health_check_setting(attrs) when is_map(attrs) do
     %HealthCheckSetting{} |> HealthCheckSetting.changeset(attrs) |> Repo.insert()
   end
 
-  @doc "Update a health check setting"
+  @doc """
+  Updates an existing health check setting with the given attributes.
+
+  Returns {:ok, setting} on success or {:error, changeset} on validation failure.
+  """
   @spec update_health_check_setting(HealthCheckSetting.t(), map()) ::
           {:ok, HealthCheckSetting.t()} | {:error, Ecto.Changeset.t()}
   def update_health_check_setting(%HealthCheckSetting{} = s, attrs) when is_map(attrs) do

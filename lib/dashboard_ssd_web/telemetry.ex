@@ -84,6 +84,11 @@ defmodule DashboardSSDWeb.Telemetry do
         description:
           "The time the connection spent waiting before being checked out for the query"
       ),
+      summary("dashboard_ssd.knowledge_base.notion.request.stop.duration",
+        tags: [:operation, :method, :http_status],
+        unit: {:native, :millisecond},
+        description: "Duration of Notion API requests triggered by the Knowledge Base context"
+      ),
 
       # VM Metrics
       summary("vm.memory.total", unit: {:byte, :kilobyte}),

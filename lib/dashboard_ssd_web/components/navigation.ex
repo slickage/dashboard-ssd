@@ -6,6 +6,16 @@ defmodule DashboardSSDWeb.Navigation do
 
   import DashboardSSDWeb.Layouts, only: [user_initials: 1, user_display_name: 1, user_role: 1]
 
+  @github_releases_url "https://github.com/akinsey/dashboard-ssd/releases"
+
+  @doc """
+  Returns the GitHub releases URL for the project.
+
+  Uses the configured module attribute for the releases page.
+  """
+  @spec github_releases_url() :: String.t()
+  def github_releases_url, do: @github_releases_url
+
   @icon_class_map %{
     home: "hero-home-mini",
     projects: "hero-squares-2x2-mini",
@@ -39,7 +49,13 @@ defmodule DashboardSSDWeb.Navigation do
     |> render_nav()
   end
 
-  @doc false
+  @doc """
+  Renders a mobile menu button for toggling the mobile navigation drawer.
+
+  ## Assigns
+
+  - `class` - Additional CSS classes to apply to the button
+  """
   @spec mobile_menu_button(map()) :: Rendered.t()
   def mobile_menu_button(assigns) do
     ~H"""
@@ -56,7 +72,16 @@ defmodule DashboardSSDWeb.Navigation do
     """
   end
 
-  @doc false
+  @doc """
+  Renders the mobile navigation drawer with user menu and navigation items.
+
+  ## Assigns
+
+  - `current_user` - The current user struct
+  - `current_path` - The current path for active state
+  - `open` - Whether the drawer is open
+  - `version` - Application version to display
+  """
   @spec mobile_drawer(map()) :: Rendered.t()
   def mobile_drawer(assigns) do
     items = filtered_items(assigns.current_user, :mobile)
@@ -95,7 +120,13 @@ defmodule DashboardSSDWeb.Navigation do
               </div>
               <div class="flex flex-col">
                 <span class="text-lg font-semibold text-white">DashboardSSD</span>
-                <span class="text-xs text-theme-muted">{@version}</span>
+                <a
+                  href={github_releases_url()}
+                  target="_blank"
+                  class="text-xs text-theme-muted hover:text-white transition-colors"
+                >
+                  {@version}
+                </a>
               </div>
             </div>
             <button
@@ -157,6 +188,46 @@ defmodule DashboardSSDWeb.Navigation do
           <% end %>
         </div>
       </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders the sidebar footer with version link and user settings button.
+
+  ## Assigns
+
+  - `current_user` - The current user struct
+  - `version` - Application version to display
+  """
+  @spec sidebar_footer(map()) :: Rendered.t()
+  def sidebar_footer(assigns) do
+    ~H"""
+    <div class="mt-auto flex flex-col items-center gap-6 text-xs text-theme-muted">
+      <a
+        href={github_releases_url()}
+        target="_blank"
+        class="theme-pill hover:bg-white/10 transition-colors"
+      >
+        {assigns[:version] || "v0.1.0"}
+      </a>
+
+      <%= if assigns[:current_user] do %>
+        <.link
+          navigate={~p"/settings"}
+          class="theme-nav-item border border-white/10 bg-white/5 text-sm uppercase"
+          title={user_display_name(assigns[:current_user]) || "Open settings"}
+        >
+          <span class="sr-only">
+            <%= if user_display_name(assigns[:current_user]) do %>
+              Open settings for {user_display_name(assigns[:current_user])}
+            <% else %>
+              Open settings
+            <% end %>
+          </span>
+          <span>{user_initials(assigns[:current_user])}</span>
+        </.link>
+      <% end %>
     </div>
     """
   end

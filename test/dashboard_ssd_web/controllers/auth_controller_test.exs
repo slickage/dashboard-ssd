@@ -76,4 +76,14 @@ defmodule DashboardSSDWeb.AuthControllerTest do
     assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
              "Authentication failed. Please try again."
   end
+
+  test "callback redirects to stored redirect_to", %{conn: conn} do
+    conn = init_test_session(conn, %{})
+    conn = put_session(conn, :redirect_to, "/settings")
+    conn = get(conn, "/auth/google/callback", %{"code" => "fake_auth_code"})
+
+    assert conn.status in [301, 302]
+    location = get_resp_header(conn, "location") |> List.first()
+    assert location =~ "/settings"
+  end
 end

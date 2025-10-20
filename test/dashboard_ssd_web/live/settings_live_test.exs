@@ -85,4 +85,68 @@ defmodule DashboardSSDWeb.SettingsLiveTest do
     assert html =~ "Connected"
     refute html =~ "Connect Google"
   end
+
+  test "shows google not connected when no identity exists", %{conn: conn} do
+    {:ok, user} =
+      Accounts.create_user(%{
+        email: "no-google@example.com",
+        name: "No Google",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    # Set other tokens but no google identity
+    Application.put_env(:dashboard_ssd, :integrations,
+      linear_token: "lin-123",
+      slack_bot_token: "xoxb-123",
+      notion_token: "not-123"
+    )
+
+    conn = init_test_session(conn, %{user_id: user.id})
+    {:ok, _view, html} = live(conn, ~p"/settings")
+
+    # Google shows connect link
+    assert html =~ "Connect Google"
+    # Others show connected
+    assert html =~ "Configured via LINEAR_TOKEN"
+    assert html =~ "App token configured"
+    assert html =~ "Integration token active"
+  end
+
+  test "handle_event toggles mobile menu", %{conn: conn} do
+    {:ok, user} =
+      Accounts.create_user(%{
+        email: "mobile@example.com",
+        name: "Mobile",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    conn = init_test_session(conn, %{user_id: user.id})
+    {:ok, view, _html} = live(conn, ~p"/settings")
+
+    view |> element("button[phx-click='toggle_mobile_menu']") |> render_click()
+
+    assigns = view.pid |> :sys.get_state() |> Map.fetch!(:socket) |> Map.fetch!(:assigns)
+    assert assigns.mobile_menu_open == true
+
+    view |> element("button[phx-click='close_mobile_menu']") |> render_click()
+
+    assigns = view.pid |> :sys.get_state() |> Map.fetch!(:socket) |> Map.fetch!(:assigns)
+    assert assigns.mobile_menu_open == false
+  end
+
+  test "handle_event toggle_theme does nothing", %{conn: conn} do
+    {:ok, user} =
+      Accounts.create_user(%{
+        email: "theme@example.com",
+        name: "Theme",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    conn = init_test_session(conn, %{user_id: user.id})
+    {:ok, view, _html} = live(conn, ~p"/settings")
+
+    view |> element("button[phx-click='toggle_theme']") |> render_click()
+
+    # No change expected
+  end
 end

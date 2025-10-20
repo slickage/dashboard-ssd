@@ -12,9 +12,11 @@ defmodule DashboardSSD.MixProject do
       deps: deps(),
       dialyzer: dialyzer(),
       test_coverage: [tool: ExCoveralls],
+      listeners: listeners(),
       preferred_cli_env: [
         coveralls: :test,
         "coveralls.github": :test,
+        "coveralls.html": :test,
         sobelow: :dev
       ],
       docs: [
@@ -24,14 +26,22 @@ defmodule DashboardSSD.MixProject do
         homepage_url: "https://github.com/akinsey/dashboard-ssd",
         extras: [
           "README.md": [title: "Overview"],
-          "docs/integrations.md": [title: "Integrations (Local)"],
-          "specs/001-dashboard-init/spec.md": [title: "MVP Spec"],
-          "specs/001-dashboard-init/tasks.md": [title: "Tasks"]
+          "INTEGRATIONS.md": [title: "Integrations (Local)"],
+          "NOTION.md": [title: "Notion Integration"],
+          "specs/001-dashboard-init/tasks.md": [title: "001 MVP Tasks"],
+          "specs/002-theme/tasks.md": [title: "002 Theme Tasks"],
+          "specs/003-prepare-this-repo/tasks.md": [title: "003 Prepare Repo Tasks"],
+          "specs/004-enhance-the-existing/tasks.md": [title: "004 Enhance Existing Tasks"]
         ],
         groups_for_extras: [
           "Getting Started": ["README.md"],
-          Guides: ["docs/integrations.md"],
-          Specs: ["specs/001-dashboard-init/spec.md", "specs/001-dashboard-init/tasks.md"]
+          Guides: ["INTEGRATIONS.md", "NOTION.md"],
+          Specs: [
+            "specs/001-dashboard-init/tasks.md",
+            "specs/002-theme/tasks.md",
+            "specs/003-prepare-this-repo/tasks.md",
+            "specs/004-enhance-the-existing/tasks.md"
+          ]
         ],
         nest_modules_by_prefix: [
           DashboardSSD,
@@ -63,9 +73,12 @@ defmodule DashboardSSD.MixProject do
         ],
         skip_undefined_reference_warnings_on: [
           "README.md",
-          "docs/integrations.md",
-          "specs/001-dashboard-init/spec.md",
-          "specs/001-dashboard-init/tasks.md"
+          "INTEGRATIONS.md",
+          "NOTION.md",
+          "specs/001-dashboard-init/tasks.md",
+          "specs/002-theme/tasks.md",
+          "specs/003-prepare-this-repo/tasks.md",
+          "specs/004-enhance-the-existing/tasks.md"
         ]
       ]
     ]
@@ -90,15 +103,15 @@ defmodule DashboardSSD.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix, "~> 1.7.14"},
+      {:phoenix, "~> 1.8"},
       {:phoenix_ecto, "~> 4.5"},
       {:ecto_sql, "~> 3.10"},
       {:postgrex, ">= 0.0.0"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
-      # TODO bump on release to {:phoenix_live_view, "~> 1.0.0"},
-      {:phoenix_live_view, "~> 1.0.0-rc.1", override: true},
+      {:phoenix_live_view, "~> 1.1"},
       {:floki, ">= 0.30.0", only: :test},
+      {:lazy_html, ">= 0.1.0", only: :test},
       {:phoenix_live_dashboard, "~> 0.8.3"},
       {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.2", runtime: Mix.env() == :dev},
@@ -111,13 +124,18 @@ defmodule DashboardSSD.MixProject do
        depth: 1},
       {:swoosh, "~> 1.5"},
       {:finch, "~> 0.13"},
+      {:makeup_syntect, "~> 0.1"},
+      {:makeup, "~> 1.1"},
+      {:makeup_elixir, "~> 1.0"},
+      {:makeup_erlang, "~> 1.0"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
-      {:gettext, "~> 0.20"},
+      {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
-      {:dns_cluster, "~> 0.1.1"},
+      {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:mox, "~> 1.1", only: :test},
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
       {:git_hooks, "~> 0.8", only: :dev, runtime: false},
@@ -179,5 +197,22 @@ defmodule DashboardSSD.MixProject do
       plt_local_path: "priv/plts",
       list_unused_filters: true
     ]
+  end
+
+  # Configure Mix listeners conditionally
+  defp listeners do
+    # Check if Phoenix is in deps and conditionally add CodeReloader listener
+    phoenix_in_deps? =
+      Enum.any?(deps(), fn
+        {:phoenix, _} -> true
+        {"phoenix", _} -> true
+        _ -> false
+      end)
+
+    if phoenix_in_deps? do
+      [Phoenix.CodeReloader]
+    else
+      []
+    end
   end
 end

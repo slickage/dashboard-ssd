@@ -1,8 +1,8 @@
 defmodule DashboardSSD.Integrations.WrappersTest do
   use DashboardSSD.DataCase
 
-  alias DashboardSSD.Integrations
   alias DashboardSSD.Accounts.{ExternalIdentity, User}
+  alias DashboardSSD.Integrations
   alias DashboardSSD.Repo
 
   setup do
@@ -158,6 +158,23 @@ defmodule DashboardSSD.Integrations.WrappersTest do
       end)
 
       assert {:ok, %{"results" => []}} = Integrations.notion_search("dashboard")
+    end
+
+    test "posts search with options" do
+      Application.put_env(:dashboard_ssd, :integrations, notion_token: "tok")
+
+      Tesla.Mock.mock(fn
+        %{method: :post, url: "https://api.notion.com/v1/search", body: body} ->
+          decoded_body = if is_binary(body), do: Jason.decode!(body), else: body
+          assert decoded_body["query"] == "test query"
+          assert decoded_body["filter"] == %{"property" => "object", "value" => "page"}
+          %Tesla.Env{status: 200, body: %{"results" => []}}
+      end)
+
+      assert {:ok, %{"results" => []}} =
+               Integrations.notion_search("test query",
+                 body: %{filter: %{property: "object", value: "page"}}
+               )
     end
 
     test "errors when missing token" do

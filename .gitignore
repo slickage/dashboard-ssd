@@ -53,5 +53,17 @@ npm-debug.log
 # Local server logs
 *.log
 
+# Editor/OS artifacts
+.DS_Store
+.vscode/
+.idea/
+Thumbs.db
+*.swp
+
 # Opencode config
 opencode.json
+
+# Codex CLI sensitive artifacts
+.codex/*
+!.codex/prompts/
+!.codex/prompts/**

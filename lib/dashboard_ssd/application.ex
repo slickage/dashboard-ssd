@@ -11,6 +11,7 @@ defmodule DashboardSSD.Application do
       DashboardSSDWeb.Telemetry,
       DashboardSSD.Vault,
       DashboardSSD.Repo,
+      DashboardSSD.KnowledgeBase.Cache,
       {DNSCluster, query: Application.get_env(:dashboard_ssd, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: DashboardSSD.PubSub},
       # Start the Finch HTTP client for sending emails
