@@ -368,6 +368,8 @@ defmodule DashboardSSDWeb.KbLive.Index do
 
   defp update_document_cache_and_view(socket, new_document, document_id) do
     Cache.put(:collections, {:document_detail, document_id}, new_document)
+    # Invalidate collection cache so it gets refreshed with updated document
+    Cache.delete(:collections, {:documents, new_document.collection_id})
     record_document_view(socket.assigns[:current_user], new_document)
     socket
   end
