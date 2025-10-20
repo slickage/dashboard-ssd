@@ -368,8 +368,8 @@ defmodule DashboardSSDWeb.KbLive.Index do
 
   defp update_document_cache_and_view(socket, new_document, document_id) do
     Cache.put(:collections, {:document_detail, document_id}, new_document)
-    # Update the cached collection documents with the new document data
-    update_collection_documents_cache(new_document)
+    # Invalidate collection cache so it fetches fresh data with updated icon
+    Cache.delete(:collections, {:documents, new_document.collection_id})
     record_document_view(socket.assigns[:current_user], new_document)
     socket
   end
@@ -427,25 +427,15 @@ defmodule DashboardSSDWeb.KbLive.Index do
         end
       end
 
+    # Update recent documents with new icon if present
+    recent_documents = Map.get(socket.assigns, :recent_documents, [])
+    updated_recent = update_recent_documents_icon(recent_documents, new_document)
+
     socket
     |> assign(:selected_document, new_document)
     |> assign(:reader_error, nil)
+    |> assign(:recent_documents, updated_recent)
     |> assign(:force_update, System.monotonic_time())
-  end
-
-  defp update_collection_documents_cache(new_document) do
-    collection_id = new_document.collection_id
-    cache_key = {:documents, collection_id}
-
-    case Cache.get(:collections, cache_key) do
-      {:ok, documents} ->
-        updated_documents = update_document_in_list(documents, new_document)
-        Cache.put(:collections, cache_key, updated_documents)
-        :ok
-
-      _ ->
-        :ok
-    end
   end
 
   defp update_document_in_list(documents, new_document) do
@@ -462,6 +452,16 @@ defmodule DashboardSSDWeb.KbLive.Index do
         }
       else
         doc
+      end
+    end)
+  end
+
+  defp update_recent_documents_icon(recent_documents, new_document) do
+    Enum.map(recent_documents, fn recent ->
+      if recent.document_id == new_document.id do
+        %{recent | document_icon: new_document.icon}
+      else
+        recent
       end
     end)
   end
@@ -626,7 +626,8 @@ defmodule DashboardSSDWeb.KbLive.Index do
   defp load_documents(nil), do: {[], []}
 
   defp load_documents(collection_id) do
-    case Catalog.list_documents(collection_id) do
+    # Force fresh data to ensure icons are up-to-date
+    case Catalog.list_documents(collection_id, cache?: false) do
       {:ok, %{documents: documents, errors: errors}} -> {documents, errors}
       {:error, reason} -> {[], [%{collection_id: collection_id, reason: reason}]}
     end
