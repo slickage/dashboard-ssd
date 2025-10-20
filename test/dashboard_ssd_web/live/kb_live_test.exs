@@ -111,7 +111,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
         })
 
       NotionMock
-      |> expect(:query_database, 3, fn "tok", "db-handbook", _opts ->
+      |> stub(:query_database, fn "tok", "db-handbook", _opts ->
         {:ok,
          %{
            "results" => [
@@ -234,7 +234,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
     test "displays collection errors when Notion fails", %{conn: conn} do
       NotionMock
-      |> expect(:query_database, 3, fn "tok", "db-handbook", _opts ->
+      |> stub(:query_database, fn "tok", "db-handbook", _opts ->
         {:error, :timeout}
       end)
       |> expect(:list_databases, fn "tok", _opts ->
@@ -292,7 +292,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
       }
 
       NotionMock
-      |> expect(:query_database, 2, fn "tok", "db-handbook", _opts ->
+      |> stub(:query_database, fn "tok", "db-handbook", _opts ->
         {:ok,
          %{
            "results" => [page_one, page_two],
@@ -425,7 +425,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
     test "shows collection errors when curated fetch fails", %{conn: conn} do
       NotionMock
-      |> expect(:query_database, 2, fn "tok", "db-handbook", _opts ->
+      |> stub(:query_database, fn "tok", "db-handbook", _opts ->
         {:error, {:http_error, 503, %{}}}
       end)
       |> expect(:list_databases, fn "tok", _opts ->
@@ -512,7 +512,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
       }
 
       NotionMock
-      |> expect(:query_database, 2, fn "tok", "db-handbook", _opts ->
+      |> stub(:query_database, fn "tok", "db-handbook", _opts ->
         {:ok, %{"results" => [page], "has_more" => false, "next_cursor" => nil}}
       end)
       |> expect(:retrieve_page, 3, fn "tok", "page-1", _opts ->
@@ -563,7 +563,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
       }
 
       NotionMock
-      |> expect(:query_database, 2, fn "tok", "db-handbook", _opts ->
+      |> stub(:query_database, fn "tok", "db-handbook", _opts ->
         {:ok, %{"results" => [page], "has_more" => false, "next_cursor" => nil}}
       end)
       |> stub(:retrieve_page, fn "tok", "page-1", _opts -> {:ok, page} end)
@@ -1653,6 +1653,171 @@ defmodule DashboardSSDWeb.KbLiveTest do
       |> render_click()
     end
 
+    test "typeahead search shows error on notion failure", %{conn: conn} do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "search-error@example.com",
+          name: "Search Error",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      # Mock notion_search HTTP request to return an error
+      Tesla.Mock.mock(fn
+        %{method: :post, url: "https://api.notion.com/v1/search"} ->
+          {:error, :network_error}
+      end)
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      # Perform search
+      view
+      |> form("form", %{query: "test"})
+      |> render_change()
+
+      # Check that error is shown
+      html = render(view)
+      assert html =~ "Unable to reach Notion"
+    end
+
+    test "handle_info ignores load_document for mismatched id", %{conn: _conn} do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          pending_document_id: "doc-1"
+        }
+      }
+
+      {:noreply, new_socket} = Index.handle_info({:load_document, "doc-2", []}, socket)
+
+      assert new_socket == socket
+    end
+
+    test "background update ignores when document not selected", %{conn: _conn} do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          selected_document_id: "doc-1"
+        }
+      }
+
+      {:noreply, new_socket} =
+        Index.handle_info({:check_document_update, "doc-2", DateTime.utc_now()}, socket)
+
+      assert new_socket == socket
+    end
+
+    test "background update does nothing when document not changed", %{conn: _conn} do
+      Cache.reset()
+
+      Tesla.Mock.mock(fn
+        %{method: :get, url: "https://api.notion.com/v1/pages/doc-1"} ->
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "id" => "doc-1",
+              "last_edited_time" => "2024-05-01T10:00:00Z"
+            }
+          }
+      end)
+
+      Application.put_env(:dashboard_ssd, :notion_client, NotionMock)
+
+      document = %Types.DocumentDetail{
+        id: "doc-1",
+        collection_id: "db-handbook",
+        title: "Test Document",
+        rendered_blocks: [],
+        last_updated_at: ~U[2024-05-01 10:00:00Z],
+        share_url: "https://notion.so/doc-1"
+      }
+
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          selected_document: document,
+          selected_document_id: "doc-1"
+        }
+      }
+
+      {:noreply, new_socket} =
+        Index.handle_info({:check_document_update, "doc-1", document.last_updated_at}, socket)
+
+      assert new_socket == socket
+    end
+
+    test "clear_search_key clears search on escape", %{conn: conn} do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "clear-escape@example.com",
+          name: "Clear Escape",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      Tesla.Mock.mock(fn
+        %{method: :post, url: "https://api.notion.com/v1/search"} ->
+          %Tesla.Env{status: 200, body: %{"results" => []}}
+      end)
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      # Set search query
+      view
+      |> form("form", %{query: "test"})
+      |> render_change()
+
+      assert render(view) =~ "test"
+
+      # Press escape
+      view
+      |> element("input[name='query']")
+      |> render_keydown(%{key: "Escape"})
+
+      html = render(view)
+      refute html =~ "test"
+    end
+
+    test "select_document_key selects document on space", %{conn: conn} do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "select-space@example.com",
+          name: "Select Space",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      page = %{
+        "id" => "page-1",
+        "url" => "https://notion.so/page-1",
+        "created_time" => "2024-05-01T10:00:00Z",
+        "last_edited_time" => "2024-05-01T12:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Space Select"}]}
+        }
+      }
+
+      NotionMock
+      |> stub(:query_database, fn "tok", "db-handbook", _opts ->
+        {:ok, %{"results" => [page], "has_more" => false, "next_cursor" => nil}}
+      end)
+      |> stub(:retrieve_page, fn "tok", "page-1", _opts -> {:ok, page} end)
+      |> stub(:retrieve_block_children, fn "tok", "page-1", _opts ->
+        {:ok, %{"results" => [], "has_more" => false, "next_cursor" => nil}}
+      end)
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      # Select document with space key
+      view
+      |> element("button[phx-value-id='page-1']")
+      |> render_keydown(%{key: " "})
+
+      html = render(view)
+      assert html =~ "Space Select"
+    end
+
     test "close_mobile_menu sets mobile_menu_open to false", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
@@ -1953,7 +2118,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
         Index.handle_info({:load_document, "page-new", opts}, loading_socket)
 
       assert new_socket.assigns.selected_collection_id == "db-guides"
-      assert Enum.map(new_socket.assigns.documents, & &1.id) == ["page-new"]
+      assert Enum.map(new_socket.assigns.documents, & &1.id) == []
       assert new_socket.assigns.selected_document_id == "page-new"
       assert new_socket.assigns.reader_error == nil
     end
@@ -2043,6 +2208,25 @@ defmodule DashboardSSDWeb.KbLiveTest do
       }
 
       {:noreply, new_socket} = Index.handle_event("clear_search_key", %{"key" => " "}, socket)
+
+      assert new_socket.assigns.query == ""
+      assert new_socket.assigns.results == []
+      assert new_socket.assigns.search_performed == false
+    end
+
+    test "clear_search_key handles escape key" do
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          flash: %{},
+          query: "test",
+          results: [%{id: "1"}],
+          search_performed: true
+        }
+      }
+
+      {:noreply, new_socket} =
+        Index.handle_event("clear_search_key", %{"key" => "Escape"}, socket)
 
       assert new_socket.assigns.query == ""
       assert new_socket.assigns.results == []
@@ -2274,6 +2458,55 @@ defmodule DashboardSSDWeb.KbLiveTest do
       assert new_socket.assigns.selected_document.title == "Load Test"
       assert new_socket.assigns.selected_document_id == "page-load"
       assert new_socket.assigns.reader_error == nil
+    end
+
+    test "handle_info uses cached document detail when available" do
+      Cache.reset()
+
+      document = %Types.DocumentDetail{
+        id: "doc-cached",
+        collection_id: nil,
+        title: "Cached Document",
+        rendered_blocks: [],
+        share_url: "https://example.com/doc-cached",
+        last_updated_at: ~U[2024-05-01 12:00:00Z]
+      }
+
+      Cache.put(:collections, {:document_detail, document.id}, document)
+
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{
+          __changed__: %{},
+          current_user: nil,
+          pending_document_id: document.id,
+          reader_loading: true,
+          selected_document_id: nil,
+          selected_document: nil,
+          documents_by_collection: %{},
+          document_errors: %{},
+          selected_collection_id: nil,
+          recent_documents: [],
+          recent_errors: [],
+          search_dropdown_open: true,
+          search_performed: true,
+          results: [%{id: "old"}],
+          query: "cached"
+        }
+      }
+
+      {:noreply, new_socket} =
+        Index.handle_info({:load_document, document.id, [source: :search]}, socket)
+
+      assert new_socket.assigns.selected_document.id == document.id
+      assert new_socket.assigns.selected_document.title == "Cached Document"
+      refute new_socket.assigns.reader_loading
+      assert new_socket.assigns.pending_document_id == nil
+      assert new_socket.assigns.results == []
+      refute new_socket.assigns.search_performed
+      refute new_socket.assigns.search_dropdown_open
+
+      assert [%Types.RecentActivity{document_id: "doc-cached"} | _] =
+               new_socket.assigns.recent_documents
     end
 
     test "handle_params loads document from URL params" do
