@@ -342,7 +342,7 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
     with {:ok, page} <- notion_client().retrieve_page(token, document_id, []),
          {:ok, blocks} <- paginate_blocks(token, document_id, block_page_size) do
       now = DateTime.utc_now()
-      collection_id = page_database_id(page)
+      collection_id = page_database_id(page) || page_collection_id()
       detail = build_document_detail(page, collection_id, blocks, now, token, block_page_size)
       {:ok, detail}
     else
