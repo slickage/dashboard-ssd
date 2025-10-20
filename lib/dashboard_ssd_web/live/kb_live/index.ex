@@ -368,8 +368,8 @@ defmodule DashboardSSDWeb.KbLive.Index do
 
   defp update_document_cache_and_view(socket, new_document, document_id) do
     Cache.put(:collections, {:document_detail, document_id}, new_document)
-    # Invalidate collection cache so it gets refreshed with updated document
-    Cache.delete(:collections, {:documents, new_document.collection_id})
+    # Update the cached collection documents with the new document data
+    update_collection_documents_cache(new_document)
     record_document_view(socket.assigns[:current_user], new_document)
     socket
   end
@@ -431,6 +431,21 @@ defmodule DashboardSSDWeb.KbLive.Index do
     |> assign(:selected_document, new_document)
     |> assign(:reader_error, nil)
     |> assign(:force_update, System.monotonic_time())
+  end
+
+  defp update_collection_documents_cache(new_document) do
+    collection_id = new_document.collection_id
+    cache_key = {:documents, collection_id}
+
+    case Cache.get(:collections, cache_key) do
+      {:ok, documents} ->
+        updated_documents = update_document_in_list(documents, new_document)
+        Cache.put(:collections, cache_key, updated_documents)
+        :ok
+
+      _ ->
+        :ok
+    end
   end
 
   defp update_document_in_list(documents, new_document) do
