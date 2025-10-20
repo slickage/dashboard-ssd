@@ -890,8 +890,6 @@ defmodule DashboardSSDWeb.KbLive.Index do
     end
   end
 
-  defp load_document_detail(nil), do: {:error, :invalid_document}
-
   defp load_document_detail(document_id) do
     Catalog.get_document(document_id)
   end

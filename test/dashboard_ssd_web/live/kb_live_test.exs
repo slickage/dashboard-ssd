@@ -111,7 +111,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
         })
 
       NotionMock
-      |> expect(:query_database, 2, fn "tok", "db-handbook", _opts ->
+      |> expect(:query_database, 3, fn "tok", "db-handbook", _opts ->
         {:ok,
          %{
            "results" => [
@@ -234,7 +234,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
     test "displays collection errors when Notion fails", %{conn: conn} do
       NotionMock
-      |> expect(:query_database, 2, fn "tok", "db-handbook", _opts ->
+      |> expect(:query_database, 3, fn "tok", "db-handbook", _opts ->
         {:error, :timeout}
       end)
       |> expect(:list_databases, fn "tok", _opts ->
