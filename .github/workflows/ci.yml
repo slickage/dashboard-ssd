@@ -18,20 +18,13 @@ on:
         default: 'false'
         required: false
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-  packages: write
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
-
     services:
       postgres:
         image: postgres:15
@@ -46,20 +39,17 @@ jobs:
           --health-timeout 5s
           --health-retries 5
           --tmpfs /var/lib/postgresql/data:rw
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Setup BEAM
         id: beam
         uses: erlef/setup-beam@v1
         with:
           otp-version: ${{ env.OTP_VERSION }}
           elixir-version: ${{ env.ELIXIR_VERSION }}
-
       - name: Cache Hex / Rebar
         uses: actions/cache@v4
         with:
@@ -67,13 +57,11 @@ jobs:
             ~/.hex
             ~/.cache/rebar3
           key: ${{ runner.os }}-hex-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('**/mix.lock') }}
-
       - name: Cache Mix deps
         uses: actions/cache@v4
         with:
           path: deps
           key: ${{ runner.os }}-deps-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('**/mix.lock') }}
-
       - name: Cache Mix build
         uses: actions/cache@v4
         with:
@@ -83,13 +71,11 @@ jobs:
           key: ${{ runner.os }}-build-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('**/mix.lock', 'config/*.exs', 'config/**/*.exs') }}
           restore-keys: |
             ${{ runner.os }}-build-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-
-
       - name: Cache PLTs
         uses: actions/cache@v4
         with:
           path: priv/plts
           key: ${{ runner.os }}-plts-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('**/mix.lock') }}
-
       - name: Cache assets
         id: assets-cache
         uses: actions/cache@v4
@@ -100,39 +86,29 @@ jobs:
           key: ${{ runner.os }}-assets-${{ hashFiles('assets/package-lock.json', 'assets/yarn.lock', 'assets/mix.exs', 'assets/package.json') }}
           restore-keys: |
             ${{ runner.os }}-assets-
-
       - name: Install dependencies
         run: |
           mix deps.get
           MIX_ENV=dev mix deps.get
-
       - name: Security | Hex audit
         run: mix hex.audit
-
       - name: Security | deps audit
         run: MIX_ENV=dev mix deps.audit
-
       - name: Security | hex outdated
         run: MIX_ENV=dev mix hex.outdated || true
-
       - name: Security | gitleaks
         run: ./scripts/secret_scan.sh
-
       - name: Security | Sobelow
         env:
           MIX_ENV: dev
           SOBELOW_CONFIDENCE: medium
         run: mix sobelow --skip --exit
-
       - name: Quality | Format
         run: mix format --check-formatted
-
       - name: Quality | Credo
         run: mix credo --strict
-
       - name: Correctness | Compile (test warnings)
         run: mix compile --force --warnings-as-errors
-
       - name: Infrastructure | Assets
         env:
           MIX_ENV: dev
@@ -141,40 +117,63 @@ jobs:
             mix assets.setup
           fi
           mix assets.build
-
       - name: Infrastructure | Docs
         env:
           MIX_ENV: dev
         run: mix docs
-
       - name: Infrastructure | Prepare DB
         run: |
           mix ecto.create
           mix ecto.migrate
-
       - name: Correctness | Tests w/ coverage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EXUNIT_MAX_CASES: 20
         run: mix coveralls.multiple --type local --type github
-
       - name: Correctness | Dialyzer PLT
         env:
           MIX_ENV: dev
         run: mix dialyzer --plt
-
       - name: Correctness | Dialyzer
         env:
           MIX_ENV: dev
         run: mix dialyzer --format short
-
       - name: Correctness | Doctor
         env:
           MIX_ENV: dev
         run: mix doctor --summary --raise
-
+  release:
+    needs: check
+    outputs:
+      # export release info from semantic release action
+      # for image build/push and CD update
+      new_release_published: ${{ steps.semantic.outputs.new_release_published }}
+      new_release_git_tag: ${{ steps.semantic.outputs.new_release_git_tag }}
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # run semantic release action and export statuses
+      - name: Semantic release
+        uses: cycjimmy/semantic-release-action@v4
+        id: semantic
+        with:
+          extra_plugins: |
+            @semantic-release/exec
+            @semantic-release/changelog
+            @semantic-release/git
+            @semantic-release/github
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   docs-pages:
-    needs: build
+    needs: release
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_docs == 'true')
     runs-on: ubuntu-latest
     steps:
@@ -204,71 +203,9 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: doc
-
-  release:
-    needs: build
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Setup BEAM
-        uses: erlef/setup-beam@v1
-        with:
-          otp-version: ${{ env.OTP_VERSION }}
-          elixir-version: ${{ env.ELIXIR_VERSION }}
-      - name: Install dependencies
-        env:
-          MIX_ENV: dev
-        run: mix deps.get
-      - name: Install semantic-release
-        run: ./scripts/install_semantic_release.sh
-      - name: Semantic Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release --ci
-
-  docker:
-    needs: build
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-
   deploy-pages:
+    permissions:
+      pages: write
     needs: docs-pages
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_docs == 'true')
     runs-on: ubuntu-latest
@@ -279,3 +216,40 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deploy
         uses: actions/deploy-pages@v4
+  build:
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    needs: release
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ needs.release.outputs.new_release_git_tag }}
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
