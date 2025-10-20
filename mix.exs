@@ -1,3 +1,23 @@
+defmodule DashboardSSD.MixListeners.CodeReloader do
+  @moduledoc false
+
+  def child_spec(opts) do
+    if Code.ensure_loaded?(Phoenix.CodeReloader) and
+         function_exported?(Phoenix.CodeReloader, :child_spec, 1) do
+      Phoenix.CodeReloader.child_spec(opts)
+    else
+      %{
+        id: __MODULE__,
+        start: {__MODULE__, :start_link, [opts]},
+        type: :worker,
+        restart: :temporary
+      }
+    end
+  end
+
+  def start_link(_opts), do: :ignore
+end
+
 defmodule DashboardSSD.MixProject do
   use Mix.Project
 
@@ -201,18 +221,6 @@ defmodule DashboardSSD.MixProject do
 
   # Configure Mix listeners conditionally
   defp listeners do
-    # Check if Phoenix is in deps and conditionally add CodeReloader listener
-    phoenix_in_deps? =
-      Enum.any?(deps(), fn
-        {:phoenix, _} -> true
-        {"phoenix", _} -> true
-        _ -> false
-      end)
-
-    if phoenix_in_deps? do
-      [Phoenix.CodeReloader]
-    else
-      []
-    end
+    [DashboardSSD.MixListeners.CodeReloader]
   end
 end
