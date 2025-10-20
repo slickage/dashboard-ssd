@@ -24,7 +24,7 @@ defmodule DashboardSSD.MixProject do
   def project do
     [
       app: :dashboard_ssd,
-      version: "1.3.1",
+      version: "1.4.0",
       elixir: "~> 1.18",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,

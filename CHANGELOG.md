@@ -1,3 +1,81 @@
+# [1.4.0](https://github.com/slickage/dashboard-ssd/compare/v1.3.1...v1.4.0) (2025-10-20)
+
+
+### Bug Fixes
+
+* add conditional Phoenix.CodeReloader listener configuration ([e6f64a8](https://github.com/slickage/dashboard-ssd/commit/e6f64a8c8ef94aabae6e55946c028159fa3c6ea9))
+* add NOTION_AUTO_DISCOVER env var parsing ([cb9c3c8](https://github.com/slickage/dashboard-ssd/commit/cb9c3c8a596519dfcf62ac9ac64faadad71a62c1))
+* add Phoenix.CodeReloader listener programmatically after app start ([ccbb884](https://github.com/slickage/dashboard-ssd/commit/ccbb884c240da5a63dc0b39b09bd61d13439b670))
+* add Phoenix.CodeReloader to mix listeners ([ecef434](https://github.com/slickage/dashboard-ssd/commit/ecef43409cb29dc2bda739ea18bc3932c3f6bd7f))
+* add Phoenix.CodeReloader to Mix listeners for Phoenix 1.8 ([426bbd1](https://github.com/slickage/dashboard-ssd/commit/426bbd165fe1fa5646b07b7a4937ba40d677054a))
+* add support for bookmark block type in knowledge base renderer ([8bf25c1](https://github.com/slickage/dashboard-ssd/commit/8bf25c1b9af4dc722e509eba78c575cddfad1177))
+* allow external SVG icons in CSP by adding frame-src https: ([9ed7771](https://github.com/slickage/dashboard-ssd/commit/9ed77711513058acc51c12aa48cca7d376c18d85))
+* allow localhost frames in CSP for live reload ([6bd9d41](https://github.com/slickage/dashboard-ssd/commit/6bd9d41e6d9aa6e6196e22d1c7615dfcf54c2fb2))
+* **build:** guard mix listeners without code reloader ([e29f069](https://github.com/slickage/dashboard-ssd/commit/e29f069d7303fd1dab7abd6f18014b9e6274986c))
+* include document icons in activity tracking ([a1c68c0](https://github.com/slickage/dashboard-ssd/commit/a1c68c06bde0ed3f12034fce4867979dc7eef511))
+* **kb:** clear search on escape and cover cached loads ([8b41686](https://github.com/slickage/dashboard-ssd/commit/8b416867e43ce7780488d5cc79243f704bc9ed3a))
+* **kb:** ensure consistent collection_id for auto-discovered pages ([82962de](https://github.com/slickage/dashboard-ssd/commit/82962de17c74b5dc74a3a9fe8ea360bfd23c874d))
+* **kb:** fix link underline extending due to whitespace ([51ce7bb](https://github.com/slickage/dashboard-ssd/commit/51ce7bbec6da8191e133837d0a909d76cdea0019))
+* **kb:** fix recently viewed list shrinking on item clicks ([a5b8d82](https://github.com/slickage/dashboard-ssd/commit/a5b8d828c92c71089e67971e750d9b402db76daa))
+* **kb:** force fresh document loading to ensure updated icons persist ([9c8801f](https://github.com/slickage/dashboard-ssd/commit/9c8801f96a05c6b1f2e52e0a89bc8f78266006f2))
+* **kb:** harden live search and document loading ([0baab29](https://github.com/slickage/dashboard-ssd/commit/0baab2943a5a8ffbb0b9a7d6d576d3c1bd218501))
+* **kb:** invalidate collection cache when document updates ([2041900](https://github.com/slickage/dashboard-ssd/commit/204190055990f4ccc4c902fe25052809ce31cba0))
+* **kb:** keep collections header minimal ([a68496c](https://github.com/slickage/dashboard-ssd/commit/a68496c52ba6673e9e0b9f137f3dd3efaf91b04a))
+* **kb:** maintain recent documents list integrity ([6a66444](https://github.com/slickage/dashboard-ssd/commit/6a66444632b2cd60b0b5c9d2c469680a109f93d0))
+* **kb:** resolve background document update issues in knowledge base ([24ede40](https://github.com/slickage/dashboard-ssd/commit/24ede408b6891e5a2519b7d46f55e1e84e9a8b6b))
+* **kb:** resolve syntax error in background document update handling ([fef9ac8](https://github.com/slickage/dashboard-ssd/commit/fef9ac813337cdc8403b2d7b6e97cde7c0a5e1a2))
+* **kb:** standardize missing-env warnings as theme badge and remove wrapper ([249c0fa](https://github.com/slickage/dashboard-ssd/commit/249c0fa3061abcc834167520f1cef39f1a46ed18)), closes [#92400](https://github.com/slickage/dashboard-ssd/issues/92400)
+* **kb:** update collection documents cache with fresh icons ([8959c25](https://github.com/slickage/dashboard-ssd/commit/8959c25553d20662e22e94752e56559070c54be8))
+* **kb:** update document icon in collection tree during background refresh ([60c01e5](https://github.com/slickage/dashboard-ssd/commit/60c01e5d17a8d3b4f3c11c3e7ad49bf7bf2c0d2b))
+* **kb:** update document icons in recently viewed section ([8272e25](https://github.com/slickage/dashboard-ssd/commit/8272e254288447ed20cfe6b8bcbdf8ce5dfa1c0f))
+* prevent sticky header from covering search on KB page ([9b7982b](https://github.com/slickage/dashboard-ssd/commit/9b7982b6604e819480f00786c75405b8e19eaf9b))
+* remove duplicate X icon in knowledge base search input ([9682196](https://github.com/slickage/dashboard-ssd/commit/9682196ea9f66fb34c87be0263d907da0f45c35b))
+* remove invalid Phoenix.CodeReloader from mix listeners ([0bb7279](https://github.com/slickage/dashboard-ssd/commit/0bb72794fcb355660fac3e819fbfbb7fb86e48f7))
+* remove Phoenix.CodeReloader listener configuration ([2b5fcfd](https://github.com/slickage/dashboard-ssd/commit/2b5fcfd3cf5f721685537f7c2095e3497bd8e418))
+* remove unused variable assignments in theme layout ([cd389b7](https://github.com/slickage/dashboard-ssd/commit/cd389b7cb0d0642ffad75b805eb66904134e695a))
+* reorder aliases to satisfy credo readability checks ([64f2dee](https://github.com/slickage/dashboard-ssd/commit/64f2deed79e888d7f3a14a99095cd49bc8dc1836))
+* **theme:** stabilize shell gradient scaling ([d75472e](https://github.com/slickage/dashboard-ssd/commit/d75472e57714afa671cdbd03c8709f76d116ad85))
+* update CSP to allow external images and objects ([f0909f7](https://github.com/slickage/dashboard-ssd/commit/f0909f73a021e7d9c186c2d36bfb6dcbc642c9e0))
+* update docs paths after moving integration files to root ([39ec1ae](https://github.com/slickage/dashboard-ssd/commit/39ec1ae75b8d0a3f7805e638b1eddf81958a94d4))
+* update test assertion to check index page after health check disable ([30fe155](https://github.com/slickage/dashboard-ssd/commit/30fe155af3ea09da8473a0feebb440bed392461f))
+* use function call for github releases url in navigation ([1b80466](https://github.com/slickage/dashboard-ssd/commit/1b8046665ce450e6a3325815441082588a6a48b3))
+* use manual child spec for Phoenix.CodeReloader listener ([0b68981](https://github.com/slickage/dashboard-ssd/commit/0b689810954fed290c58aa0428bf684b9c36d68f))
+* use object tag for SVG icons to handle CORS issues ([84359a9](https://github.com/slickage/dashboard-ssd/commit/84359a954ecdc2bdcc2aa4b556674287ec1fb425))
+
+
+### Features
+
+* add conditional Phoenix.CodeReloader listener configuration ([841ff34](https://github.com/slickage/dashboard-ssd/commit/841ff341148d5f02f6cd1ac71d719f8847eabe50))
+* add Makeup syntax highlighting styles for code blocks ([673732c](https://github.com/slickage/dashboard-ssd/commit/673732cc80f9ecbba9a14b89b669fe63c9af8bd1))
+* display Notion document icons in UI ([5d8d740](https://github.com/slickage/dashboard-ssd/commit/5d8d74052e84e0d3b1e5bca8afff74ab2c280b06))
+* enable Makeup syntax highlighting for code blocks ([d64a9f5](https://github.com/slickage/dashboard-ssd/commit/d64a9f55f22af486ffd4c27adcc810a91dea7077))
+* enhance knowledge base with URL sharing and improved UX ([8627df1](https://github.com/slickage/dashboard-ssd/commit/8627df1595ecab445605240c287b80db6a9a2d15))
+* enhance notion search with options support ([940954b](https://github.com/slickage/dashboard-ssd/commit/940954b04defcefa266b9bdbdf084a63a28bb148))
+* extract syntax highlighting CSS and adjust mobile layout ([0873bab](https://github.com/slickage/dashboard-ssd/commit/0873babe989294ea71a5ba2e1c240eaebc37dcb7))
+* improve accessibility in kb_components ([488f7e8](https://github.com/slickage/dashboard-ssd/commit/488f7e835c5e4e032d9ecf05f9871bd71940406c))
+* **kb:** add cached document loading and fix list indentation ([f264fb2](https://github.com/slickage/dashboard-ssd/commit/f264fb2ee19ab2a599afd4468aafb43771621be0))
+* **kb:** add collection and document list components ([b95eca2](https://github.com/slickage/dashboard-ssd/commit/b95eca2f7fd40e2a7fec7aa1fd300e7b1237846c))
+* **kb:** allow type filter exemptions for notion databases ([cc88d28](https://github.com/slickage/dashboard-ssd/commit/cc88d288ab4eed85711305b67286740d9ae76805))
+* **kb:** hide empty collections on load ([bd200dd](https://github.com/slickage/dashboard-ssd/commit/bd200dd3a7a6a2f497d40f83abb6a012764331dd))
+* **kb:** show reader loading indicator ([0e590d6](https://github.com/slickage/dashboard-ssd/commit/0e590d6e592296bcbb97f58adbc4514475cae6ec))
+* **knowledge-base:** enhance notion page discovery ([d32aac5](https://github.com/slickage/dashboard-ssd/commit/d32aac56d11bb1c38ba28fcfcfcc94812e61db64))
+* make desktop sidebar version badge clickable ([5a17cab](https://github.com/slickage/dashboard-ssd/commit/5a17cab831800f919645e1de6affbf890f5fb31d))
+* make version badge in sidebar clickable ([71e1345](https://github.com/slickage/dashboard-ssd/commit/71e13455e7bc718631356e0ddcc71ee20fee1ae8))
+* refresh documents list in collections tree when document is updated ([508da75](https://github.com/slickage/dashboard-ssd/commit/508da75c0951972fbaec410cbc8759b6eb72ffbe))
+* scaffold knowledge base foundations ([36efb21](https://github.com/slickage/dashboard-ssd/commit/36efb215c4bd8eef7ae1657808040494aec9d917))
+* update documents cache when fetching document details ([06b866f](https://github.com/slickage/dashboard-ssd/commit/06b866f8d896e6634eeaa270abe7dcf91ed0a734))
+* upgrade gettext to 1.0.0 ([3d1c097](https://github.com/slickage/dashboard-ssd/commit/3d1c097d8ce51044fdb3aea01291797e602c7165))
+* upgrade makeup_elixir to 1.0.1 ([a3adffb](https://github.com/slickage/dashboard-ssd/commit/a3adffbc02fd10e9298c48d9fef328b3b9e60843))
+* upgrade makeup_erlang to 1.0.2 ([3faf051](https://github.com/slickage/dashboard-ssd/commit/3faf051bdb65c97e0f5e4a2c010ff528bea2b633))
+* upgrade Phoenix LiveView to 1.1.14 ([56f3a89](https://github.com/slickage/dashboard-ssd/commit/56f3a8951ab509935691bd0e92bf8ff978594741))
+* upgrade Phoenix to 1.8.1 ([69495ea](https://github.com/slickage/dashboard-ssd/commit/69495ea1e4edfded33c4621677bb7f99abed0789))
+* **web:** add monokai syntax highlighting to kb ([63aecf2](https://github.com/slickage/dashboard-ssd/commit/63aecf2b72a85c8bb4f0c332da9bc2a82b6c9ce7))
+
+
+### Reverts
+
+* keep mix_audit dependency ([3f2d078](https://github.com/slickage/dashboard-ssd/commit/3f2d0786c9bb87b1a3a495a79b4049e83155dd7f))
+
 ## [1.3.1](https://github.com/slickage/dashboard-ssd/compare/v1.3.0...v1.3.1) (2025-10-10)
 
 
