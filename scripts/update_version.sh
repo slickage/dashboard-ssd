@@ -14,22 +14,33 @@ cd "${PROJECT_ROOT}"
 
 export NEW_VERSION
 
-elixir -e "
-new_version = System.fetch_env!(\"NEW_VERSION\")
-content = File.read!(\"mix.exs\")
-pattern = ~r/(version:\\s*\")\\d+\\.\\d+\\.\\d+(\")/
+if command -v python3 >/dev/null 2>&1; then
+  PYTHON="python3"
+elif command -v python >/dev/null 2>&1; then
+  PYTHON="python"
+else
+  echo "Python interpreter not found (expected python3 or python)" >&2
+  exit 1
+fi
 
-unless Regex.match?(pattern, content) do
-  raise \"Could not find version declaration in mix.exs\"
-end
+"${PYTHON}" <<'PY'
+import os
+import re
+import sys
 
-updated =
-  Regex.replace(
-    pattern,
-    content,
-    fn _match, prefix, suffix -> \"#{prefix}#{new_version}#{suffix}\" end,
-    global: false
-  )
+new_version = os.environ["NEW_VERSION"]
+path = "mix.exs"
 
-File.write!(\"mix.exs\", updated)
-"
+with open(path, "r", encoding="utf-8") as fp:
+    content = fp.read()
+
+pattern = re.compile(r'(version:\s*")\d+\.\d+\.\d+(")')
+
+if not pattern.search(content):
+    raise SystemExit("Could not find version declaration in mix.exs")
+
+updated = pattern.sub(lambda m: f'{m.group(1)}{new_version}{m.group(2)}', content, count=1)
+
+with open(path, "w", encoding="utf-8") as fp:
+    fp.write(updated)
+PY
