@@ -401,6 +401,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
           id: new_document.id,
           collection_id: collection_id,
           title: new_document.title,
+          icon: new_document.icon,
           summary: new_document.summary,
           owner: new_document.owner,
           tags: new_document.tags,
@@ -436,6 +437,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
         %{
           doc
           | title: new_document.title,
+            icon: new_document.icon,
             summary: new_document.summary,
             owner: new_document.owner,
             tags: new_document.tags,
