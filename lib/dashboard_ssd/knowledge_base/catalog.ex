@@ -1660,6 +1660,7 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
       %{
         doc
         | title: detail.title,
+          icon: detail.icon,
           summary: detail.summary,
           owner: detail.owner,
           tags: detail.tags,
