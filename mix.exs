@@ -41,9 +41,9 @@ defmodule DashboardSSD.MixProject do
       ],
       docs: [
         main: "readme",
-        source_url: "https://github.com/akinsey/dashboard-ssd",
+        source_url: "https://github.com/slickage/dashboard-ssd",
         source_ref: System.get_env("DOCS_SOURCE_REF") || "phase/3.5-liveviews",
-        homepage_url: "https://github.com/akinsey/dashboard-ssd",
+        homepage_url: "https://github.com/slickage/dashboard-ssd",
         extras: [
           "README.md": [title: "Overview"],
           "INTEGRATIONS.md": [title: "Integrations (Local)"],
