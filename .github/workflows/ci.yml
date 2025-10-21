@@ -206,6 +206,7 @@ jobs:
   deploy-pages:
     permissions:
       pages: write
+      id-token: write
     needs: docs-pages
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_docs == 'true')
     runs-on: ubuntu-latest
