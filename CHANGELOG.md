@@ -1,3 +1,10 @@
+## [1.4.2](https://github.com/slickage/dashboard-ssd/compare/v1.4.1...v1.4.2) (2025-10-21)
+
+
+### Bug Fixes
+
+* **ci:** grant id-token for deploy-pages job ([859b5ec](https://github.com/slickage/dashboard-ssd/commit/859b5ec9bedf6ee8df86bcf39407bd4672129faa))
+
 ## [1.4.1](https://github.com/slickage/dashboard-ssd/compare/v1.4.0...v1.4.1) (2025-10-21)
 
 
