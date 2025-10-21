@@ -1,3 +1,10 @@
+## [1.4.1](https://github.com/slickage/dashboard-ssd/compare/v1.4.0...v1.4.1) (2025-10-21)
+
+
+### Bug Fixes
+
+* **docker:** align runtime base with otp 27 glibc requirements ([97b7de5](https://github.com/slickage/dashboard-ssd/commit/97b7de5354ae9459dcc7d1d672ca62bbb2262cd9))
+
 # [1.4.0](https://github.com/slickage/dashboard-ssd/compare/v1.3.1...v1.4.0) (2025-10-20)
 
 
