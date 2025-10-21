@@ -46,10 +46,10 @@ RUN mix compile
 RUN mix release
 
 # Runtime stage
-FROM debian:bullseye-20231009-slim
+FROM debian:bookworm-20240904-slim
 
 # Install runtime dependencies
-RUN apt-get update -y && apt-get install -y libstdc++6 openssl libncurses5 locales \
+RUN apt-get update -y && apt-get install -y libstdc++6 openssl libncurses5 locales curl \
     && apt-get clean && rm -f /var/lib/apt/lists/*_* \
     && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
 
