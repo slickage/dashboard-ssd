@@ -17,7 +17,7 @@ This project is a modern dashboard for managing software development projects, c
 
 1.  **Clone and setup**:
     ```bash
-    git clone https://github.com/akinsey/dashboard-ssd.git
+    git clone https://github.com/slickage/dashboard-ssd.git
     cd dashboard-ssd
     mix setup
     ```

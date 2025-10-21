@@ -6,7 +6,7 @@ defmodule DashboardSSDWeb.Navigation do
 
   import DashboardSSDWeb.Layouts, only: [user_initials: 1, user_display_name: 1, user_role: 1]
 
-  @github_releases_url "https://github.com/akinsey/dashboard-ssd/releases"
+  @github_releases_url "https://github.com/slickage/dashboard-ssd/releases"
 
   @doc """
   Returns the GitHub releases URL for the project.
