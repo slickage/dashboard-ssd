@@ -1,3 +1,10 @@
+## [1.4.4](https://github.com/slickage/dashboard-ssd/compare/v1.4.3...v1.4.4) (2025-10-22)
+
+
+### Bug Fixes
+
+* **dockerfile:** add new dockerfile ([2e13f27](https://github.com/slickage/dashboard-ssd/commit/2e13f27dbe2ae13c3472f42711267454c17e8836))
+
 ## [1.4.3](https://github.com/slickage/dashboard-ssd/compare/v1.4.2...v1.4.3) (2025-10-22)
 
 
