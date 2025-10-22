@@ -1,3 +1,11 @@
+## [1.4.3](https://github.com/slickage/dashboard-ssd/compare/v1.4.2...v1.4.3) (2025-10-22)
+
+
+### Bug Fixes
+
+* **ci:** add cacerts and convert from PEM to DER ([467cbb1](https://github.com/slickage/dashboard-ssd/commit/467cbb11fd32f79b2eeb12de858d0fad5e714fe4))
+* **ci:** bump version ([65f1fca](https://github.com/slickage/dashboard-ssd/commit/65f1fca80fe9f718e8c651e72fa69b30e4b96a4c))
+
 ## [1.4.2](https://github.com/slickage/dashboard-ssd/compare/v1.4.1...v1.4.2) (2025-10-21)
 
 
