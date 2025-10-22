@@ -6,8 +6,10 @@ import Config
 # which you should run after static files are built and
 # before starting your production server.
 config :dashboard_ssd, DashboardSSDWeb.Endpoint,
-  cache_static_manifest: "priv/static/cache_manifest.json",
-  force_ssl: [hsts: true]
+  cache_static_manifest: "priv/static/cache_manifest.json"
+
+# don't redirect ssl - we'll use reverse proxy
+# force_ssl: [hsts: true]
 
 # Configures Swoosh API Client
 config :swoosh, api_client: Swoosh.ApiClient.Finch, finch_name: DashboardSSD.Finch
