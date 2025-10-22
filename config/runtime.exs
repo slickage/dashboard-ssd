@@ -297,6 +297,12 @@ if config_env() == :prod do
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
+  # The CA certificate is provided as a PEM-encoded string.
+  # Need to convert it to DER.
+  cacert = System.get_env("CA_CERT")
+  pem_entries = :public_key.pem_decode(cacert)
+  cacerts = for {:Certificate, cert, :not_encrypted} <- pem_entries, do: cert
+
   config :dashboard_ssd, DashboardSSD.Repo,
     # enable ssl for connection in production (eg: AWS RDS)
     ssl: true,
