@@ -305,8 +305,7 @@ if config_env() == :prod do
 
   config :dashboard_ssd, DashboardSSD.Repo,
     # enable ssl for connection in production (eg: AWS RDS)
-    ssl: true,
-    ssl_opts: [
+    ssl: [
       verify: :verify_peer,
       versions: [:"tlsv1.3"],
       ciphers: :ssl.cipher_suites(:all, :"tlsv1.3"),
