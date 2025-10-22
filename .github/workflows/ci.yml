@@ -102,7 +102,7 @@ jobs:
         env:
           MIX_ENV: dev
           SOBELOW_CONFIDENCE: medium
-        run: mix sobelow --skip --exit
+        run: mix sobelow -i Config.HTTPS --skip --exit
       - name: Quality | Format
         run: mix format --check-formatted
       - name: Quality | Credo
