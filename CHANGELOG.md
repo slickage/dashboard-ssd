@@ -1,3 +1,10 @@
+## [1.4.5](https://github.com/slickage/dashboard-ssd/compare/v1.4.4...v1.4.5) (2025-10-22)
+
+
+### Bug Fixes
+
+* **config/runtime:** move ssl_opts (deprecated) -> ssl ([6225716](https://github.com/slickage/dashboard-ssd/commit/6225716cc6d93d16f8b1403302005980f3c9246c))
+
 ## [1.4.4](https://github.com/slickage/dashboard-ssd/compare/v1.4.3...v1.4.4) (2025-10-22)
 
 
