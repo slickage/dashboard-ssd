@@ -1,3 +1,11 @@
+## [1.4.6](https://github.com/slickage/dashboard-ssd/compare/v1.4.5...v1.4.6) (2025-10-22)
+
+
+### Bug Fixes
+
+* **ci:** skip https check in sobelow ([ef89f40](https://github.com/slickage/dashboard-ssd/commit/ef89f40bcb3be6c30d2c13b8fa349e81a1a8cc41))
+* **config/prod:** don't force ssl ([eb5c5ed](https://github.com/slickage/dashboard-ssd/commit/eb5c5ed7d98253a6e4340b3c2962b318c9559903))
+
 ## [1.4.5](https://github.com/slickage/dashboard-ssd/compare/v1.4.4...v1.4.5) (2025-10-22)
 
 
