@@ -298,7 +298,14 @@ if config_env() == :prod do
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
   config :dashboard_ssd, DashboardSSD.Repo,
-    # ssl: true,
+    # enable ssl for connection in production (eg: AWS RDS)
+    ssl: true,
+    ssl_opts: [
+      verify: :verify_peer,
+      versions: [:"tlsv1.3"],
+      ciphers: :ssl.cipher_suites(:all, :"tlsv1.3"),
+      cacerts: cacerts
+    ],
     url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
     socket_options: maybe_ipv6
