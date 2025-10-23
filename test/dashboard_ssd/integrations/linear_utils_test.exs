@@ -1,7 +1,9 @@
 defmodule DashboardSSD.Integrations.LinearUtilsTest do
-  use ExUnit.Case, async: true
+  use DashboardSSD.DataCase, async: true
 
   alias DashboardSSD.Integrations.LinearUtils
+  alias DashboardSSD.Projects.LinearWorkflowState
+  alias DashboardSSD.Repo
 
   setup do
     # Set linear token for tests
@@ -75,6 +77,78 @@ defmodule DashboardSSD.Integrations.LinearUtilsTest do
     end
   end
 
+  describe "issue_nodes_for_project_id/1" do
+    test "returns paginated nodes" do
+      Tesla.Mock.mock(fn
+        %{method: :post, url: "https://api.linear.app/graphql", body: body} ->
+          %{"query" => query, "variables" => vars} = Jason.decode!(body)
+
+          if String.contains?(query, "IssuesByProjectId") do
+            case Map.get(vars, "after") do
+              nil ->
+                %Tesla.Env{
+                  status: 200,
+                  body: %{
+                    "data" => %{
+                      "issues" => %{
+                        "nodes" => [%{"id" => "1"}],
+                        "pageInfo" => %{"hasNextPage" => true, "endCursor" => "c1"}
+                      }
+                    }
+                  }
+                }
+
+              "c1" ->
+                %Tesla.Env{
+                  status: 200,
+                  body: %{
+                    "data" => %{
+                      "issues" => %{
+                        "nodes" => [%{"id" => "2"}, %{"id" => "3"}],
+                        "pageInfo" => %{"hasNextPage" => false}
+                      }
+                    }
+                  }
+                }
+
+              other ->
+                flunk("Unexpected pagination cursor: #{inspect(other)}")
+            end
+          else
+            flunk("Unexpected query: #{query}")
+          end
+      end)
+
+      assert {:ok, nodes} = LinearUtils.issue_nodes_for_project_id("proj-123")
+      assert Enum.map(nodes, & &1["id"]) == ["1", "2", "3"]
+    end
+
+    test "returns :error when Linear responds with error" do
+      Tesla.Mock.mock(fn
+        %{method: :post, url: "https://api.linear.app/graphql"} ->
+          %Tesla.Env{status: 500, body: "oops"}
+      end)
+
+      assert {:error, _} = LinearUtils.issue_nodes_for_project_id("proj-error")
+    end
+
+    test "returns :empty when no issues found" do
+      Tesla.Mock.mock(fn
+        %{method: :post, url: "https://api.linear.app/graphql"} ->
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "data" => %{
+                "issues" => %{"nodes" => nil, "pageInfo" => %{"hasNextPage" => false}}
+              }
+            }
+          }
+      end)
+
+      assert {:ok, []} = LinearUtils.issue_nodes_for_project_id("proj-empty")
+    end
+  end
+
   describe "summarize_issue_nodes/1" do
     test "counts issues by state" do
       nodes = [
@@ -120,6 +194,15 @@ defmodule DashboardSSD.Integrations.LinearUtilsTest do
 
       assert %{total: 9, in_progress: 9, finished: 0} = LinearUtils.summarize_issue_nodes(nodes)
     end
+
+    test "treats canceled workflow type as finished" do
+      nodes = [
+        %{"state" => %{"id" => "state-1", "type" => "canceled"}}
+      ]
+
+      assert %{total: 1, in_progress: 0, finished: 1} =
+               LinearUtils.summarize_issue_nodes(nodes, %{"state-1" => %{type: "canceled"}})
+    end
   end
 
   describe "fetch_linear_summary/1" do
@@ -146,6 +229,49 @@ defmodule DashboardSSD.Integrations.LinearUtilsTest do
       assert %{total: 0, in_progress: 0, finished: 0} = LinearUtils.fetch_linear_summary(project)
     end
 
+    test "uses workflow metadata when available" do
+      Tesla.Mock.mock(fn
+        %{method: :post, url: "https://api.linear.app/graphql", body: body} ->
+          %{"query" => query} = Jason.decode!(body)
+
+          if String.contains?(query, "IssuesByProjectId") do
+            %Tesla.Env{
+              status: 200,
+              body: %{
+                "data" => %{
+                  "issues" => %{
+                    "nodes" => [
+                      %{"state" => %{"id" => "state-done"}},
+                      %{"state" => %{"id" => "state-started"}}
+                    ],
+                    "pageInfo" => %{"hasNextPage" => false}
+                  }
+                }
+              }
+            }
+          else
+            flunk("Unexpected query: #{query}")
+          end
+      end)
+
+      Repo.insert!(%LinearWorkflowState{
+        linear_team_id: "team-1",
+        linear_state_id: "state-done",
+        name: "Done",
+        type: "completed"
+      })
+
+      Repo.insert!(%LinearWorkflowState{
+        linear_team_id: "team-1",
+        linear_state_id: "state-started",
+        name: "Doing",
+        type: "started"
+      })
+
+      project = %{linear_project_id: "proj-1", linear_team_id: "team-1"}
+      assert %{total: 2, in_progress: 1, finished: 1} = LinearUtils.fetch_linear_summary(project)
+    end
+
     test "returns :unavailable on error" do
       Tesla.Mock.mock(fn
         %{method: :post, url: "https://api.linear.app/graphql"} ->
@@ -154,6 +280,11 @@ defmodule DashboardSSD.Integrations.LinearUtilsTest do
 
       project = %{name: "test"}
       assert :unavailable = LinearUtils.fetch_linear_summary(project)
+    end
+
+    test "returns zero results when project lacks identifiers" do
+      project = %{}
+      assert %{total: 0, in_progress: 0, finished: 0} = LinearUtils.fetch_linear_summary(project)
     end
   end
 end

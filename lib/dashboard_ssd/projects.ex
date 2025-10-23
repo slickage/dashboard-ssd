@@ -5,7 +5,7 @@ defmodule DashboardSSD.Projects do
   import Ecto.Query, warn: false
   alias DashboardSSD.Clients
   alias DashboardSSD.Integrations
-  alias DashboardSSD.Projects.Project
+  alias DashboardSSD.Projects.{LinearWorkflowState, Project}
   alias DashboardSSD.Repo
 
   @doc """
@@ -84,71 +84,250 @@ defmodule DashboardSSD.Projects do
   - Upsert local projects by name and update client assignment when inferred
   Returns: {:ok, %{inserted: n, updated: m}}
   """
-  @spec sync_from_linear() :: {:ok, map()} | {:error, term()}
-  def sync_from_linear do
-    query = """
-    query TeamsWithProjects($first:Int!) {
-      teams(first: $first) {
-        nodes { id name projects(first: $first) { nodes { id name } } }
+  @teams_page_size 50
+  @projects_page_size 100
+
+  @teams_query """
+  query TeamsPage($first:Int!, $after:String) {
+    teams(first: $first, after: $after) {
+      nodes { id name }
+      pageInfo { hasNextPage endCursor }
+    }
+  }
+  """
+
+  @team_projects_query """
+  query TeamProjects($teamId: String!, $first:Int!, $after:String) {
+    team(id: $teamId) {
+      id
+      name
+      projects(first: $first, after: $after) {
+        nodes { id name }
+        pageInfo { hasNextPage endCursor }
+      }
+      states {
+        nodes { id name type color }
       }
     }
-    """
+  }
+  """
 
-    case Integrations.linear_graphql(query, %{"first" => 50}) do
-      {:ok, %{"data" => %{"teams" => %{"nodes" => teams}}}} ->
-        {:ok, upsert_from_linear_nodes(teams)}
+  @spec sync_from_linear() :: {:ok, map()} | {:error, term()}
+  def sync_from_linear do
+    with {:ok, teams} <- fetch_linear_teams(),
+         {:ok, teams_with_projects} <- fetch_projects_for_teams(teams) do
+      {:ok, upsert_from_linear_nodes(teams_with_projects)}
+    end
+  end
+
+  defp fetch_linear_teams(acc \\ [], cursor \\ nil) do
+    variables =
+      %{"first" => @teams_page_size}
+      |> maybe_put_after(cursor)
+
+    case Integrations.linear_graphql(@teams_query, variables) do
+      {:ok,
+       %{
+         "data" => %{
+           "teams" => %{
+             "nodes" => nodes,
+             "pageInfo" => %{"hasNextPage" => true, "endCursor" => end_cursor}
+           }
+         }
+       }} ->
+        fetch_linear_teams(acc ++ nodes, end_cursor)
+
+      {:ok,
+       %{
+         "data" => %{
+           "teams" => %{
+             "nodes" => nodes,
+             "pageInfo" => %{"hasNextPage" => false}
+           }
+         }
+       }} ->
+        {:ok, acc ++ nodes}
+
+      {:ok, other} ->
+        {:error, {:unexpected, other}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp fetch_projects_for_teams(teams) do
+    Enum.reduce_while(teams, {:ok, []}, fn team, {:ok, acc} ->
+      case fetch_team_projects(team) do
+        {:ok, %{projects: projects, workflow_states: states}} ->
+          sync_workflow_states(team["id"], states)
+
+          team_name = team["name"]
+
+          entry = %{
+            "name" => team_name,
+            "id" => team["id"],
+            "projects" => projects,
+            "linear_team_name" => team_name
+          }
+
+          {:cont, {:ok, [entry | acc]}}
+
+        {:error, reason} ->
+          {:halt, {:error, reason}}
+      end
+    end)
+    |> case do
+      {:ok, entries} -> {:ok, Enum.reverse(entries)}
+      other -> other
+    end
+  end
+
+  defp fetch_team_projects(team, acc \\ %{projects: [], states: nil}, cursor \\ nil) do
+    team_id = team["id"]
+
+    variables =
+      %{"teamId" => team_id, "first" => @projects_page_size}
+      |> maybe_put_after(cursor)
+
+    with {:ok, %{"data" => %{"team" => team_data}}} <-
+           Integrations.linear_graphql(@team_projects_query, variables),
+         {:cont, next_acc, next_cursor} <- handle_team_projects_page(team_data, acc) do
+      fetch_team_projects(team, next_acc, next_cursor)
+    else
+      {:halt, final_acc} ->
+        {:ok,
+         %{
+           projects: final_acc.projects,
+           workflow_states: final_acc.states || []
+         }}
 
       {:error, reason} ->
         {:error, reason}
 
-      other ->
+      {:ok, other} ->
         {:error, {:unexpected, other}}
+    end
+  end
+
+  defp maybe_put_after(vars, nil), do: vars
+  defp maybe_put_after(vars, cursor), do: Map.put(vars, "after", cursor)
+
+  defp handle_team_projects_page(nil, acc), do: {:halt, acc}
+
+  defp handle_team_projects_page(team_data, acc) do
+    projects = get_in(team_data, ["projects", "nodes"]) || []
+    page_info = get_in(team_data, ["projects", "pageInfo"]) || %{}
+    workflow_states = get_in(team_data, ["states", "nodes"]) || []
+
+    next_acc =
+      acc
+      |> Map.update!(:projects, &(&1 ++ projects))
+      |> Map.update(:states, workflow_states, fn existing -> existing || workflow_states end)
+
+    if Map.get(page_info, "hasNextPage") do
+      {:cont, next_acc, Map.get(page_info, "endCursor")}
+    else
+      {:halt, next_acc}
     end
   end
 
   defp upsert_from_linear_nodes(teams) do
     clients = Clients.list_clients()
 
-    Enum.flat_map(teams, fn t ->
-      team_name = t["name"]
-
-      for p <- get_in(t, ["projects", "nodes"]) || [],
-          do: %{name: p["name"], team_name: team_name}
+    Enum.reduce(teams, %{inserted: 0, updated: 0}, fn team, acc ->
+      process_team_projects(team, clients, acc)
     end)
-    |> Enum.reduce(%{inserted: 0, updated: 0}, fn %{name: name, team_name: team_name}, acc ->
+  end
+
+  defp process_team_projects(team, clients, acc) do
+    team_name = team["linear_team_name"] || team["name"]
+    team_id = team["id"]
+
+    Enum.reduce(team["projects"] || [], acc, fn project_node, inner_acc ->
+      name = project_node["name"]
+      linear_project_id = project_node["id"]
       client_id = infer_client_id(name, team_name, clients)
 
-      case upsert_project_by_name(client_id, name) do
-        {:inserted, _} -> %{acc | inserted: acc.inserted + 1}
-        {:updated, _} -> %{acc | updated: acc.updated + 1}
-        {:noop, _} -> acc
+      case upsert_project(linear_project_id, team_id, team_name, client_id, name) do
+        {:inserted, _} -> %{inner_acc | inserted: inner_acc.inserted + 1}
+        {:updated, _} -> %{inner_acc | updated: inner_acc.updated + 1}
+        {:noop, _} -> inner_acc
       end
     end)
   end
 
-  defp upsert_project_by_name(client_id, name) do
+  defp upsert_project(linear_project_id, linear_team_id, linear_team_name, client_id, name) do
+    attrs =
+      %{
+        name: name,
+        linear_project_id: linear_project_id,
+        linear_team_id: linear_team_id,
+        linear_team_name: linear_team_name
+      }
+      |> maybe_put_client(client_id)
+
+    case find_existing_project(linear_project_id, name) do
+      {:ok, project} -> update_project_fields(project, attrs)
+      :error -> insert_new_project(attrs)
+    end
+  end
+
+  defp find_existing_project(linear_project_id, name) when is_binary(linear_project_id) do
+    case Repo.get_by(Project, linear_project_id: linear_project_id) do
+      %Project{} = project -> {:ok, project}
+      nil -> find_existing_project(nil, name)
+    end
+  end
+
+  defp find_existing_project(_linear_project_id, name) do
     case Repo.get_by(Project, name: name) do
-      %Project{} = p -> update_client_if_missing(p, client_id)
-      nil -> insert_new_project(client_id, name)
+      %Project{} = project -> {:ok, project}
+      nil -> :error
     end
   end
 
-  # Do not clear or overwrite an existing client assignment during sync.
-  # Only fill in client_id when it is currently nil and a non-nil client_id is inferred.
-  defp update_client_if_missing(%Project{} = p, client_id) do
-    if is_nil(p.client_id) and not is_nil(client_id) do
-      case update_project(p, %{client_id: client_id}) do
-        {:ok, p2} -> {:updated, p2}
-        {:error, _} -> {:noop, p}
-      end
+  defp update_project_fields(%Project{} = project, attrs) do
+    updates = Enum.reduce(attrs, %{}, &collect_project_update(project, &1, &2))
+
+    if updates == %{} do
+      {:noop, project}
     else
-      {:noop, p}
+      case update_project(project, updates) do
+        {:ok, updated} -> {:updated, updated}
+        {:error, _} -> {:noop, project}
+      end
     end
   end
 
-  defp insert_new_project(client_id, name) do
-    attrs = %{name: name} |> maybe_put_client(client_id)
+  defp collect_project_update(_project, {_key, nil}, acc), do: acc
 
+  defp collect_project_update(project, {:client_id, value}, acc) do
+    cond do
+      is_nil(project.client_id) and project.client_id != value -> Map.put(acc, :client_id, value)
+      is_nil(project.client_id) and project.client_id == value -> acc
+      true -> acc
+    end
+  end
+
+  defp collect_project_update(project, {key, value}, acc)
+       when key in [:linear_project_id, :linear_team_id, :linear_team_name] do
+    if Map.get(project, key) == value do
+      acc
+    else
+      Map.put(acc, key, value)
+    end
+  end
+
+  defp collect_project_update(project, {key, value}, acc) do
+    if Map.get(project, key) == value do
+      acc
+    else
+      Map.put(acc, key, value)
+    end
+  end
+
+  defp insert_new_project(attrs) do
     case create_project(attrs) do
       {:ok, p} -> {:inserted, p}
       {:error, _} -> {:noop, nil}
@@ -157,6 +336,54 @@ defmodule DashboardSSD.Projects do
 
   defp maybe_put_client(attrs, nil), do: attrs
   defp maybe_put_client(attrs, client_id), do: Map.put(attrs, :client_id, client_id)
+
+  defp sync_workflow_states(_team_id, nil), do: :ok
+
+  defp sync_workflow_states(team_id, states) when is_list(states) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    entries =
+      Enum.map(states, fn state ->
+        %{
+          id: Ecto.UUID.generate(),
+          linear_team_id: team_id,
+          linear_state_id: state["id"],
+          name: state["name"],
+          type: Map.get(state, "type"),
+          color: Map.get(state, "color"),
+          inserted_at: now,
+          updated_at: now
+        }
+      end)
+      |> Enum.reject(&is_nil(&1.linear_state_id))
+
+    if entries != [] do
+      Repo.insert_all(LinearWorkflowState, entries,
+        conflict_target: :linear_state_id,
+        on_conflict: {:replace, [:linear_team_id, :name, :type, :color, :updated_at]}
+      )
+    end
+
+    :ok
+  end
+
+  @doc """
+  Returns a map of workflow state metadata for the given Linear team.
+  """
+  @spec workflow_state_metadata(String.t() | nil) :: map()
+  def workflow_state_metadata(nil), do: %{}
+
+  def workflow_state_metadata(team_id) do
+    from(s in LinearWorkflowState, where: s.linear_team_id == ^team_id)
+    |> Repo.all()
+    |> Enum.reduce(%{}, fn state, acc ->
+      Map.put(acc, state.linear_state_id, %{
+        type: state.type,
+        name: state.name,
+        color: state.color
+      })
+    end)
+  end
 
   defp infer_client_id(project_name, team_name, clients) do
     pname = String.downcase(project_name || "")
