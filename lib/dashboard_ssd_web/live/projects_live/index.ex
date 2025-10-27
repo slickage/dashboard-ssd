@@ -14,18 +14,27 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
   def mount(_params, _session, socket) do
     user = socket.assigns.current_user
 
+    linear_enabled = LinearUtils.linear_enabled?()
+    auto_sync? = linear_enabled and auto_linear_sync_enabled?()
+
     if Policy.can?(user, :read, :projects) do
-      {:ok,
-       socket
-       |> assign(:current_path, "/projects")
-       |> assign(:page_title, "Projects")
-       |> assign(:client_id, nil)
-       |> assign(:projects, [])
-       |> assign(:clients, Clients.list_clients())
-       |> assign(:linear_enabled, LinearUtils.linear_enabled?())
-       |> assign(:summaries, %{})
-       |> assign(:loaded, false)
-       |> assign(:mobile_menu_open, false)}
+      socket =
+        socket
+        |> assign(:current_path, "/projects")
+        |> assign(:page_title, "Projects")
+        |> assign(:client_id, nil)
+        |> assign(:projects, [])
+        |> assign(:clients, Clients.list_clients())
+        |> assign(:linear_enabled, linear_enabled)
+        |> assign(:summaries, %{})
+        |> assign(:loaded, false)
+        |> assign(:mobile_menu_open, false)
+        |> assign(:collapsed_teams, MapSet.new())
+        |> assign(:team_members, %{})
+
+      if auto_sync?, do: send(self(), :sync_from_linear)
+
+      {:ok, socket}
     else
       {:ok,
        socket
@@ -54,8 +63,30 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
   @impl true
   def handle_info(:reload_summaries, socket) do
     Logger.info("Reloading Linear task summaries for #{length(socket.assigns.projects)} projects")
-    summaries = summarize_projects(socket.assigns.projects)
+    summaries = summarize_projects(socket.assigns.projects, socket.assigns.summaries || %{})
     {:noreply, assign(socket, :summaries, summaries)}
+  end
+
+  @impl true
+  def handle_info(:sync_from_linear, socket) do
+    socket =
+      if socket.assigns.linear_enabled do
+        Logger.info("Auto-syncing projects from Linear on mount")
+
+        case Projects.sync_from_linear() do
+          {:ok, %{inserted: inserted, updated: updated}} ->
+            Logger.info("Linear sync complete (inserted=#{inserted}, updated=#{updated})")
+            refresh(socket)
+
+          {:error, reason} ->
+            Logger.warning("Linear sync failed on mount: #{inspect(reason)}")
+            socket
+        end
+      else
+        socket
+      end
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -69,7 +100,14 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         p -> p
       end)
 
-    socket = assign(socket, :projects, updated_projects)
+    socket =
+      socket
+      |> assign(:projects, updated_projects)
+      |> assign(
+        :collapsed_teams,
+        prune_collapsed(socket.assigns.collapsed_teams, updated_projects)
+      )
+      |> assign(:team_members, load_team_members(updated_projects))
 
     # Reload health data and summaries if there were changes
     socket =
@@ -106,6 +144,8 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         |> assign(:health, load_existing_health(projects))
         |> assign(:loaded, true)
         |> assign(:summaries, %{})
+        |> assign(:collapsed_teams, prune_collapsed(socket.assigns.collapsed_teams, projects))
+        |> assign(:team_members, load_team_members(projects))
 
       if socket.assigns.linear_enabled do
         pid = self()
@@ -125,6 +165,8 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
       projects = fetch_projects(client_id)
       spawn(fn -> run_checks_and_update(projects, self()) end)
 
+      collapsed = prune_collapsed(socket.assigns.collapsed_teams, projects)
+
       socket =
         socket
         |> assign(:page_title, "Projects")
@@ -134,6 +176,8 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         |> assign(:health, load_existing_health(projects))
         |> assign(:loaded, true)
         |> assign(:summaries, %{})
+        |> assign(:collapsed_teams, collapsed)
+        |> assign(:team_members, load_team_members(projects))
 
       if socket.assigns.linear_enabled do
         Logger.info("Linear enabled, spawning reload task")
@@ -161,13 +205,141 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
     end
   end
 
-  defp summarize_projects(projects) do
+  defp summarize_projects(projects, existing_summaries) do
     if LinearUtils.linear_enabled?() do
-      Enum.into(projects, %{}, fn p -> {to_string(p.id), LinearUtils.fetch_linear_summary(p)} end)
+      Enum.reduce(projects, %{}, fn project, acc ->
+        key = to_string(project.id)
+        Map.put(acc, key, project_summary(project, existing_summaries, key))
+      end)
     else
-      %{}
+      existing_summaries
     end
   end
+
+  defp project_summary(project, existing_summaries, key) do
+    case LinearUtils.fetch_linear_summary(project) do
+      :unavailable -> Map.get(existing_summaries, key, :unavailable)
+      other -> other
+    end
+  end
+
+  defp auto_linear_sync_enabled? do
+    not Application.get_env(:dashboard_ssd, :test_env?, false)
+  end
+
+  @no_team_key "__no_team__"
+
+  defp prune_collapsed(nil, projects), do: prune_collapsed(MapSet.new(), projects)
+
+  defp prune_collapsed(collapsed, projects) do
+    valid_keys =
+      projects
+      |> Enum.map(&project_team_identity/1)
+      |> Enum.map(&elem(&1, 0))
+      |> MapSet.new()
+
+    MapSet.intersection(collapsed, valid_keys)
+  end
+
+  defp group_projects_by_team(projects, team_members_map) do
+    {groups, order, _seen} =
+      Enum.reduce(projects, {%{}, [], MapSet.new()}, fn project, {map, order, seen} ->
+        {team_key, team_name} = project_team_identity(project)
+
+        map =
+          Map.update(
+            map,
+            team_key,
+            %{key: team_key, name: team_name, projects: [project]},
+            fn entry ->
+              %{entry | projects: entry.projects ++ [project]}
+            end
+          )
+
+        if MapSet.member?(seen, team_key) do
+          {map, order, seen}
+        else
+          {map, order ++ [team_key], MapSet.put(seen, team_key)}
+        end
+      end)
+
+    Enum.map(order, fn key ->
+      entry = Map.fetch!(groups, key)
+
+      members =
+        if key == @no_team_key do
+          []
+        else
+          team_members_map
+          |> Map.get(key, [])
+          |> Enum.map(&format_member_name/1)
+          |> Enum.reject(&is_nil/1)
+        end
+
+      Map.put(entry, :members, members)
+    end)
+  end
+
+  defp project_team_identity(project) do
+    name = sanitized_team_name(project.linear_team_name) || "No Linear Team"
+
+    case project.linear_team_id do
+      id when is_binary(id) ->
+        trimmed = String.trim(id)
+
+        if trimmed == "" do
+          {@no_team_key, name}
+        else
+          {trimmed, name}
+        end
+
+      _ ->
+        {@no_team_key, name}
+    end
+  end
+
+  defp sanitized_team_name(nil), do: nil
+
+  defp sanitized_team_name(name) when is_binary(name) do
+    trimmed = String.trim(name)
+    if trimmed == "", do: nil, else: trimmed
+  end
+
+  defp sanitized_team_name(_), do: nil
+
+  defp load_team_members(projects) do
+    projects
+    |> Enum.map(& &1.linear_team_id)
+    |> Enum.filter(&is_binary/1)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.uniq()
+    |> case do
+      [] ->
+        %{}
+
+      ids ->
+        Projects.team_members_by_team_ids(ids)
+        |> Enum.into(%{}, fn {team_id, members} -> {String.trim(team_id), members} end)
+    end
+  end
+
+  defp format_member_name(%{display_name: name}) when is_binary(name) do
+    name |> String.trim() |> presence()
+  end
+
+  defp format_member_name(%{name: name}) when is_binary(name) do
+    name |> String.trim() |> presence()
+  end
+
+  defp format_member_name(%{email: email}) when is_binary(email) do
+    email |> String.trim() |> presence()
+  end
+
+  defp format_member_name(_), do: nil
+
+  defp presence(""), do: nil
+  defp presence(value), do: value
 
   defp run_checks_and_update(projects, pid) do
     if Application.get_env(:dashboard_ssd, :env) != :test do
@@ -239,12 +411,26 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
       "Manually reloading Linear task summaries for #{length(socket.assigns.projects)} projects"
     )
 
-    summaries = summarize_projects(socket.assigns.projects)
+    summaries = summarize_projects(socket.assigns.projects, socket.assigns.summaries || %{})
 
     {:noreply,
      socket
      |> assign(:summaries, summaries)
      |> put_flash(:info, "Tasks reloaded successfully")}
+  end
+
+  @impl true
+  def handle_event("toggle_team", %{"team" => team_key}, socket) do
+    collapsed = socket.assigns.collapsed_teams || MapSet.new()
+
+    collapsed =
+      if MapSet.member?(collapsed, team_key) do
+        MapSet.delete(collapsed, team_key)
+      else
+        MapSet.put(collapsed, team_key)
+      end
+
+    {:noreply, assign(socket, :collapsed_teams, collapsed)}
   end
 
   @impl true
@@ -269,8 +455,16 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
 
     spawn(fn -> run_checks_and_update(projects, self()) end)
 
+    collapsed = prune_collapsed(socket.assigns.collapsed_teams, projects)
+
     socket =
-      assign(socket, projects: projects, summaries: %{}, health: load_existing_health(projects))
+      assign(socket,
+        projects: projects,
+        summaries: %{},
+        health: load_existing_health(projects),
+        collapsed_teams: collapsed,
+        team_members: load_team_members(projects)
+      )
 
     if socket.assigns.linear_enabled do
       pid = self()
@@ -342,6 +536,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         </div>
       <% else %>
         <div class="theme-card overflow-x-auto">
+          <% groups = group_projects_by_team(@projects, @team_members || %{}) %>
           <table class="theme-table">
             <thead>
               <tr>
@@ -359,53 +554,98 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
               </tr>
             </thead>
             <tbody>
-              <%= for p <- @projects do %>
-                <tr>
-                  <td>{p.name}</td>
-                  <td>
-                    <%= if is_nil(p.client) do %>
-                      <.link
-                        navigate={~p"/projects/#{p.id}/edit"}
-                        class="text-white/80 transition hover:text-white"
-                      >
-                        Assign Client
-                      </.link>
-                    <% else %>
-                      {p.client.name}
-                    <% end %>
-                  </td>
-                  <td class="hidden md:table-cell">
-                    <%= case Map.get(@summaries, to_string(p.id), :unavailable) do %>
-                      <% :unavailable -> %>
-                        <div class="flex items-center gap-3 text-xs text-theme-muted">
-                          <div class="w-36 shrink-0">
-                            <span class="inline-flex items-center rounded-full bg-white/5 px-2 py-0.5 text-white/70">
-                              N/A
-                            </span>
-                          </div>
-                          <div class="h-2 w-32 rounded-full bg-white/5"></div>
-                        </div>
-                      <% %{} = summary -> %>
-                        <.tasks_cell summary={summary} />
-                    <% end %>
-                  </td>
-                  <td>
-                    <%= case Map.get(@health || %{}, p.id) do %>
-                      <% nil -> %>
-                        <span class="text-white/30">—</span>
-                      <% status -> %>
-                        <.health_dot status={status} />
-                    <% end %>
-                  </td>
-                  <td>
-                    <.link
-                      navigate={~p"/projects/#{p.id}/edit"}
-                      class="text-white/80 transition hover:text-white"
+              <%= for group <- groups do %>
+                <% collapsed = MapSet.member?(@collapsed_teams, group.key) %>
+                <% count = length(group.projects) %>
+                <tr class="border-b border-white/5 bg-white/5">
+                  <td colspan="5">
+                    <button
+                      type="button"
+                      phx-click="toggle_team"
+                      phx-value-team={group.key}
+                      data-team-name={group.name}
+                      class="w-full rounded-lg bg-white/5 px-3 py-2 text-left text-sm text-white transition hover:bg-white/10"
                     >
-                      Edit
-                    </.link>
+                      <div class="flex flex-col gap-1">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                          <span class="flex items-center gap-3">
+                            <span class="font-mono text-xs text-theme-muted">
+                              {if collapsed, do: "[+]", else: "[-]"}
+                            </span>
+                            <span class="font-semibold text-white">{group.name}</span>
+                            <%= if group.members != [] do %>
+                              <span class="flex items-center gap-2 pl-3 text-xs text-white/60 border-l border-white/15">
+                                <span class="uppercase tracking-[0.18em] text-[10px] text-white/40">
+                                  Members
+                                </span>
+                                <span class="flex flex-wrap gap-1">
+                                  <%= for member <- group.members do %>
+                                    <span class="rounded-full bg-white/10 px-2 py-0.5 text-white/80">
+                                      {member}
+                                    </span>
+                                  <% end %>
+                                </span>
+                              </span>
+                            <% end %>
+                          </span>
+                          <span class="text-xs text-theme-muted">
+                            {count} {if count == 1, do: "project", else: "projects"}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
                   </td>
                 </tr>
+                <%= unless collapsed do %>
+                  <%= for p <- group.projects do %>
+                    <tr>
+                      <td class="pl-6">{p.name}</td>
+                      <td>
+                        <%= if is_nil(p.client) do %>
+                          <.link
+                            navigate={~p"/projects/#{p.id}/edit"}
+                            class="text-white/80 transition hover:text-white"
+                          >
+                            Assign Client
+                          </.link>
+                        <% else %>
+                          {p.client.name}
+                        <% end %>
+                      </td>
+                      <td class="hidden md:table-cell">
+                        <%= case Map.get(@summaries, to_string(p.id), :unavailable) do %>
+                          <% :unavailable -> %>
+                            <div class="flex items-center gap-3 text-xs text-theme-muted">
+                              <div class="w-36 shrink-0">
+                                <span class="inline-flex items-center rounded-full bg-white/5 px-2 py-0.5 text-white/70">
+                                  N/A
+                                </span>
+                              </div>
+                              <div class="h-2 w-32 rounded-full bg-white/5"></div>
+                            </div>
+                          <% %{} = summary -> %>
+                            <.tasks_cell summary={summary} />
+                        <% end %>
+                      </td>
+                      <td>
+                        <%= case Map.get(@health || %{}, p.id) do %>
+                          <% nil -> %>
+                            <span class="text-white/30">—</span>
+                          <% status -> %>
+                            <.health_dot status={status} />
+                        <% end %>
+                      </td>
+                      <td>
+                        <.link
+                          navigate={~p"/projects/#{p.id}/edit"}
+                          class="text-white/80 transition hover:text-white"
+                        >
+                          Edit
+                        </.link>
+                      </td>
+                    </tr>
+                  <% end %>
+                <% end %>
               <% end %>
             </tbody>
           </table>

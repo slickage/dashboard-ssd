@@ -83,7 +83,7 @@ defmodule DashboardSSD.Integrations.LinearUtils do
   @doc """
   Fetches issue nodes by Linear project ID.
   """
-  @spec issue_nodes_for_project_id(String.t()) :: {:ok, list()} | :empty | :error
+  @spec issue_nodes_for_project_id(String.t()) :: {:ok, list()} | :empty | {:error, term()}
   def issue_nodes_for_project_id(project_id),
     do: issue_nodes_for_project_id(project_id, [], nil, :ok)
 
@@ -213,12 +213,28 @@ defmodule DashboardSSD.Integrations.LinearUtils do
   end
 
   defp issues_for_project(project) do
-    cond do
-      project_id = linear_project_id(project) -> issue_nodes_for_project_id(project_id)
-      name = Map.get(project, :name) || Map.get(project, "name") -> issue_nodes_for_project(name)
-      true -> :empty
+    project
+    |> linear_project_id()
+    |> try_project_id()
+    |> resolve_project_issues(project_name(project))
+  end
+
+  defp try_project_id(nil), do: nil
+  defp try_project_id(project_id), do: issue_nodes_for_project_id(project_id)
+
+  defp resolve_project_issues({:ok, _} = ok, _name), do: ok
+  defp resolve_project_issues(_result, name), do: project_issues_by_name(name)
+
+  defp project_issues_by_name(nil), do: :empty
+
+  defp project_issues_by_name(name) do
+    case issue_nodes_for_project(name) do
+      {:ok, _} = ok -> ok
+      other -> other
     end
   end
+
+  defp project_name(project), do: Map.get(project, :name) || Map.get(project, "name")
 
   defp linear_project_id(project) do
     Map.get(project, :linear_project_id) || Map.get(project, "linear_project_id")
@@ -233,8 +249,11 @@ defmodule DashboardSSD.Integrations.LinearUtils do
   """
   @spec linear_enabled?() :: boolean()
   def linear_enabled? do
-    token = Application.get_env(:dashboard_ssd, :integrations, [])[:linear_token]
-    is_binary(token) and String.trim(to_string(token)) != ""
+    config_token = Application.get_env(:dashboard_ssd, :integrations, [])[:linear_token]
+    env_token = System.get_env("LINEAR_TOKEN")
+    env_api_key = System.get_env("LINEAR_API_KEY")
+
+    present?(config_token) or present?(env_token) or present?(env_api_key)
   end
 
   defp normalize_state_type(nil), do: nil
@@ -265,6 +284,10 @@ defmodule DashboardSSD.Integrations.LinearUtils do
       &String.contains?(state_name, &1)
     )
   end
+
+  defp present?(value) when is_binary(value), do: String.trim(value) != ""
+  defp present?(value) when is_list(value), do: value |> to_string() |> present?()
+  defp present?(_), do: false
 
   defp maybe_put_after(vars, nil), do: vars
   defp maybe_put_after(vars, cursor), do: Map.put(vars, "after", cursor)

@@ -336,6 +336,30 @@ defmodule DashboardSSDWeb.KbLiveTest do
       assert html =~ "Kickoff agenda"
     end
 
+    test "ignores toggle_collection events with blank ids" do
+      socket = base_socket(%{expanded_collections: MapSet.new()})
+
+      assert {:noreply, new_socket} =
+               Index.handle_event("toggle_collection", %{"id" => ""}, socket)
+
+      assert new_socket.assigns.expanded_collections == MapSet.new()
+    end
+
+    test "copy_share_link pushes feedback" do
+      socket = base_socket(%{flash: %{}, search_dropdown_open: false})
+
+      assert {:noreply, new_socket} =
+               Index.handle_event(
+                 "copy_share_link",
+                 %{"url" => "https://example.com/share"},
+                 socket
+               )
+
+      assert new_socket.assigns.flash == %{
+               "info" => "Share link copied to clipboard"
+             }
+    end
+
     test "selecting another collection updates the documents", %{conn: conn} do
       Application.put_env(:dashboard_ssd, :integrations,
         notion_token: "tok",
@@ -683,6 +707,29 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       html = render(view)
       assert html =~ "Key Guide"
+    end
+
+    test "processes async search result messages", %{conn: conn} do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "search-msg@example.com",
+          name: "Search Msg",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      send(view.pid, {:search_result, "Doc", {:ok, %{"results" => []}}})
+      render(view)
+      assert live_assign(view, :query) == "Doc"
+      assert live_assign(view, :search_dropdown_open)
+      assert live_assign(view, :search_loading) == false
+
+      send(view.pid, {:search_result, "Err", {:error, :timeout}})
+      assert render(view) =~ "Unable to reach Notion"
+      assert live_assign(view, :query) == "Err"
+      assert live_assign(view, :results) == []
     end
   end
 
@@ -2695,6 +2742,32 @@ defmodule DashboardSSDWeb.KbLiveTest do
       assert new_socket.assigns.search_dropdown_open == true
       assert new_socket.assigns.flash == %{"error" => "Unable to reach Notion (:timeout)."}
     end
+  end
+
+  defp live_assign(view, key) do
+    view
+    |> view_assigns()
+    |> Map.get(key)
+  end
+
+  defp view_assigns(view) do
+    view.pid
+    |> :sys.get_state()
+    |> Map.fetch!(:socket)
+    |> Map.fetch!(:assigns)
+  end
+
+  defp base_socket(assigns) do
+    %Phoenix.LiveView.Socket{
+      endpoint: DashboardSSDWeb.Endpoint,
+      view: Index,
+      root_pid: self(),
+      transport_pid: self(),
+      private: %{live_temp: %{events: []}},
+      assigns:
+        %{__changed__: %{}, flash: %{}}
+        |> Map.merge(assigns)
+    }
   end
 
   defp restore_env(%{notion_token: token, notion_api_key: api_key}) do

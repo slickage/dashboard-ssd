@@ -1,5 +1,5 @@
 defmodule DashboardSSD.Integrations.LinearUtilsTest do
-  use DashboardSSD.DataCase, async: true
+  use DashboardSSD.DataCase, async: false
 
   alias DashboardSSD.Integrations.LinearUtils
   alias DashboardSSD.Projects.LinearWorkflowState

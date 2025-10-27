@@ -1,29 +1,34 @@
 defmodule DashboardSSDWeb.PageControllerTest do
   use DashboardSSDWeb.ConnCase, async: true
 
-  import Phoenix.Controller
+  alias DashboardSSD.Accounts
 
-  alias DashboardSSDWeb.PageController
-  alias DashboardSSDWeb.PageHTML
+  setup do
+    admin_role = Accounts.ensure_role!("admin")
+    Accounts.ensure_role!("employee")
+
+    {:ok, user} =
+      Accounts.create_user(%{
+        email: "admin+home@example.com",
+        name: "Admin Home",
+        role_id: admin_role.id
+      })
+
+    %{user: user}
+  end
 
   test "GET / redirects anonymous users to login", %{conn: conn} do
     conn = get(conn, ~p"/")
     assert redirected_to(conn) == "/login?redirect_to=%2F"
   end
 
-  test "home renders the static home page" do
+  test "renders home for authenticated users", %{conn: conn, user: user} do
     conn =
-      build_conn()
-      |> Plug.Conn.fetch_query_params()
-      |> Map.put(:params, %{"_format" => "html"})
-      |> Plug.Conn.assign(:flash, %{})
-      |> put_view(PageHTML)
-      |> put_layout(false)
-      |> put_root_layout(false)
+      conn
+      |> init_test_session(%{user_id: user.id})
+      |> get(~p"/")
 
-    conn = PageController.home(conn, %{})
-
-    assert conn.status == 200
-    assert conn.resp_body =~ "Guides &amp; Docs"
+    response = html_response(conn, 200)
+    assert response =~ "Dashboard Home"
   end
 end

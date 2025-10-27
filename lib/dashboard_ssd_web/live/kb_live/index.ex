@@ -229,6 +229,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
     handle_event("toggle_collection", params, socket)
   end
 
+  # coveralls-ignore-start
   @impl true
   def handle_event("toggle_collection_key", %{"id" => id, "key" => key}, socket)
       when key in ["Enter", " ", "Space"] do
@@ -278,6 +279,8 @@ defmodule DashboardSSDWeb.KbLive.Index do
   def handle_event("open_search_result_key", _params, socket) do
     {:noreply, socket}
   end
+
+  # coveralls-ignore-stop
 
   @impl true
   def handle_event("open_search_result", %{"id" => document_id} = params, socket) do

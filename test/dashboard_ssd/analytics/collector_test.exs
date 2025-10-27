@@ -3,6 +3,7 @@ defmodule DashboardSSD.Analytics.CollectorTest do
 
   import ExUnit.CaptureLog
 
+  alias Bypass
   alias DashboardSSD.Analytics.Collector
   alias DashboardSSD.Analytics.MetricSnapshot
   alias DashboardSSD.Clients
@@ -178,20 +179,22 @@ defmodule DashboardSSD.Analytics.CollectorTest do
     test "collects http metrics for http provider" do
       project_id = project_id()
 
-      Tesla.Mock.mock(fn
-        %{method: :get, url: "http://example.com/"} ->
-          %Tesla.Env{status: 200, body: "OK"}
+      bypass = Bypass.open()
+
+      Bypass.expect_once(bypass, fn conn ->
+        Plug.Conn.resp(conn, 200, "OK")
       end)
+
+      url = "http://127.0.0.1:#{bypass.port}/"
 
       setting = %DashboardSSD.Deployments.HealthCheckSetting{
         project_id: project_id,
         provider: "http",
-        endpoint_url: "http://example.com/"
+        endpoint_url: url
       }
 
       assert :ok == Collector.collect_project_metrics(setting)
 
-      # Check that metrics were created
       response_time_metric =
         Repo.get_by(MetricSnapshot, project_id: project_id, type: "response_time")
 

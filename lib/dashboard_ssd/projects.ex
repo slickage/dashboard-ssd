@@ -5,7 +5,7 @@ defmodule DashboardSSD.Projects do
   import Ecto.Query, warn: false
   alias DashboardSSD.Clients
   alias DashboardSSD.Integrations
-  alias DashboardSSD.Projects.{LinearWorkflowState, Project}
+  alias DashboardSSD.Projects.{LinearTeamMember, LinearWorkflowState, Project}
   alias DashboardSSD.Repo
 
   @doc """
@@ -96,8 +96,60 @@ defmodule DashboardSSD.Projects do
   }
   """
 
-  @team_projects_query """
+  @team_projects_memberships_query """
   query TeamProjects($teamId: String!, $first:Int!, $after:String) {
+    team(id: $teamId) {
+      id
+      name
+      projects(first: $first, after: $after) {
+        nodes { id name }
+        pageInfo { hasNextPage endCursor }
+      }
+      states {
+        nodes { id name type color }
+      }
+      teamMemberships(first: 100) {
+        nodes {
+          user {
+            id
+            name
+            displayName
+            email
+            avatarUrl
+          }
+        }
+      }
+    }
+  }
+  """
+
+  @team_projects_members_query """
+  query TeamProjectsWithMembers($teamId: String!, $first:Int!, $after:String) {
+    team(id: $teamId) {
+      id
+      name
+      projects(first: $first, after: $after) {
+        nodes { id name }
+        pageInfo { hasNextPage endCursor }
+      }
+      states {
+        nodes { id name type color }
+      }
+      members(first: 100) {
+        nodes {
+          id
+          name
+          displayName
+          email
+          avatarUrl
+        }
+      }
+    }
+  }
+  """
+
+  @team_projects_without_members_query """
+  query TeamProjectsNoMembers($teamId: String!, $first:Int!, $after:String) {
     team(id: $teamId) {
       id
       name
@@ -111,6 +163,12 @@ defmodule DashboardSSD.Projects do
     }
   }
   """
+
+  @team_project_queries [
+    {@team_projects_memberships_query, :team_memberships},
+    {@team_projects_members_query, :members},
+    {@team_projects_without_members_query, :none}
+  ]
 
   @spec sync_from_linear() :: {:ok, map()} | {:error, term()}
   def sync_from_linear do
@@ -159,8 +217,9 @@ defmodule DashboardSSD.Projects do
   defp fetch_projects_for_teams(teams) do
     Enum.reduce_while(teams, {:ok, []}, fn team, {:ok, acc} ->
       case fetch_team_projects(team) do
-        {:ok, %{projects: projects, workflow_states: states}} ->
+        {:ok, %{projects: projects, workflow_states: states, members: members}} ->
           sync_workflow_states(team["id"], states)
+          sync_team_members(team["id"], members)
 
           team_name = team["name"]
 
@@ -168,7 +227,8 @@ defmodule DashboardSSD.Projects do
             "name" => team_name,
             "id" => team["id"],
             "projects" => projects,
-            "linear_team_name" => team_name
+            "linear_team_name" => team_name,
+            "members" => members
           }
 
           {:cont, {:ok, [entry | acc]}}
@@ -183,54 +243,152 @@ defmodule DashboardSSD.Projects do
     end
   end
 
-  defp fetch_team_projects(team, acc \\ %{projects: [], states: nil}, cursor \\ nil) do
+  defp fetch_team_projects(team) do
+    Enum.reduce_while(@team_project_queries, {:error, :no_supported_query}, fn {query,
+                                                                                members_key},
+                                                                               last_error ->
+      case fetch_team_projects_with_query(team, query, members_key) do
+        {:ok, result} -> {:halt, {:ok, result}}
+        {:error, :unsupported} -> {:cont, last_error}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp fetch_team_projects_with_query(team, query, members_key) do
+    case do_fetch_team_projects(team, query, members_key) do
+      {:ok, result} ->
+        {:ok, result}
+
+      {:error, {:http_error, status, body}} = error ->
+        if fallback_error?(status, body, members_key) do
+          {:error, :unsupported}
+        else
+          error
+        end
+
+      {:error, {:unexpected, %{"errors" => _} = body}} = error ->
+        if fallback_error?(nil, body, members_key) do
+          {:error, :unsupported}
+        else
+          error
+        end
+
+      other ->
+        other
+    end
+  end
+
+  defp do_fetch_team_projects(team, query, members_key) do
+    initial_members = if members_key == :none, do: nil, else: []
+
+    do_fetch_team_projects(
+      team,
+      query,
+      members_key,
+      %{projects: [], states: nil, members: initial_members},
+      nil
+    )
+  end
+
+  defp do_fetch_team_projects(team, query, members_key, acc, cursor) do
     team_id = team["id"]
 
     variables =
       %{"teamId" => team_id, "first" => @projects_page_size}
       |> maybe_put_after(cursor)
 
-    with {:ok, %{"data" => %{"team" => team_data}}} <-
-           Integrations.linear_graphql(@team_projects_query, variables),
-         {:cont, next_acc, next_cursor} <- handle_team_projects_page(team_data, acc) do
-      fetch_team_projects(team, next_acc, next_cursor)
-    else
-      {:halt, final_acc} ->
-        {:ok,
-         %{
-           projects: final_acc.projects,
-           workflow_states: final_acc.states || []
-         }}
+    case Integrations.linear_graphql(query, variables) do
+      {:ok, %{"data" => %{"team" => nil}}} ->
+        {:ok, %{projects: acc.projects, workflow_states: acc.states || [], members: acc.members}}
 
-      {:error, reason} ->
-        {:error, reason}
+      {:ok, %{"data" => %{"team" => team_data}}} ->
+        updated_acc = append_team_page(team_data, acc, members_key)
 
-      {:ok, other} ->
-        {:error, {:unexpected, other}}
+        if next_cursor = next_page_cursor(team_data) do
+          do_fetch_team_projects(team, query, members_key, updated_acc, next_cursor)
+        else
+          {:ok,
+           %{
+             projects: updated_acc.projects,
+             workflow_states: updated_acc.states || [],
+             members: finalize_members(updated_acc.members, members_key)
+           }}
+        end
+
+      other ->
+        other
     end
   end
+
+  defp append_team_page(team_data, acc, members_key) do
+    projects = get_in(team_data, ["projects", "nodes"]) || []
+    workflow_states = get_in(team_data, ["states", "nodes"]) || []
+    members = collect_members(team_data, members_key)
+
+    acc
+    |> Map.update!(:projects, &(&1 ++ projects))
+    |> Map.update(:states, workflow_states, fn existing -> existing || workflow_states end)
+    |> Map.update(:members, members, fn
+      nil -> nil
+      list -> list ++ members
+    end)
+  end
+
+  defp collect_members(_team_data, :none), do: []
+
+  defp collect_members(team_data, :team_memberships) do
+    team_data
+    |> get_in(["teamMemberships", "nodes"])
+    |> List.wrap()
+    |> Enum.map(&Map.get(&1, "user"))
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp collect_members(team_data, :members) do
+    team_data
+    |> get_in(["members", "nodes"])
+    |> List.wrap()
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp next_page_cursor(team_data) do
+    case get_in(team_data, ["projects", "pageInfo"]) do
+      %{"hasNextPage" => true, "endCursor" => cursor} -> cursor
+      _ -> nil
+    end
+  end
+
+  defp finalize_members(nil, _), do: nil
+  defp finalize_members(list, _), do: list
+
+  defp fallback_error?(_, _, :none), do: false
+
+  defp fallback_error?(status, body, members_key) do
+    status in [nil, 400, 403] and missing_field_error?(body, members_field_name(members_key))
+  end
+
+  defp members_field_name(:team_memberships), do: "teamMemberships"
+  defp members_field_name(:members), do: "members"
+  defp members_field_name(_), do: nil
+
+  defp missing_field_error?(%{"errors" => errors}, field)
+       when is_list(errors) and is_binary(field) do
+    Enum.any?(errors, fn error ->
+      message =
+        error
+        |> Map.get("message") || get_in(error, ["extensions", "message"]) ||
+          get_in(error, [:message])
+
+      is_binary(message) and
+        String.contains?(String.downcase(message), String.downcase(field))
+    end)
+  end
+
+  defp missing_field_error?(_, _), do: false
 
   defp maybe_put_after(vars, nil), do: vars
   defp maybe_put_after(vars, cursor), do: Map.put(vars, "after", cursor)
-
-  defp handle_team_projects_page(nil, acc), do: {:halt, acc}
-
-  defp handle_team_projects_page(team_data, acc) do
-    projects = get_in(team_data, ["projects", "nodes"]) || []
-    page_info = get_in(team_data, ["projects", "pageInfo"]) || %{}
-    workflow_states = get_in(team_data, ["states", "nodes"]) || []
-
-    next_acc =
-      acc
-      |> Map.update!(:projects, &(&1 ++ projects))
-      |> Map.update(:states, workflow_states, fn existing -> existing || workflow_states end)
-
-    if Map.get(page_info, "hasNextPage") do
-      {:cont, next_acc, Map.get(page_info, "endCursor")}
-    else
-      {:halt, next_acc}
-    end
-  end
 
   defp upsert_from_linear_nodes(teams) do
     clients = Clients.list_clients()
@@ -366,6 +524,121 @@ defmodule DashboardSSD.Projects do
 
     :ok
   end
+
+  defp sync_team_members(_team_id, nil), do: :ok
+
+  defp sync_team_members(team_id, members) when is_list(members) do
+    case normalize_team_id(team_id) do
+      nil -> :ok
+      "" -> :ok
+      normalized -> persist_team_members(normalized, members)
+    end
+  end
+
+  defp normalize_team_id(nil), do: nil
+  defp normalize_team_id(team_id) when is_binary(team_id), do: String.trim(team_id)
+  defp normalize_team_id(team_id), do: team_id |> to_string() |> String.trim()
+
+  defp persist_team_members(team_id, members) do
+    normalized =
+      members
+      |> Enum.map(&normalize_team_member/1)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq_by(& &1.linear_user_id)
+
+    case normalized do
+      [] ->
+        :ok
+
+      _ ->
+        now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+        entries =
+          Enum.map(normalized, fn member ->
+            %{
+              id: Ecto.UUID.generate(),
+              linear_team_id: team_id,
+              linear_user_id: member.linear_user_id,
+              name: member.name,
+              display_name: member.display_name,
+              email: member.email,
+              avatar_url: member.avatar_url,
+              inserted_at: now,
+              updated_at: now
+            }
+          end)
+
+        Repo.insert_all(
+          LinearTeamMember,
+          entries,
+          on_conflict:
+            {:replace, [:linear_team_id, :name, :display_name, :email, :avatar_url, :updated_at]},
+          conflict_target: [:linear_team_id, :linear_user_id]
+        )
+
+        user_ids = Enum.map(normalized, & &1.linear_user_id)
+
+        from(m in LinearTeamMember,
+          where: m.linear_team_id == ^team_id and m.linear_user_id not in ^user_ids
+        )
+        |> Repo.delete_all()
+
+        :ok
+    end
+  end
+
+  @doc """
+  Returns Linear team members grouped by `linear_team_id` for the provided IDs.
+  """
+  @spec team_members_by_team_ids([String.t()]) :: %{
+          optional(String.t()) => [LinearTeamMember.t()]
+        }
+  def team_members_by_team_ids([]), do: %{}
+  def team_members_by_team_ids(nil), do: %{}
+
+  def team_members_by_team_ids(team_ids) when is_list(team_ids) do
+    from(m in LinearTeamMember, where: m.linear_team_id in ^team_ids)
+    |> Repo.all()
+    |> Enum.group_by(& &1.linear_team_id)
+  end
+
+  defp normalize_team_member(nil), do: nil
+  defp normalize_team_member(%{"user" => user}) when is_map(user), do: normalize_team_member(user)
+  defp normalize_team_member(%{user: user}) when is_map(user), do: normalize_team_member(user)
+
+  defp normalize_team_member(%{"id" => id} = member) when is_binary(id) do
+    %{
+      linear_user_id: id,
+      name: Map.get(member, "name"),
+      display_name: Map.get(member, "displayName"),
+      email: Map.get(member, "email"),
+      avatar_url: Map.get(member, "avatarUrl")
+    }
+  end
+
+  defp normalize_team_member(%{"id" => id} = member) when not is_nil(id) do
+    normalize_team_member(Map.put(member, "id", to_string(id)))
+  end
+
+  defp normalize_team_member(%{id: id} = member) when is_binary(id) do
+    %{
+      linear_user_id: id,
+      name: Map.get(member, :name) || Map.get(member, "name"),
+      display_name:
+        Map.get(member, :display_name) || Map.get(member, "display_name") ||
+          Map.get(member, "displayName"),
+      email: Map.get(member, :email) || Map.get(member, "email"),
+      avatar_url:
+        Map.get(member, :avatar_url) || Map.get(member, "avatar_url") ||
+          Map.get(member, "avatarUrl")
+    }
+  end
+
+  defp normalize_team_member(%{id: id} = member) when not is_nil(id) do
+    normalize_team_member(Map.put(member, :id, to_string(id)))
+  end
+
+  defp normalize_team_member(_), do: nil
 
   @doc """
   Returns a map of workflow state metadata for the given Linear team.

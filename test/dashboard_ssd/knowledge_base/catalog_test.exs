@@ -600,6 +600,107 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       assert collection.metadata[:properties] == %{"Name" => %{"type" => "title"}}
     end
 
+    test "auto page collection aggregates and caches pages" do
+      Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
+
+      Cache.reset()
+      Notion.reset_circuits()
+
+      page = %{
+        "id" => "page-auto",
+        "url" => "https://notion.so/page-auto",
+        "created_time" => "2024-05-01T09:00:00Z",
+        "last_edited_time" => "2024-05-05T12:00:00Z",
+        "parent" => %{"type" => "workspace"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Auto Page"}]}
+        }
+      }
+
+      NotionMock
+      |> expect(:search, 1, fn "token", "", opts ->
+        body = Keyword.fetch!(opts, :body)
+        assert body[:page_size] == 50
+        {:ok, %{"results" => [page], "has_more" => false, "next_cursor" => nil}}
+      end)
+
+      assert {:ok, %{documents: [doc], errors: []}} = Catalog.list_documents("kb:auto:pages")
+      assert doc.id == "page-auto"
+      assert doc.collection_id == "kb:auto:pages"
+      assert doc.title == "Auto Page"
+
+      # Second call should reuse cached data and avoid extra search calls.
+      assert {:ok, %{documents: [cached_doc], errors: []}} =
+               Catalog.list_documents("kb:auto:pages")
+
+      assert cached_doc.id == "page-auto"
+    end
+
+    test "auto page collection respects include and exclude filters" do
+      Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
+
+      Cache.reset()
+      Notion.reset_circuits()
+
+      direct_match_page = %{
+        "id" => "page-direct",
+        "last_edited_time" => "2024-05-05T10:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-other"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Direct"}]}
+        }
+      }
+
+      parent_match_page = %{
+        "id" => "page-parent",
+        "last_edited_time" => "2024-05-06T09:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-include"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Parent Match"}]}
+        }
+      }
+
+      excluded_page = %{
+        "id" => "page-exclude",
+        "last_edited_time" => "2024-05-06T10:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-exclude"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Exclude Me"}]}
+        }
+      }
+
+      empty_id_page = %{
+        "id" => "",
+        "last_edited_time" => "2024-05-07T08:00:00Z",
+        "parent" => %{"type" => "workspace"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Empty"}]}
+        }
+      }
+
+      NotionMock
+      |> expect(:search, 1, fn "token", "", opts ->
+        body = Keyword.fetch!(opts, :body)
+        assert body[:page_size] == 50
+
+        {:ok,
+         %{
+           "results" => [direct_match_page, parent_match_page, excluded_page, empty_id_page],
+           "has_more" => false,
+           "next_cursor" => nil
+         }}
+      end)
+
+      assert {:ok, %{documents: docs, errors: []}} =
+               Catalog.list_documents("kb:auto:pages",
+                 cache?: false,
+                 include_ids: ["page-direct", "db-include"],
+                 exclude_ids: ["db-exclude"]
+               )
+
+      assert Enum.map(docs, & &1.id) == ["page-parent", "page-direct"]
+    end
+
     test "handles databases with empty title" do
       Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, auto_discover?: true)
       Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
@@ -3204,6 +3305,68 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
 
     assert {:ok, %{collections: [], errors: [%{reason: :network_timeout}]}} =
              Catalog.list_collections()
+  end
+
+  describe "allowed_document?/1" do
+    setup do
+      Application.delete_env(:dashboard_ssd, DashboardSSD.KnowledgeBase)
+
+      on_exit(fn ->
+        Application.delete_env(:dashboard_ssd, DashboardSSD.KnowledgeBase)
+      end)
+
+      :ok
+    end
+
+    test "returns true when page has allowed type" do
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
+        document_type_property_names: ["Type"],
+        allowed_document_type_values: ["Guide"],
+        allow_documents_without_type?: false
+      )
+
+      page = %{
+        "properties" => %{
+          "Type" => %{
+            "type" => "multi_select",
+            "multi_select" => [%{"name" => "Guide"}]
+          }
+        }
+      }
+
+      assert Catalog.allowed_document?(page)
+    end
+
+    test "respects allow_documents_without_type? option" do
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
+        document_type_property_names: ["Type"],
+        allowed_document_type_values: ["Guide"],
+        allow_documents_without_type?: false
+      )
+
+      page = %{
+        "properties" => %{
+          "Type" => %{"type" => "multi_select", "multi_select" => []}
+        }
+      }
+
+      refute Catalog.allowed_document?(page)
+    end
+
+    test "skips type filtering for exempt database ids" do
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
+        document_type_property_names: ["Type"],
+        document_type_filter_exempt_ids: ["db-exempt"],
+        allow_documents_without_type?: false
+      )
+
+      page = %{
+        "parent" => %{"type" => "database_id", "database_id" => "db-exempt"},
+        "properties" => %{}
+      }
+
+      assert Catalog.allowed_document?(page)
+    end
   end
 
   defp set_env(key, nil), do: System.delete_env(key)

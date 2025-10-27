@@ -125,6 +125,69 @@ defmodule DashboardSSDWeb.ProjectsLiveLinearTest do
     assert html =~ ~s/data-finished="0"/
   end
 
+  test "reload keeps previous summaries when Linear errors", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "adm-linear4@example.com",
+        name: "A",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    {:ok, c} = Clients.create_client(%{name: "Acme"})
+
+    {:ok, _p} =
+      Projects.create_project(%{
+        name: "Acme Support",
+        client_id: c.id,
+        linear_project_id: "proj-keep",
+        linear_team_id: "team-keep"
+      })
+
+    mode_agent = start_supervised!({Agent, fn -> :success end})
+
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.linear.app/graphql"} ->
+        case Agent.get(mode_agent, & &1) do
+          :success ->
+            %Tesla.Env{
+              status: 200,
+              body: %{
+                "data" => %{
+                  "issues" => %{
+                    "nodes" => [
+                      %{"state" => %{"name" => "Done"}},
+                      %{"state" => %{"name" => "In Progress"}}
+                    ],
+                    "pageInfo" => %{"hasNextPage" => false}
+                  }
+                }
+              }
+            }
+
+          :error ->
+            %Tesla.Env{status: 500, body: %{"errors" => ["oops"]}}
+        end
+    end)
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, view, _html} = live(conn, ~p"/projects")
+
+    send(view.pid, :reload_summaries)
+    html = render(view)
+    assert html =~ ~s/data-total="2"/
+    assert html =~ ~s/data-in-progress="1"/
+    assert html =~ ~s/data-finished="1"/
+
+    Agent.update(mode_agent, fn _ -> :error end)
+
+    view |> element("button", "Reload Tasks") |> render_click()
+    html_after = render(view)
+
+    assert html_after =~ ~s/data-total="2"/
+    assert html_after =~ ~s/data-in-progress="1"/
+    assert html_after =~ ~s/data-finished="1"/
+  end
+
   test "sync button flashes error on failure", %{conn: conn} do
     {:ok, adm} =
       Accounts.create_user(%{
