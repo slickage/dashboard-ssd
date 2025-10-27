@@ -79,6 +79,41 @@ defmodule DashboardSSD.AccountsTest do
     assert identity2.token == "tok-2"
     assert identity2.refresh_token == "ref-2"
   end
+
+  test "upsert_user_with_identity raises when user creation fails validation" do
+    assert_raise ArgumentError, fn ->
+      Accounts.upsert_user_with_identity("google", %{
+        email: nil,
+        name: "Invalid Login Attempt",
+        provider_id: "prov-invalid",
+        token: "token"
+      })
+    end
+  end
+
+  test "upsert_user_with_identity assigns employee role once an admin exists" do
+    Repo.delete_all(DashboardSSD.Accounts.User)
+    Repo.delete_all(DashboardSSD.Accounts.Role)
+
+    _admin =
+      Accounts.upsert_user_with_identity("google", %{
+        email: "admin@example.com",
+        name: "First User",
+        provider_id: "prov-admin",
+        token: "token-admin"
+      })
+
+    second =
+      Accounts.upsert_user_with_identity("google", %{
+        email: "employee@example.com",
+        name: "Second User",
+        provider_id: "prov-employee",
+        token: "token-employee"
+      })
+      |> Repo.preload(:role)
+
+    assert second.role.name == "employee"
+  end
 end
 
 defmodule DashboardSSD.AccountsGetUserTest do

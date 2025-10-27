@@ -20,4 +20,16 @@ defmodule DashboardSSD.ClientsTest do
     # Ensure % does not blow up the query (treated as literal by escape we apply)
     _ = Clients.search_clients("%")
   end
+
+  test "search_clients/1 falls back to all clients when term is not binary" do
+    {:ok, c1} = Clients.create_client(%{name: "Wayne Enterprises"})
+    {:ok, c2} = Clients.create_client(%{name: "Stark Industries"})
+
+    result_names =
+      Clients.search_clients(:all)
+      |> Enum.map(& &1.name)
+      |> Enum.sort()
+
+    assert result_names == Enum.sort([c1.name, c2.name])
+  end
 end
