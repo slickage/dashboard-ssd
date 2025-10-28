@@ -2165,7 +2165,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
         Index.handle_info({:load_document, "page-new", opts}, loading_socket)
 
       assert new_socket.assigns.selected_collection_id == "db-guides"
-      assert Enum.map(new_socket.assigns.documents, & &1.id) == []
+      assert Enum.map(new_socket.assigns.documents, & &1.id) == ["page-new"]
       assert new_socket.assigns.selected_document_id == "page-new"
       assert new_socket.assigns.reader_error == nil
     end

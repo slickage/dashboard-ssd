@@ -2,6 +2,8 @@ defmodule DashboardSSDWeb.KbLive.Index do
   @moduledoc "Knowledge base search powered by Notion."
   use DashboardSSDWeb, :live_view
 
+  require Logger
+
   alias DashboardSSD.Auth.Policy
   alias DashboardSSD.Integrations
   alias DashboardSSD.Integrations.Notion
@@ -369,10 +371,39 @@ defmodule DashboardSSDWeb.KbLive.Index do
     end
   end
 
+  @impl true
+  def handle_info({:documents_refreshed, collection_id, documents, errors}, socket) do
+    documents_by_collection =
+      documents_map(socket)
+      |> Map.put(collection_id, documents)
+
+    document_errors =
+      put_document_errors(document_errors_map(socket), collection_id, errors)
+
+    socket =
+      socket
+      |> assign(:documents_by_collection, documents_by_collection)
+      |> assign(:document_errors, document_errors)
+
+    socket =
+      if socket.assigns[:selected_collection_id] == collection_id do
+        assign(socket, :documents, documents)
+      else
+        socket
+      end
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:documents_refresh_failed, collection_id, reason}, socket) do
+    Logger.debug("Document refresh failed for #{collection_id}: #{inspect(reason)}")
+    {:noreply, socket}
+  end
+
   defp update_document_cache_and_view(socket, new_document, document_id) do
     CacheStore.put({:document_detail, document_id}, new_document)
-    # Invalidate collection cache so it fetches fresh data with updated icon
-    CacheStore.delete({:documents, new_document.collection_id})
+    maybe_refresh_collection_async(new_document.collection_id)
     record_document_view(socket.assigns[:current_user], new_document)
     socket
   end
@@ -598,7 +629,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
 
   defp preload_collections([first | _]) do
     collection_id = first.id
-    {documents, document_errors} = load_documents(collection_id)
+    {documents, document_errors} = load_documents(collection_id, cache?: true)
     {selected_document, reader_error, selected_document_id} = preload_first_document(documents)
 
     documents_by_collection =
@@ -622,15 +653,20 @@ defmodule DashboardSSDWeb.KbLive.Index do
         MapSet.new()
       end
 
+    maybe_refresh_collection_async(collection_id)
+
     {collection_id, documents_by_collection, document_errors_map, selected_document,
      selected_document_id, reader_error, expanded}
   end
 
-  defp load_documents(nil), do: {[], []}
+  defp load_documents(collection_id, opts \\ [])
+  defp load_documents(nil, _opts), do: {[], []}
 
-  defp load_documents(collection_id) do
-    # Force fresh data to ensure icons are up-to-date
-    case Catalog.list_documents(collection_id, cache?: false) do
+  defp load_documents(collection_id, opts) do
+    cache? = Keyword.get(opts, :cache?, true)
+    catalog_opts = Keyword.put(opts, :cache?, cache?)
+
+    case Catalog.list_documents(collection_id, catalog_opts) do
       {:ok, %{documents: documents, errors: errors}} -> {documents, errors}
       {:error, reason} -> {[], [%{collection_id: collection_id, reason: reason}]}
     end
@@ -787,21 +823,6 @@ defmodule DashboardSSDWeb.KbLive.Index do
     |> assign(:recent_errors, recent_errors)
     |> assign(:search_feedback, nil)
     |> assign_documents(selected_collection_id)
-    |> reload_documents_for_selected_collection(selected_collection_id)
-  end
-
-  defp reload_documents_for_selected_collection(socket, selected_collection_id) do
-    documents_by_collection = socket.assigns.documents_by_collection
-    {documents, errors} = load_documents(selected_collection_id)
-    updated_documents = Map.put(documents_by_collection, selected_collection_id, documents)
-
-    document_errors =
-      put_document_errors(socket.assigns.document_errors, selected_collection_id, errors)
-
-    socket
-    |> assign(:documents_by_collection, updated_documents)
-    |> assign(:document_errors, document_errors)
-    |> assign(:documents, documents)
   end
 
   defp dedupe_recent_documents(documents) when is_list(documents) do
@@ -897,6 +918,17 @@ defmodule DashboardSSDWeb.KbLive.Index do
     Catalog.get_document(document_id)
   end
 
+  defp maybe_refresh_collection_async(nil), do: :ok
+
+  defp maybe_refresh_collection_async(collection_id) do
+    if runtime_env() == :test do
+      :ok
+    else
+      parent = self()
+      Task.start(fn -> refresh_collection(collection_id, parent) end)
+    end
+  end
+
   defp check_document_updated(document_id, cached_last_updated) do
     with {:ok, token} <- fetch_notion_token(),
          {:ok, page} <- Notion.retrieve_page(token, document_id) do
@@ -939,6 +971,20 @@ defmodule DashboardSSDWeb.KbLive.Index do
       {:ok, token}
     else
       {:error, {:missing_env, "NOTION_TOKEN"}}
+    end
+  end
+
+  defp runtime_env do
+    Application.get_env(:dashboard_ssd, :env, Application.get_env(:elixir, :config_env, :prod))
+  end
+
+  defp refresh_collection(collection_id, parent) do
+    case Catalog.list_documents(collection_id, cache?: false) do
+      {:ok, %{documents: documents, errors: errors}} ->
+        send(parent, {:documents_refreshed, collection_id, documents, errors})
+
+      {:error, reason} ->
+        send(parent, {:documents_refresh_failed, collection_id, reason})
     end
   end
 

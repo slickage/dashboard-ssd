@@ -701,8 +701,7 @@ defmodule DashboardSSDWeb.CoreComponents do
       <div class="grid w-48 shrink-0 grid-cols-4 gap-2">
         <span class="flex items-center gap-1 text-xs text-theme-muted" title="Total">
           <span
-            class="inline-block h-2.5 w-2.5 rounded-full border border-transparent bg-white dark:border-white/60 dark:bg-transparent"
-            style="border-color: rgba(17, 24, 39, 0.7);"
+            class="inline-block h-2.5 w-2.5 rounded-full border border-zinc-800"
             aria-hidden="true"
           >
           </span>
