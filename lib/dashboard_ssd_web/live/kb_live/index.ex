@@ -3,9 +3,10 @@ defmodule DashboardSSDWeb.KbLive.Index do
   use DashboardSSDWeb, :live_view
 
   alias DashboardSSD.Auth.Policy
+  alias DashboardSSD.Cache
   alias DashboardSSD.Integrations
   alias DashboardSSD.Integrations.Notion
-  alias DashboardSSD.KnowledgeBase.{Activity, Cache, Catalog, Types}
+  alias DashboardSSD.KnowledgeBase.{Activity, Catalog, Types}
 
   import DashboardSSDWeb.KbComponents
 

@@ -44,7 +44,7 @@
 - **Validation rules**: Limit to last five per user when querying; ensure audit payload includes sanitized title and URL.
 
 ## Caching & Synchronization
-- Collections and documents are cached in ETS under `DashboardSSD.KnowledgeBase.Cache` with a 10-minute TTL and manual busting from LiveView when user requests refresh.
+- Collections and documents are cached in ETS under `DashboardSSD.Cache` with a 10-minute TTL and manual busting from LiveView when user requests refresh.
 - Rendered block payloads cached separately to avoid repeated Notion calls when switching documents.
 - Audit inserts occur asynchronously via Task supervisor to avoid blocking LiveView render.
 

@@ -4,8 +4,9 @@ defmodule DashboardSSDWeb.KbLiveTest do
   import Mox
 
   alias DashboardSSD.Accounts
+  alias DashboardSSD.Cache
   alias DashboardSSD.Integrations.{Notion, NotionMock}
-  alias DashboardSSD.KnowledgeBase.{Activity, Cache, Types}
+  alias DashboardSSD.KnowledgeBase.{Activity, Types}
   alias DashboardSSDWeb.KbLive.Index
 
   setup :verify_on_exit!

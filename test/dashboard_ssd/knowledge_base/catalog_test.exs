@@ -3,8 +3,9 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
 
   import Mox
 
+  alias DashboardSSD.Cache
   alias DashboardSSD.Integrations.{Notion, NotionMock}
-  alias DashboardSSD.KnowledgeBase.{Cache, Catalog, Types}
+  alias DashboardSSD.KnowledgeBase.{Catalog, Types}
 
   setup :verify_on_exit!
 

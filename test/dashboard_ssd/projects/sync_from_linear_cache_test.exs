@@ -1,7 +1,7 @@
 defmodule DashboardSSD.Projects.SyncFromLinearCacheTest do
   use DashboardSSD.DataCase, async: false
 
-  alias DashboardSSD.KnowledgeBase.Cache
+  alias DashboardSSD.Cache
   alias DashboardSSD.Projects
   alias DashboardSSD.Projects.LinearSyncCache
 
@@ -173,8 +173,8 @@ defmodule DashboardSSD.Projects.SyncFromLinearCacheTest do
   end
 
   defp start_cache_if_needed do
-    unless Process.whereis(DashboardSSD.KnowledgeBase.Cache) do
-      start_supervised!(DashboardSSD.KnowledgeBase.Cache)
+    unless Process.whereis(DashboardSSD.Cache) do
+      start_supervised!(DashboardSSD.Cache)
     end
   end
 

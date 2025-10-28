@@ -5,7 +5,7 @@ defmodule DashboardSSD.Projects.LinearSyncCache do
   most recent payload and avoid repeatedly hammering the Linear API.
   """
 
-  alias DashboardSSD.KnowledgeBase.Cache
+  alias DashboardSSD.Cache
 
   @namespace :projects_linear_sync
   @cache_key :sync

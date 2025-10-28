@@ -3,8 +3,9 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
   Handles curated collection and document metadata sourced from Notion.
   """
 
+  alias DashboardSSD.Cache
   alias DashboardSSD.Integrations.Notion
-  alias DashboardSSD.KnowledgeBase.{Cache, Types}
+  alias DashboardSSD.KnowledgeBase.Types
 
   @default_ttl :timer.minutes(5)
   @auto_default_page_size 50

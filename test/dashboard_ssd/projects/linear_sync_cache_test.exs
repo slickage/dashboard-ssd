@@ -1,7 +1,7 @@
 defmodule DashboardSSD.Projects.LinearSyncCacheTest do
   use ExUnit.Case, async: false
 
-  alias DashboardSSD.KnowledgeBase.Cache
+  alias DashboardSSD.Cache
   alias DashboardSSD.Projects.LinearSyncCache
 
   setup do
@@ -11,8 +11,8 @@ defmodule DashboardSSD.Projects.LinearSyncCacheTest do
     :ok
   rescue
     RuntimeError ->
-      # DashboardSSD.KnowledgeBase.Cache may not be started in isolated tests.
-      start_supervised!(DashboardSSD.KnowledgeBase.Cache)
+      # DashboardSSD.Cache may not be started in isolated tests.
+      start_supervised!(DashboardSSD.Cache)
       Cache.reset()
       LinearSyncCache.delete()
       :ok
