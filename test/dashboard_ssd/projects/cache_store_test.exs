@@ -1,20 +1,20 @@
-defmodule DashboardSSD.Projects.LinearSyncCacheTest do
+defmodule DashboardSSD.Projects.CacheStoreTest do
   use ExUnit.Case, async: false
 
   alias DashboardSSD.Cache
-  alias DashboardSSD.Projects.LinearSyncCache
+  alias DashboardSSD.Projects.CacheStore
 
   setup do
     # Ensure the cache table exists and starts clean
     Cache.reset()
-    LinearSyncCache.delete()
+    CacheStore.delete()
     :ok
   rescue
     RuntimeError ->
       # DashboardSSD.Cache may not be started in isolated tests.
       start_supervised!(DashboardSSD.Cache)
       Cache.reset()
-      LinearSyncCache.delete()
+      CacheStore.delete()
       :ok
   end
 
@@ -27,15 +27,15 @@ defmodule DashboardSSD.Projects.LinearSyncCacheTest do
       rate_limit_message: nil
     }
 
-    assert :ok = LinearSyncCache.put(entry, :timer.minutes(5))
-    assert {:ok, fetched} = LinearSyncCache.get()
+    assert :ok = CacheStore.put(entry, :timer.minutes(5))
+    assert {:ok, fetched} = CacheStore.get()
     assert fetched.payload == entry.payload
   end
 
   test "delete clears cache entry" do
-    LinearSyncCache.put(%{payload: %{}, synced_at: nil, synced_at_mono: nil}, :timer.minutes(5))
-    assert {:ok, _} = LinearSyncCache.get()
-    assert :ok = LinearSyncCache.delete()
-    assert :miss = LinearSyncCache.get()
+    CacheStore.put(%{payload: %{}, synced_at: nil, synced_at_mono: nil}, :timer.minutes(5))
+    assert {:ok, _} = CacheStore.get()
+    assert :ok = CacheStore.delete()
+    assert :miss = CacheStore.get()
   end
 end

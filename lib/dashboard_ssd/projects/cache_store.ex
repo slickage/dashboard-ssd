@@ -1,8 +1,8 @@
-defmodule DashboardSSD.Projects.LinearSyncCache do
+defmodule DashboardSSD.Projects.CacheStore do
   @moduledoc """
-  Lightweight wrapper around the shared ETS cache for storing results of Linear
-  project syncs. Values are stored with a configurable TTL so we can reuse the
-  most recent payload and avoid repeatedly hammering the Linear API.
+  Projects-specific wrapper around the shared cache. Encapsulates the namespace,
+  TTLs, and payload shape used for Linear sync results so the rest of the
+  context stays lean.
   """
 
   alias DashboardSSD.Cache

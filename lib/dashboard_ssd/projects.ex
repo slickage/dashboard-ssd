@@ -6,7 +6,7 @@ defmodule DashboardSSD.Projects do
   alias DashboardSSD.Clients
   alias DashboardSSD.Integrations
   alias DashboardSSD.Integrations.LinearUtils
-  alias DashboardSSD.Projects.{LinearSyncCache, LinearTeamMember, LinearWorkflowState, Project}
+  alias DashboardSSD.Projects.{CacheStore, LinearTeamMember, LinearWorkflowState, Project}
   alias DashboardSSD.Repo
 
   @doc """
@@ -310,7 +310,7 @@ defmodule DashboardSSD.Projects do
   end
 
   defp current_cache_entry do
-    case LinearSyncCache.get() do
+    case CacheStore.get() do
       {:ok, entry} -> entry
       :miss -> nil
     end
@@ -372,7 +372,7 @@ defmodule DashboardSSD.Projects do
       summaries: normalized_payload.summaries
     }
 
-    LinearSyncCache.put(entry, @sync_cache_entry_ttl_ms)
+    CacheStore.put(entry, @sync_cache_entry_ttl_ms)
 
     {:ok,
      Map.merge(normalized_payload, %{
@@ -387,7 +387,7 @@ defmodule DashboardSSD.Projects do
     entry =
       build_rate_limited_entry(cache_entry, message, now_mono + @sync_cache_backoff_ms)
 
-    LinearSyncCache.put(entry, @sync_cache_entry_ttl_ms)
+    CacheStore.put(entry, @sync_cache_entry_ttl_ms)
 
     case entry.payload do
       nil -> {:error, {:rate_limited, message}}

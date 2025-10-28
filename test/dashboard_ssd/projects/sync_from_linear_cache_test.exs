@@ -3,7 +3,7 @@ defmodule DashboardSSD.Projects.SyncFromLinearCacheTest do
 
   alias DashboardSSD.Cache
   alias DashboardSSD.Projects
-  alias DashboardSSD.Projects.LinearSyncCache
+  alias DashboardSSD.Projects.CacheStore
 
   setup do
     prev_env = Application.get_env(:dashboard_ssd, :env)
@@ -13,11 +13,11 @@ defmodule DashboardSSD.Projects.SyncFromLinearCacheTest do
 
     start_cache_if_needed()
     Cache.reset()
-    LinearSyncCache.delete()
+    CacheStore.delete()
 
     on_exit(fn ->
       Cache.reset()
-      LinearSyncCache.delete()
+      CacheStore.delete()
 
       if prev_env do
         Application.put_env(:dashboard_ssd, :env, prev_env)
@@ -44,7 +44,7 @@ defmodule DashboardSSD.Projects.SyncFromLinearCacheTest do
       rate_limit_message: nil
     }
 
-    :ok = LinearSyncCache.put(entry, :timer.minutes(30))
+    :ok = CacheStore.put(entry, :timer.minutes(30))
 
     assert {:ok, payload} = Projects.sync_from_linear()
     assert payload.inserted == entry.payload.inserted
@@ -65,7 +65,7 @@ defmodule DashboardSSD.Projects.SyncFromLinearCacheTest do
       rate_limit_message: "Try again later"
     }
 
-    :ok = LinearSyncCache.put(entry, :timer.minutes(30))
+    :ok = CacheStore.put(entry, :timer.minutes(30))
 
     assert {:ok, payload} = Projects.sync_from_linear(force: true)
     assert payload.inserted == entry.payload.inserted
@@ -80,7 +80,7 @@ defmodule DashboardSSD.Projects.SyncFromLinearCacheTest do
     Application.put_env(:dashboard_ssd, :integrations, linear_token: "tok")
     mock_linear_simple()
 
-    LinearSyncCache.delete()
+    CacheStore.delete()
 
     assert {:ok, payload} = Projects.sync_from_linear(force: true)
     assert payload.inserted >= 1
@@ -116,7 +116,7 @@ defmodule DashboardSSD.Projects.SyncFromLinearCacheTest do
         }
     end)
 
-    LinearSyncCache.delete()
+    CacheStore.delete()
 
     assert {:error, {:rate_limited, "Rate limit hit"}} = Projects.sync_from_linear(force: true)
   end
@@ -125,7 +125,7 @@ defmodule DashboardSSD.Projects.SyncFromLinearCacheTest do
     Application.put_env(:dashboard_ssd, :integrations, linear_token: "tok")
     mock_linear_simple()
 
-    LinearSyncCache.delete()
+    CacheStore.delete()
 
     assert {:ok, payload} = Projects.sync_from_linear(force: true)
     assert map_size(payload[:summaries]) > 0
@@ -164,7 +164,7 @@ defmodule DashboardSSD.Projects.SyncFromLinearCacheTest do
       rate_limit_message: nil
     }
 
-    :ok = LinearSyncCache.put(entry, :timer.minutes(30))
+    :ok = CacheStore.put(entry, :timer.minutes(30))
 
     assert {:ok, payload} = Projects.sync_from_linear()
     assert payload.inserted == 0
