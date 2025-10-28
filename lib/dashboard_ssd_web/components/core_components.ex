@@ -701,13 +701,14 @@ defmodule DashboardSSDWeb.CoreComponents do
       <div class="grid w-48 shrink-0 grid-cols-4 gap-2">
         <span class="flex items-center gap-1 text-xs text-theme-muted" title="Total">
           <span
-            class="inline-block h-2.5 w-2.5 rounded-full border border-white/60 bg-transparent"
+            class="inline-block h-2.5 w-2.5 rounded-full border border-transparent bg-white dark:border-white/60 dark:bg-transparent"
+            style="border-color: rgba(17, 24, 39, 0.7);"
             aria-hidden="true"
           >
           </span>
-          <span class="tabular-nums text-white">{@total}</span>
+          <span class="tabular-nums text-theme-text">{@total}</span>
         </span>
-        <span class="flex items-center gap-1 text-xs text-zinc-200" title="Todo">
+        <span class="flex items-center gap-1 text-xs text-theme-text-muted" title="Todo">
           <span class="inline-block h-2.5 w-2.5 rounded-full bg-zinc-400/80" aria-hidden="true">
           </span>
           <span class="tabular-nums">{@todo}</span>
