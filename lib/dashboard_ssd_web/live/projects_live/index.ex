@@ -617,7 +617,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                       phx-click="toggle_team"
                       phx-value-team={group.key}
                       data-team-name={group.name}
-                      class="w-full rounded-lg bg-white/5 px-3 py-2 text-left text-sm text-white transition hover:bg-white/10"
+                      class="w-full rounded-lg bg-white/5 px-3 py-2 text-left text-sm text-theme-text transition hover:bg-white/10"
                     >
                       <div class="flex flex-col gap-1">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -628,10 +628,10 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                                   {if collapsed, do: "[+]", else: "[-]"}
                                 </span>
                                 <span class="flex items-center gap-2">
-                                  <span class="uppercase tracking-[0.18em] text-[10px] text-white/40">
+                                  <span class="uppercase tracking-[0.18em] text-[10px] text-theme-text-muted">
                                     Team
                                   </span>
-                                  <span class="font-semibold text-white">{group.name}</span>
+                                  <span class="font-semibold text-theme-text">{group.name}</span>
                                 </span>
                               </div>
                               <span class="text-xs text-theme-muted sm:hidden">
@@ -639,13 +639,13 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                               </span>
                             </div>
                             <%= if group.members != [] do %>
-                              <div class="flex flex-col gap-1 text-xs text-white/60 sm:flex-row sm:items-center sm:gap-2 sm:border-l sm:border-white/15 sm:pl-3">
-                                <span class="uppercase tracking-[0.18em] text-[10px] text-white/40">
+                              <div class="flex flex-col gap-1 text-xs text-theme-text-muted sm:flex-row sm:items-center sm:gap-2 sm:border-l sm:border-white/15 sm:pl-3">
+                                <span class="uppercase tracking-[0.18em] text-[10px] text-theme-text-muted">
                                   Members
                                 </span>
                                 <span class="flex flex-wrap gap-1">
                                   <%= for member <- group.members do %>
-                                    <span class="rounded-full bg-white/10 px-2 py-0.5 text-white/80">
+                                    <span class="rounded-full bg-white/10 px-2 py-0.5 text-theme-text">
                                       {member}
                                     </span>
                                   <% end %>
