@@ -1,19 +1,18 @@
 defmodule DashboardSSD.Projects.CacheStoreTest do
   use ExUnit.Case, async: false
 
-  alias DashboardSSD.Cache
   alias DashboardSSD.Projects.CacheStore
 
   setup do
     # Ensure the cache table exists and starts clean
-    Cache.reset()
+    CacheStore.reset()
     CacheStore.delete()
     :ok
   rescue
     RuntimeError ->
       # DashboardSSD.Cache may not be started in isolated tests.
       start_supervised!(DashboardSSD.Cache)
-      Cache.reset()
+      CacheStore.reset()
       CacheStore.delete()
       :ok
   end

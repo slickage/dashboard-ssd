@@ -1,7 +1,6 @@
 defmodule DashboardSSD.Projects.SyncFromLinearCacheTest do
   use DashboardSSD.DataCase, async: false
 
-  alias DashboardSSD.Cache
   alias DashboardSSD.Projects
   alias DashboardSSD.Projects.CacheStore
 
@@ -12,11 +11,11 @@ defmodule DashboardSSD.Projects.SyncFromLinearCacheTest do
     Application.put_env(:dashboard_ssd, :env, :dev)
 
     start_cache_if_needed()
-    Cache.reset()
+    CacheStore.reset()
     CacheStore.delete()
 
     on_exit(fn ->
-      Cache.reset()
+      CacheStore.reset()
       CacheStore.delete()
 
       if prev_env do

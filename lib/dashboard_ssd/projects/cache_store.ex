@@ -46,4 +46,12 @@ defmodule DashboardSSD.Projects.CacheStore do
   def delete do
     Cache.delete(@namespace, @cache_key)
   end
+
+  @doc """
+  Clears the underlying cache table. Intended for tests to ensure a clean slate.
+  """
+  @spec reset() :: :ok
+  def reset do
+    Cache.reset()
+  end
 end
