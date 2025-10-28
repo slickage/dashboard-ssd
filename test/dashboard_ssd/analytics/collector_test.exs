@@ -173,7 +173,12 @@ defmodule DashboardSSD.Analytics.CollectorTest do
         provider: "aws_elbv2"
       }
 
-      assert :ok == Collector.collect_project_metrics(setting)
+      log =
+        capture_log(fn ->
+          assert :ok == Collector.collect_project_metrics(setting)
+        end)
+
+      assert log =~ "AWS ELBv2 metrics collection not yet implemented for project"
     end
 
     test "collects http metrics for http provider" do
@@ -193,7 +198,12 @@ defmodule DashboardSSD.Analytics.CollectorTest do
         endpoint_url: url
       }
 
-      assert :ok == Collector.collect_project_metrics(setting)
+      log =
+        capture_log(fn ->
+          assert :ok == Collector.collect_project_metrics(setting)
+        end)
+
+      assert log =~ "No failures found for MTTR calculation in project #{project_id}"
 
       response_time_metric =
         Repo.get_by(MetricSnapshot, project_id: project_id, type: "response_time")
@@ -215,7 +225,12 @@ defmodule DashboardSSD.Analytics.CollectorTest do
         endpoint_url: "http://127.0.0.1:9/"
       }
 
-      assert :ok == Collector.collect_project_metrics(setting)
+      log =
+        capture_log(fn ->
+          assert :ok == Collector.collect_project_metrics(setting)
+        end)
+
+      assert log =~ "No failures found for MTTR calculation in project #{project_id}"
 
       # Check that only uptime metric was created with 0.0
       uptime_metric = Repo.get_by(MetricSnapshot, project_id: project_id, type: "uptime")
