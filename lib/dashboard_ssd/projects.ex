@@ -2,10 +2,11 @@ defmodule DashboardSSD.Projects do
   @moduledoc """
   Projects context: manage projects and queries per client.
   """
-  import Ecto.Query, warn: false
+  import Ecto.Query
   alias DashboardSSD.Clients
   alias DashboardSSD.Integrations
-  alias DashboardSSD.Projects.{LinearTeamMember, LinearWorkflowState, Project}
+  alias DashboardSSD.Integrations.LinearUtils
+  alias DashboardSSD.Projects.{LinearSyncCache, LinearTeamMember, LinearWorkflowState, Project}
   alias DashboardSSD.Repo
 
   @doc """
@@ -74,16 +75,9 @@ defmodule DashboardSSD.Projects do
     Repo.delete(project)
   end
 
-  @doc """
-  Sync projects from Linear into local DB as references.
-
-  Strategy (initial):
-  - Fetch teams and their projects from Linear via GraphQL
-  - Infer client by matching team/project name to existing client names (substring, case-insensitive)
-    If no match, leave client_id nil
-  - Upsert local projects by name and update client assignment when inferred
-  Returns: {:ok, %{inserted: n, updated: m}}
-  """
+  @sync_cache_fresh_ttl_ms :timer.minutes(10)
+  @sync_cache_backoff_ms :timer.minutes(5)
+  @sync_cache_entry_ttl_ms :timer.hours(2)
   @teams_page_size 50
   @projects_page_size 100
 
@@ -170,12 +164,276 @@ defmodule DashboardSSD.Projects do
     {@team_projects_without_members_query, :none}
   ]
 
-  @spec sync_from_linear() :: {:ok, map()} | {:error, term()}
-  def sync_from_linear do
+  @doc """
+  Sync projects from Linear into the local DB with caching.
+
+  In `:test` environment (and only there) this function always performs the full
+  sync and returns the same tuple as the previous implementation:
+
+      {:ok, %{inserted: n, updated: m}} | {:error, reason}
+
+  In other environments the function:
+
+    * Serves cached data when the previous sync is still fresh
+    * Respects a short backoff window after hitting Linear's rate limit
+    * Returns cached data with metadata when fresh results are unavailable
+
+  The returned tuples have the following shape in non-test envs:
+
+      {:ok, %{inserted: n, updated: m}, %{cached: boolean(), synced_at: DateTime.t(), reason: atom() | nil, message: String.t() | nil}}
+
+  Callers may pass `force: true` to bypass the freshness check (useful for
+  manual "Sync now" actions). Backoff is still honoured unless the application
+  environment is `:test`.
+  """
+  @spec sync_from_linear(keyword()) :: {:ok, map()} | {:error, term()}
+  def sync_from_linear(opts \\ []) do
+    env = Application.get_env(:dashboard_ssd, :env, runtime_env())
+
+    force? = Keyword.get(opts, :force, false) == true
+
+    case env do
+      :test -> do_sync_from_linear()
+      _ -> maybe_sync_with_cache(force?)
+    end
+  end
+
+  @spec maybe_sync_with_cache(boolean()) :: {:ok, map()} | {:error, term()}
+  defp maybe_sync_with_cache(force?) do
+    now_mono = System.monotonic_time(:millisecond)
+    now = DateTime.utc_now()
+    cache_entry = current_cache_entry()
+
+    fresh_result =
+      if force? do
+        :no
+      else
+        fresh_cache_decision(cache_entry, now_mono)
+      end
+
+    case fresh_result do
+      {:ok, entry} ->
+        serve_cached_entry(entry, :fresh_cache)
+
+      :no ->
+        case rate_limited_decision(cache_entry, now_mono) do
+          {:ok, entry} -> serve_cached_entry(entry, :rate_limited)
+          :no -> perform_remote_sync(cache_entry, now, now_mono)
+        end
+    end
+  end
+
+  @doc """
+  Performs the Linear sync without any caching. Kept public for callers that
+  specifically need the raw behaviour (e.g. tests).
+
+  Returns: {:ok, %{inserted: n, updated: m}} | {:error, term()}
+  """
+  @spec raw_sync_from_linear() :: {:ok, map()} | {:error, term()}
+  def raw_sync_from_linear do
+    do_sync_from_linear()
+  end
+
+  @doc false
+  defp do_sync_from_linear do
     with {:ok, teams} <- fetch_linear_teams(),
          {:ok, teams_with_projects} <- fetch_projects_for_teams(teams) do
-      {:ok, upsert_from_linear_nodes(teams_with_projects)}
+      result = upsert_from_linear_nodes(teams_with_projects)
+      summaries = generate_linear_summaries()
+
+      {:ok, Map.put(result, :summaries, summaries)}
     end
+  end
+
+  defp generate_linear_summaries do
+    projects = list_projects()
+
+    env = Application.get_env(:dashboard_ssd, :env, runtime_env())
+
+    summaries_enabled_in_test? =
+      Application.get_env(:dashboard_ssd, :linear_summary_in_test?, false)
+
+    cond do
+      env == :test and not summaries_enabled_in_test? ->
+        unavailable_summaries(projects)
+
+      LinearUtils.linear_enabled?() ->
+        build_linear_summaries(projects)
+
+      true ->
+        unavailable_summaries(projects)
+    end
+  end
+
+  defp build_linear_summaries(projects) do
+    state_metadata_map =
+      projects
+      |> Enum.map(& &1.linear_team_id)
+      |> workflow_state_metadata_multi()
+
+    Enum.reduce(projects, %{}, fn project, acc ->
+      key = to_string(project.id)
+
+      summary =
+        LinearUtils.fetch_linear_summary(project,
+          state_metadata: state_metadata_map
+        )
+
+      Map.put(acc, key, summary)
+    end)
+  end
+
+  defp unavailable_summaries(projects) do
+    Enum.reduce(projects, %{}, fn project, acc ->
+      Map.put(acc, to_string(project.id), :unavailable)
+    end)
+  end
+
+  defp ensure_counts(nil), do: %{inserted: 0, updated: 0, summaries: %{}}
+
+  defp ensure_counts(payload) when is_map(payload) do
+    payload
+    |> Map.put_new(:inserted, 0)
+    |> Map.put_new(:updated, 0)
+    |> Map.update(:summaries, %{}, fn
+      nil -> %{}
+      summaries -> summaries
+    end)
+  end
+
+  @spec maybe_use_cached_summaries(map(), map() | nil) :: map()
+  defp maybe_use_cached_summaries(payload, cache_entry) do
+    case summaries_from_payload(payload) || summaries_from_cache(cache_entry) do
+      nil -> payload
+      summaries -> Map.put(payload, :summaries, summaries)
+    end
+  end
+
+  defp current_cache_entry do
+    case LinearSyncCache.get() do
+      {:ok, entry} -> entry
+      :miss -> nil
+    end
+  end
+
+  @spec serve_cached_entry(map(), atom()) :: {:ok, map()}
+  defp serve_cached_entry(%{} = cache_entry, reason) do
+    payload =
+      cache_entry.payload
+      |> ensure_counts()
+      |> maybe_use_cached_summaries(cache_entry)
+
+    {:ok,
+     Map.merge(payload, %{
+       cached?: true,
+       cached_reason: reason,
+       synced_at: cache_entry.synced_at,
+       message: cache_entry.rate_limit_message
+     })}
+  end
+
+  defp perform_remote_sync(cache_entry, now, now_mono) do
+    case do_sync_from_linear() do
+      {:ok, payload} ->
+        handle_sync_success(payload, now, now_mono)
+
+      {:error, {:rate_limited, message}} ->
+        handle_sync_rate_limited(cache_entry, message, now_mono)
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp fresh_cache_decision(%{payload: payload, synced_at_mono: sync_mono} = entry, now_mono)
+       when not is_nil(payload) and not is_nil(sync_mono) and
+              now_mono - sync_mono <= @sync_cache_fresh_ttl_ms do
+    {:ok, entry}
+  end
+
+  defp fresh_cache_decision(_, _), do: :no
+
+  defp rate_limited_decision(%{next_allowed_sync_mono: mono, payload: payload} = entry, now_mono)
+       when not is_nil(mono) and not is_nil(payload) and now_mono < mono do
+    {:ok, entry}
+  end
+
+  defp rate_limited_decision(_, _), do: :no
+
+  defp handle_sync_success(payload, now, now_mono) do
+    normalized_payload = ensure_counts(payload)
+
+    entry = %{
+      payload: normalized_payload,
+      synced_at: now,
+      synced_at_mono: now_mono,
+      next_allowed_sync_mono: nil,
+      rate_limit_message: nil,
+      summaries: normalized_payload.summaries
+    }
+
+    LinearSyncCache.put(entry, @sync_cache_entry_ttl_ms)
+
+    {:ok,
+     Map.merge(normalized_payload, %{
+       cached?: false,
+       cached_reason: :fresh,
+       synced_at: now,
+       message: nil
+     })}
+  end
+
+  defp handle_sync_rate_limited(cache_entry, message, now_mono) do
+    entry =
+      build_rate_limited_entry(cache_entry, message, now_mono + @sync_cache_backoff_ms)
+
+    LinearSyncCache.put(entry, @sync_cache_entry_ttl_ms)
+
+    case entry.payload do
+      nil -> {:error, {:rate_limited, message}}
+      _ -> serve_cached_entry(entry, :rate_limited)
+    end
+  end
+
+  defp build_rate_limited_entry(cache_entry, message, next_allowed) do
+    %{
+      payload: cache_entry && cache_entry.payload,
+      synced_at: cache_entry && cache_entry.synced_at,
+      synced_at_mono: cache_entry && cache_entry.synced_at_mono,
+      next_allowed_sync_mono: next_allowed,
+      rate_limit_message: message,
+      summaries: cache_entry && cache_entry.summaries
+    }
+  end
+
+  defp summaries_from_payload(payload) do
+    payload
+    |> extract_summaries(:summaries)
+    |> presence_or_else(fn ->
+      extract_summaries(payload, "summaries")
+    end)
+  end
+
+  defp summaries_from_cache(%{} = cache_entry) do
+    cache_entry
+    |> extract_summaries(:summaries)
+    |> presence_or_else(fn ->
+      extract_summaries(cache_entry, "summaries")
+    end)
+  end
+
+  defp extract_summaries(map, key) do
+    case Map.get(map, key) do
+      value when is_map(value) and map_size(value) > 0 -> value
+      _ -> nil
+    end
+  end
+
+  defp presence_or_else(nil, fallback), do: fallback.()
+  defp presence_or_else(value, _), do: value
+
+  defp runtime_env do
+    Application.get_env(:elixir, :config_env, :prod)
   end
 
   defp fetch_linear_teams(acc \\ [], cursor \\ nil) do
@@ -461,10 +719,10 @@ defmodule DashboardSSD.Projects do
   defp collect_project_update(_project, {_key, nil}, acc), do: acc
 
   defp collect_project_update(project, {:client_id, value}, acc) do
-    cond do
-      is_nil(project.client_id) and project.client_id != value -> Map.put(acc, :client_id, value)
-      is_nil(project.client_id) and project.client_id == value -> acc
-      true -> acc
+    if is_nil(project.client_id) and not is_nil(value) do
+      Map.put(acc, :client_id, value)
+    else
+      acc
     end
   end
 
@@ -647,9 +905,30 @@ defmodule DashboardSSD.Projects do
   def workflow_state_metadata(nil), do: %{}
 
   def workflow_state_metadata(team_id) do
-    from(s in LinearWorkflowState, where: s.linear_team_id == ^team_id)
+    workflow_state_metadata_multi([team_id]) |> Map.get(team_id, %{})
+  end
+
+  @doc false
+  @spec workflow_state_metadata_multi([String.t() | nil]) :: map()
+  def workflow_state_metadata_multi(team_ids) do
+    team_ids
+    |> Enum.filter(&is_binary/1)
+    |> Enum.reject(&(&1 == ""))
+    |> case do
+      [] -> %{}
+      ids -> build_workflow_state_map(ids)
+    end
+  end
+
+  defp build_workflow_state_map(team_ids) do
+    from(s in LinearWorkflowState, where: s.linear_team_id in ^team_ids)
     |> Repo.all()
-    |> Enum.reduce(%{}, fn state, acc ->
+    |> Enum.group_by(& &1.linear_team_id, fn state -> state end)
+    |> Enum.into(%{}, fn {team_id, states} -> {team_id, build_state_entries(states)} end)
+  end
+
+  defp build_state_entries(states) do
+    Enum.reduce(states, %{}, fn state, acc ->
       Map.put(acc, state.linear_state_id, %{
         type: state.type,
         name: state.name,

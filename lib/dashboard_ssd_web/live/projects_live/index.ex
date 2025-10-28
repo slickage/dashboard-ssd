@@ -31,6 +31,9 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         |> assign(:mobile_menu_open, false)
         |> assign(:collapsed_teams, MapSet.new())
         |> assign(:team_members, %{})
+        |> assign(:last_linear_sync_at, nil)
+        |> assign(:last_linear_sync_reason, nil)
+        |> assign(:summaries_cached, %{})
 
       if auto_sync?, do: send(self(), :sync_from_linear)
 
@@ -63,28 +66,20 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
   @impl true
   def handle_info(:reload_summaries, socket) do
     Logger.info("Reloading Linear task summaries for #{length(socket.assigns.projects)} projects")
-    summaries = summarize_projects(socket.assigns.projects, socket.assigns.summaries || %{})
-    {:noreply, assign(socket, :summaries, summaries)}
+    result = Projects.sync_from_linear()
+
+    {socket, _status} =
+      handle_sync_result(socket, result, context: :auto, show_flash?: false)
+
+    {:noreply, socket}
   end
 
   @impl true
   def handle_info(:sync_from_linear, socket) do
-    socket =
-      if socket.assigns.linear_enabled do
-        Logger.info("Auto-syncing projects from Linear on mount")
+    result = Projects.sync_from_linear()
 
-        case Projects.sync_from_linear() do
-          {:ok, %{inserted: inserted, updated: updated}} ->
-            Logger.info("Linear sync complete (inserted=#{inserted}, updated=#{updated})")
-            refresh(socket)
-
-          {:error, reason} ->
-            Logger.warning("Linear sync failed on mount: #{inspect(reason)}")
-            socket
-        end
-      else
-        socket
-      end
+    {socket, _status} =
+      handle_sync_result(socket, result, context: :auto, show_flash?: false)
 
     {:noreply, socket}
   end
@@ -148,8 +143,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         |> assign(:team_members, load_team_members(projects))
 
       if socket.assigns.linear_enabled do
-        pid = self()
-        spawn_reload_task(pid)
+        schedule_summary_reload(self())
       end
 
       {:noreply, socket}
@@ -180,9 +174,8 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         |> assign(:team_members, load_team_members(projects))
 
       if socket.assigns.linear_enabled do
-        Logger.info("Linear enabled, spawning reload task")
-        pid = self()
-        spawn_reload_task(pid)
+        Logger.info("Linear enabled, scheduling summary reload")
+        schedule_summary_reload(self())
       else
         Logger.info("Linear not enabled")
       end
@@ -202,24 +195,6 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
       nil -> Projects.list_projects()
       "" -> Projects.list_projects()
       id -> Projects.list_projects_by_client(String.to_integer(id))
-    end
-  end
-
-  defp summarize_projects(projects, existing_summaries) do
-    if LinearUtils.linear_enabled?() do
-      Enum.reduce(projects, %{}, fn project, acc ->
-        key = to_string(project.id)
-        Map.put(acc, key, project_summary(project, existing_summaries, key))
-      end)
-    else
-      existing_summaries
-    end
-  end
-
-  defp project_summary(project, existing_summaries, key) do
-    case LinearUtils.fetch_linear_summary(project) do
-      :unavailable -> Map.get(existing_summaries, key, :unavailable)
-      other -> other
     end
   end
 
@@ -374,28 +349,127 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
     |> Enum.into(%{})
   end
 
-  defp spawn_reload_task(pid) do
-    spawn(fn ->
-      Logger.info("Reload task sleeping 500ms")
-      Process.sleep(500)
-      Logger.info("Sending :reload_summaries message")
-      send(pid, :reload_summaries)
+  defp handle_sync_result(socket, result, opts) do
+    context = Keyword.get(opts, :context, :manual)
+    show_flash? = Keyword.get(opts, :show_flash?, false)
+
+    do_handle_sync_result(socket, result, context, show_flash?)
+  end
+
+  defp normalize_sync_info(info) do
+    info
+    |> Map.put_new(:cached?, false)
+    |> Map.put_new(:cached_reason, :fresh)
+    |> Map.put_new(:synced_at, DateTime.utc_now())
+    |> Map.put_new(:message, nil)
+    |> Map.update(:summaries, %{}, fn
+      nil -> %{}
+      summaries -> summaries
     end)
   end
+
+  defp do_handle_sync_result(socket, {:ok, info}, _context, show_flash?) do
+    info = normalize_sync_info(info)
+
+    socket =
+      socket
+      |> maybe_refresh_projects(info)
+      |> assign(:summaries, info.summaries || socket.assigns.summaries || %{})
+      |> assign(:summaries_cached, info.summaries || socket.assigns.summaries_cached || %{})
+      |> maybe_put_sync_flash(info, show_flash?)
+
+    {socket, :ok}
+  end
+
+  defp do_handle_sync_result(socket, {:error, {:rate_limited, message}}, context, show_flash?) do
+    Logger.warning("Linear sync rate limited#{context_suffix(context)}: #{message}")
+
+    socket = maybe_put_rate_limit_flash(socket, message, show_flash?)
+    {socket, :error}
+  end
+
+  defp do_handle_sync_result(socket, {:error, reason}, context, show_flash?) do
+    Logger.warning("Linear sync failed#{context_suffix(context)}: #{inspect(reason)}")
+
+    socket = maybe_put_error_flash(socket, reason, show_flash?)
+    {socket, :error}
+  end
+
+  defp maybe_refresh_projects(socket, %{cached?: true} = info) do
+    socket
+    |> assign(:last_linear_sync_at, info.synced_at)
+    |> assign(:last_linear_sync_reason, info.cached_reason)
+  end
+
+  defp maybe_refresh_projects(socket, info) do
+    socket
+    |> refresh()
+    |> assign(:last_linear_sync_at, info.synced_at)
+    |> assign(:last_linear_sync_reason, info.cached_reason)
+  end
+
+  defp format_sync_time(nil), do: "recently"
+
+  defp format_sync_time(%DateTime{} = dt) do
+    Calendar.strftime(dt, "%Y-%m-%d %H:%M UTC")
+  end
+
+  defp format_sync_counts(%{inserted: i, updated: u}) do
+    "(inserted=#{i}, updated=#{u})"
+  end
+
+  defp format_sync_counts(_), do: ""
+
+  defp maybe_put_sync_flash(socket, %{cached_reason: :rate_limited, message: message}, false)
+       when is_binary(message) and message != "" do
+    put_flash(socket, :info, "Linear rate limit: #{message}")
+  end
+
+  defp maybe_put_sync_flash(socket, _info, false), do: socket
+
+  defp maybe_put_sync_flash(socket, %{cached?: true, cached_reason: :fresh_cache} = info, true) do
+    put_flash(
+      socket,
+      :info,
+      "Linear data already up to date (last synced #{format_sync_time(info.synced_at)})."
+    )
+  end
+
+  defp maybe_put_sync_flash(socket, %{cached?: true, cached_reason: :rate_limited} = info, true) do
+    message = info.message || "Temporarily exceeded"
+
+    put_flash(
+      socket,
+      :info,
+      "Linear rate limit: #{message}. Showing cached data from #{format_sync_time(info.synced_at)}."
+    )
+  end
+
+  defp maybe_put_sync_flash(socket, info, true) do
+    put_flash(socket, :info, "Synced from Linear #{format_sync_counts(info)}")
+  end
+
+  defp maybe_put_rate_limit_flash(socket, message, true) do
+    put_flash(socket, :error, "Linear rate limit: #{message}")
+  end
+
+  defp maybe_put_rate_limit_flash(socket, _message, false), do: socket
+
+  defp maybe_put_error_flash(socket, reason, true) do
+    put_flash(socket, :error, "Linear sync failed: #{inspect(reason)}")
+  end
+
+  defp maybe_put_error_flash(socket, _reason, false), do: socket
+
+  defp context_suffix(:auto), do: " during auto-sync"
+  defp context_suffix(_), do: ""
 
   @impl true
   @doc "Handle project events (sync, filter)."
   def handle_event("sync", _params, socket) do
-    case Projects.sync_from_linear() do
-      {:ok, %{inserted: i, updated: u}} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Synced from Linear (inserted=#{i}, updated=#{u})")
-         |> refresh()}
-
-      {:error, reason} ->
-        {:noreply, put_flash(socket, :error, "Linear sync failed: #{inspect(reason)}")}
-    end
+    result = Projects.sync_from_linear(force: true)
+    {socket, _status} = handle_sync_result(socket, result, context: :manual, show_flash?: true)
+    {:noreply, socket}
   end
 
   @impl true
@@ -403,20 +477,6 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
     client_id = if client_id in [nil, ""], do: nil, else: client_id
     path = if is_nil(client_id), do: ~p"/projects", else: ~p"/projects?client_id=#{client_id}"
     {:noreply, push_patch(socket, to: path)}
-  end
-
-  @impl true
-  def handle_event("reload_summaries", _params, socket) do
-    Logger.info(
-      "Manually reloading Linear task summaries for #{length(socket.assigns.projects)} projects"
-    )
-
-    summaries = summarize_projects(socket.assigns.projects, socket.assigns.summaries || %{})
-
-    {:noreply,
-     socket
-     |> assign(:summaries, summaries)
-     |> put_flash(:info, "Tasks reloaded successfully")}
   end
 
   @impl true
@@ -460,18 +520,18 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
     socket =
       assign(socket,
         projects: projects,
-        summaries: %{},
+        summaries: socket.assigns.summaries_cached || socket.assigns.summaries || %{},
         health: load_existing_health(projects),
         collapsed_teams: collapsed,
         team_members: load_team_members(projects)
       )
 
-    if socket.assigns.linear_enabled do
-      pid = self()
-      spawn_reload_task(pid)
-    end
-
     socket
+  end
+
+  defp schedule_summary_reload(pid, delay_ms \\ 600)
+       when is_pid(pid) and is_integer(delay_ms) and delay_ms >= 0 do
+    Process.send_after(pid, :reload_summaries, delay_ms)
   end
 
   @impl true
@@ -513,13 +573,6 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                 class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:border-white/20 hover:bg-white/10"
               >
                 Sync from Linear
-              </button>
-              <button
-                type="button"
-                phx-click="reload_summaries"
-                class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:border-white/20 hover:bg-white/10"
-              >
-                Reload Tasks
               </button>
             <% else %>
               <span class="text-xs text-theme-muted">
@@ -567,14 +620,26 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                       class="w-full rounded-lg bg-white/5 px-3 py-2 text-left text-sm text-white transition hover:bg-white/10"
                     >
                       <div class="flex flex-col gap-1">
-                        <div class="flex flex-wrap items-center justify-between gap-3">
-                          <span class="flex items-center gap-3">
-                            <span class="font-mono text-xs text-theme-muted">
-                              {if collapsed, do: "[+]", else: "[-]"}
-                            </span>
-                            <span class="font-semibold text-white">{group.name}</span>
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                            <div class="flex items-start justify-between gap-3 sm:items-center sm:gap-3">
+                              <div class="flex items-center gap-3">
+                                <span class="font-mono text-xs text-theme-muted">
+                                  {if collapsed, do: "[+]", else: "[-]"}
+                                </span>
+                                <span class="flex items-center gap-2">
+                                  <span class="uppercase tracking-[0.18em] text-[10px] text-white/40">
+                                    Team
+                                  </span>
+                                  <span class="font-semibold text-white">{group.name}</span>
+                                </span>
+                              </div>
+                              <span class="text-xs text-theme-muted sm:hidden">
+                                {count} {if count == 1, do: "project", else: "projects"}
+                              </span>
+                            </div>
                             <%= if group.members != [] do %>
-                              <span class="flex items-center gap-2 pl-3 text-xs text-white/60 border-l border-white/15">
+                              <div class="flex flex-col gap-1 text-xs text-white/60 sm:flex-row sm:items-center sm:gap-2 sm:border-l sm:border-white/15 sm:pl-3">
                                 <span class="uppercase tracking-[0.18em] text-[10px] text-white/40">
                                   Members
                                 </span>
@@ -585,10 +650,10 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                                     </span>
                                   <% end %>
                                 </span>
-                              </span>
+                              </div>
                             <% end %>
-                          </span>
-                          <span class="text-xs text-theme-muted">
+                          </div>
+                          <span class="hidden text-xs text-theme-muted sm:block">
                             {count} {if count == 1, do: "project", else: "projects"}
                           </span>
                         </div>

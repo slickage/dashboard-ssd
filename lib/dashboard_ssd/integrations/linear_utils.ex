@@ -187,23 +187,33 @@ defmodule DashboardSSD.Integrations.LinearUtils do
   """
   @spec fetch_linear_summary(map()) ::
           %{total: integer(), in_progress: integer(), finished: integer()} | :unavailable
-  def fetch_linear_summary(project) do
+  def fetch_linear_summary(project, opts \\ []) do
     if Application.get_env(:dashboard_ssd, :env) == :test and
          Application.get_env(:tesla, :adapter) != Tesla.Mock do
       :unavailable
     else
-      do_fetch_linear_summary(project)
+      do_fetch_linear_summary(project, opts)
     end
   end
 
   @doc false
-  @spec do_fetch_linear_summary(map()) ::
+  @spec do_fetch_linear_summary(map(), keyword()) ::
           %{total: integer(), in_progress: integer(), finished: integer()} | :unavailable
-  def do_fetch_linear_summary(project) do
+  def do_fetch_linear_summary(project, opts \\ []) do
+    team_id = linear_team_id(project)
+
     state_metadata =
-      project
-      |> linear_team_id()
-      |> Projects.workflow_state_metadata()
+      cond do
+        is_map(opts[:state_metadata]) and is_binary(team_id) ->
+          map = opts[:state_metadata]
+          Map.get(map, team_id, %{})
+
+        is_binary(team_id) ->
+          Projects.workflow_state_metadata(team_id)
+
+        true ->
+          %{}
+      end
 
     case issues_for_project(project) do
       {:ok, nodes} -> summarize_issue_nodes(nodes, state_metadata)

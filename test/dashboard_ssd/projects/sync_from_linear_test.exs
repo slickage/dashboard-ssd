@@ -562,7 +562,13 @@ defmodule DashboardSSD.Projects.SyncFromLinearTest do
     }
   end
 
-  defp mock_linear(teams, projects_by_team, states_by_team \\ %{}, members_by_team \\ %{}) do
+  defp mock_linear(
+         teams,
+         projects_by_team,
+         states_by_team \\ %{},
+         members_by_team \\ %{},
+         issues_by_project \\ %{}
+       ) do
     Tesla.Mock.mock(fn %{method: :post, url: "https://api.linear.app/graphql"} = env ->
       payload = decode_graphql(env)
       query = payload["query"]
@@ -574,7 +580,8 @@ defmodule DashboardSSD.Projects.SyncFromLinearTest do
         teams,
         projects_by_team,
         states_by_team,
-        members_by_team
+        members_by_team,
+        issues_by_project
       )
     end)
   end
@@ -585,7 +592,8 @@ defmodule DashboardSSD.Projects.SyncFromLinearTest do
          teams,
          projects_by_team,
          states_by_team,
-         members_by_team
+         members_by_team,
+         issues_by_project
        ) do
     cond do
       String.contains?(query, "TeamsPage") ->
@@ -594,6 +602,10 @@ defmodule DashboardSSD.Projects.SyncFromLinearTest do
       String.contains?(query, "TeamProjects") ->
         team_id = variables["teamId"]
         build_team_projects_response(team_id, projects_by_team, states_by_team, members_by_team)
+
+      String.contains?(query, "IssuesByProjectId") ->
+        project_id = variables["projectId"]
+        build_issue_nodes_response(project_id, issues_by_project)
 
       true ->
         flunk("Unexpected GraphQL query: #{query}")
@@ -609,6 +621,22 @@ defmodule DashboardSSD.Projects.SyncFromLinearTest do
         "data" => %{
           "teams" => %{
             "nodes" => team_nodes,
+            "pageInfo" => %{"hasNextPage" => false}
+          }
+        }
+      }
+    }
+  end
+
+  defp build_issue_nodes_response(project_id, issues_by_project) do
+    nodes = Map.get(issues_by_project, project_id, [])
+
+    %Tesla.Env{
+      status: 200,
+      body: %{
+        "data" => %{
+          "issues" => %{
+            "nodes" => nodes,
             "pageInfo" => %{"hasNextPage" => false}
           }
         }
