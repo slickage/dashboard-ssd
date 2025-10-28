@@ -3,13 +3,11 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
   Handles curated collection and document metadata sourced from Notion.
   """
 
-  alias DashboardSSD.Cache
   alias DashboardSSD.Integrations.Notion
-  alias DashboardSSD.KnowledgeBase.Types
+  alias DashboardSSD.KnowledgeBase.{CacheStore, Types}
 
   @default_ttl :timer.minutes(5)
   @auto_default_page_size 50
-  @cache_namespace :collections
   @default_page_collection_id "kb:auto:pages"
   @page_collection_source "search:pages"
   @page_parent_types MapSet.new(["page_id", "workspace", "database_id"])
@@ -64,7 +62,7 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
 
       result =
         if cache? do
-          Cache.fetch(@cache_namespace, cache_key, fetch_fun, ttl: ttl)
+          CacheStore.fetch(cache_key, fetch_fun, ttl: ttl)
         else
           fetch_fun.()
         end
@@ -106,7 +104,7 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
 
       result =
         if cache? do
-          Cache.fetch(@cache_namespace, cache_key, fetch_fun, ttl: ttl)
+          CacheStore.fetch(cache_key, fetch_fun, ttl: ttl)
         else
           fetch_fun.()
         end
@@ -205,8 +203,7 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
       {:auto_discovered, Enum.sort(MapSet.to_list(include_ids)),
        Enum.sort(MapSet.to_list(exclude_ids)), page_size}
 
-    case Cache.fetch(
-           @cache_namespace,
+    case CacheStore.fetch(
            cache_key,
            fn ->
              with {:ok, databases} <- paginate_databases(token, page_size) do
@@ -288,8 +285,7 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
     {cache_key, include_ids, exclude_ids, page_size, ttl, collection_id, name, description} =
       auto_page_cache_inputs(opts)
 
-    case Cache.fetch(
-           @cache_namespace,
+    case CacheStore.fetch(
            cache_key,
            fn ->
              compute_page_collection(
@@ -305,7 +301,7 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
            ttl: ttl
          ) do
       {:ok, %{collection: collection, documents: documents}} ->
-        Cache.put(@cache_namespace, {:documents, collection.id}, documents, ttl)
+        CacheStore.put({:documents, collection.id}, documents, ttl)
         {:ok, %{collections: [collection], errors: []}}
 
       {:error, reason} ->
@@ -356,8 +352,7 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
     {cache_key, include_ids, exclude_ids, page_size, ttl, collection_id, name, description} =
       auto_page_cache_inputs(opts)
 
-    case Cache.fetch(
-           @cache_namespace,
+    case CacheStore.fetch(
            cache_key,
            fn ->
              compute_page_collection(
@@ -373,7 +368,7 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
            ttl: ttl
          ) do
       {:ok, %{documents: documents}} ->
-        Cache.put(@cache_namespace, {:documents, collection_id}, documents, ttl)
+        CacheStore.put({:documents, collection_id}, documents, ttl)
         {:ok, documents}
 
       {:error, reason} ->
@@ -639,7 +634,7 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
     fetch_fun = fn -> fetch_collection_from_notion(meta, token, opts) end
 
     if cache? do
-      Cache.fetch(@cache_namespace, id, fetch_fun, ttl: ttl)
+      CacheStore.fetch(id, fetch_fun, ttl: ttl)
     else
       fetch_fun.()
     end
@@ -1646,10 +1641,10 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
     collection_id = detail.collection_id
     cache_key = {:documents, collection_id}
 
-    case Cache.get(@cache_namespace, cache_key) do
+    case CacheStore.get(cache_key) do
       {:ok, documents} ->
         updated_documents = Enum.map(documents, &update_doc_if_match(&1, detail))
-        Cache.put(@cache_namespace, cache_key, updated_documents, ttl)
+        CacheStore.put(cache_key, updated_documents, ttl)
 
       _ ->
         :ok

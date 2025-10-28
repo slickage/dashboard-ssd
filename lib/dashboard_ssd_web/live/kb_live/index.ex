@@ -3,10 +3,9 @@ defmodule DashboardSSDWeb.KbLive.Index do
   use DashboardSSDWeb, :live_view
 
   alias DashboardSSD.Auth.Policy
-  alias DashboardSSD.Cache
   alias DashboardSSD.Integrations
   alias DashboardSSD.Integrations.Notion
-  alias DashboardSSD.KnowledgeBase.{Activity, Catalog, Types}
+  alias DashboardSSD.KnowledgeBase.{Activity, CacheStore, Catalog, Types}
 
   import DashboardSSDWeb.KbComponents
 
@@ -371,9 +370,9 @@ defmodule DashboardSSDWeb.KbLive.Index do
   end
 
   defp update_document_cache_and_view(socket, new_document, document_id) do
-    Cache.put(:collections, {:document_detail, document_id}, new_document)
+    CacheStore.put({:document_detail, document_id}, new_document)
     # Invalidate collection cache so it fetches fresh data with updated icon
-    Cache.delete(:collections, {:documents, new_document.collection_id})
+    CacheStore.delete({:documents, new_document.collection_id})
     record_document_view(socket.assigns[:current_user], new_document)
     socket
   end
@@ -882,7 +881,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
   defp load_document_detail_with_cache_check(document_id) do
     cache_key = {:document_detail, document_id}
 
-    case Cache.get(:collections, cache_key) do
+    case CacheStore.get(cache_key) do
       {:ok, document} ->
         {:cached, document}
 
