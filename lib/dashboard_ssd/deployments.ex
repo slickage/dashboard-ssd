@@ -236,9 +236,10 @@ defmodule DashboardSSD.Deployments do
         if String.downcase(key) == "location", do: value
       end)
 
-    cond do
-      is_nil(location) -> :no_location
-      true -> build_redirect_url(location, current_url)
+    if is_nil(location) do
+      :no_location
+    else
+      build_redirect_url(location, current_url)
     end
   end
 
