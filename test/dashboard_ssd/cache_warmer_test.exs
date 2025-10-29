@@ -642,8 +642,8 @@ defmodule DashboardSSD.CacheWarmerTest do
     )
 
     refute_receive {:stub, :list_collections}, 20
-   Process.sleep(60)
-   assert_receive {:stub, :list_collections}
+    Process.sleep(60)
+    assert_receive {:stub, :list_collections}
     assert_receive {:stub, :list_documents, "db-stub"}
     assert_receive {:stub, :get_document, "db-stub:doc-1"}
     assert_receive {:projects, :unique_ids}

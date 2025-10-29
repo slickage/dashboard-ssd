@@ -7,6 +7,7 @@ defmodule DashboardSSD.Analytics.CollectorTest do
   alias DashboardSSD.Analytics.Collector
   alias DashboardSSD.Analytics.MetricSnapshot
   alias DashboardSSD.Clients
+  alias DashboardSSD.Deployments
   alias DashboardSSD.Projects
   alias DashboardSSD.Repo
 
@@ -253,6 +254,26 @@ defmodule DashboardSSD.Analytics.CollectorTest do
   describe "collect_all_metrics/0" do
     test "handles empty health check settings" do
       assert :ok == Collector.collect_all_metrics()
+    end
+
+    test "invokes project metric collection for enabled settings" do
+      project_id = project_id()
+
+      {:ok, _} =
+        Deployments.upsert_health_check_setting(project_id, %{
+          enabled: true,
+          provider: "aws_elbv2",
+          aws_region: "us-west-2",
+          aws_target_group_arn: "arn:aws:elasticloadbalancing:region:account:targetgroup/abc"
+        })
+
+      log =
+        capture_log(fn ->
+          assert :ok == Collector.collect_all_metrics()
+        end)
+
+      assert log =~
+               "AWS ELBv2 metrics collection not yet implemented for project #{project_id}"
     end
   end
 

@@ -121,11 +121,16 @@ defmodule DashboardSSD.CacheWarmer do
         notify(state, {:warmed, Enum.map(collections, & &1.id)})
 
       {:error, reason} ->
-        Logger.debug(fn -> "Knowledge base cache warming skipped (collections): #{inspect(reason)}" end)
+        Logger.debug(fn ->
+          "Knowledge base cache warming skipped (collections): #{inspect(reason)}"
+        end)
     end
   rescue
     exception ->
-      Logger.debug(fn -> "Knowledge base cache warming failed: " <> Exception.format(:error, exception, __STACKTRACE__) end)
+      Logger.debug(fn ->
+        "Knowledge base cache warming failed: " <>
+          Exception.format(:error, exception, __STACKTRACE__)
+      end)
   end
 
   defp warm_workflow_states(%{projects: projects}) do
@@ -139,7 +144,10 @@ defmodule DashboardSSD.CacheWarmer do
     end
   rescue
     exception ->
-      Logger.debug(fn -> "Workflow state cache warming failed: " <> Exception.format(:error, exception, __STACKTRACE__) end)
+      Logger.debug(fn ->
+        "Workflow state cache warming failed: " <>
+          Exception.format(:error, exception, __STACKTRACE__)
+      end)
   end
 
   defp warm_linear_summaries(%{projects: projects}) do
@@ -159,7 +167,9 @@ defmodule DashboardSSD.CacheWarmer do
     projects.sync_from_linear()
   rescue
     exception ->
-      Logger.debug(fn -> "Linear summary warm failed: " <> Exception.format(:error, exception, __STACKTRACE__) end)
+      Logger.debug(fn ->
+        "Linear summary warm failed: " <> Exception.format(:error, exception, __STACKTRACE__)
+      end)
 
       {:error, exception}
   end
@@ -188,13 +198,18 @@ defmodule DashboardSSD.CacheWarmer do
         find_first_document_id(documents)
 
       {:error, reason} ->
-        Logger.debug(fn -> "Knowledge base cache warming skipped documents for #{collection_id}: #{inspect(reason)}" end)
+        Logger.debug(fn ->
+          "Knowledge base cache warming skipped documents for #{collection_id}: #{inspect(reason)}"
+        end)
 
         nil
     end
   rescue
     exception ->
-      Logger.debug(fn -> "Knowledge base cache warming failed for collection #{collection_id}: " <> Exception.format(:error, exception, __STACKTRACE__) end)
+      Logger.debug(fn ->
+        "Knowledge base cache warming failed for collection #{collection_id}: " <>
+          Exception.format(:error, exception, __STACKTRACE__)
+      end)
 
       nil
   end
@@ -207,11 +222,16 @@ defmodule DashboardSSD.CacheWarmer do
         :ok
 
       {:error, reason} ->
-        Logger.debug(fn -> "Knowledge base cache warming skipped document #{document_id}: #{inspect(reason)}" end)
+        Logger.debug(fn ->
+          "Knowledge base cache warming skipped document #{document_id}: #{inspect(reason)}"
+        end)
     end
   rescue
     exception ->
-      Logger.debug(fn -> "Knowledge base cache warming failed to fetch document #{document_id}: " <> Exception.format(:error, exception, __STACKTRACE__) end)
+      Logger.debug(fn ->
+        "Knowledge base cache warming failed to fetch document #{document_id}: " <>
+          Exception.format(:error, exception, __STACKTRACE__)
+      end)
 
       :ok
   end
