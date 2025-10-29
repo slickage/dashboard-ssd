@@ -248,3 +248,45 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+  deploy:
+    needs: [build]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.release.outputs.new_release_git_tag }}
+      REPO: ${{ github.repository }}
+    # if there was a new version released
+    # checkout gitops repo
+    # update gitops image
+      # from ghcr.io, using semantic release "new_release_git_tag" tag
+    # push change to gitops repo
+    if: ${{ needs.release.outputs.new_release_published }} == 'true'
+    steps:
+      - name: Checkout GitOps repo
+        id: checkout-gitops
+        uses: actions/checkout@v4
+        with:
+          # (gitops repo)
+          repository: slickage/dashboard_gitops
+          # path to use the repo within this workflow
+          path: dashboard_gitops_path
+          # gitops repo deploy private id_ed25519 key
+          ssh-key: ${{ secrets.GITOPS_DEPLOY_KEY }}
+      - name: Update stable deployment image
+        if: startsWith(${{ env.VERSION }}, 'v') && !contains(${{ env.VERSION }}, '-beta')
+        id: gitops-stable
+        run: |
+          sed -i "s|\(image:\s*ghcr.io/${{ env.REPO }}:\).*|\1${{ env.VERSION }}|" dashboard_gitops_path/apps/dashboard/deployment.yaml
+ghcr.io/${{ github.repository }}
+      # - name: Update beta deployment image
+      #   if: startsWith(${{ env.VERSION }}, 'v') && contains(${{ env.VERSION }}, '-beta')
+      #   id: gitops-beta
+      #   run: |
+      #     sed -i "s|\(image:\s*ghcr.io/${{ env.REPO }}:\).*|\1${{ env.VERSION }}|" dashboard_gitops_path/apps/dashboard/deployment.yaml
+
+      - name: Commit and push
+        run: |
+          cd dashboard_gitops_path
+          git config user.name "GitHub Actions"
+          git config user.email "boka@slickage.com"
+          git commit -am "ci(${{ env.REPO }}): Update image to ${{ env.VERSION }}"
+          git push
