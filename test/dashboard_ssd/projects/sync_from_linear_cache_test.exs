@@ -171,6 +171,100 @@ defmodule DashboardSSD.Projects.SyncFromLinearCacheTest do
     assert payload[:cached?]
   end
 
+  test "cached summaries backfill assigned list when absent" do
+    entry = %{
+      payload: %{
+        "summaries" => %{"42" => %{"total" => 5, "in_progress" => 2, "finished" => 1}}
+      },
+      synced_at: DateTime.utc_now(),
+      synced_at_mono: System.monotonic_time(:millisecond),
+      next_allowed_sync_mono: nil,
+      rate_limit_message: nil
+    }
+
+    :ok = CacheStore.put(entry, :timer.minutes(30))
+
+    assert {:ok, payload} = Projects.sync_from_linear()
+    assert payload[:cached?]
+
+    summary = payload[:summaries]["42"]
+    assert summary[:assigned] == []
+    assert summary["assigned"] == []
+    assert payload["summaries"]["42"]["assigned"] == []
+  end
+
+  test "sync payload includes assigned members" do
+    Application.put_env(:dashboard_ssd, :integrations, linear_token: "tok")
+    mock_linear_with_assignees()
+
+    CacheStore.delete()
+
+    assert {:ok, payload} = Projects.sync_from_linear(force: true)
+    assert payload[:cached_reason] == :fresh
+
+    project_ids =
+      Projects.list_projects()
+      |> Enum.map(&to_string(&1.id))
+
+    assert [project_id] = project_ids
+
+    summary = payload[:summaries][project_id]
+
+    assert [
+             %{id: "user-1", name: "Alice Demo", count: 2},
+             %{id: "user-2", name: "Bob Builder", count: 1}
+           ] = summary[:assigned]
+
+    assert summary["assigned"] == summary[:assigned]
+  end
+
+  test "cached summaries preserve unavailable sentinel" do
+    entry = %{
+      payload: %{"summaries" => %{"99" => :unavailable}},
+      synced_at: DateTime.utc_now(),
+      synced_at_mono: System.monotonic_time(:millisecond),
+      next_allowed_sync_mono: nil,
+      rate_limit_message: nil
+    }
+
+    :ok = CacheStore.put(entry, :timer.minutes(30))
+
+    assert {:ok, payload} = Projects.sync_from_linear()
+    assert payload[:cached?]
+    assert payload[:summaries]["99"] == :unavailable
+  end
+
+  test "cached entry summaries fallback to cache entry map" do
+    now = DateTime.utc_now()
+    now_mono = System.monotonic_time(:millisecond)
+
+    entry = %{
+      payload: %{inserted: 3, updated: 1},
+      synced_at: now,
+      synced_at_mono: now_mono,
+      next_allowed_sync_mono: now_mono,
+      rate_limit_message: nil,
+      summaries: %{
+        "123" => %{
+          total: 3,
+          in_progress: 1,
+          finished: 2,
+          assigned: [%{id: "user-1", name: "Cache User", count: 3}]
+        }
+      }
+    }
+
+    :ok = CacheStore.put(entry, :timer.minutes(30))
+
+    assert {:ok, payload} = Projects.sync_from_linear()
+    assert payload[:cached?]
+    assert payload[:cached_reason] == :fresh_cache
+
+    summary = payload[:summaries]["123"]
+    assert summary[:assigned] == [%{id: "user-1", name: "Cache User", count: 3}]
+    assert summary["assigned"] == [%{id: "user-1", name: "Cache User", count: 3}]
+  end
+
   defp start_cache_if_needed do
     unless Process.whereis(DashboardSSD.Cache) do
       start_supervised!(DashboardSSD.Cache)
@@ -259,6 +353,108 @@ defmodule DashboardSSD.Projects.SyncFromLinearCacheTest do
                         }
                       ]
                     }
+                  }
+                }
+              }
+            }
+
+          true ->
+            flunk("Unexpected Linear query: #{inspect({query, vars})}")
+        end
+    end)
+  end
+
+  defp mock_linear_with_assignees do
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.linear.app/graphql", body: body} ->
+        payload = Jason.decode!(body)
+        query = payload["query"] || ""
+        vars = payload["variables"] || %{}
+
+        cond do
+          String.contains?(query, "TeamsPage") ->
+            %Tesla.Env{
+              status: 200,
+              body: %{
+                "data" => %{
+                  "teams" => %{
+                    "nodes" => [%{"id" => "team-assign", "name" => "Assign Team"}],
+                    "pageInfo" => %{"hasNextPage" => false}
+                  }
+                }
+              }
+            }
+
+          String.contains?(query, "TeamProjects") ->
+            %Tesla.Env{
+              status: 200,
+              body: %{
+                "data" => %{
+                  "team" => %{
+                    "id" => "team-assign",
+                    "name" => "Assign Team",
+                    "projects" => %{
+                      "nodes" => [%{"id" => "proj-assign", "name" => "Assigned Project"}],
+                      "pageInfo" => %{"hasNextPage" => false}
+                    },
+                    "states" => %{
+                      "nodes" => [
+                        %{"id" => "state-done", "name" => "Done", "type" => "completed"},
+                        %{"id" => "state-progress", "name" => "In Progress", "type" => "started"}
+                      ]
+                    },
+                    "teamMemberships" => %{"nodes" => []},
+                    "members" => %{"nodes" => []}
+                  }
+                }
+              }
+            }
+
+          String.contains?(query, "IssuesByProjectId") ->
+            %Tesla.Env{
+              status: 200,
+              body: %{
+                "data" => %{
+                  "issues" => %{
+                    "nodes" => [
+                      %{
+                        "state" => %{
+                          "id" => "state-progress",
+                          "name" => "In Progress",
+                          "type" => "started"
+                        },
+                        "assignee" => %{"id" => "user-1", "displayName" => "Alice Demo"}
+                      },
+                      %{
+                        "state" => %{
+                          "id" => "state-done",
+                          "name" => "Done",
+                          "type" => "completed"
+                        },
+                        "assignee" => %{"id" => "user-1", "displayName" => "Alice Demo"}
+                      },
+                      %{
+                        "state" => %{
+                          "id" => "state-done",
+                          "name" => "Done",
+                          "type" => "completed"
+                        },
+                        "assignee" => %{"id" => "user-2", "displayName" => "Bob Builder"}
+                      }
+                    ],
+                    "pageInfo" => %{"hasNextPage" => false}
+                  }
+                }
+              }
+            }
+
+          String.contains?(query, "IssueSearch") ->
+            %Tesla.Env{
+              status: 200,
+              body: %{
+                "data" => %{
+                  "issueSearch" => %{
+                    "nodes" => []
                   }
                 }
               }

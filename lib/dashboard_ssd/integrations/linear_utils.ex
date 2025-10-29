@@ -14,7 +14,11 @@ defmodule DashboardSSD.Integrations.LinearUtils do
       after: $after
       filter: { project: { id: { eq: $projectId } } }
     ) {
-      nodes { id state { id name type } }
+      nodes {
+        id
+        state { id name type }
+        assignee { id name displayName email }
+      }
       pageInfo { hasNextPage endCursor }
     }
   }
@@ -28,7 +32,11 @@ defmodule DashboardSSD.Integrations.LinearUtils do
     eq_query = """
     query IssuesByProject($name: String!, $first: Int!) {
       issues(first: $first, filter: { project: { name: { eq: $name } } }) {
-        nodes { id state { id name type } }
+        nodes {
+          id
+          state { id name type }
+          assignee { id name displayName email }
+        }
       }
     }
     """
@@ -36,7 +44,11 @@ defmodule DashboardSSD.Integrations.LinearUtils do
     contains_query = """
     query IssuesByProjectContains($name: String!, $first: Int!) {
       issues(first: $first, filter: { project: { name: { contains: $name } } }) {
-        nodes { id state { id name type } }
+        nodes {
+          id
+          state { id name type }
+          assignee { id name displayName email }
+        }
       }
     }
     """
@@ -44,7 +56,11 @@ defmodule DashboardSSD.Integrations.LinearUtils do
     search_query = """
     query IssueSearch($q: String!) {
       issueSearch(query: $q, first: 50) {
-        nodes { id state { id name type } }
+        nodes {
+          id
+          state { id name type }
+          assignee { id name displayName email }
+        }
       }
     }
     """
@@ -78,6 +94,7 @@ defmodule DashboardSSD.Integrations.LinearUtils do
     end
   end
 
+  @spec try_issue_queries([]) :: :empty
   def try_issue_queries([]), do: :empty
 
   @doc """
@@ -133,60 +150,121 @@ defmodule DashboardSSD.Integrations.LinearUtils do
   end
 
   @doc """
-  Summarizes issue nodes into totals broken down by workflow state.
+  Summarizes issue nodes into totals broken down by workflow state and assignee.
   """
   @spec summarize_issue_nodes(list(), map()) :: %{
           total: integer(),
           in_progress: integer(),
-          finished: integer()
+          finished: integer(),
+          assigned: list()
         }
   def summarize_issue_nodes(nodes, state_metadata \\ %{}) when is_list(nodes) do
     total = length(nodes)
-    {in_progress, finished} = summarize_nodes(nodes, state_metadata)
-    %{total: total, in_progress: in_progress, finished: finished}
+    summary = summarize_nodes(nodes, state_metadata)
+
+    assigned =
+      summary.assigned
+      |> Map.values()
+      |> Enum.reject(&is_nil(&1.name))
+      |> Enum.sort_by(fn %{count: count, name: name} ->
+        {-count, String.downcase(name)}
+      end)
+
+    %{
+      total: total,
+      in_progress: summary.in_progress,
+      finished: summary.finished,
+      assigned: assigned
+    }
   end
 
   @doc """
   Reduces issue nodes to the number in progress and completed.
   """
-  @spec summarize_nodes(list(), map()) :: {integer(), integer()}
+  @spec summarize_nodes(list(), map()) :: %{
+          in_progress: integer(),
+          finished: integer(),
+          assigned: map()
+        }
   def summarize_nodes(nodes, state_metadata \\ %{}) do
-    Enum.reduce(nodes, {0, 0}, fn node, {ip, fin} ->
-      state = node["state"] || %{}
-      state_id = state["id"]
-
-      state_type =
-        state["type"] ||
-          get_in(state_metadata, [state_id, :type]) ||
-          get_in(state_metadata, [state_id, "type"])
-
-      case normalize_state_type(state_type) do
-        :completed -> {ip, fin + 1}
-        :canceled -> {ip, fin + 1}
-        :started -> {ip + 1, fin}
-        :backlog -> {ip, fin}
-        _ -> summarize_by_name(state["name"], ip, fin)
-      end
+    Enum.reduce(nodes, %{in_progress: 0, finished: 0, assigned: %{}}, fn node, acc ->
+      acc
+      |> increment_counts(node, state_metadata)
+      |> increment_assignee(node)
     end)
   end
 
-  defp summarize_by_name(nil, ip, fin), do: {ip, fin}
+  defp increment_counts(acc, node, state_metadata) do
+    state = node["state"] || %{}
+    state_id = state["id"]
 
-  defp summarize_by_name(name, ip, fin) do
-    normalized = String.downcase(name)
+    state_type =
+      state["type"] ||
+        get_in(state_metadata, [state_id, :type]) ||
+        get_in(state_metadata, [state_id, "type"])
 
     cond do
-      done_keyword?(normalized) -> {ip, fin + 1}
-      in_progress_keyword?(normalized) -> {ip + 1, fin}
-      true -> {ip, fin}
+      normalize_state_type(state_type) in [:completed, :canceled] ->
+        Map.update!(acc, :finished, &(&1 + 1))
+
+      normalize_state_type(state_type) == :started ->
+        Map.update!(acc, :in_progress, &(&1 + 1))
+
+      true ->
+        summarize_by_name(state["name"], acc)
     end
+  end
+
+  defp summarize_by_name(nil, acc), do: acc
+
+  defp summarize_by_name(name, acc) do
+    normalized = String.downcase(name || "")
+
+    cond do
+      done_keyword?(normalized) -> Map.update!(acc, :finished, &(&1 + 1))
+      in_progress_keyword?(normalized) -> Map.update!(acc, :in_progress, &(&1 + 1))
+      true -> acc
+    end
+  end
+
+  defp increment_assignee(acc, %{"assignee" => %{} = assignee}) do
+    with key when not is_nil(key) <- assignee_key(assignee),
+         assigned <- Map.fetch!(acc, :assigned) do
+      updated = upsert_assignee(assigned, key, assignee["id"], assignee_name(assignee))
+      %{acc | assigned: updated}
+    else
+      _ -> acc
+    end
+  end
+
+  defp increment_assignee(acc, _), do: acc
+
+  defp assignee_key(%{"id" => id}) when is_binary(id), do: id
+  defp assignee_key(%{"email" => email}) when is_binary(email), do: email
+  defp assignee_key(%{"displayName" => name}) when is_binary(name), do: name
+  defp assignee_key(%{"name" => name}) when is_binary(name), do: name
+  defp assignee_key(_), do: nil
+
+  defp assignee_name(%{"displayName" => name}) when is_binary(name), do: name
+  defp assignee_name(%{"name" => name}) when is_binary(name), do: name
+  defp assignee_name(%{"email" => email}) when is_binary(email), do: email
+  defp assignee_name(_), do: nil
+
+  defp upsert_assignee(assigned, key, id, name) do
+    Map.update(assigned, key, %{id: id, name: name, count: 1}, fn current ->
+      %{current | count: current.count + 1}
+    end)
   end
 
   @doc """
   Fetches and summarizes Linear issue counts for a project.
   """
   @spec fetch_linear_summary(map()) ::
-          %{total: integer(), in_progress: integer(), finished: integer()} | :unavailable
+          %{total: integer(), in_progress: integer(), finished: integer(), assigned: list()}
+          | :unavailable
+  @spec fetch_linear_summary(map(), keyword()) ::
+          %{total: integer(), in_progress: integer(), finished: integer(), assigned: list()}
+          | :unavailable
   def fetch_linear_summary(project, opts \\ []) do
     if Application.get_env(:dashboard_ssd, :env) == :test and
          Application.get_env(:tesla, :adapter) != Tesla.Mock do
@@ -198,7 +276,8 @@ defmodule DashboardSSD.Integrations.LinearUtils do
 
   @doc false
   @spec do_fetch_linear_summary(map(), keyword()) ::
-          %{total: integer(), in_progress: integer(), finished: integer()} | :unavailable
+          %{total: integer(), in_progress: integer(), finished: integer(), assigned: list()}
+          | :unavailable
   def do_fetch_linear_summary(project, opts \\ []) do
     team_id = linear_team_id(project)
 
@@ -217,7 +296,7 @@ defmodule DashboardSSD.Integrations.LinearUtils do
 
     case issues_for_project(project) do
       {:ok, nodes} -> summarize_issue_nodes(nodes, state_metadata)
-      :empty -> %{total: 0, in_progress: 0, finished: 0}
+      :empty -> %{total: 0, in_progress: 0, finished: 0, assigned: []}
       _ -> :unavailable
     end
   end

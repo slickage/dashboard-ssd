@@ -227,13 +227,15 @@ defmodule DashboardSSD.Integrations.LinearUtilsTest do
         %{"state" => %{"name" => "Todo"}}
       ]
 
-      assert %{total: 3, in_progress: 1, finished: 1} = LinearUtils.summarize_issue_nodes(nodes)
+      assert %{total: 3, in_progress: 1, finished: 1, assigned: []} =
+               LinearUtils.summarize_issue_nodes(nodes)
     end
 
     test "handles missing state" do
       nodes = [%{"state" => nil}, %{"state" => %{"name" => nil}}]
 
-      assert %{total: 2, in_progress: 0, finished: 0} = LinearUtils.summarize_issue_nodes(nodes)
+      assert %{total: 2, in_progress: 0, finished: 0, assigned: []} =
+               LinearUtils.summarize_issue_nodes(nodes)
     end
 
     test "recognizes various done states" do
@@ -246,7 +248,8 @@ defmodule DashboardSSD.Integrations.LinearUtilsTest do
         %{"state" => %{"name" => "Resolved"}}
       ]
 
-      assert %{total: 6, in_progress: 0, finished: 6} = LinearUtils.summarize_issue_nodes(nodes)
+      assert %{total: 6, in_progress: 0, finished: 6, assigned: []} =
+               LinearUtils.summarize_issue_nodes(nodes)
     end
 
     test "recognizes various in progress states" do
@@ -262,7 +265,8 @@ defmodule DashboardSSD.Integrations.LinearUtilsTest do
         %{"state" => %{"name" => "Verify"}}
       ]
 
-      assert %{total: 9, in_progress: 9, finished: 0} = LinearUtils.summarize_issue_nodes(nodes)
+      assert %{total: 9, in_progress: 9, finished: 0, assigned: []} =
+               LinearUtils.summarize_issue_nodes(nodes)
     end
 
     test "treats canceled workflow type as finished" do
@@ -270,8 +274,43 @@ defmodule DashboardSSD.Integrations.LinearUtilsTest do
         %{"state" => %{"id" => "state-1", "type" => "canceled"}}
       ]
 
-      assert %{total: 1, in_progress: 0, finished: 1} =
+      assert %{total: 1, in_progress: 0, finished: 1, assigned: []} =
                LinearUtils.summarize_issue_nodes(nodes, %{"state-1" => %{type: "canceled"}})
+    end
+
+    test "summarizes assigned members with counts" do
+      nodes = [
+        %{"assignee" => %{"id" => "user-1", "displayName" => "Alice"}},
+        %{"assignee" => %{"id" => "user-1", "displayName" => "Alice"}},
+        %{"assignee" => %{"id" => "user-2", "displayName" => "Bob"}}
+      ]
+
+      assert %{
+               assigned: [
+                 %{id: "user-1", name: "Alice", count: 2},
+                 %{id: "user-2", name: "Bob", count: 1}
+               ]
+             } = LinearUtils.summarize_issue_nodes(nodes)
+    end
+
+    test "falls back to assignee email when id missing" do
+      nodes = [
+        %{"assignee" => %{"email" => "alex@example.com"}}
+      ]
+
+      assert %{
+               assigned: [
+                 %{id: nil, name: "alex@example.com", count: 1}
+               ]
+             } = LinearUtils.summarize_issue_nodes(nodes)
+    end
+
+    test "ignores assignee entries without identifier" do
+      nodes = [
+        %{"assignee" => %{"displayName" => nil}}
+      ]
+
+      assert %{assigned: []} = LinearUtils.summarize_issue_nodes(nodes)
     end
   end
 
@@ -286,7 +325,9 @@ defmodule DashboardSSD.Integrations.LinearUtilsTest do
       end)
 
       project = %{name: "test"}
-      assert %{total: 1, in_progress: 0, finished: 1} = LinearUtils.fetch_linear_summary(project)
+
+      assert %{total: 1, in_progress: 0, finished: 1, assigned: []} =
+               LinearUtils.fetch_linear_summary(project)
     end
 
     test "returns zero counts on empty" do
@@ -296,7 +337,9 @@ defmodule DashboardSSD.Integrations.LinearUtilsTest do
       end)
 
       project = %{name: "test"}
-      assert %{total: 0, in_progress: 0, finished: 0} = LinearUtils.fetch_linear_summary(project)
+
+      assert %{total: 0, in_progress: 0, finished: 0, assigned: []} =
+               LinearUtils.fetch_linear_summary(project)
     end
 
     test "uses workflow metadata when available" do

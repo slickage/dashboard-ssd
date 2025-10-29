@@ -295,17 +295,21 @@ defmodule DashboardSSD.Projects do
     payload
     |> Map.put_new(:inserted, 0)
     |> Map.put_new(:updated, 0)
-    |> Map.update(:summaries, %{}, fn
-      nil -> %{}
-      summaries -> summaries
-    end)
+    |> normalize_summary_payload()
   end
 
   @spec maybe_use_cached_summaries(map(), map() | nil) :: map()
   defp maybe_use_cached_summaries(payload, cache_entry) do
     case summaries_from_payload(payload) || summaries_from_cache(cache_entry) do
-      nil -> payload
-      summaries -> Map.put(payload, :summaries, summaries)
+      nil ->
+        payload
+
+      summaries ->
+        normalized = normalize_summaries(summaries)
+
+        payload
+        |> Map.put(:summaries, normalized)
+        |> maybe_put_string_key("summaries", normalized)
     end
   end
 
@@ -426,6 +430,63 @@ defmodule DashboardSSD.Projects do
     case Map.get(map, key) do
       value when is_map(value) and map_size(value) > 0 -> value
       _ -> nil
+    end
+  end
+
+  defp normalize_summary_payload(payload) do
+    {summaries, payload} = pop_summaries(payload)
+
+    normalized = normalize_summaries(summaries || %{})
+
+    payload
+    |> Map.put(:summaries, normalized)
+    |> maybe_put_string_key("summaries", normalized)
+  end
+
+  defp pop_summaries(payload) do
+    cond do
+      Map.has_key?(payload, :summaries) -> Map.pop(payload, :summaries)
+      Map.has_key?(payload, "summaries") -> Map.pop(payload, "summaries")
+      true -> {nil, payload}
+    end
+  end
+
+  defp normalize_summaries(nil), do: %{}
+
+  defp normalize_summaries(summaries) when is_map(summaries) do
+    summaries
+    |> Enum.map(fn {key, value} -> {key, normalize_summary(value)} end)
+    |> Enum.into(%{})
+  end
+
+  defp normalize_summary(:unavailable), do: :unavailable
+
+  defp normalize_summary(summary) when is_map(summary) do
+    assigned =
+      summary[:assigned] ||
+        summary["assigned"] ||
+        []
+
+    summary
+    |> Map.put(:assigned, assigned)
+    |> maybe_put_string_key("assigned", assigned)
+  end
+
+  defp normalize_summary(other), do: other
+
+  defp maybe_put_string_key(map, key, value) do
+    cond do
+      not is_map(map) ->
+        map
+
+      Map.get(map, key) == value ->
+        map
+
+      Map.has_key?(map, key) ->
+        Map.put(map, key, value)
+
+      true ->
+        Map.put(map, key, value)
     end
   end
 
