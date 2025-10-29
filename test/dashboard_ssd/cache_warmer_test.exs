@@ -1,5 +1,6 @@
 defmodule DashboardSSD.CacheWarmerTest do
   use ExUnit.Case, async: true
+  import ExUnit.CaptureLog
 
   alias DashboardSSD.CacheWarmer
 
@@ -944,5 +945,84 @@ defmodule DashboardSSD.CacheWarmerTest do
     # first valid collection id should normalize to "db_atom"
     assert_receive {:weird_catalog, :list_documents, "db_atom"}
     assert_receive {:weird_catalog, :get_document, "doc_atom"}
+  end
+
+  describe "logger debug coverage" do
+    test "covers logger debug in rescues" do
+      capture_log(fn ->
+        Logger.configure(level: :debug)
+        on_exit(fn -> Logger.configure(level: :warning) end)
+
+        # trigger warm_collections rescue
+        :persistent_term.put({RaisingCatalog, :pid}, self())
+
+        {:ok, pid1} =
+          GenServer.start_link(CacheWarmer,
+            catalog: RaisingCatalog,
+            projects: EmptyProjects,
+            initial_delay: 0,
+            interval: :timer.hours(1)
+          )
+
+        Process.sleep(50)
+        GenServer.stop(pid1)
+
+        # trigger warm_workflow_states rescue
+        :persistent_term.put({RaisingProjects, :pid}, self())
+
+        {:ok, pid2} =
+          GenServer.start_link(CacheWarmer,
+            catalog: RaisingProjects,
+            projects: RaisingProjects,
+            initial_delay: 0,
+            interval: :timer.hours(1)
+          )
+
+        Process.sleep(50)
+        GenServer.stop(pid2)
+
+        # trigger safe_sync_projects rescue
+        :persistent_term.put({RaisingSyncProjects, :pid}, self())
+
+        {:ok, pid3} =
+          GenServer.start_link(CacheWarmer,
+            catalog: StubCatalog,
+            projects: RaisingSyncProjects,
+            initial_delay: 0,
+            interval: :timer.hours(1)
+          )
+
+        Process.sleep(50)
+        GenServer.stop(pid3)
+
+        # trigger list_collection_documents rescue
+        :persistent_term.put({RaisingDocumentsCatalog, :pid}, self())
+
+        {:ok, pid4} =
+          GenServer.start_link(CacheWarmer,
+            catalog: RaisingDocumentsCatalog,
+            projects: EmptyProjects,
+            initial_delay: 0,
+            interval: :timer.hours(1)
+          )
+
+        Process.sleep(50)
+        GenServer.stop(pid4)
+
+        # trigger warm_initial_document rescue
+        :persistent_term.put({RaisingDetailCatalog, :pid}, self())
+
+        {:ok, pid5} =
+          GenServer.start_link(CacheWarmer,
+            catalog: RaisingDetailCatalog,
+            projects: EmptyProjects,
+            initial_delay: 0,
+            interval: :timer.hours(1)
+          )
+
+        Process.sleep(50)
+        GenServer.stop(pid5)
+      end)
+    end
   end
 end

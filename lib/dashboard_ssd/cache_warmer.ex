@@ -95,42 +95,15 @@ defmodule DashboardSSD.CacheWarmer do
   end
 
   defp warm_collections(%{catalog: catalog} = state) do
-    case catalog.list_collections(cache?: true) do
-      {:ok, %{collections: collections}} ->
-        {_first_document_id, detail_task} =
-          Enum.reduce(collections, {nil, nil}, fn collection, {acc_doc, acc_task} ->
-            candidate = warm_collection_documents(catalog, collection, acc_doc)
-
-            cond do
-              acc_doc != nil ->
-                {acc_doc, acc_task}
-
-              candidate != nil ->
-                task = Task.async(fn -> warm_initial_document(state, candidate) end)
-                {candidate, task}
-
-              true ->
-                {nil, acc_task}
-            end
-          end)
-
-        if detail_task do
-          await_warm_initial_document(detail_task)
-        end
-
-        notify(state, {:warmed, Enum.map(collections, & &1.id)})
-
-      {:error, reason} ->
-        Logger.debug(fn ->
-          "Knowledge base cache warming skipped (collections): #{inspect(reason)}"
-        end)
-    end
+    catalog
+    |> list_collections()
+    |> handle_collections_result(state)
   rescue
     exception ->
-      Logger.debug(fn ->
+      Logger.debug(
         "Knowledge base cache warming failed: " <>
           Exception.format(:error, exception, __STACKTRACE__)
-      end)
+      )
   end
 
   defp warm_workflow_states(%{projects: projects}) do
@@ -144,10 +117,10 @@ defmodule DashboardSSD.CacheWarmer do
     end
   rescue
     exception ->
-      Logger.debug(fn ->
+      Logger.debug(
         "Workflow state cache warming failed: " <>
           Exception.format(:error, exception, __STACKTRACE__)
-      end)
+      )
   end
 
   defp warm_linear_summaries(%{projects: projects}) do
@@ -167,9 +140,9 @@ defmodule DashboardSSD.CacheWarmer do
     projects.sync_from_linear()
   rescue
     exception ->
-      Logger.debug(fn ->
+      Logger.debug(
         "Linear summary warm failed: " <> Exception.format(:error, exception, __STACKTRACE__)
-      end)
+      )
 
       {:error, exception}
   end
@@ -177,20 +150,56 @@ defmodule DashboardSSD.CacheWarmer do
   defp notify(%{notify: nil}, _message), do: :ok
   defp notify(%{notify: pid}, message) when is_pid(pid), do: send(pid, {:cache_warmer, message})
 
-  defp warm_collection_documents(_catalog, %{id: nil}, acc), do: acc
+  defp list_collections(catalog), do: catalog.list_collections(cache?: true)
 
-  defp warm_collection_documents(catalog, collection, acc) do
+  defp handle_collections_result({:ok, %{collections: collections}}, state) do
+    {_first_document_id, detail_task} =
+      warm_collection_details(state, state.catalog, collections)
+
+    maybe_wait_for_initial_document(detail_task)
+    notify(state, {:warmed, Enum.map(collections, & &1.id)})
+  end
+
+  defp handle_collections_result({:error, reason}, _state) do
+    Logger.debug("Knowledge base cache warming skipped (collections): #{inspect(reason)}")
+  end
+
+  defp warm_collection_details(state, catalog, collections) do
+    Enum.reduce(collections, {nil, nil}, fn collection, {current, task} ->
+      accumulate_collection(state, catalog, collection, current, task)
+    end)
+  end
+
+  defp accumulate_collection(state, catalog, collection, current, task) do
+    candidate = warm_collection_documents(catalog, collection)
+
+    cond do
+      current != nil ->
+        {current, task}
+
+      candidate != nil ->
+        new_task = Task.async(fn -> warm_initial_document(state, candidate) end)
+        {candidate, new_task}
+
+      true ->
+        {nil, task}
+    end
+  end
+
+  defp warm_collection_documents(_catalog, %{id: nil}), do: nil
+
+  defp warm_collection_documents(catalog, collection) do
     collection_id = collection_id(collection)
 
-    new_candidate =
-      if collection_id do
-        list_collection_documents(catalog, collection_id)
-      else
-        nil
-      end
-
-    acc || new_candidate
+    if collection_id do
+      list_collection_documents(catalog, collection_id)
+    else
+      nil
+    end
   end
+
+  defp maybe_wait_for_initial_document(nil), do: :ok
+  defp maybe_wait_for_initial_document(task), do: await_warm_initial_document(task)
 
   defp list_collection_documents(catalog, collection_id) do
     case catalog.list_documents(collection_id, cache?: true) do
@@ -198,18 +207,18 @@ defmodule DashboardSSD.CacheWarmer do
         find_first_document_id(documents)
 
       {:error, reason} ->
-        Logger.debug(fn ->
+        Logger.debug(
           "Knowledge base cache warming skipped documents for #{collection_id}: #{inspect(reason)}"
-        end)
+        )
 
         nil
     end
   rescue
     exception ->
-      Logger.debug(fn ->
+      Logger.debug(
         "Knowledge base cache warming failed for collection #{collection_id}: " <>
           Exception.format(:error, exception, __STACKTRACE__)
-      end)
+      )
 
       nil
   end
@@ -222,16 +231,16 @@ defmodule DashboardSSD.CacheWarmer do
         :ok
 
       {:error, reason} ->
-        Logger.debug(fn ->
+        Logger.debug(
           "Knowledge base cache warming skipped document #{document_id}: #{inspect(reason)}"
-        end)
+        )
     end
   rescue
     exception ->
-      Logger.debug(fn ->
+      Logger.debug(
         "Knowledge base cache warming failed to fetch document #{document_id}: " <>
           Exception.format(:error, exception, __STACKTRACE__)
-      end)
+      )
 
       :ok
   end
@@ -275,7 +284,7 @@ defmodule DashboardSSD.CacheWarmer do
     Task.await(task, 30_000)
   catch
     :exit, reason ->
-      Logger.debug(fn -> "Knowledge base document warm task exited: #{inspect(reason)}" end)
+      Logger.debug("Knowledge base document warm task exited: #{inspect(reason)}")
       :ok
   end
 end

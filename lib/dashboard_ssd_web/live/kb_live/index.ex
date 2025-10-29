@@ -87,38 +87,43 @@ defmodule DashboardSSDWeb.KbLive.Index do
 
   defp maybe_load_document_from_params(socket, _params), do: socket
 
+  defp maybe_start_initial_document_load(%{assigns: %{selected_document: selected}} = socket)
+       when not is_nil(selected) do
+    socket
+  end
+
+  defp maybe_start_initial_document_load(%{assigns: %{pending_document_id: pending}} = socket)
+       when not is_nil(pending) do
+    socket
+  end
+
+  defp maybe_start_initial_document_load(%{assigns: %{selected_document_id: nil}} = socket),
+    do: socket
+
   defp maybe_start_initial_document_load(socket) do
-    cond do
-      socket.assigns[:selected_document] != nil ->
-        socket
+    start_initial_document(socket)
+  end
 
-      socket.assigns[:pending_document_id] != nil ->
-        socket
+  defp start_initial_document(socket) do
+    document_id = socket.assigns.selected_document_id
+    opts = [source: :initial, collection_id: socket.assigns.selected_collection_id]
 
-      is_nil(socket.assigns[:selected_document_id]) ->
-        socket
+    case CacheStore.get({:document_detail, document_id}) do
+      {:ok, document} ->
+        record_document_view(socket.assigns[:current_user], document)
 
-      true ->
-        document_id = socket.assigns.selected_document_id
-        opts = [source: :initial, collection_id: socket.assigns.selected_collection_id]
+        socket =
+          socket
+          |> finish_document_load(document, opts)
 
-        case CacheStore.get({:document_detail, document_id}) do
-          {:ok, document} ->
-            record_document_view(socket.assigns[:current_user], document)
-
-            socket =
-              socket
-              |> finish_document_load(document, opts)
-
-            unless Application.get_env(:dashboard_ssd, :test_env?, false) do
-              send(self(), {:check_document_update, document_id, document.last_updated_at})
-            end
-
-            socket
-
-          :miss ->
-            start_document_load(socket, document_id, opts)
+        unless Application.get_env(:dashboard_ssd, :test_env?, false) do
+          send(self(), {:check_document_update, document_id, document.last_updated_at})
         end
+
+        socket
+
+      :miss ->
+        start_document_load(socket, document_id, opts)
     end
   end
 

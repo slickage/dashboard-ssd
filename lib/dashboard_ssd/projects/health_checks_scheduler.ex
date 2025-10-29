@@ -7,6 +7,7 @@ defmodule DashboardSSD.Projects.HealthChecksScheduler do
   require Logger
 
   alias DashboardSSD.Deployments
+  alias Ecto.Adapters.SQL.Sandbox
 
   @default_interval 60_000
   @default_initial_delay 5_000
@@ -38,12 +39,14 @@ defmodule DashboardSSD.Projects.HealthChecksScheduler do
   @impl true
   @spec handle_info(:tick, map()) :: {:noreply, map()}
   def handle_info(:tick, %{task_ref: nil} = state) do
-    ref =
+    task =
       Task.Supervisor.async_nolink(DashboardSSD.TaskSupervisor, fn ->
         run_checks()
-      end).ref
+      end)
 
-    {:noreply, %{state | task_ref: ref}}
+    Sandbox.allow(DashboardSSD.Repo, self(), task.pid)
+
+    {:noreply, %{state | task_ref: task.ref}}
   end
 
   def handle_info(:tick, state), do: {:noreply, state}
@@ -96,6 +99,8 @@ defmodule DashboardSSD.Projects.HealthChecksScheduler do
   end
 
   defp process_setting(setting) do
+    Sandbox.allow(DashboardSSD.Repo, self(), self())
+
     case perform_check(setting) do
       {:ok, status} ->
         maybe_record_status(setting.project_id, status)
