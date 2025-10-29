@@ -6,7 +6,15 @@ defmodule DashboardSSD.Projects do
   alias DashboardSSD.Clients
   alias DashboardSSD.Integrations
   alias DashboardSSD.Integrations.LinearUtils
-  alias DashboardSSD.Projects.{CacheStore, LinearTeamMember, LinearWorkflowState, Project}
+
+  alias DashboardSSD.Projects.{
+    CacheStore,
+    LinearTeamMember,
+    LinearWorkflowState,
+    Project,
+    WorkflowStateCache
+  }
+
   alias DashboardSSD.Repo
 
   @doc """
@@ -195,6 +203,17 @@ defmodule DashboardSSD.Projects do
     case env do
       :test -> do_sync_from_linear()
       _ -> maybe_sync_with_cache(force?)
+    end
+  end
+
+  @doc """
+  Returns the cached Linear sync payload if present without triggering a remote sync.
+  """
+  @spec cached_linear_sync() :: {:ok, map()} | :miss
+  def cached_linear_sync do
+    case CacheStore.get() do
+      {:ok, entry} -> serve_cached_entry(entry, :pre_warm)
+      :miss -> :miss
     end
   end
 
@@ -975,11 +994,43 @@ defmodule DashboardSSD.Projects do
     team_ids
     |> Enum.filter(&is_binary/1)
     |> Enum.reject(&(&1 == ""))
-    |> case do
-      [] -> %{}
-      ids -> build_workflow_state_map(ids)
+    |> hydrate_workflow_state_cache()
+  end
+
+  @doc """
+  Returns the unique Linear team identifiers referenced by stored projects.
+  """
+  @spec unique_linear_team_ids() :: [String.t()]
+  def unique_linear_team_ids do
+    from(p in Project,
+      select: p.linear_team_id,
+      where: not is_nil(p.linear_team_id) and p.linear_team_id != "",
+      distinct: true
+    )
+    |> Repo.all()
+  end
+
+  defp hydrate_workflow_state_cache([]), do: %{}
+
+  defp hydrate_workflow_state_cache(ids) do
+    {cached, missing} =
+      Enum.reduce(ids, {%{}, []}, fn id, {acc, missing} ->
+        case WorkflowStateCache.get(id) do
+          {:ok, states} -> {Map.put(acc, id, states), missing}
+          :miss -> {acc, [id | missing]}
+        end
+      end)
+
+    if missing == [] do
+      cached
+    else
+      fetched = build_workflow_state_map(missing)
+      Enum.each(fetched, fn {team_id, states} -> WorkflowStateCache.put(team_id, states) end)
+      Map.merge(cached, fetched)
     end
   end
+
+  defp build_workflow_state_map([]), do: %{}
 
   defp build_workflow_state_map(team_ids) do
     from(s in LinearWorkflowState, where: s.linear_team_id in ^team_ids)

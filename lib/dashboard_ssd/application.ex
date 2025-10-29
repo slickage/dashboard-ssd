@@ -11,6 +11,7 @@ defmodule DashboardSSD.Application do
       DashboardSSDWeb.Telemetry,
       DashboardSSD.Vault,
       DashboardSSD.Repo,
+      {Task.Supervisor, name: DashboardSSD.TaskSupervisor},
       DashboardSSD.Cache,
       {DNSCluster, query: Application.get_env(:dashboard_ssd, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: DashboardSSD.PubSub},
@@ -18,6 +19,7 @@ defmodule DashboardSSD.Application do
       {Finch, name: DashboardSSD.Finch},
       health_checks_child(),
       analytics_scheduler_child(),
+      knowledge_base_cache_warmer_child(),
       # Start a worker by calling: DashboardSSD.Worker.start_link(arg)
       # {DashboardSSD.Worker, arg},
       # Start to serve requests, typically the last entry
@@ -35,7 +37,7 @@ defmodule DashboardSSD.Application do
     enabled = Application.get_env(:dashboard_ssd, :health_checks, [])[:enabled]
 
     if env != :test and enabled != false do
-      DashboardSSD.HealthChecks.Scheduler
+      DashboardSSD.Projects.HealthChecksScheduler
     else
       # Disabled in test or when explicitly disabled
       Supervisor.child_spec({Task, fn -> :ok end}, id: :hc_disabled, restart: :temporary)
@@ -47,10 +49,26 @@ defmodule DashboardSSD.Application do
     enabled = Application.get_env(:dashboard_ssd, :analytics, [])[:enabled]
 
     if env != :test and enabled != false do
-      DashboardSSD.Analytics.Scheduler
+      DashboardSSD.Analytics.MetricsScheduler
     else
       # Disabled in test or when explicitly disabled
       Supervisor.child_spec({Task, fn -> :ok end}, id: :analytics_disabled, restart: :temporary)
+    end
+  end
+
+  defp knowledge_base_cache_warmer_child do
+    env = Application.get_env(:dashboard_ssd, :env) || :dev
+    kb_config = Application.get_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, [])
+    enabled? = Keyword.get(kb_config, :cache_warmer?, true)
+
+    if env != :test and enabled? do
+      DashboardSSD.CacheWarmer
+    else
+      Supervisor.child_spec(
+        {Task, fn -> :ok end},
+        id: :cache_warmer_disabled,
+        restart: :temporary
+      )
     end
   end
 
