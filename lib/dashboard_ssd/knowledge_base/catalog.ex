@@ -486,12 +486,12 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
         results = Map.get(response, "results", [])
         has_more = Map.get(response, "has_more", false)
         next_cursor = Map.get(response, "next_cursor")
-        new_acc = acc ++ results
+        new_acc = prepend_results(acc, results)
 
         if has_more and is_binary(next_cursor) do
           paginate_pages(token, page_size, next_cursor, new_acc)
         else
-          {:ok, new_acc}
+          {:ok, Enum.reverse(new_acc)}
         end
 
       {:error, reason} ->
@@ -551,6 +551,10 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
       [] -> nil
       values -> values
     end
+  end
+
+  defp prepend_results(acc, results) do
+    Enum.reduce(results, acc, fn item, acc -> [item | acc] end)
   end
 
   defp page_parent_type(page) do
@@ -685,12 +689,12 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
         results = Map.get(body, "results", [])
         has_more = Map.get(body, "has_more", false)
         next_cursor = Map.get(body, "next_cursor")
-        new_acc = acc ++ results
+        new_acc = prepend_results(acc, results)
 
         if has_more and is_binary(next_cursor) do
           paginate_database_pages(token, database_id, page_size, next_cursor, new_acc)
         else
-          {:ok, new_acc}
+          {:ok, Enum.reverse(new_acc)}
         end
 
       {:error, reason} ->
@@ -711,12 +715,12 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
         results = Map.get(body, "results", [])
         has_more = Map.get(body, "has_more", false)
         next_cursor = Map.get(body, "next_cursor")
-        new_acc = acc ++ results
+        new_acc = prepend_results(acc, results)
 
         if has_more and is_binary(next_cursor) do
           paginate_blocks(token, block_id, page_size, next_cursor, new_acc)
         else
-          {:ok, new_acc}
+          {:ok, Enum.reverse(new_acc)}
         end
 
       {:error, reason} ->
@@ -1051,12 +1055,12 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
         results = database_results(body)
         has_more = database_has_more(body)
         next_cursor = database_next_cursor(body)
-        new_acc = acc ++ results
+        new_acc = prepend_results(acc, results)
 
         if has_more and is_binary(next_cursor) do
           paginate_databases(token, page_size, next_cursor, new_acc)
         else
-          {:ok, new_acc}
+          {:ok, Enum.reverse(new_acc)}
         end
 
       {:error, reason} ->
