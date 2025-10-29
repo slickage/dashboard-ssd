@@ -26,7 +26,8 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
     "table" => :table,
     "table_row" => :table_row,
     "to_do" => :to_do,
-    "bookmark" => :bookmark
+    "bookmark" => :bookmark,
+    "link_to_page" => :link_to_page
   }
 
   @typedoc "Options accepted by catalog queries."
@@ -795,54 +796,54 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
       children: children
     }
 
-    apply_block_content(type, base, data)
+    apply_block_content(token, type, base, data, page_size)
   end
 
-  defp apply_block_content("paragraph", base, data) do
+  defp apply_block_content(_token, "paragraph", base, data, _page_size) do
     Map.put(base, :segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
   end
 
-  defp apply_block_content("heading_1", base, data) do
+  defp apply_block_content(_token, "heading_1", base, data, _page_size) do
     base
     |> Map.put(:level, 1)
     |> Map.put(:segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
   end
 
-  defp apply_block_content("heading_2", base, data) do
+  defp apply_block_content(_token, "heading_2", base, data, _page_size) do
     base
     |> Map.put(:level, 2)
     |> Map.put(:segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
   end
 
-  defp apply_block_content("heading_3", base, data) do
+  defp apply_block_content(_token, "heading_3", base, data, _page_size) do
     base
     |> Map.put(:level, 3)
     |> Map.put(:segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
   end
 
-  defp apply_block_content("bulleted_list_item", base, data) do
+  defp apply_block_content(_token, "bulleted_list_item", base, data, _page_size) do
     base
     |> Map.put(:style, :bullet)
     |> Map.put(:segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
   end
 
-  defp apply_block_content("numbered_list_item", base, data) do
+  defp apply_block_content(_token, "numbered_list_item", base, data, _page_size) do
     base
     |> Map.put(:style, :numbered)
     |> Map.put(:segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
   end
 
-  defp apply_block_content("quote", base, data) do
+  defp apply_block_content(_token, "quote", base, data, _page_size) do
     Map.put(base, :segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
   end
 
-  defp apply_block_content("callout", base, data) do
+  defp apply_block_content(_token, "callout", base, data, _page_size) do
     base
     |> Map.put(:segments, segments_from_rich_text(Map.get(data, "rich_text", [])))
     |> Map.put(:icon, Map.get(data, "icon"))
   end
 
-  defp apply_block_content("code", base, data) do
+  defp apply_block_content(_token, "code", base, data, _page_size) do
     segments = segments_from_rich_text(Map.get(data, "rich_text", []))
     plain_text = Enum.map_join(segments, "", &Map.get(&1, :text, ""))
 
@@ -852,9 +853,9 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
     |> Map.put(:plain_text, plain_text)
   end
 
-  defp apply_block_content("divider", base, _data), do: base
+  defp apply_block_content(_token, "divider", base, _data, _page_size), do: base
 
-  defp apply_block_content("to_do", base, data) do
+  defp apply_block_content(_token, "to_do", base, data, _page_size) do
     segments = segments_from_rich_text(Map.get(data, "rich_text", []))
     plain_text = Enum.map_join(segments, "", &Map.get(&1, :text, ""))
 
@@ -864,13 +865,13 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
     |> Map.put(:plain_text, plain_text)
   end
 
-  defp apply_block_content("bookmark", base, data) do
+  defp apply_block_content(_token, "bookmark", base, data, _page_size) do
     base
     |> Map.put(:url, Map.get(data, "url"))
     |> Map.put(:caption, segments_from_rich_text(Map.get(data, "caption", [])))
   end
 
-  defp apply_block_content("image", base, data) do
+  defp apply_block_content(_token, "image", base, data, _page_size) do
     image_source =
       case Map.get(data, "type") do
         "external" -> get_in(data, ["external", "url"])
@@ -883,7 +884,7 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
     |> Map.put(:caption, segments_from_rich_text(Map.get(data, "caption", [])))
   end
 
-  defp apply_block_content("table", base, data) do
+  defp apply_block_content(_token, "table", base, data, _page_size) do
     rows = Enum.filter(base.children, &match?(%{type: :table_row}, &1))
 
     base
@@ -894,7 +895,7 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
     |> Map.put(:table_width, Map.get(data, "table_width"))
   end
 
-  defp apply_block_content("table_row", base, data) do
+  defp apply_block_content(_token, "table_row", base, data, _page_size) do
     cells =
       data
       |> Map.get("cells", [])
@@ -905,9 +906,33 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
     |> Map.put(:children, [])
   end
 
-  defp apply_block_content(type, base, _data) do
+  defp apply_block_content(token, "link_to_page", base, data, _page_size) do
+    target_type = Map.get(data, "type")
+
+    target_id =
+      case target_type do
+        "page_id" -> normalize_id(Map.get(data, "page_id"))
+        "database_id" -> normalize_id(Map.get(data, "database_id"))
+        _ -> nil
+      end
+
+    resolved = resolve_link_to_page(token, target_type, target_id)
+    segments = link_to_page_segments(data, target_type, target_id, resolved)
+
+    base
+    |> Map.put(:target_type, target_type)
+    |> Map.put(:target_id, target_id)
+    |> Map.put(:target_title, Map.get(resolved, :title))
+    |> Map.put(:target_icon, Map.get(resolved, :icon))
+    |> Map.put(:target_url, Map.get(resolved, :url))
+    |> Map.put(:segments, segments)
+    |> Map.put(:children, [])
+  end
+
+  defp apply_block_content(_token, type, base, _data, _page_size) do
     Map.merge(base, %{type: :unsupported, raw_type: type})
   end
+
 
   defp build_collection(meta, body) do
     now = DateTime.utc_now()
@@ -1368,6 +1393,64 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
   defp notion_client do
     Application.get_env(:dashboard_ssd, :notion_client, Notion)
   end
+
+  defp link_to_page_segments(data, target_type, target_id, resolved) do
+    case Map.get(data, "caption") do
+      caption when is_list(caption) and caption != [] ->
+        segments_from_rich_text(caption)
+
+      _ ->
+        default_label = default_link_to_page_label(target_type, target_id)
+
+        label =
+          resolved
+          |> Map.get(:title)
+          |> case do
+            nil -> default_label
+            title -> String.trim(to_string(title))
+          end
+          |> case do
+            "" -> default_label
+            value -> value
+          end
+
+        [inline_segment(label)]
+    end
+  end
+
+  defp default_link_to_page_label("database_id", _target_id), do: "Open linked database"
+  defp default_link_to_page_label(_type, _target_id), do: "Open linked page"
+
+  defp inline_segment(text) do
+    %{text: text, href: nil, annotations: %{}, type: "text"}
+  end
+
+  defp resolve_link_to_page(_token, _type, target_id) when target_id in [nil, ""], do: %{}
+
+  defp resolve_link_to_page(token, "page_id", target_id) do
+    case CacheStore.fetch(
+           {:link_to_page, target_id},
+           fn ->
+             case notion_client().retrieve_page(token, target_id, []) do
+               {:ok, page} ->
+                 %{
+                   title: page_title(page),
+                   icon: page_icon(page),
+                   url: page_url(page)
+                 }
+
+               {:error, reason} ->
+                 {:error, reason}
+             end
+           end,
+           ttl: @default_ttl
+         ) do
+      {:ok, value} when is_map(value) -> value
+      {:error, _} -> %{}
+    end
+  end
+
+  defp resolve_link_to_page(_token, _type, _target_id), do: %{}
 
   defp segments_from_rich_text(rich_text) when is_list(rich_text) do
     Enum.map(rich_text, fn segment ->

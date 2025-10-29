@@ -2195,6 +2195,58 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       assert bookmark.type == :bookmark and bookmark.url == "https://example.com"
     end
 
+    test "normalizes link_to_page blocks" do
+      page = %{
+        "id" => "page-link",
+        "url" => "https://notion.so/page-link",
+        "created_time" => "2024-05-12T10:05:00Z",
+        "last_edited_time" => "2024-05-12T12:05:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Link"}]}
+        }
+      }
+
+      blocks_response = %{
+        "results" => [
+          %{
+            "id" => "link-1",
+            "type" => "link_to_page",
+            "has_children" => false,
+            "link_to_page" => %{"type" => "page_id", "page_id" => "page-linked"}
+          }
+        ],
+        "has_more" => false,
+        "next_cursor" => nil
+      }
+
+      linked_page = %{
+        "id" => "page-linked",
+        "url" => "https://notion.so/page-linked",
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Linked Doc"}]}
+        },
+        "icon" => %{"emoji" => "📄"}
+      }
+
+      NotionMock
+      |> expect(:retrieve_page, fn "token", "page-link", _opts -> {:ok, page} end)
+      |> expect(:retrieve_block_children, fn "token", "page-link", _opts ->
+        {:ok, blocks_response}
+      end)
+      |> expect(:retrieve_page, fn "token", "page-linked", _opts -> {:ok, linked_page} end)
+
+      assert {:ok, detail} = Catalog.get_document("page-link")
+
+      assert [link_block] = detail.rendered_blocks
+      assert link_block.type == :link_to_page
+      assert link_block.target_type == "page_id"
+      assert link_block.target_id == "page-linked"
+      assert link_block.target_title == "Linked Doc"
+      assert link_block.target_icon == "📄"
+      assert Enum.map(link_block.segments, & &1[:text]) == ["Linked Doc"]
+    end
+
     test "handles callout blocks without icon" do
       page = %{
         "id" => "page-callout-no-icon",

@@ -3,7 +3,7 @@ defmodule DashboardSSDWeb.KbComponents do
   Function components used by the Knowledge Base experience.
   """
 
-  use Phoenix.Component
+  use DashboardSSDWeb, :html
 
   alias DashboardSSD.KnowledgeBase.Types
   alias DashboardSSDWeb.CodeHighlighter
@@ -322,8 +322,8 @@ defmodule DashboardSSDWeb.KbComponents do
             </header>
 
             <div class="flex flex-col gap-4">
-              <%= for block <- @document.rendered_blocks do %>
-                <.kb_block block={block} level={0} />
+              <%= for entry <- assign_numbers(@document.rendered_blocks) do %>
+                <.kb_block block={entry.block} level={0} number={entry.number} />
               <% end %>
             </div>
           </article>
@@ -414,18 +414,21 @@ defmodule DashboardSSDWeb.KbComponents do
           <.kb_rich_text segments={@block.segments} />
         </h4>
       <% :paragraph -> %>
-        <p class="text-sm leading-relaxed text-white/90">
+        <p
+          class="text-sm leading-relaxed text-white/90"
+          style={if @level > 0, do: indent_style(@level)}
+        >
           <.kb_rich_text segments={@block.segments} />
         </p>
       <% :bulleted_list_item -> %>
-        <div class={"#{list_padding(@level)} text-sm leading-relaxed text-white/90"}>
+        <div class="text-sm leading-relaxed text-white/90" style={indent_style(@level)}>
           <div class="flex items-start gap-2">
             <span class="pt-1 text-xs">•</span>
             <span><.kb_rich_text segments={@block.segments} /></span>
           </div>
         </div>
       <% :numbered_list_item -> %>
-        <div class={"#{list_padding(@level)} text-sm leading-relaxed text-white/90"}>
+        <div class="text-sm leading-relaxed text-white/90" style={indent_style(@level)}>
           <div class="flex items-start gap-2">
             <span class="pt-1 text-xs">{@number || 1}.</span>
             <span><.kb_rich_text segments={@block.segments} /></span>
@@ -506,6 +509,44 @@ defmodule DashboardSSDWeb.KbComponents do
               <% end %>
             </tbody>
           </table>
+        </div>
+      <% :link_to_page -> %>
+        <% fallback_label =
+          @block.segments
+          |> Enum.map(&String.trim(&1[:text] || ""))
+          |> Enum.join(" ")
+          |> String.trim() %>
+        <% resolved_label =
+          cond do
+            is_binary(@block.target_title) and String.trim(@block.target_title) != "" ->
+              String.trim(@block.target_title)
+
+            fallback_label != "" ->
+              fallback_label
+
+            true ->
+              if @block.target_type == "database_id",
+                do: "Open linked database",
+                else: "Open linked page"
+          end %>
+        <div class="flex flex-wrap items-center gap-2 text-sm" style={indent_style(@level)}>
+          <%= cond do %>
+            <% @block.target_type == "page_id" and is_binary(@block.target_id) and @block.target_id != "" -> %>
+              <.link
+                patch={~p"/kb?document_id=#{@block.target_id}"}
+                class="inline-flex items-center gap-2 text-theme-accent underline"
+              >
+                <.document_icon :if={@block.target_icon} icon={@block.target_icon} size="sm" />
+                <span>{resolved_label}</span>
+              </.link>
+            <% @block.target_type == "database_id" and is_binary(@block.target_id) and @block.target_id != "" -> %>
+              <span class="inline-flex items-center gap-2 text-xs text-theme-muted">
+                <.document_icon :if={@block.target_icon} icon={@block.target_icon} size="sm" />
+                <span>Linked database: {@block.target_id}</span>
+              </span>
+            <% true -> %>
+              <span class="text-xs text-theme-muted">{resolved_label}</span>
+          <% end %>
         </div>
       <% :unsupported -> %>
         <div class="text-xs text-theme-muted italic">
@@ -621,13 +662,23 @@ defmodule DashboardSSDWeb.KbComponents do
   defp friendly_reason(reason) when is_atom(reason), do: Atom.to_string(reason)
   defp friendly_reason(reason), do: inspect(reason)
 
-  defp list_padding(level) do
-    case level do
-      0 -> "pl-6"
-      1 -> "pl-12"
-      2 -> "pl-18"
-      _ -> "pl-#{6 + level * 6}"
-    end
+  defp indent_style(level) do
+    px = 24 + max(level, 0) * 18
+    "padding-left: #{px}px;"
+  end
+
+  defp assign_numbers(blocks) do
+    {result, _} =
+      Enum.reduce(blocks, {[], nil}, fn block, {acc, counter} ->
+        if block.type == :numbered_list_item do
+          new_counter = (counter || 0) + 1
+          {[%{block: block, number: new_counter} | acc], new_counter}
+        else
+          {[%{block: block, number: nil} | acc], nil}
+        end
+      end)
+
+    Enum.reverse(result)
   end
 
   defp assign_numbers_to_children(children) do
