@@ -325,6 +325,73 @@ defmodule DashboardSSD.CacheWarmerTest do
     end
   end
 
+  defmodule MultiCollectionCatalog do
+    alias DashboardSSD.KnowledgeBase.Types.{DocumentDetail, DocumentSummary}
+
+    def list_collections(_opts) do
+      pid = lookup_pid()
+      send(pid, {:multi_catalog, :list_collections})
+
+      {:ok,
+       %{
+         collections: [
+           %{id: "db-empty"},
+           %{id: "db-one"},
+           %{id: "db-two"}
+         ],
+         errors: []
+       }}
+    end
+
+    def list_documents("db-empty", _opts) do
+      pid = lookup_pid()
+      send(pid, {:multi_catalog, :list_documents, "db-empty"})
+      {:ok, %{documents: [], errors: []}}
+    end
+
+    def list_documents(db_id, _opts) do
+      pid = lookup_pid()
+      send(pid, {:multi_catalog, :list_documents, db_id})
+
+      {:ok,
+       %{
+         documents: [
+           %DocumentSummary{
+             id: "#{db_id}:doc-1",
+             collection_id: db_id,
+             title: "Doc #{db_id}"
+           }
+         ],
+         errors: []
+       }}
+    end
+
+    def get_document(document_id, _opts) do
+      pid = lookup_pid()
+      send(pid, {:multi_catalog, :get_document, document_id})
+
+      {:ok,
+       %DocumentDetail{
+         id: document_id,
+         collection_id: document_collection(document_id),
+         title: "Detail #{document_id}",
+         rendered_blocks: []
+       }}
+    end
+
+    defp document_collection(document_id) do
+      case String.split(document_id, ":", parts: 2) do
+        [collection_id, _] -> collection_id
+        [collection_id] -> collection_id
+        _ -> nil
+      end
+    end
+
+    defp lookup_pid do
+      :persistent_term.get({__MODULE__, :pid})
+    end
+  end
+
   defmodule StringIdCatalog do
     alias DashboardSSD.KnowledgeBase.Types.DocumentDetail
 
@@ -525,6 +592,7 @@ defmodule DashboardSSD.CacheWarmerTest do
       :persistent_term.erase({StringIdCatalog, :pid})
       :persistent_term.erase({IntegerIdCatalog, :pid})
       :persistent_term.erase({WeirdCatalog, :pid})
+      :persistent_term.erase({MultiCollectionCatalog, :pid})
     end)
   end
 
@@ -835,6 +903,29 @@ defmodule DashboardSSD.CacheWarmerTest do
     assert_receive {:integer_catalog, :list_collections}
     assert_receive {:integer_catalog, :list_documents, "123"}
     assert_receive {:integer_catalog, :get_document, "456"}
+  end
+
+  test "warms first document detail only once when multiple collections present" do
+    :persistent_term.put({MultiCollectionCatalog, :pid}, self())
+    :persistent_term.put({StubProjects, :pid}, self())
+
+    start_supervised!(
+      {CacheWarmer,
+       catalog: MultiCollectionCatalog,
+       projects: StubProjects,
+       notify: self(),
+       initial_delay: 0,
+       interval: :timer.hours(1)}
+    )
+
+    assert_receive {:multi_catalog, :list_collections}
+    assert_receive {:multi_catalog, :list_documents, "db-empty"}
+    assert_receive {:multi_catalog, :list_documents, "db-one"}
+    assert_receive {:multi_catalog, :get_document, "db-one:doc-1"}
+    refute_receive {:multi_catalog, :get_document, _}, 20
+    assert_receive {:multi_catalog, :list_documents, "db-two"}
+    assert_receive {:cache_warmer, {:warmed, warmed_ids}}
+    assert warmed_ids == ["db-empty", "db-one", "db-two"]
   end
 
   test "handles mixed identifier formats gracefully" do
