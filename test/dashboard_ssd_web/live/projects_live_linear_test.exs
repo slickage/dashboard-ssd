@@ -66,6 +66,9 @@ defmodule DashboardSSDWeb.ProjectsLiveLinearTest do
     assert html =~ ~s/data-total="3"/
     assert html =~ ~s/data-in-progress="1"/
     assert html =~ ~s/data-finished="2"/
+    assert html =~ "Alice"
+    assert html =~ "(2)"
+    assert html =~ "Bob"
   end
 
   test "shows N/A when Linear response unavailable", %{conn: conn} do
@@ -341,15 +344,22 @@ defmodule DashboardSSDWeb.ProjectsLiveLinearTest do
 
   defp issue_nodes do
     [
-      %{"state" => %{"id" => "state-done", "name" => "Done", "type" => "completed"}},
+      %{
+        "state" => %{"id" => "state-done", "name" => "Done", "type" => "completed"},
+        "assignee" => %{"id" => "user-1", "displayName" => "Alice"}
+      },
       %{
         "state" => %{
           "id" => "state-progress",
           "name" => "In Progress",
           "type" => "started"
-        }
+        },
+        "assignee" => %{"id" => "user-1", "displayName" => "Alice"}
       },
-      %{"state" => %{"id" => "state-closed", "name" => "Closed", "type" => "completed"}}
+      %{
+        "state" => %{"id" => "state-closed", "name" => "Closed", "type" => "completed"},
+        "assignee" => %{"id" => "user-2", "displayName" => "Bob"}
+      }
     ]
   end
 

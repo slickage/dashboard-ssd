@@ -534,6 +534,14 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
     Process.send_after(pid, :reload_summaries, delay_ms)
   end
 
+  defp summary_assigned(:unavailable), do: :unavailable
+
+  defp summary_assigned(%{} = summary) do
+    summary[:assigned] || summary["assigned"] || []
+  end
+
+  defp summary_assigned(_), do: []
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -602,6 +610,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                     </span>
                   <% end %>
                 </th>
+                <th class="hidden lg:table-cell">Assigned</th>
                 <th>Prod</th>
                 <th>Actions</th>
               </tr>
@@ -611,7 +620,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                 <% collapsed = MapSet.member?(@collapsed_teams, group.key) %>
                 <% count = length(group.projects) %>
                 <tr class="border-b border-white/5 bg-white/5">
-                  <td colspan="5">
+                  <td colspan="6">
                     <button
                       type="button"
                       phx-click="toggle_team"
@@ -677,8 +686,10 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                           {p.client.name}
                         <% end %>
                       </td>
+                      <% summary = Map.get(@summaries, to_string(p.id), :unavailable) %>
+                      <% assigned = summary_assigned(summary) %>
                       <td class="hidden md:table-cell">
-                        <%= case Map.get(@summaries, to_string(p.id), :unavailable) do %>
+                        <%= case summary do %>
                           <% :unavailable -> %>
                             <div class="flex items-center gap-3 text-xs text-theme-muted">
                               <div class="w-36 shrink-0">
@@ -690,6 +701,16 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                             </div>
                           <% %{} = summary -> %>
                             <.tasks_cell summary={summary} />
+                        <% end %>
+                      </td>
+                      <td class="hidden lg:table-cell">
+                        <%= case assigned do %>
+                          <% :unavailable -> %>
+                            <span class="text-xs text-theme-muted">N/A</span>
+                          <% [] -> %>
+                            <span class="text-xs text-theme-muted">—</span>
+                          <% _ -> %>
+                            <.assigned_cell assigned={assigned} />
                         <% end %>
                       </td>
                       <td>

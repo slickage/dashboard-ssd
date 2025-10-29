@@ -701,7 +701,7 @@ defmodule DashboardSSDWeb.CoreComponents do
       <div class="grid w-48 shrink-0 grid-cols-4 gap-2">
         <span class="flex items-center gap-1 text-xs text-theme-muted" title="Total">
           <span
-            class="inline-block h-2.5 w-2.5 rounded-full border border-zinc-800"
+            class="inline-block h-2.5 w-2.5 rounded-full border border-zinc-800 bg-transparent dark:border-white/60 dark:bg-transparent"
             aria-hidden="true"
           >
           </span>
@@ -735,6 +735,42 @@ defmodule DashboardSSDWeb.CoreComponents do
         <div class="h-full bg-sky-400" style={"width: #{@ip_pct}%"}></div>
         <div class="h-full bg-zinc-400/80" style={"width: #{@todo_pct}%"}></div>
       </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a list of assigned team members with their task counts.
+  """
+  attr :assigned, :list, default: []
+
+  @spec assigned_cell(map()) :: Rendered.t()
+  def assigned_cell(assigns) do
+    assigned =
+      assigns.assigned
+      |> List.wrap()
+      |> Enum.filter(fn
+        %{name: name, count: count} when is_binary(name) and name != "" and is_integer(count) ->
+          true
+
+        _ ->
+          false
+      end)
+
+    assigns = assign(assigns, :assigned, assigned)
+
+    ~H"""
+    <div class="flex flex-wrap items-center gap-2 text-xs">
+      <%= if @assigned == [] do %>
+        <span class="text-theme-muted">—</span>
+      <% else %>
+        <%= for member <- @assigned do %>
+          <span class="inline-flex items-center gap-1 rounded-full border border-zinc-300 bg-transparent px-2 py-0.5 text-theme-text dark:border-white/15 dark:bg-white/10">
+            <span>{member.name}</span>
+            <span class="tabular-nums text-theme-muted">({member.count})</span>
+          </span>
+        <% end %>
+      <% end %>
     </div>
     """
   end
