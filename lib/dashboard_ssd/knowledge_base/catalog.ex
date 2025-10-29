@@ -933,7 +933,6 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
     Map.merge(base, %{type: :unsupported, raw_type: type})
   end
 
-
   defp build_collection(meta, body) do
     now = DateTime.utc_now()
     results = Map.get(body, "results", [])
@@ -1430,19 +1429,7 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
   defp resolve_link_to_page(token, "page_id", target_id) do
     case CacheStore.fetch(
            {:link_to_page, target_id},
-           fn ->
-             case notion_client().retrieve_page(token, target_id, []) do
-               {:ok, page} ->
-                 %{
-                   title: page_title(page),
-                   icon: page_icon(page),
-                   url: page_url(page)
-                 }
-
-               {:error, reason} ->
-                 {:error, reason}
-             end
-           end,
+           fn -> fetch_linked_page(token, target_id) end,
            ttl: @default_ttl
          ) do
       {:ok, value} when is_map(value) -> value
@@ -1451,6 +1438,20 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
   end
 
   defp resolve_link_to_page(_token, _type, _target_id), do: %{}
+
+  defp fetch_linked_page(token, target_id) do
+    case notion_client().retrieve_page(token, target_id, []) do
+      {:ok, page} ->
+        %{
+          title: page_title(page),
+          icon: page_icon(page),
+          url: page_url(page)
+        }
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
 
   defp segments_from_rich_text(rich_text) when is_list(rich_text) do
     Enum.map(rich_text, fn segment ->

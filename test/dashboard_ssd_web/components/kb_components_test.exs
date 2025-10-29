@@ -177,7 +177,7 @@ defmodule DashboardSSDWeb.KbComponentsTest do
 
     html = render_component(&KbComponents.kb_block/1, block: block, level: 0)
 
-    assert html =~ "pl-6"
+    assert html =~ "style=\"padding-left: 24px;\""
     assert html =~ "•"
     assert html =~ "Item 1"
   end
@@ -197,9 +197,9 @@ defmodule DashboardSSDWeb.KbComponentsTest do
 
     html = render_component(&KbComponents.kb_block/1, block: parent_block, level: 0)
 
-    assert html =~ "pl-6"
+    assert html =~ "style=\"padding-left: 24px;\""
     assert html =~ "Parent"
-    assert html =~ "pl-12"
+    assert html =~ "style=\"padding-left: 42px;\""
     assert html =~ "Child"
   end
 
@@ -284,5 +284,61 @@ defmodule DashboardSSDWeb.KbComponentsTest do
     assert html =~ "Sub bullet"
     assert html =~ "1."
     assert html =~ "Reset to 1"
+  end
+
+  test "kb_block renders link_to_page with patch navigation" do
+    block = %{
+      type: :link_to_page,
+      target_type: "page_id",
+      target_id: "doc-123",
+      target_title: "Linked",
+      target_icon: "📄",
+      segments: [%{text: "Linked", annotations: %{}, href: nil, type: "text"}],
+      children: []
+    }
+
+    html = render_component(&KbComponents.kb_block/1, block: block, level: 0)
+
+    assert html =~ ~s(href="/kb?document_id=doc-123")
+    assert html =~ ~s(data-phx-link="patch")
+    assert html =~ "📄"
+    assert html =~ "Linked"
+  end
+
+  test "document view enumerates numbered list blocks" do
+    blocks = [
+      %{
+        type: :numbered_list_item,
+        segments: [%{text: "One", annotations: %{}}],
+        children: [
+          %{type: :paragraph, segments: [%{text: "Body", annotations: %{}}], children: []}
+        ]
+      },
+      %{type: :numbered_list_item, segments: [%{text: "Two", annotations: %{}}], children: []},
+      %{type: :numbered_list_item, segments: [%{text: "Three", annotations: %{}}], children: []}
+    ]
+
+    document = %{
+      title: "Doc",
+      owner: nil,
+      icon: nil,
+      share_url: nil,
+      last_updated_at: nil,
+      tags: [],
+      rendered_blocks: blocks
+    }
+
+    html =
+      render_component(&KbComponents.document_viewer/1,
+        document: document,
+        loading: false,
+        error: nil,
+        share_url: nil
+      )
+
+    assert html =~ "1."
+    assert html =~ "2."
+    assert html =~ "3."
+    assert html =~ "style=\"padding-left: 42px;\""
   end
 end
