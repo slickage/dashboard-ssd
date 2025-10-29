@@ -218,6 +218,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      # sync (include release)
+      - name: Sync to latest
+        run: |
+          git fetch origin ${{ env.VERSION }}
+          git checkout ${{ env.VERSION }}
+          git pull origin ${{ env.VERSION }}
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
