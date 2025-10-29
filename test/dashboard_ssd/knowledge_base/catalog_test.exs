@@ -64,7 +64,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
     test "returns curated collections enriched with Notion metadata and caches results" do
       NotionMock
       |> expect(:query_database, fn "token", "db-handbook", opts ->
-        assert Keyword.get(opts, :page_size) == 100
+        assert Keyword.get(opts, :page_size) == 25
 
         {:ok,
          %{
