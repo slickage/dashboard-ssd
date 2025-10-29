@@ -167,6 +167,9 @@ defmodule DashboardSSDWeb.KbLiveTest do
       assert [%Types.Collection{id: "db-handbook"}] = assigns.collections
       assert [] = assigns.collection_errors
       assert [%Types.DocumentSummary{id: "page-1"}] = assigns.documents
+      assert %Types.DocumentDetail{id: "page-1"} = assigns.selected_document
+      assert assigns.pending_document_id == nil
+      assert assigns.reader_loading == false
       assert [%Types.RecentActivity{document_id: "page-1"}] = assigns.recent_documents
       assert [] = assigns.recent_errors
     end
@@ -257,6 +260,68 @@ defmodule DashboardSSDWeb.KbLiveTest do
       {:ok, _view, html} = live(conn, ~p"/kb")
 
       assert html =~ "db-handbook: timeout"
+    end
+
+    test "uses cached document detail to skip initial loading spinner", %{conn: conn} do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "cached@example.com",
+          name: "Cached",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      now = DateTime.utc_now()
+
+      summary = %Types.DocumentSummary{
+        id: "page-cached",
+        collection_id: "db-handbook",
+        title: "Cached Doc",
+        summary: nil,
+        icon: nil,
+        owner: nil,
+        share_url: "https://notion.so/page-cached",
+        last_updated_at: now,
+        synced_at: now,
+        tags: []
+      }
+
+      detail = %Types.DocumentDetail{
+        id: "page-cached",
+        collection_id: "db-handbook",
+        title: "Cached Doc",
+        rendered_blocks: [],
+        summary: nil,
+        icon: nil,
+        owner: nil,
+        share_url: "https://notion.so/page-cached",
+        last_updated_at: now,
+        synced_at: now,
+        source: :cache,
+        tags: []
+      }
+
+      CacheStore.put({:documents, "db-handbook"}, [summary])
+      CacheStore.put({:document_detail, "page-cached"}, detail)
+
+      NotionMock
+      |> stub(:query_database, fn "tok", "db-handbook", _opts ->
+        {:ok,
+         %{
+           "results" => [],
+           "has_more" => false,
+           "next_cursor" => nil
+         }}
+      end)
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      assigns = view.pid |> :sys.get_state() |> Map.fetch!(:socket) |> Map.fetch!(:assigns)
+
+      assert assigns.selected_document_id == "page-cached"
+      assert %Types.DocumentDetail{id: "page-cached"} = assigns.selected_document
+      assert assigns.reader_loading == false
+      assert assigns.pending_document_id == nil
     end
   end
 
@@ -539,7 +604,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
       |> stub(:query_database, fn "tok", "db-handbook", _opts ->
         {:ok, %{"results" => [page], "has_more" => false, "next_cursor" => nil}}
       end)
-      |> expect(:retrieve_page, 3, fn "tok", "page-1", _opts ->
+      |> expect(:retrieve_page, 2, fn "tok", "page-1", _opts ->
         {:error, {:http_error, 401, %{}}}
       end)
 
@@ -2213,6 +2278,22 @@ defmodule DashboardSSDWeb.KbLiveTest do
     end
 
     test "toggle_collection expands when not expanded" do
+      summary =
+        struct!(
+          Types.DocumentSummary,
+          id: "page-cached",
+          collection_id: "db-guides",
+          title: "Cached Doc",
+          summary: nil,
+          tags: [],
+          owner: nil,
+          share_url: nil,
+          last_updated_at: ~U[2024-05-01 12:00:00Z],
+          synced_at: ~U[2024-05-01 12:00:00Z]
+        )
+
+      CacheStore.put({:documents, "db-guides"}, [summary])
+
       socket = %Phoenix.LiveView.Socket{
         assigns: %{
           __changed__: %{},
