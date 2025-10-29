@@ -275,7 +275,7 @@ jobs:
         if: startsWith(${{ env.VERSION }}, 'v') && !contains(${{ env.VERSION }}, '-beta')
         id: gitops-stable
         run: |
-          sed -i "s|\(image:\s*ghcr.io/${{ env.REPO }}:\).*|\1${{ env.VERSION }}|" dashboard_gitops_path/apps/dashboard/deployment.yaml ghcr.io/${{ github.repository }}
+          sed -i "s|\(image:\s*ghcr.io/${{ env.REPO }}:\).*|\1${{ env.VERSION }}|" dashboard_gitops_path/apps/dashboard/deployment.yaml
       # - name: Update beta deployment image
       #   if: startsWith(${{ env.VERSION }}, 'v') && contains(${{ env.VERSION }}, '-beta')
       #   id: gitops-beta
