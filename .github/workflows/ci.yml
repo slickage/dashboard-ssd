@@ -168,6 +168,16 @@ jobs:
             @semantic-release/github
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  debug-release:
+    needs: release
+    env:
+      NEW_RELEASE_PUBLISHED: ${{ needs.release.outputs.new_release_published }}
+      NEW_RELEASE_GIT_TAG: ${{ needs.release.outputs.new_release_git_tag }}
+    steps:
+      - name: Show release variables
+        run: |
+          echo NEW_RELEASE_PUBLISHED: ${{ env.NEW_RELEASE_PUBLISHED }}
+          echo NEW_RELEASE_GIT_TAG: ${{ env.NEW_RELEASE_GIT_TAG }}
   docs-pages:
     needs: release
     if: (github.ref == 'refs/heads/main' && github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_docs == 'true')) && ${{ needs.release.outputs.new_release_published }} == 'true'
