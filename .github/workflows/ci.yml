@@ -180,7 +180,7 @@ jobs:
           echo NEW_RELEASE_PUBLISHED: ${{ env.NEW_RELEASE_PUBLISHED }}
           echo NEW_RELEASE_GIT_TAG: ${{ env.NEW_RELEASE_GIT_TAG }}
       - name: Only show git tag when release published
-        if: ${{ env.NEW_RELEASE_PUBLISHED }} == 'true'
+        if: ${{ env.NEW_RELEASE_PUBLISHED == 'true' }}
         run: |
           echo Published: ${{ env.NEW_RELEASE_GIT_TAG }}
   docs-pages:
