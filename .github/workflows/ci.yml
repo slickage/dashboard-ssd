@@ -185,7 +185,7 @@ jobs:
           echo Published: ${{ env.NEW_RELEASE_GIT_TAG }}
   docs-pages:
     needs: release
-    if: (github.ref == 'refs/heads/main' && github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_docs == 'true')) && ${{ needs.release.outputs.new_release_published }} == 'true'
+    if: (github.ref == 'refs/heads/main' && github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_docs == 'true')) && needs.release.outputs.new_release_published == 'true'
     runs-on: ubuntu-latest
     env:
       VERSION: ${{ needs.release.outputs.new_release_git_tag }}
@@ -227,7 +227,7 @@ jobs:
       pages: write
       id-token: write
     needs: docs-pages
-    if: (github.ref == 'refs/heads/main' && github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_docs == 'true')) && ${{ needs.release.outputs.new_release_published }} == 'true'
+    if: (github.ref == 'refs/heads/main' && github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_docs == 'true')) && needs.release.outputs.new_release_published == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -242,7 +242,7 @@ jobs:
       id-token: write
       packages: write
     needs: release
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && ${{ needs.release.outputs.new_release_published }} == 'true'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.release.outputs.new_release_published == 'true'
     runs-on: ubuntu-latest
     env:
       VERSION: ${{ needs.release.outputs.new_release_git_tag }}
@@ -292,7 +292,7 @@ jobs:
     # update gitops image
       # from ghcr.io, using semantic release "new_release_git_tag" tag
     # push change to gitops repo
-    if: ${{ needs.release.outputs.new_release_published }} == 'true'
+    if: needs.release.outputs.new_release_published == 'true'
     steps:
       - name: Checkout GitOps repo
         id: checkout-gitops
