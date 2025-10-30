@@ -1,3 +1,10 @@
+## [1.4.10](https://github.com/slickage/dashboard-ssd/compare/v1.4.9...v1.4.10) (2025-10-30)
+
+
+### Bug Fixes
+
+* **ci:** bump version ([e2ee4c5](https://github.com/slickage/dashboard-ssd/commit/e2ee4c5b4a524827988b209a305a582c2516157f))
+
 ## [1.4.9](https://github.com/slickage/dashboard-ssd/compare/v1.4.8...v1.4.9) (2025-10-30)
 
 
