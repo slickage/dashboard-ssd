@@ -145,7 +145,7 @@ jobs:
       # for image build/push and CD update
       new_release_published: ${{ steps.semantic.outputs.new_release_published }}
       new_release_git_tag: ${{ steps.semantic.outputs.new_release_git_tag }}
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_docs == 'true'))
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -158,7 +158,6 @@ jobs:
           fetch-depth: 0
       # run semantic release action and export statuses
       - name: Semantic release
-        if: github.event_name == 'push'
         uses: cycjimmy/semantic-release-action@v4
         id: semantic
         with:
@@ -169,6 +168,23 @@ jobs:
             @semantic-release/github
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  docs-pages:
+    needs: release
+    if: (github.ref == 'refs/heads/main' && github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_docs == 'true')) && ${{ needs.release.outputs.new_release_published }} == 'true'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.release.outputs.new_release_git_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # sync (include release)
+      - name: Sync to latest
+        run: |
+          git fetch origin ${{ env.VERSION }}
+          git checkout ${{ env.VERSION }}
+          git pull origin ${{ env.VERSION }}
       - name: Setup BEAM
         uses: erlef/setup-beam@v1
         with:
@@ -195,8 +211,8 @@ jobs:
     permissions:
       pages: write
       id-token: write
-    needs: release
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_docs == 'true')
+    needs: docs-pages
+    if: (github.ref == 'refs/heads/main' && github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_docs == 'true')) && ${{ needs.release.outputs.new_release_published }} == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
