@@ -226,7 +226,7 @@ jobs:
     permissions:
       pages: write
       id-token: write
-    needs: docs-pages
+    needs: [release, docs-pages]
     if: (github.ref == 'refs/heads/main' && github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_docs == 'true')) && needs.release.outputs.new_release_published == 'true'
     runs-on: ubuntu-latest
     environment:
@@ -282,7 +282,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
   deploy:
-    needs: [build]
+    needs: [release, build]
     runs-on: ubuntu-latest
     env:
       VERSION: ${{ needs.release.outputs.new_release_git_tag }}
