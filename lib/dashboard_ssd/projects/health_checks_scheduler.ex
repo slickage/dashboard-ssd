@@ -44,7 +44,7 @@ defmodule DashboardSSD.Projects.HealthChecksScheduler do
         run_checks()
       end)
 
-    Sandbox.allow(DashboardSSD.Repo, self(), task.pid)
+    maybe_allow_sandbox(self(), task.pid)
 
     {:noreply, %{state | task_ref: task.ref}}
   end
@@ -99,7 +99,7 @@ defmodule DashboardSSD.Projects.HealthChecksScheduler do
   end
 
   defp process_setting(setting) do
-    Sandbox.allow(DashboardSSD.Repo, self(), self())
+    maybe_allow_sandbox(self(), self())
 
     case perform_check(setting) do
       {:ok, status} ->
@@ -151,5 +151,16 @@ defmodule DashboardSSD.Projects.HealthChecksScheduler do
   defp task_timeout do
     Application.get_env(:dashboard_ssd, :health_checks, [])[:task_timeout_ms] ||
       @default_task_timeout
+  end
+
+  defp maybe_allow_sandbox(parent, child) do
+    if sandbox_repo?() do
+      Sandbox.allow(DashboardSSD.Repo, parent, child)
+    end
+  end
+
+  defp sandbox_repo? do
+    config = Application.get_env(:dashboard_ssd, DashboardSSD.Repo, [])
+    Keyword.get(config, :pool) == Sandbox
   end
 end
