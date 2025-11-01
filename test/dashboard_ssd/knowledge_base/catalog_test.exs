@@ -2195,6 +2195,185 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       assert bookmark.type == :bookmark and bookmark.url == "https://example.com"
     end
 
+    test "normalizes link_to_page blocks" do
+      page = %{
+        "id" => "page-link",
+        "url" => "https://notion.so/page-link",
+        "created_time" => "2024-05-12T10:05:00Z",
+        "last_edited_time" => "2024-05-12T12:05:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Link"}]}
+        }
+      }
+
+      blocks_response = %{
+        "results" => [
+          %{
+            "id" => "link-1",
+            "type" => "link_to_page",
+            "has_children" => false,
+            "link_to_page" => %{"type" => "page_id", "page_id" => "page-linked"}
+          }
+        ],
+        "has_more" => false,
+        "next_cursor" => nil
+      }
+
+      linked_page = %{
+        "id" => "page-linked",
+        "url" => "https://notion.so/page-linked",
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Linked Doc"}]}
+        },
+        "icon" => %{"emoji" => "📄"}
+      }
+
+      NotionMock
+      |> expect(:retrieve_page, fn "token", "page-link", _opts -> {:ok, page} end)
+      |> expect(:retrieve_block_children, fn "token", "page-link", _opts ->
+        {:ok, blocks_response}
+      end)
+      |> expect(:retrieve_page, fn "token", "page-linked", _opts -> {:ok, linked_page} end)
+
+      assert {:ok, detail} = Catalog.get_document("page-link")
+
+      assert [link_block] = detail.rendered_blocks
+      assert link_block.type == :link_to_page
+      assert link_block.target_type == "page_id"
+      assert link_block.target_id == "page-linked"
+      assert link_block.target_title == "Linked Doc"
+      assert link_block.target_icon == "📄"
+      assert Enum.map(link_block.segments, & &1[:text]) == ["Linked Doc"]
+    end
+
+    test "link_to_page falls back when linked page unavailable" do
+      page = %{
+        "id" => "page-link-error",
+        "url" => "https://notion.so/page-link-error",
+        "created_time" => "2024-05-12T10:05:00Z",
+        "last_edited_time" => "2024-05-12T12:05:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Link"}]}
+        }
+      }
+
+      blocks_response = %{
+        "results" => [
+          %{
+            "id" => "link-err",
+            "type" => "link_to_page",
+            "has_children" => false,
+            "link_to_page" => %{"type" => "page_id", "page_id" => "missing-page"}
+          }
+        ],
+        "has_more" => false,
+        "next_cursor" => nil
+      }
+
+      NotionMock
+      |> expect(:retrieve_page, fn "token", "page-link-error", _opts -> {:ok, page} end)
+      |> expect(:retrieve_block_children, fn "token", "page-link-error", _opts ->
+        {:ok, blocks_response}
+      end)
+      |> expect(:retrieve_page, fn "token", "missing-page", _opts -> {:error, :not_found} end)
+
+      assert {:ok, detail} = Catalog.get_document("page-link-error")
+
+      assert [%{type: :link_to_page, target_title: nil, target_icon: nil, segments: segments}] =
+               detail.rendered_blocks
+
+      assert Enum.map(segments, & &1[:text]) == ["Open linked page"]
+    end
+
+    test "link_to_page supports database targets" do
+      page = %{
+        "id" => "page-db-link",
+        "url" => "https://notion.so/page-db-link",
+        "created_time" => "2024-05-12T10:10:00Z",
+        "last_edited_time" => "2024-05-12T12:10:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Link"}]}
+        }
+      }
+
+      blocks_response = %{
+        "results" => [
+          %{
+            "id" => "db-link",
+            "type" => "link_to_page",
+            "has_children" => false,
+            "link_to_page" => %{"type" => "database_id", "database_id" => "db-target"}
+          }
+        ],
+        "has_more" => false,
+        "next_cursor" => nil
+      }
+
+      NotionMock
+      |> expect(:retrieve_page, fn "token", "page-db-link", _opts -> {:ok, page} end)
+      |> expect(:retrieve_block_children, fn "token", "page-db-link", _opts ->
+        {:ok, blocks_response}
+      end)
+
+      assert {:ok, detail} = Catalog.get_document("page-db-link")
+
+      assert [block] = detail.rendered_blocks
+      assert block.type == :link_to_page
+      assert block.target_type == "database_id"
+      assert block.target_id == "db-target"
+      assert Enum.map(block.segments, & &1[:text]) == ["Open linked database"]
+    end
+
+    test "link_to_page handles missing target id gracefully" do
+      page = %{
+        "id" => "page-link-missing",
+        "url" => "https://notion.so/page-link-missing",
+        "created_time" => "2024-05-12T10:15:00Z",
+        "last_edited_time" => "2024-05-12T12:15:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-handbook"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Link"}]}
+        }
+      }
+
+      blocks_response = %{
+        "results" => [
+          %{
+            "id" => "link-missing",
+            "type" => "link_to_page",
+            "has_children" => false,
+            "link_to_page" => %{"type" => "page_id", "page_id" => nil}
+          }
+        ],
+        "has_more" => false,
+        "next_cursor" => nil
+      }
+
+      NotionMock
+      |> expect(:retrieve_page, fn "token", "page-link-missing", _opts -> {:ok, page} end)
+      |> expect(:retrieve_block_children, fn "token", "page-link-missing", _opts ->
+        {:ok, blocks_response}
+      end)
+
+      assert {:ok, detail} = Catalog.get_document("page-link-missing")
+
+      assert [
+               %{
+                 type: :link_to_page,
+                 target_id: target_id,
+                 target_title: nil,
+                 target_icon: nil,
+                 segments: segments
+               }
+             ] = detail.rendered_blocks
+
+      assert target_id == ""
+      assert Enum.map(segments, & &1[:text]) == ["Open linked page"]
+    end
+
     test "handles callout blocks without icon" do
       page = %{
         "id" => "page-callout-no-icon",
