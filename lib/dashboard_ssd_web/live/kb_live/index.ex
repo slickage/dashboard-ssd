@@ -59,6 +59,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
           force_update: nil
         )
         |> maybe_load_document_from_params(params)
+        |> maybe_start_initial_document_load()
 
       {:ok, socket}
     else
@@ -85,6 +86,46 @@ defmodule DashboardSSDWeb.KbLive.Index do
   end
 
   defp maybe_load_document_from_params(socket, _params), do: socket
+
+  defp maybe_start_initial_document_load(%{assigns: %{selected_document: selected}} = socket)
+       when not is_nil(selected) do
+    socket
+  end
+
+  defp maybe_start_initial_document_load(%{assigns: %{pending_document_id: pending}} = socket)
+       when not is_nil(pending) do
+    socket
+  end
+
+  defp maybe_start_initial_document_load(%{assigns: %{selected_document_id: nil}} = socket),
+    do: socket
+
+  defp maybe_start_initial_document_load(socket) do
+    start_initial_document(socket)
+  end
+
+  defp start_initial_document(socket) do
+    document_id = socket.assigns.selected_document_id
+    opts = [source: :initial, collection_id: socket.assigns.selected_collection_id]
+
+    case CacheStore.get({:document_detail, document_id}) do
+      {:ok, document} ->
+        record_document_view(socket.assigns[:current_user], document)
+
+        socket =
+          socket
+          |> finish_document_load(document, opts)
+
+        unless Application.get_env(:dashboard_ssd, :test_env?, false) do
+          send(self(), {:check_document_update, document_id, document.last_updated_at})
+        end
+
+        socket
+
+      :miss ->
+        start_document_load(socket, document_id, opts)
+    end
+  end
 
   @impl true
   def handle_event("typeahead_search", %{"query" => query}, socket) do
@@ -189,40 +230,7 @@ defmodule DashboardSSDWeb.KbLive.Index do
          )}
 
       true ->
-        {documents, document_errors} = load_documents(collection_id)
-
-        # If the collection has no documents and no errors, remove it from the list
-        if documents == [] and document_errors == [] and
-             Map.has_key?(socket.assigns, :collections) do
-          filtered = Enum.reject(socket.assigns[:collections] || [], &(&1.id == collection_id))
-
-          {:noreply,
-           socket
-           |> assign(:collections, filtered)
-           |> assign(:document_errors, document_errors_map(socket))}
-        else
-          documents_by_collection = documents_map(socket)
-          existing_document_errors = document_errors_map(socket)
-
-          socket =
-            socket
-            |> assign(
-              :documents_by_collection,
-              Map.put(documents_by_collection, collection_id, documents)
-            )
-            |> assign(
-              :document_errors,
-              put_document_errors(existing_document_errors, collection_id, document_errors)
-            )
-            |> assign(
-              :expanded_collections,
-              MapSet.put(socket.assigns.expanded_collections, collection_id)
-            )
-            |> assign(:selected_collection_id, collection_id)
-            |> assign_documents(collection_id)
-
-          {:noreply, socket}
-        end
+        expand_collection(socket, collection_id)
     end
   end
 
@@ -308,6 +316,43 @@ defmodule DashboardSSDWeb.KbLive.Index do
      socket
      |> push_event("copy-to-clipboard", %{text: url})
      |> put_flash(:info, "Share link copied to clipboard")}
+  end
+
+  defp expand_collection(socket, collection_id) do
+    cache_hit? = documents_cached?(collection_id)
+    {documents, document_errors} = load_documents(collection_id)
+
+    if documents == [] and document_errors == [] and
+         Map.has_key?(socket.assigns, :collections) do
+      filtered = Enum.reject(socket.assigns[:collections] || [], &(&1.id == collection_id))
+
+      socket
+      |> assign(:collections, filtered)
+      |> assign(:document_errors, document_errors_map(socket))
+      |> maybe_refresh_after_load(collection_id, cache_hit?)
+      |> noreply()
+    else
+      documents_by_collection = documents_map(socket)
+      existing_document_errors = document_errors_map(socket)
+
+      socket
+      |> assign(
+        :documents_by_collection,
+        Map.put(documents_by_collection, collection_id, documents)
+      )
+      |> assign(
+        :document_errors,
+        put_document_errors(existing_document_errors, collection_id, document_errors)
+      )
+      |> assign(
+        :expanded_collections,
+        MapSet.put(socket.assigns.expanded_collections, collection_id)
+      )
+      |> assign(:selected_collection_id, collection_id)
+      |> assign_documents(collection_id)
+      |> maybe_refresh_after_load(collection_id, cache_hit?)
+      |> noreply()
+    end
   end
 
   @impl true
@@ -629,8 +674,11 @@ defmodule DashboardSSDWeb.KbLive.Index do
 
   defp preload_collections([first | _]) do
     collection_id = first.id
+    cache_hit? = documents_cached?(collection_id)
     {documents, document_errors} = load_documents(collection_id, cache?: true)
-    {selected_document, reader_error, selected_document_id} = preload_first_document(documents)
+    selected_document_id = documents |> List.first() |> then(&(&1 && &1.id))
+    selected_document = nil
+    reader_error = nil
 
     documents_by_collection =
       if collection_id do
@@ -653,7 +701,9 @@ defmodule DashboardSSDWeb.KbLive.Index do
         MapSet.new()
       end
 
-    maybe_refresh_collection_async(collection_id)
+    if cache_hit? do
+      maybe_refresh_collection_async(collection_id, already_cached?: true)
+    end
 
     {collection_id, documents_by_collection, document_errors_map, selected_document,
      selected_document_id, reader_error, expanded}
@@ -685,16 +735,24 @@ defmodule DashboardSSDWeb.KbLive.Index do
     if Map.has_key?(documents_by_collection, collection_id) do
       socket
     else
+      cache_hit? = documents_cached?(collection_id)
       {documents, errors} = load_documents(collection_id)
       updated_documents = Map.put(documents_by_collection, collection_id, documents)
       document_errors = document_errors_map(socket)
 
+      socket =
+        socket
+        |> assign(:documents_by_collection, updated_documents)
+        |> assign(
+          :document_errors,
+          put_document_errors(document_errors, collection_id, errors)
+        )
+
+      if cache_hit? do
+        maybe_refresh_collection_async(collection_id, already_cached?: true)
+      end
+
       socket
-      |> assign(:documents_by_collection, updated_documents)
-      |> assign(
-        :document_errors,
-        put_document_errors(document_errors, collection_id, errors)
-      )
     end
   end
 
@@ -888,15 +946,6 @@ defmodule DashboardSSDWeb.KbLive.Index do
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(value), do: value
 
-  defp preload_first_document([]), do: {nil, nil, nil}
-
-  defp preload_first_document([document | _]) do
-    case load_document_detail(document.id) do
-      {:ok, detail} -> {detail, nil, document.id}
-      {:error, reason} -> {nil, %{document_id: document.id, reason: reason}, nil}
-    end
-  end
-
   defp load_document_detail_with_cache_check(nil), do: {:error, :invalid_document}
 
   defp load_document_detail_with_cache_check(document_id) do
@@ -914,18 +963,37 @@ defmodule DashboardSSDWeb.KbLive.Index do
     end
   end
 
-  defp load_document_detail(document_id) do
-    Catalog.get_document(document_id)
+  defp documents_cached?(nil), do: false
+
+  defp documents_cached?(collection_id) do
+    match?({:ok, _}, CacheStore.get({:documents, collection_id}))
   end
 
-  defp maybe_refresh_collection_async(nil), do: :ok
+  defp maybe_refresh_after_load(socket, _collection_id, false), do: socket
 
-  defp maybe_refresh_collection_async(collection_id) do
-    if runtime_env() == :test do
-      :ok
-    else
-      parent = self()
-      Task.start(fn -> refresh_collection(collection_id, parent) end)
+  defp maybe_refresh_after_load(socket, collection_id, true) do
+    maybe_refresh_collection_async(collection_id, already_cached?: true)
+    socket
+  end
+
+  defp noreply(socket), do: {:noreply, socket}
+
+  defp maybe_refresh_collection_async(collection_id, opts \\ [])
+  defp maybe_refresh_collection_async(nil, _opts), do: :ok
+
+  defp maybe_refresh_collection_async(collection_id, opts) do
+    already_cached? = Keyword.get(opts, :already_cached?, false)
+
+    cond do
+      already_cached? ->
+        :ok
+
+      runtime_env() == :test ->
+        :ok
+
+      true ->
+        parent = self()
+        Task.start(fn -> refresh_collection(collection_id, parent) end)
     end
   end
 

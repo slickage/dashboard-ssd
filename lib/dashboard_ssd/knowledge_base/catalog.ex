@@ -8,6 +8,9 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
 
   @default_ttl :timer.minutes(5)
   @auto_default_page_size 50
+  @curated_default_page_size 25
+  @curated_fetch_timeout 15_000
+  @collection_fetch_concurrency max(4, System.schedulers_online())
   @default_page_collection_id "kb:auto:pages"
   @page_collection_source "search:pages"
   @page_parent_types MapSet.new(["page_id", "workspace", "database_id"])
@@ -145,16 +148,38 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
   end
 
   defp build_curated_collections(token, metas, opts) do
-    {collections_acc, errors_acc} =
-      Enum.reduce(metas, {[], []}, fn meta, {acc, err_acc} ->
-        case fetch_collection(meta, token, opts) do
-          {:ok, collection} ->
-            {[collection | acc], err_acc}
+    stream_opts = [
+      ordered: true,
+      max_concurrency: collection_fetch_concurrency(opts),
+      timeout: Keyword.get(opts, :fetch_timeout, @curated_fetch_timeout)
+    ]
 
-          {:error, reason} ->
-            id = meta_value(meta, "id")
-            {acc, [%{collection_id: id, reason: reason} | err_acc]}
-        end
+    {collections_acc, errors_acc} =
+      metas
+      |> Task.async_stream(
+        fn meta ->
+          result = safe_fetch_collection(meta, token, opts)
+          {meta, result}
+        end,
+        stream_opts
+      )
+      |> Enum.reduce({[], []}, fn
+        {:ok, {meta, result}}, {colls, errs} ->
+          case result do
+            {:ok, collection} ->
+              {[collection | colls], errs}
+
+            {:error, reason} ->
+              id = meta_value(meta, "id")
+              {colls, [%{collection_id: id, reason: reason} | errs]}
+
+            unexpected ->
+              id = meta_value(meta, "id")
+              {colls, [%{collection_id: id, reason: {:unexpected_result, unexpected}} | errs]}
+          end
+
+        {:exit, reason}, {colls, errs} ->
+          {colls, [%{reason: reason} | errs]}
       end)
 
     collections = Enum.reverse(collections_acc)
@@ -175,6 +200,35 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
          errors: errors
        }}
     end
+  end
+
+  defp safe_fetch_collection(meta, token, opts) do
+    try do
+      fetch_collection(meta, token, opts)
+    rescue
+      exception ->
+        {:error, {:exception, Exception.format(:error, exception, __STACKTRACE__)}}
+    catch
+      kind, reason ->
+        {:error, {:catch, {kind, reason}}}
+    end
+  end
+
+  defp collection_fetch_concurrency(opts) do
+    opts
+    |> Keyword.get(:max_concurrency, default_collection_concurrency())
+    |> max(1)
+  end
+
+  defp default_collection_concurrency do
+    case catalog_env() do
+      :test -> 1
+      _ -> @collection_fetch_concurrency
+    end
+  end
+
+  defp catalog_env do
+    Application.get_env(:dashboard_ssd, :env, Application.get_env(:elixir, :config_env, :prod))
   end
 
   defp fetch_discovered_collections(token, opts) do
@@ -648,7 +702,7 @@ defmodule DashboardSSD.KnowledgeBase.Catalog do
   defp fetch_collection_from_notion(meta, token, opts) do
     client = notion_client()
     id = meta_value(meta, "id")
-    page_size = Keyword.get(opts, :page_size, 100)
+    page_size = Keyword.get(opts, :page_size, @curated_default_page_size)
 
     query_opts = [
       page_size: page_size,

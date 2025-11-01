@@ -1,8 +1,8 @@
-defmodule DashboardSSD.HealthChecks.SchedulerAwsTest do
+defmodule DashboardSSD.Projects.HealthChecksSchedulerAwsTest do
   use DashboardSSD.DataCase, async: false
 
   alias DashboardSSD.{Clients, Deployments, Projects}
-  alias DashboardSSD.HealthChecks.Scheduler
+  alias DashboardSSD.Projects.HealthChecksScheduler
 
   test "scheduler skips aws_elbv2 with descriptive reason" do
     {:ok, c} = Clients.create_client(%{name: "SchedC2"})
@@ -16,7 +16,7 @@ defmodule DashboardSSD.HealthChecks.SchedulerAwsTest do
         aws_target_group_arn: "arn:aws:elasticloadbalancing:...:targetgroup/..."
       })
 
-    {:ok, pid} = start_supervised(Scheduler)
+    {:ok, pid} = start_supervised(HealthChecksScheduler)
     Process.sleep(50)
     Process.exit(pid, :normal)
 

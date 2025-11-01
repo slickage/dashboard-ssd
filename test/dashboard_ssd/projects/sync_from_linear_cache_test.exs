@@ -34,6 +34,30 @@ defmodule DashboardSSD.Projects.SyncFromLinearCacheTest do
     :ok
   end
 
+  test "cached_linear_sync returns :miss when cache empty" do
+    CacheStore.delete()
+    assert :miss = Projects.cached_linear_sync()
+  end
+
+  test "cached_linear_sync returns cached payload without remote call" do
+    entry = %{
+      payload: %{inserted: 2, updated: 3, summaries: %{"1" => %{total: 5}}},
+      synced_at: DateTime.utc_now(),
+      synced_at_mono: System.monotonic_time(:millisecond),
+      next_allowed_sync_mono: nil,
+      rate_limit_message: nil,
+      summaries: %{"1" => %{total: 5}}
+    }
+
+    :ok = CacheStore.put(entry, :timer.minutes(30))
+
+    assert {:ok, payload} = Projects.cached_linear_sync()
+    assert payload[:cached?]
+    assert payload[:cached_reason] == :pre_warm
+    assert payload[:synced_at]
+    assert payload[:summaries]["1"][:assigned] == []
+  end
+
   test "returns cached payload when data is fresh" do
     entry = %{
       payload: %{inserted: 1, updated: 2},
