@@ -3,6 +3,7 @@ defmodule DashboardSSD.Analytics.CollectorTest do
 
   import ExUnit.CaptureLog
 
+  alias Bypass
   alias DashboardSSD.Analytics.Collector
   alias DashboardSSD.Analytics.MetricSnapshot
   alias DashboardSSD.Clients
@@ -172,26 +173,38 @@ defmodule DashboardSSD.Analytics.CollectorTest do
         provider: "aws_elbv2"
       }
 
-      assert :ok == Collector.collect_project_metrics(setting)
+      log =
+        capture_log(fn ->
+          assert :ok == Collector.collect_project_metrics(setting)
+        end)
+
+      assert log =~ "AWS ELBv2 metrics collection not yet implemented for project"
     end
 
     test "collects http metrics for http provider" do
       project_id = project_id()
 
-      Tesla.Mock.mock(fn
-        %{method: :get, url: "http://example.com/"} ->
-          %Tesla.Env{status: 200, body: "OK"}
+      bypass = Bypass.open()
+
+      Bypass.expect_once(bypass, fn conn ->
+        Plug.Conn.resp(conn, 200, "OK")
       end)
+
+      url = "http://127.0.0.1:#{bypass.port}/"
 
       setting = %DashboardSSD.Deployments.HealthCheckSetting{
         project_id: project_id,
         provider: "http",
-        endpoint_url: "http://example.com/"
+        endpoint_url: url
       }
 
-      assert :ok == Collector.collect_project_metrics(setting)
+      log =
+        capture_log(fn ->
+          assert :ok == Collector.collect_project_metrics(setting)
+        end)
 
-      # Check that metrics were created
+      assert log =~ "No failures found for MTTR calculation in project #{project_id}"
+
       response_time_metric =
         Repo.get_by(MetricSnapshot, project_id: project_id, type: "response_time")
 
@@ -212,7 +225,12 @@ defmodule DashboardSSD.Analytics.CollectorTest do
         endpoint_url: "http://127.0.0.1:9/"
       }
 
-      assert :ok == Collector.collect_project_metrics(setting)
+      log =
+        capture_log(fn ->
+          assert :ok == Collector.collect_project_metrics(setting)
+        end)
+
+      assert log =~ "No failures found for MTTR calculation in project #{project_id}"
 
       # Check that only uptime metric was created with 0.0
       uptime_metric = Repo.get_by(MetricSnapshot, project_id: project_id, type: "uptime")

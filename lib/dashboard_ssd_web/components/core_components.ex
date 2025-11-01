@@ -679,27 +679,38 @@ defmodule DashboardSSDWeb.CoreComponents do
     total = summary[:total] || summary["total"] || 0
     ip = summary[:in_progress] || summary["in_progress"] || 0
     fin = summary[:finished] || summary["finished"] || 0
+    todo = max(total - ip - fin, 0)
 
     done_pct = percent(fin, total)
     ip_pct = percent(ip, total)
-    rest_pct = max(0, 100 - done_pct - ip_pct)
+    todo_pct = percent(todo, total)
 
     assigns =
       assign(assigns,
         total: total,
         ip: ip,
         fin: fin,
+        todo: todo,
         done_pct: done_pct,
         ip_pct: ip_pct,
-        rest_pct: rest_pct
+        todo_pct: todo_pct
       )
 
     ~H"""
     <div class="flex items-center gap-3">
-      <div class="grid w-36 shrink-0 grid-cols-3 gap-2">
+      <div class="grid w-48 shrink-0 grid-cols-4 gap-2">
         <span class="flex items-center gap-1 text-xs text-theme-muted" title="Total">
-          <span class="inline-block h-2.5 w-2.5 rounded-full bg-white/40" aria-hidden="true"></span>
-          <span class="tabular-nums text-white/80">{@total}</span>
+          <span
+            class="inline-block h-2.5 w-2.5 rounded-full border border-zinc-800 bg-transparent dark:border-white/60 dark:bg-transparent"
+            aria-hidden="true"
+          >
+          </span>
+          <span class="tabular-nums text-theme-text">{@total}</span>
+        </span>
+        <span class="flex items-center gap-1 text-xs text-theme-text-muted" title="Todo">
+          <span class="inline-block h-2.5 w-2.5 rounded-full bg-zinc-400/80" aria-hidden="true">
+          </span>
+          <span class="tabular-nums">{@todo}</span>
         </span>
         <span class="flex items-center gap-1 text-xs text-sky-200" title="In Progress">
           <span class="inline-block h-2.5 w-2.5 rounded-full bg-sky-400" aria-hidden="true"></span>
@@ -710,13 +721,56 @@ defmodule DashboardSSDWeb.CoreComponents do
           </span>
           <span class="tabular-nums">{@fin}</span>
         </span>
-        <span class="hidden" data-total={@total} data-in-progress={@ip} data-finished={@fin}></span>
+        <span
+          class="hidden"
+          data-total={@total}
+          data-todo={@todo}
+          data-in-progress={@ip}
+          data-finished={@fin}
+        >
+        </span>
       </div>
       <div class="flex h-2 w-32 overflow-hidden rounded-full bg-white/10">
         <div class="h-full bg-emerald-400" style={"width: #{@done_pct}%"}></div>
         <div class="h-full bg-sky-400" style={"width: #{@ip_pct}%"}></div>
-        <div class="h-full bg-transparent" style={"width: #{@rest_pct}%"}></div>
+        <div class="h-full bg-zinc-400/80" style={"width: #{@todo_pct}%"}></div>
       </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a list of assigned team members with their task counts.
+  """
+  attr :assigned, :list, default: []
+
+  @spec assigned_cell(map()) :: Rendered.t()
+  def assigned_cell(assigns) do
+    assigned =
+      assigns.assigned
+      |> List.wrap()
+      |> Enum.filter(fn
+        %{name: name, count: count} when is_binary(name) and name != "" and is_integer(count) ->
+          true
+
+        _ ->
+          false
+      end)
+
+    assigns = assign(assigns, :assigned, assigned)
+
+    ~H"""
+    <div class="flex flex-wrap items-center gap-2 text-xs">
+      <%= if @assigned == [] do %>
+        <span class="text-theme-muted">—</span>
+      <% else %>
+        <%= for member <- @assigned do %>
+          <span class="inline-flex items-center gap-1 rounded-full border border-zinc-300 bg-transparent px-2 py-0.5 text-theme-text dark:border-white/15 dark:bg-white/10">
+            <span>{member.name}</span>
+            <span class="tabular-nums text-theme-muted">({member.count})</span>
+          </span>
+        <% end %>
+      <% end %>
     </div>
     """
   end

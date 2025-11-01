@@ -1,14 +1,12 @@
-defmodule DashboardSSD.KnowledgeBase.Cache do
+defmodule DashboardSSD.Cache do
   @moduledoc """
-  Lightweight ETS-backed cache for Knowledge Base data such as collections,
-  documents, and rendered blocks.
-
-  Entries are stored per logical namespace with TTL-based expiration and a
-  periodic cleanup pass to reclaim stale data.
+  Lightweight ETS-backed cache shared across the application. Entries are stored
+  per logical namespace with TTL-based expiration and a periodic cleanup pass to
+  reclaim stale data.
   """
   use GenServer
 
-  @table :dashboard_ssd_kb_cache
+  @table :dashboard_ssd_cache
   @default_ttl_ms :timer.minutes(10)
   @default_cleanup_ms :timer.minutes(1)
 
@@ -166,7 +164,7 @@ defmodule DashboardSSD.KnowledgeBase.Cache do
 
   defp ensure_started! do
     if :ets.whereis(@table) == :undefined do
-      raise "DashboardSSD.KnowledgeBase.Cache has not been started"
+      raise "DashboardSSD.Cache has not been started"
     end
 
     :ok

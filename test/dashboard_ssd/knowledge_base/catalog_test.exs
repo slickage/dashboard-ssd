@@ -4,7 +4,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
   import Mox
 
   alias DashboardSSD.Integrations.{Notion, NotionMock}
-  alias DashboardSSD.KnowledgeBase.{Cache, Catalog, Types}
+  alias DashboardSSD.KnowledgeBase.{CacheStore, Catalog, Types}
 
   setup :verify_on_exit!
 
@@ -36,7 +36,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       end
 
       restore_env(prev_env)
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
     end)
 
@@ -54,7 +54,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       allow_documents_without_type?: true
     )
 
-    Cache.reset()
+    CacheStore.reset()
     Notion.reset_circuits()
 
     :ok
@@ -105,7 +105,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
     end
 
     test "bypasses cache for collections when cache? is false" do
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -141,7 +141,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
         notion_curated_database_ids: ["db-default"]
       )
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -166,7 +166,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
         notion_curated_database_ids: ["db-atom"]
       )
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -222,7 +222,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
         ]
       )
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -239,7 +239,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
     end
 
     test "bypasses cache when cache? option is false" do
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -261,7 +261,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
         notion_curated_database_ids: ["db-kw"]
       )
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -288,7 +288,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
         curated_collections: [%{"id" => "db-api", "name" => "API Collection"}]
       )
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -313,7 +313,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
         notion_curated_database_ids: ["db-allowed"]
       )
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -326,7 +326,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
     end
 
     test "bypasses cached collections when cache? option false" do
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -351,7 +351,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
         notion_curated_database_ids: [:db_atom]
       )
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -373,7 +373,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
 
       Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -406,7 +406,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, auto_discover?: true)
       Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       response = %{
@@ -453,7 +453,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
         notion_curated_database_ids: ["db-allowed"]
       )
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       response = %{
@@ -498,7 +498,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, auto_discover?: true)
       Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       page_one = %{
@@ -547,7 +547,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, auto_discover?: true)
       Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -560,7 +560,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, auto_discover?: true)
       Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -600,11 +600,112 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       assert collection.metadata[:properties] == %{"Name" => %{"type" => "title"}}
     end
 
+    test "auto page collection aggregates and caches pages" do
+      Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
+
+      CacheStore.reset()
+      Notion.reset_circuits()
+
+      page = %{
+        "id" => "page-auto",
+        "url" => "https://notion.so/page-auto",
+        "created_time" => "2024-05-01T09:00:00Z",
+        "last_edited_time" => "2024-05-05T12:00:00Z",
+        "parent" => %{"type" => "workspace"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Auto Page"}]}
+        }
+      }
+
+      NotionMock
+      |> expect(:search, 1, fn "token", "", opts ->
+        body = Keyword.fetch!(opts, :body)
+        assert body[:page_size] == 50
+        {:ok, %{"results" => [page], "has_more" => false, "next_cursor" => nil}}
+      end)
+
+      assert {:ok, %{documents: [doc], errors: []}} = Catalog.list_documents("kb:auto:pages")
+      assert doc.id == "page-auto"
+      assert doc.collection_id == "kb:auto:pages"
+      assert doc.title == "Auto Page"
+
+      # Second call should reuse cached data and avoid extra search calls.
+      assert {:ok, %{documents: [cached_doc], errors: []}} =
+               Catalog.list_documents("kb:auto:pages")
+
+      assert cached_doc.id == "page-auto"
+    end
+
+    test "auto page collection respects include and exclude filters" do
+      Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
+
+      CacheStore.reset()
+      Notion.reset_circuits()
+
+      direct_match_page = %{
+        "id" => "page-direct",
+        "last_edited_time" => "2024-05-05T10:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-other"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Direct"}]}
+        }
+      }
+
+      parent_match_page = %{
+        "id" => "page-parent",
+        "last_edited_time" => "2024-05-06T09:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-include"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Parent Match"}]}
+        }
+      }
+
+      excluded_page = %{
+        "id" => "page-exclude",
+        "last_edited_time" => "2024-05-06T10:00:00Z",
+        "parent" => %{"type" => "database_id", "database_id" => "db-exclude"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Exclude Me"}]}
+        }
+      }
+
+      empty_id_page = %{
+        "id" => "",
+        "last_edited_time" => "2024-05-07T08:00:00Z",
+        "parent" => %{"type" => "workspace"},
+        "properties" => %{
+          "Name" => %{"type" => "title", "title" => [%{"plain_text" => "Empty"}]}
+        }
+      }
+
+      NotionMock
+      |> expect(:search, 1, fn "token", "", opts ->
+        body = Keyword.fetch!(opts, :body)
+        assert body[:page_size] == 50
+
+        {:ok,
+         %{
+           "results" => [direct_match_page, parent_match_page, excluded_page, empty_id_page],
+           "has_more" => false,
+           "next_cursor" => nil
+         }}
+      end)
+
+      assert {:ok, %{documents: docs, errors: []}} =
+               Catalog.list_documents("kb:auto:pages",
+                 cache?: false,
+                 include_ids: ["page-direct", "db-include"],
+                 exclude_ids: ["db-exclude"]
+               )
+
+      assert Enum.map(docs, & &1.id) == ["page-parent", "page-direct"]
+    end
+
     test "handles databases with empty title" do
       Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, auto_discover?: true)
       Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       response = %{
@@ -633,7 +734,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, auto_discover?: true)
       Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       response = %{
@@ -662,7 +763,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, auto_discover?: true)
       Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -692,7 +793,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, auto_discover?: true)
       Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -726,7 +827,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
 
       Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -748,7 +849,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, auto_discover?: true)
       Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -785,7 +886,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
 
       Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -809,7 +910,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, auto_discover?: false)
       Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       assert {:ok, %{collections: [], errors: []}} = Catalog.list_collections()
@@ -823,7 +924,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
 
       Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -875,7 +976,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, auto_discover?: true)
       Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -903,7 +1004,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
         notion_curated_database_ids: [1234]
       )
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -931,7 +1032,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
 
       Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -984,7 +1085,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
 
       Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       NotionMock
@@ -1031,7 +1132,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
 
   describe "list_documents/2" do
     test "returns document summaries for a collection" do
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       page = %{
@@ -1078,7 +1179,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
     end
 
     test "handles pages with empty title" do
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       page = %{
@@ -1102,7 +1203,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
     end
 
     test "handles pages with empty people property" do
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       page = %{
@@ -1127,7 +1228,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
     end
 
     test "truncates long summaries" do
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       long_text = String.duplicate("Summary text ", 50)
@@ -1155,7 +1256,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
     end
 
     test "bypasses cache when cache? is false" do
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       page = %{
@@ -1185,7 +1286,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
     end
 
     test "derives tags and owners from various property combinations" do
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       people_page = %{
@@ -1247,7 +1348,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
     end
 
     test "normalizes identifiers and truncates long summaries" do
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       long_text = String.duplicate("Summary text ", 20)
@@ -1400,7 +1501,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
     end
 
     test "includes documents for exempt databases even when type is not allowlisted" do
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
@@ -1509,7 +1610,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
     end
 
     test "includes documents without type when allow_documents_without_type? is true" do
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
@@ -1556,7 +1657,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
     end
 
     test "paginates database documents across cursors" do
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       page_one = %{
@@ -1616,7 +1717,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
         notion_curated_database_ids: ["workspace"]
       )
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       page = %{
@@ -1649,7 +1750,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
         notion_curated_database_ids: ["workspace"]
       )
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       page = %{
@@ -1679,7 +1780,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
         notion_curated_database_ids: ["workspace"]
       )
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       page = %{
@@ -1706,7 +1807,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
 
   describe "get_document/2" do
     setup do
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
       :ok
     end
@@ -2481,7 +2582,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
         auto_page_collection_name: "Wiki Pages"
       )
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
       :ok
     end
@@ -2716,7 +2817,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
         allow_documents_without_type?: false
       )
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       kept_page = %{
@@ -2786,7 +2887,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
         exclude_database_ids: ["parent-blocked"]
       )
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       blocked = %{
@@ -2970,7 +3071,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
         allow_documents_without_type?: false
       )
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       excluded_page = %{
@@ -3027,7 +3128,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
         allow_documents_without_type?: false
       )
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       excluded_page = %{
@@ -3083,7 +3184,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
         allow_documents_without_type?: false
       )
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       valid_page = %{
@@ -3141,7 +3242,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
       auto_page_collection_name: "Custom Pages"
     )
 
-    Cache.reset()
+    CacheStore.reset()
     Notion.reset_circuits()
 
     NotionMock
@@ -3161,7 +3262,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
 
     Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
 
-    Cache.reset()
+    CacheStore.reset()
     Notion.reset_circuits()
 
     response = %{
@@ -3196,7 +3297,7 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
     Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, auto_discover?: true)
     Application.put_env(:dashboard_ssd, :integrations, notion_token: "token")
 
-    Cache.reset()
+    CacheStore.reset()
     Notion.reset_circuits()
 
     NotionMock
@@ -3204,6 +3305,68 @@ defmodule DashboardSSD.KnowledgeBase.CatalogTest do
 
     assert {:ok, %{collections: [], errors: [%{reason: :network_timeout}]}} =
              Catalog.list_collections()
+  end
+
+  describe "allowed_document?/1" do
+    setup do
+      Application.delete_env(:dashboard_ssd, DashboardSSD.KnowledgeBase)
+
+      on_exit(fn ->
+        Application.delete_env(:dashboard_ssd, DashboardSSD.KnowledgeBase)
+      end)
+
+      :ok
+    end
+
+    test "returns true when page has allowed type" do
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
+        document_type_property_names: ["Type"],
+        allowed_document_type_values: ["Guide"],
+        allow_documents_without_type?: false
+      )
+
+      page = %{
+        "properties" => %{
+          "Type" => %{
+            "type" => "multi_select",
+            "multi_select" => [%{"name" => "Guide"}]
+          }
+        }
+      }
+
+      assert Catalog.allowed_document?(page)
+    end
+
+    test "respects allow_documents_without_type? option" do
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
+        document_type_property_names: ["Type"],
+        allowed_document_type_values: ["Guide"],
+        allow_documents_without_type?: false
+      )
+
+      page = %{
+        "properties" => %{
+          "Type" => %{"type" => "multi_select", "multi_select" => []}
+        }
+      }
+
+      refute Catalog.allowed_document?(page)
+    end
+
+    test "skips type filtering for exempt database ids" do
+      Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase,
+        document_type_property_names: ["Type"],
+        document_type_filter_exempt_ids: ["db-exempt"],
+        allow_documents_without_type?: false
+      )
+
+      page = %{
+        "parent" => %{"type" => "database_id", "database_id" => "db-exempt"},
+        "properties" => %{}
+      }
+
+      assert Catalog.allowed_document?(page)
+    end
   end
 
   defp set_env(key, nil), do: System.delete_env(key)

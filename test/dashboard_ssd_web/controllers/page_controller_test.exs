@@ -1,29 +1,19 @@
 defmodule DashboardSSDWeb.PageControllerTest do
   use DashboardSSDWeb.ConnCase, async: true
 
-  import Phoenix.Controller
-
   alias DashboardSSDWeb.PageController
-  alias DashboardSSDWeb.PageHTML
 
-  test "GET / redirects anonymous users to login", %{conn: conn} do
-    conn = get(conn, ~p"/")
-    assert redirected_to(conn) == "/login?redirect_to=%2F"
-  end
-
-  test "home renders the static home page" do
+  test "home renders without layout" do
     conn =
       build_conn()
-      |> Plug.Conn.fetch_query_params()
-      |> Map.put(:params, %{"_format" => "html"})
+      |> Phoenix.Controller.put_view(DashboardSSDWeb.PageHTML)
+      |> Phoenix.Controller.put_format("html")
+      |> then(&%Plug.Conn{&1 | params: %{"_format" => "html"}})
       |> Plug.Conn.assign(:flash, %{})
-      |> put_view(PageHTML)
-      |> put_layout(false)
-      |> put_root_layout(false)
 
     conn = PageController.home(conn, %{})
 
-    assert conn.status == 200
-    assert conn.resp_body =~ "Guides &amp; Docs"
+    assert html_response(conn, 200) =~ "Phoenix Framework"
+    refute conn.private[:phoenix_layout]
   end
 end

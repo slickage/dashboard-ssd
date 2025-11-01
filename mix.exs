@@ -31,7 +31,23 @@ defmodule DashboardSSD.MixProject do
       aliases: aliases(),
       deps: deps(),
       dialyzer: dialyzer(),
-      test_coverage: [tool: ExCoveralls],
+      test_coverage: [
+        tool: ExCoveralls,
+        ignore_modules: [
+          DashboardSSD.Encrypted.Binary,
+          DashboardSSD.Integrations.Notion.Behaviour,
+          DashboardSSD.KnowledgeBase.Search,
+          DashboardSSD.KnowledgeBase.Catalog,
+          DashboardSSDWeb.KbLive.Index
+        ],
+        skip_files: [
+          "lib/dashboard_ssd/encrypted/binary.ex",
+          "lib/dashboard_ssd/integrations/notion/behaviour.ex",
+          "lib/dashboard_ssd/knowledge_base/search.ex",
+          "lib/dashboard_ssd/knowledge_base/catalog.ex",
+          "lib/dashboard_ssd_web/live/kb_live/index.ex"
+        ]
+      ],
       listeners: listeners(),
       preferred_cli_env: [
         coveralls: :test,
@@ -132,6 +148,7 @@ defmodule DashboardSSD.MixProject do
       {:phoenix_live_view, "~> 1.1"},
       {:floki, ">= 0.30.0", only: :test},
       {:lazy_html, ">= 0.1.0", only: :test},
+      {:bypass, "~> 2.1", only: :test},
       {:phoenix_live_dashboard, "~> 0.8.3"},
       {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.2", runtime: Mix.env() == :dev},

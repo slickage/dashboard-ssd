@@ -3,7 +3,9 @@ defmodule DashboardSSD.DeploymentsTest do
 
   alias DashboardSSD.Clients
   alias DashboardSSD.Deployments
+  alias DashboardSSD.Deployments.{HealthCheck, HealthCheckSetting}
   alias DashboardSSD.Projects
+  alias DashboardSSD.Repo
 
   setup do
     {:ok, client} = Clients.create_client(%{name: "C"})
@@ -53,6 +55,96 @@ defmodule DashboardSSD.DeploymentsTest do
       assert ids == [hc.id]
 
       assert {:ok, _} = Deployments.delete_health_check(hc)
+    end
+  end
+
+  describe "health check utilities" do
+    test "latest_health_status_by_project_ids returns most recent status", %{project: project} do
+      older = DateTime.utc_now() |> DateTime.add(-60, :second) |> DateTime.truncate(:second)
+      newer = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      Repo.insert!(%HealthCheck{
+        project_id: project.id,
+        status: "degraded",
+        inserted_at: older,
+        updated_at: older
+      })
+
+      Repo.insert!(%HealthCheck{
+        project_id: project.id,
+        status: "up",
+        inserted_at: newer,
+        updated_at: newer
+      })
+
+      assert Deployments.latest_health_status_by_project_ids([project.id, 999]) == %{
+               project.id => "up"
+             }
+    end
+
+    test "run_health_check_now executes http checks", %{project: project} do
+      {:ok, _} =
+        Deployments.upsert_health_check_setting(project.id, %{
+          provider: "http",
+          endpoint_url: "https://example.com/status",
+          enabled: true
+        })
+
+      assert {:ok, "up"} = Deployments.run_health_check_now(project.id)
+
+      assert [%HealthCheck{status: "up"}] = Repo.all(HealthCheck)
+    end
+
+    test "run_health_check_now handles aws_elbv2 configuration", %{project: project} do
+      {:ok, _} =
+        Deployments.upsert_health_check_setting(project.id, %{
+          provider: "aws_elbv2",
+          aws_region: "us-east-1",
+          aws_target_group_arn: "arn:aws:elasticloadbalancing:demo",
+          enabled: true
+        })
+
+      assert {:error, :aws_not_configured} = Deployments.run_health_check_now(project.id)
+    end
+
+    test "upsert_health_check_setting inserts and updates settings", %{project: project} do
+      assert {:ok, %HealthCheckSetting{provider: "custom"}} =
+               Deployments.upsert_health_check_setting(project.id, %{
+                 provider: "custom",
+                 enabled: false
+               })
+
+      assert {:ok, %HealthCheckSetting{provider: "http", endpoint_url: "https://status"}} =
+               Deployments.upsert_health_check_setting(project.id, %{
+                 provider: "http",
+                 endpoint_url: "https://status",
+                 enabled: true
+               })
+    end
+
+    test "list health check settings and enabled subset", %{project: project} do
+      {:ok, setting} =
+        Deployments.create_health_check_setting(%{
+          project_id: project.id,
+          provider: "http",
+          endpoint_url: "https://status",
+          enabled: true
+        })
+
+      assert Enum.map(Deployments.list_health_check_settings(), & &1.id) == [setting.id]
+      assert Enum.map(Deployments.list_enabled_health_check_settings(), & &1.id) == [setting.id]
+    end
+
+    test "run_health_check_now returns clear errors when misconfigured", %{project: project} do
+      assert {:error, :no_setting} = Deployments.run_health_check_now(project.id)
+
+      {:ok, _} =
+        Deployments.upsert_health_check_setting(project.id, %{
+          provider: "custom",
+          enabled: true
+        })
+
+      assert {:error, :invalid_config} = Deployments.run_health_check_now(project.id)
     end
   end
 end
