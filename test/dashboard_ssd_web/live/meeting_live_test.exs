@@ -23,7 +23,6 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
   test "shows 'What to bring' from manual items when text includes 'prepare'", %{conn: conn} do
     # Insert a manual agenda item containing the keyword 'prepare'
     evt = "evt-bring"
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(DashboardSSD.Repo)
     {:ok, _a} = DashboardSSD.Meetings.Agenda.create_item(%{calendar_event_id: evt, text: "Please prepare budget doc", position: 0})
 
     {:ok, _view, html} = live(conn, ~p"/meetings/#{evt}")
