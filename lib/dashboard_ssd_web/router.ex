@@ -49,6 +49,8 @@ defmodule DashboardSSDWeb.Router do
       live "/projects/:id/edit", ProjectsLive.Index, :edit
       live "/analytics", AnalyticsLive.Index, :index
       live "/kb", KbLive.Index, :index
+      live "/meetings", MeetingsLive.Index, :index
+      live "/meetings/:id", MeetingLive.Index, :index
     end
 
     get "/auth/:provider", AuthController, :request
