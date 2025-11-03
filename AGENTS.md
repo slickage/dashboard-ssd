@@ -21,3 +21,10 @@
 - **Documentation**: Module docs required, function docs optional
 - **Testing**: `DashboardSSD.DataCase`, async: true when possible
 - **Security**: No `IO.inspect` in production code
+
+## Active Technologies
+- Elixir (per repo), Phoenix LiveView + Ecto; Google Calendar API (OAuth2); Fireflies.ai API (token-based); JSON/HTTP client; Phoenix LiveView UI (001-add-meetings-fireflies)
+- PostgreSQL (minimal tables for manual agenda items, associations, and optional Fireflies cache) (001-add-meetings-fireflies)
+
+## Recent Changes
+- 001-add-meetings-fireflies: Added Elixir (per repo), Phoenix LiveView + Ecto; Google Calendar API (OAuth2); Fireflies.ai API (token-based); JSON/HTTP client; Phoenix LiveView UI
