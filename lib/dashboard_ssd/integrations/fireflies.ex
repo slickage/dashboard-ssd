@@ -4,6 +4,7 @@ defmodule DashboardSSD.Integrations.Fireflies do
   action items used by the Meetings feature.
   """
 
+  require Logger
   alias DashboardSSD.Meetings.CacheStore
   alias DashboardSSD.Meetings.Parsers.FirefliesParser
 
@@ -22,7 +23,12 @@ defmodule DashboardSSD.Integrations.Fireflies do
     ttl = Keyword.get(opts, :ttl)
 
     CacheStore.fetch(key, fn ->
-      # Placeholder – integrate with Fireflies API to obtain a summary text.
+      Logger.debug(fn ->
+        %{msg: "fireflies.fetch_latest_for_series/2", series_id: series_id}
+        |> Jason.encode!()
+      end)
+
+      # TODO: Replace with Fireflies API call using FIREFLIES_API_TOKEN
       summary_text = nil
       {:ok, parse_summary(summary_text)}
     end, ttl: ttl)
@@ -35,4 +41,3 @@ defmodule DashboardSSD.Integrations.Fireflies do
     parsed
   end
 end
-
