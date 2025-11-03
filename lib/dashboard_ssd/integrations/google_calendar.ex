@@ -22,7 +22,12 @@ defmodule DashboardSSD.Integrations.GoogleCalendar do
   @spec list_upcoming(DateTime.t(), DateTime.t(), keyword()) :: {:ok, [meeting_event()]} | {:error, term()}
   def list_upcoming(start_at, end_at, opts \\ []) do
     Logger.debug(fn ->
-      %{msg: "google_calendar.list_upcoming/3", start_at: start_at, end_at: end_at, opts: scrub(opts)}
+      %{
+        msg: "google_calendar.list_upcoming/3",
+        start_at: start_at,
+        end_at: end_at,
+        opts: Map.new(scrub(opts))
+      }
       |> Jason.encode!()
     end)
 
