@@ -5,6 +5,7 @@ defmodule DashboardSSD.Meetings.Agenda do
   import Ecto.Query
   alias DashboardSSD.Repo
   alias DashboardSSD.Meetings.AgendaItem
+  alias DashboardSSD.Integrations.Fireflies
 
   @spec list_items(String.t()) :: [AgendaItem.t()]
   def list_items(calendar_event_id) when is_binary(calendar_event_id) do
@@ -51,5 +52,63 @@ defmodule DashboardSSD.Meetings.Agenda do
       {:ok, _} -> :ok
       {:error, _} = err -> err
     end
+  end
+
+  @doc """
+  Derive agenda items for a given meeting occurrence by fetching the latest
+  completed Fireflies artifacts for the recurring series.
+
+  Returns a list of maps with keys: :text and :source ("derived").
+  """
+  @spec derive_items_for_event(String.t(), String.t() | nil, keyword()) :: [map()]
+  def derive_items_for_event(_calendar_event_id, nil, _opts \\ []), do: []
+
+  def derive_items_for_event(_calendar_event_id, series_id, opts \\ []) when is_binary(series_id) do
+    case Fireflies.fetch_latest_for_series(series_id, opts) do
+      {:ok, %{action_items: items}} ->
+        items
+        |> Enum.map(&%{text: &1, source: "derived"})
+
+      _ ->
+        []
+    end
+  end
+
+  @doc """
+  Merge manual agenda items (persisted) with derived items, de-duplicating by
+  normalized text.
+  """
+  @spec merged_items_for_event(String.t(), String.t() | nil, keyword()) :: [map()]
+  def merged_items_for_event(calendar_event_id, series_id, opts \\ []) do
+    manual =
+      list_items(calendar_event_id)
+      |> Enum.map(&%{text: &1.text, source: "manual", id: &1.id, position: &1.position})
+
+    derived = derive_items_for_event(calendar_event_id, series_id, opts)
+
+    (manual ++ derived)
+    |> dedup_by_text()
+  end
+
+  defp dedup_by_text(items) do
+    {acc, _seen} =
+      Enum.reduce(items, {[], MapSet.new()}, fn item, {acc, seen} ->
+        key = normalize_text(item.text)
+        if MapSet.member?(seen, key) do
+          {acc, seen}
+        else
+          {[item | acc], MapSet.put(seen, key)}
+        end
+      end)
+
+    acc |> Enum.reverse()
+  end
+
+  defp normalize_text(nil), do: ""
+  defp normalize_text(text) do
+    text
+    |> String.downcase()
+    |> String.trim()
+    |> String.replace(~r/\s+/, " ")
   end
 end
