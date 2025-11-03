@@ -24,4 +24,15 @@ defmodule DashboardSSD.Meetings.AgendaTest do
     items4 = Agenda.list_items(evt)
     refute Enum.any?(items4, &(&1.id == a2.id))
   end
+
+  test "merged_items_for_event de-duplicates by normalized text" do
+    evt = "evt-dedup"
+    {:ok, _} = Agenda.create_item(%{calendar_event_id: evt, text: "Prepare Budget", position: 0})
+    {:ok, _} = Agenda.create_item(%{calendar_event_id: evt, text: "  prepare   budget  ", position: 1})
+
+    merged = Agenda.merged_items_for_event(evt, nil)
+    texts = Enum.map(merged, &String.downcase(&1.text))
+    # Only one entry should remain after de-duplication
+    assert Enum.count(texts, &String.contains?(&1, "prepare budget")) == 1
+  end
 end

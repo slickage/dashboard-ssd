@@ -19,5 +19,10 @@ defmodule DashboardSSDWeb.MeetingsLiveTest do
     {:ok, _view, html} = live(conn, ~p"/meetings")
     assert html =~ "Meetings"
   end
-end
 
+  test "renders sample meetings when mock=1", %{conn: conn} do
+    {:ok, _view, html} = live(conn, ~p"/meetings?mock=1")
+    assert html =~ "Weekly Sync – Project Alpha"
+    assert html =~ "Client Review – Contoso"
+  end
+end
