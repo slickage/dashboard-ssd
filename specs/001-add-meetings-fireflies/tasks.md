@@ -30,15 +30,15 @@ Goal: Show upcoming meetings and a pre-meeting agenda derived from the previous 
 
 Independent Test Criteria: With a recurring event that has one previous Fireflies summary, the next occurrence shows agenda items parsed from the "Action Items" section and a short list of items to bring.
 
-- [ ] T016 [P] [US1] Implement listing of upcoming meetings (next 14 days) (lib/dashboard_ssd/integrations/google_calendar.ex)
-- [ ] T017 [US1] Map recurrence using Google recurringEventId/seriesId (lib/dashboard_ssd/integrations/google_calendar.ex)
-- [ ] T018 [P] [US1] Implement Fireflies fetch of latest completed summary/action items for series (lib/dashboard_ssd/integrations/fireflies.ex)
-- [ ] T019 [US1] Implement parser split by "Action Items" → accomplished vs. agenda items (lib/dashboard_ssd/meetings/parsers/fireflies_parser.ex)
-- [ ] T020 [US1] Derive next meeting agenda from parsed action items (lib/dashboard_ssd/meetings/agenda.ex)
-- [ ] T021 [P] [US1] Render Meetings index with upcoming list and agenda preview (lib/dashboard_ssd_web/live/meetings_live.ex)
-- [ ] T022 [US1] Render meeting detail with generated agenda and simple "what to bring" (lib/dashboard_ssd_web/live/meeting_live.ex)
-- [ ] T023 [US1] Add basic deduplication of items across notes/action items (lib/dashboard_ssd/meetings/agenda.ex)
-- [ ] T024 [US1] Add structured logging for integration calls and parsing outcomes (lib/dashboard_ssd/meetings/parsers/fireflies_parser.ex)
+ - [X] T016 [P] [US1] Implement listing of upcoming meetings (next 14 days) (lib/dashboard_ssd/integrations/google_calendar.ex)
+ - [X] T017 [US1] Map recurrence using Google recurringEventId/seriesId (lib/dashboard_ssd/integrations/google_calendar.ex)
+ - [X] T018 [P] [US1] Implement Fireflies fetch of latest completed summary/action items for series (lib/dashboard_ssd/integrations/fireflies.ex)
+ - [X] T019 [US1] Implement parser split by "Action Items" → accomplished vs. agenda items (lib/dashboard_ssd/meetings/parsers/fireflies_parser.ex)
+ - [X] T020 [US1] Derive next meeting agenda from parsed action items (lib/dashboard_ssd/meetings/agenda.ex)
+ - [X] T021 [P] [US1] Render Meetings index with upcoming list and agenda preview (lib/dashboard_ssd_web/live/meetings_live/index.ex)
+ - [X] T022 [US1] Render meeting detail with generated agenda and simple "what to bring" (lib/dashboard_ssd_web/live/meeting_live/index.ex)
+ - [X] T023 [US1] Add basic deduplication of items across notes/action items (lib/dashboard_ssd/meetings/agenda.ex)
+ - [X] T024 [US1] Add structured logging for integration calls and parsing outcomes (lib/dashboard_ssd/meetings/parsers/fireflies_parser.ex)
 
 ## Phase 4: User Story 2 – Edit agenda before meeting (P1)
 
