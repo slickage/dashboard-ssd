@@ -5,6 +5,8 @@ defmodule DashboardSSD.Integrations.GoogleCalendar do
   the Meetings feature and is designed to be stubbed in tests.
   """
 
+  require Logger
+
   @type meeting_event :: %{
           id: String.t(),
           title: String.t(),
@@ -18,9 +20,38 @@ defmodule DashboardSSD.Integrations.GoogleCalendar do
   is derived internally from the current session or DB.
   """
   @spec list_upcoming(DateTime.t(), DateTime.t(), keyword()) :: {:ok, [meeting_event()]} | {:error, term()}
-  def list_upcoming(_start_at, _end_at, _opts \\ []) do
-    # Implementation placeholder – integrate with Google Calendar API.
-    {:ok, []}
+  def list_upcoming(start_at, end_at, opts \\ []) do
+    Logger.debug(fn ->
+      %{msg: "google_calendar.list_upcoming/3", start_at: start_at, end_at: end_at, opts: scrub(opts)}
+      |> Jason.encode!()
+    end)
+
+    case Keyword.get(opts, :mock) do
+      nil ->
+        # TODO: Implement Google Calendar API integration. For now, return empty list.
+        {:ok, []}
+
+      :sample ->
+        # Return a couple of sample meetings for preview purposes
+        now = start_at
+        {:ok,
+         [
+           %{
+             id: "evt-1",
+             title: "Weekly Sync – Project Alpha",
+             start_at: now,
+             end_at: DateTime.add(now, 60 * 60, :second),
+             recurring_series_id: "series-alpha"
+           },
+           %{
+             id: "evt-2",
+             title: "Client Review – Contoso",
+             start_at: DateTime.add(now, 2 * 60 * 60, :second),
+             end_at: DateTime.add(now, 3 * 60 * 60, :second),
+             recurring_series_id: "series-contoso"
+           }
+         ]}
+    end
   end
 
   @doc """
@@ -30,5 +61,9 @@ defmodule DashboardSSD.Integrations.GoogleCalendar do
   def recurrence_id(event) when is_map(event) do
     Map.get(event, "recurringEventId") || Map.get(event, :recurring_series_id)
   end
-end
 
+  defp scrub(opts) do
+    # Avoid logging tokens/headers
+    Keyword.drop(opts, [:token, :headers])
+  end
+end
