@@ -1,5 +1,10 @@
 defmodule DashboardSSD.Integrations.LinearUtilsTest do
-  use ExUnit.Case, async: true
+  @moduledoc """
+  Async: false — this suite manipulates global Tesla.Mock handlers and process-
+  wide application env for integrations. Running concurrently may interleave
+  mocks and env settings across tests, so we serialize to maintain determinism.
+  """
+  use ExUnit.Case, async: false
 
   alias DashboardSSD.Integrations.LinearUtils
 
