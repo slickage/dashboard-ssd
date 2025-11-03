@@ -19,7 +19,8 @@ defmodule DashboardSSD.Meetings.CacheStore do
   @spec fetch(key(), (-> value | {:ok, value} | {:error, term()}), keyword()) ::
           {:ok, value} | {:error, term()}
   def fetch(key, fun, opts \\ []) when is_function(fun, 0) do
-    Cache.fetch(@namespace, key, fun, opts)
+    ttl = Keyword.get(opts, :ttl, @default_ttl_ms) || @default_ttl_ms
+    Cache.fetch(@namespace, key, fun, ttl: ttl)
   end
 
   @doc "Reads a cached value."
@@ -52,4 +53,3 @@ defmodule DashboardSSD.Meetings.CacheStore do
     Cache.reset()
   end
 end
-
