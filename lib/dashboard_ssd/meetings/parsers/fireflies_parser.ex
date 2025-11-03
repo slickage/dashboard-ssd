@@ -23,6 +23,12 @@ defmodule DashboardSSD.Meetings.Parsers.FirefliesParser do
 
   def split_summary(summary) when is_binary(summary) do
     {accomplished, actions_text} = do_split(summary)
+    # Structured logging for observability
+    _ =
+      Logger.debug(fn ->
+        %{msg: "fireflies_parser.split_summary", accomplished_size: byte_size(accomplished || ""), has_action_items: actions_text != ""}
+        |> Jason.encode!()
+      end)
     items =
       actions_text
       |> split_lines()
