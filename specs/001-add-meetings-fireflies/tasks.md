@@ -46,10 +46,10 @@ Goal: Users can add, edit, delete, and reorder agenda items; changes persist per
 
 Independent Test Criteria: Open an upcoming meeting; add/edit/delete/reorder items; refresh persists state.
 
-- [ ] T025 [P] [US2] Persist manual agenda items with changesets (lib/dashboard_ssd/meetings/agenda.ex)
-- [ ] T026 [US2] Implement reorder/update endpoints in context (lib/dashboard_ssd/meetings/agenda.ex)
-- [ ] T027 [P] [US2] LiveView UI for add/edit/delete agenda items (lib/dashboard_ssd_web/live/meeting_live.ex)
-- [ ] T028 [US2] LiveView UI for drag/reorder and persistence (lib/dashboard_ssd_web/live/meeting_live.ex)
+- [X] T025 [P] [US2] Persist manual agenda items with changesets (lib/dashboard_ssd/meetings/agenda.ex)
+- [X] T026 [US2] Implement reorder/update endpoints in context (lib/dashboard_ssd/meetings/agenda.ex)
+- [X] T027 [P] [US2] LiveView UI for add/edit/delete agenda items (lib/dashboard_ssd_web/live/meeting_live/index.ex)
+- [X] T028 [US2] LiveView UI for drag/reorder and persistence (lib/dashboard_ssd_web/live/meeting_live/index.ex)
 
 ## Phase 5: User Story 3 – Post-meeting summary and actions (P2)
 
