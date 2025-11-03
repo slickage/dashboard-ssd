@@ -27,10 +27,6 @@ defmodule DashboardSSD.Integrations.GoogleCalendar do
     end)
 
     case Keyword.get(opts, :mock) do
-      nil ->
-        # TODO: Implement Google Calendar API integration. For now, return empty list.
-        {:ok, []}
-
       :sample ->
         # Return a couple of sample meetings for preview purposes
         now = start_at
@@ -51,6 +47,10 @@ defmodule DashboardSSD.Integrations.GoogleCalendar do
              recurring_series_id: "series-contoso"
            }
          ]}
+
+      _ ->
+        # TODO: Implement Google Calendar API integration. For now, return empty list.
+        {:ok, []}
     end
   end
 
