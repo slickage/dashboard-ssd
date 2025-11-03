@@ -6,21 +6,29 @@ Overview
 - Use wrappers in `DashboardSSD.Integrations` for quick IEx testing.
 
 Setup
-- Copy `.env.example` to `.env` and fill values (either name works when two are shown):
+- Copy `example.env` to `.env` and fill values (either name works when two are shown):
   - Linear: `LINEAR_API_KEY` or `LINEAR_TOKEN`
   - Slack: `SLACK_API_KEY` or `SLACK_BOT_TOKEN` (+ optional `SLACK_CHANNEL`)
   - Notion: `NOTION_API_KEY` or `NOTION_TOKEN`
   - Drive (optional direct access token): `GOOGLE_DRIVE_TOKEN` or `GOOGLE_OAUTH_TOKEN`
   - Google OAuth client: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+  - Fireflies: `FIREFLIES_API_TOKEN`
 - Ensure `.env` is not committed (it is gitignored).
 
-Google OAuth for Drive
+Google OAuth (Drive + Calendar)
 - In Google Cloud Console, create OAuth 2.0 credentials and a consent screen.
 - Add Authorized redirect URI: `http://localhost:4000/auth/google/callback`
 - Put `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env`.
-- Scope: app requests `email profile https://www.googleapis.com/auth/drive.readonly` and asks for offline access to obtain refresh_token.
+- Scope: app requests `email profile https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/calendar.readonly` and asks for offline access to obtain `refresh_token`.
 - Sign in at `http://localhost:4000/auth/google` to store the tokens on your user (table `external_identities`).
-- After sign-in, the stored access token can be used for Drive API calls.
+- After sign-in, the stored access token can be used for Drive and Calendar API calls.
+
+Fireflies.ai for Meetings
+- Provide `FIREFLIES_API_TOKEN` in `.env`.
+- The Meetings feature uses Fireflies summaries to split into two sections:
+  - What was accomplished: content before the `Action Items` heading.
+  - Action Items: content under the `Action Items` heading, used as the starting agenda for the next meeting.
+- If `Action Items` is not present in summary text, the app attempts to use Fireflies Action Items API where available; otherwise the agenda starts empty and can be edited manually.
 
 Load `.env`
 - Option 1 (recommended): it is auto-loaded on app start in dev/test by `config/runtime.exs`.
