@@ -92,8 +92,8 @@ config :ueberauth, Ueberauth,
     google:
       {Ueberauth.Strategy.Google,
        [
-         # Include Drive read-only to allow Drive API access with the obtained token
-         default_scope: "email profile https://www.googleapis.com/auth/drive.readonly",
+         # Include Drive and Calendar read-only to allow API access with the obtained token
+         default_scope: "email profile https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/calendar.readonly",
          # Request offline access to receive refresh_token (consent may be required)
          access_type: "offline",
          include_granted_scopes: true,
