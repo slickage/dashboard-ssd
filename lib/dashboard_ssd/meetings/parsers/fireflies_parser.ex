@@ -7,6 +7,7 @@ defmodule DashboardSSD.Meetings.Parsers.FirefliesParser do
   "Action Items". Content before that heading is treated as the "accomplished"
   narrative; content after is split into individual items for the next agenda.
   """
+  require Logger
 
   @type parsed :: %{
           accomplished: String.t() | nil,
