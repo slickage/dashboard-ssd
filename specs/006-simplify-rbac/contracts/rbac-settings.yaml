@@ -1,0 +1,138 @@
+openapi: 3.0.3
+info:
+  title: DashboardSSD RBAC Settings API
+  version: 0.1.0
+  description: Endpoints powering the admin RBAC settings LiveView for managing role-to-capability assignments.
+servers:
+  - url: https://dashboard-ssd.internal/api
+paths:
+  /rbac/roles:
+    get:
+      summary: List roles with their granted capabilities
+      tags: [RBAC]
+      operationId: listRoles
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Roles and associated capability grants
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RoleWithCapabilities'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Current user lacks RBAC_Settings capability
+  /rbac/roles/{role_name}/capabilities:
+    put:
+      summary: Replace capability set for a role
+      tags: [RBAC]
+      operationId: replaceRoleCapabilities
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: role_name
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [admin, employee, client]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [capabilities]
+              properties:
+                capabilities:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/CapabilityCode'
+      responses:
+        '200':
+          description: Updated role capabilities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleWithCapabilities'
+        '400':
+          description: Invalid capability or protected capability removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Missing RBAC_Settings capability
+  /rbac/reset:
+    post:
+      summary: Restore default capability assignments
+      tags: [RBAC]
+      operationId: resetRoleCapabilities
+      security:
+        - sessionCookie: []
+      responses:
+        '202':
+          description: Reset initiated and persisted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Missing RBAC_Settings capability
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: _dashboard_ssd_key
+  schemas:
+    RoleWithCapabilities:
+      type: object
+      required: [role, capabilities, updated_at, updated_by]
+      properties:
+        role:
+          type: string
+          enum: [admin, employee, client]
+        capabilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/CapabilityCode'
+        updated_at:
+          type: string
+          format: date-time
+        updated_by:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+              nullable: true
+            email:
+              type: string
+    CapabilityCode:
+      type: string
+      enum:
+        - dashboard.view
+        - projects.view
+        - projects.manage
+        - clients.view
+        - clients.manage
+        - knowledge_base.view
+        - analytics.view
+        - settings.personal
+        - settings.rbac
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string

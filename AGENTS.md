@@ -21,3 +21,10 @@
 - **Documentation**: Module docs required, function docs optional
 - **Testing**: `DashboardSSD.DataCase`, async: true when possible
 - **Security**: No `IO.inspect` in production code
+
+## Active Technologies
+- Elixir ~> 1.18 (Phoenix LiveView application) + Phoenix ~> 1.8, Phoenix LiveView ~> 1.1, Ecto/Repo, Ueberauth + Ueberauth Google, Tailwind/Alpine (front-end) (006-simplify-rbac)
+- PostgreSQL (existing `roles`, `users`, `external_identities`, audit tables) (006-simplify-rbac)
+
+## Recent Changes
+- 006-simplify-rbac: Added Elixir ~> 1.18 (Phoenix LiveView application) + Phoenix ~> 1.8, Phoenix LiveView ~> 1.1, Ecto/Repo, Ueberauth + Ueberauth Google, Tailwind/Alpine (front-end)
