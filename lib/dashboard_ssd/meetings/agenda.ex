@@ -61,9 +61,9 @@ defmodule DashboardSSD.Meetings.Agenda do
   Returns a list of maps with keys: :text and :source ("derived").
   """
   @spec derive_items_for_event(String.t(), String.t() | nil, keyword()) :: [map()]
-  def derive_items_for_event(_calendar_event_id, nil, _opts \\ []), do: []
-
-  def derive_items_for_event(_calendar_event_id, series_id, opts \\ []) when is_binary(series_id) do
+  def derive_items_for_event(_calendar_event_id, _series_id, _opts \\ [])
+  def derive_items_for_event(_calendar_event_id, nil, _opts), do: []
+  def derive_items_for_event(_calendar_event_id, series_id, opts) when is_binary(series_id) do
     case Fireflies.fetch_latest_for_series(series_id, opts) do
       {:ok, %{action_items: items}} ->
         items
