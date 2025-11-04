@@ -7,15 +7,21 @@
         <span class="sr-only">Home</span>
       </.link>
       <nav class="flex items-center gap-4 text-zinc-900">
-        <.link navigate={~p"/projects"} class="hover:underline">Projects</.link>
-        <.link navigate={~p"/clients"} class="hover:underline">Clients</.link>
-        <%= if cu && DashboardSSD.Auth.Policy.can?(cu, :read, :kb) do %>
+        <%= if cu && DashboardSSD.Auth.Policy.can?(cu, :read, :projects) do %>
+          <.link navigate={~p"/projects"} class="hover:underline">Projects</.link>
+        <% end %>
+        <%= if cu && DashboardSSD.Auth.Policy.can?(cu, :read, :clients) do %>
+          <.link navigate={~p"/clients"} class="hover:underline">Clients</.link>
+        <% end %>
+        <%= if cu && DashboardSSD.Auth.Policy.can?(cu, :read, :knowledge_base) do %>
           <.link navigate={~p"/kb"} class="hover:underline">Knowledge Base</.link>
         <% end %>
-        <%= if cu && cu.role && cu.role.name == "admin" do %>
+        <%= if cu && DashboardSSD.Auth.Policy.can?(cu, :read, :analytics) do %>
           <.link navigate={~p"/analytics"} class="hover:underline">Analytics</.link>
         <% end %>
-        <.link navigate={~p"/settings"} class="hover:underline">Settings</.link>
+        <%= if cu && DashboardSSD.Auth.Policy.can?(cu, :read, :settings) do %>
+          <.link navigate={~p"/settings"} class="hover:underline">Settings</.link>
+        <% end %>
       </nav>
     </div>
     <div class="flex items-center gap-3 leading-6 text-zinc-900">

@@ -24,38 +24,52 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
       {:ok,
        socket
        |> assign(:current_path, "/clients")
-       |> put_flash(:error, "You don't have permission to access this page")
+       |> put_flash(:error, "You don't have permission to access Clients")
        |> redirect(to: ~p"/")}
     end
   end
 
   @impl true
-  @doc "Handle LiveView params for index/new/edit/delete actions."
-  def handle_params(params, _url, socket) do
-    action = socket.assigns.live_action
+  @doc "Handle LiveView params for index action."
+  def handle_params(params, _url, %{assigns: %{live_action: :index}} = socket) do
+    {:noreply, socket |> assign(:params, params) |> refresh_clients()}
+  end
 
-    case action do
-      :index ->
-        {:noreply, socket |> assign(:params, params) |> refresh_clients()}
+  def handle_params(params, _url, %{assigns: %{live_action: :new}} = socket) do
+    case ensure_manage(socket) do
+      {:ok, socket} -> {:noreply, assign(socket, :params, params)}
+      {:error, socket} -> {:noreply, socket}
+    end
+  end
 
-      :new ->
-        {:noreply, socket |> assign(:params, params)}
+  def handle_params(%{"id" => id} = params, _url, %{assigns: %{live_action: :edit}} = socket) do
+    case ensure_manage(socket) do
+      {:ok, socket} ->
+        _client = Clients.get_client!(String.to_integer(id))
+        {:noreply, assign(socket, :params, params)}
 
-      :edit ->
-        _client = Clients.get_client!(String.to_integer(params["id"]))
+      {:error, socket} ->
+        {:noreply, socket}
+    end
+  end
 
-        {:noreply,
-         socket
-         |> assign(:params, params)}
-
-      :delete ->
-        client = Clients.get_client!(String.to_integer(params["id"]))
+  def handle_params(%{"id" => id} = params, _url, %{assigns: %{live_action: :delete}} = socket) do
+    case ensure_manage(socket) do
+      {:ok, socket} ->
+        client = Clients.get_client!(String.to_integer(id))
 
         {:noreply,
          socket
          |> assign(:params, params)
          |> assign(:client, client)}
+
+      {:error, socket} ->
+        {:noreply, socket}
     end
+  end
+
+  def handle_params(params, _url, socket) do
+    {:noreply, assign(socket, :params, params)}
   end
 
   @impl true
@@ -65,13 +79,19 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
   end
 
   def handle_event("delete_client", %{"id" => id}, socket) do
-    client = Clients.get_client!(String.to_integer(id))
-    {:ok, _} = Clients.delete_client(client)
+    case ensure_manage(socket) do
+      {:ok, socket} ->
+        client = Clients.get_client!(String.to_integer(id))
+        {:ok, _} = Clients.delete_client(client)
 
-    {:noreply,
-     socket
-     |> put_flash(:info, "Client deleted successfully")
-     |> push_navigate(to: ~p"/clients")}
+        {:noreply,
+         socket
+         |> put_flash(:info, "Client deleted successfully")
+         |> push_navigate(to: ~p"/clients")}
+
+      {:error, socket} ->
+        {:noreply, socket}
+    end
   end
 
   @impl true
@@ -94,12 +114,23 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
     assign(socket, :clients, Clients.search_clients(socket.assigns.q))
   end
 
+  defp ensure_manage(socket) do
+    if Policy.can?(socket.assigns.current_user, :manage, :clients) do
+      {:ok, socket}
+    else
+      {:error,
+       socket
+       |> put_flash(:error, "You don't have permission to manage Clients")
+       |> push_navigate(to: ~p"/clients")}
+    end
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
     <div class="flex flex-col gap-8">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <%= if @current_user && @current_user.role && @current_user.role.name == "admin" do %>
+        <%= if Policy.can?(@current_user, :manage, :clients) do %>
           <div class="flex items-center gap-3">
             <.link
               navigate={~p"/clients/new"}
@@ -158,7 +189,7 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
                     >
                       View Projects
                     </.link>
-                    <%= if @current_user && @current_user.role && @current_user.role.name == "admin" do %>
+                    <%= if Policy.can?(@current_user, :manage, :clients) do %>
                       <span class="text-white/30">•</span>
                       <.link
                         navigate={~p"/clients/#{c.id}/edit"}
@@ -215,7 +246,13 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
             </p>
 
             <div class="flex justify-start">
-              <.button phx-click="delete_client" phx-value-id={@client.id} class="theme-btn-danger">
+              <.button
+                phx-click="delete_client"
+                phx-value-id={@client.id}
+                class="theme-btn-danger"
+                capability={{:manage, :clients}}
+                current_user={@current_user}
+              >
                 Delete Client
               </.button>
             </div>

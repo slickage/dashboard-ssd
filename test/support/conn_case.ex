@@ -33,6 +33,7 @@ defmodule DashboardSSDWeb.ConnCase do
 
   setup tags do
     DashboardSSD.DataCase.setup_sandbox(tags)
+    DashboardSSD.DataCase.seed_default_rbac()
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 end

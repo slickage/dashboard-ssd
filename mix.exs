@@ -232,6 +232,7 @@ defmodule DashboardSSD.MixProject do
     [
       plt_core_path: "priv/plts",
       plt_local_path: "priv/plts",
+      plt_add_apps: [:mix],
       list_unused_filters: true
     ]
   end

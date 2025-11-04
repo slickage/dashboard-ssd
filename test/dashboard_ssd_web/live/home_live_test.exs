@@ -2,7 +2,12 @@ defmodule DashboardSSDWeb.HomeLiveTest do
   use DashboardSSDWeb.ConnCase, async: true
   import Phoenix.LiveViewTest
 
-  alias DashboardSSD.{Accounts, Clients, Deployments, Notifications, Projects}
+  alias DashboardSSD.Accounts
+  alias DashboardSSD.Auth.Capabilities
+  alias DashboardSSD.Clients
+  alias DashboardSSD.Deployments
+  alias DashboardSSD.Notifications
+  alias DashboardSSD.Projects
 
   setup do
     Tesla.Mock.mock(fn
@@ -42,6 +47,13 @@ defmodule DashboardSSDWeb.HomeLiveTest do
 
     Accounts.ensure_role!("admin")
     Accounts.ensure_role!("employee")
+
+    Capabilities.default_assignments()
+    |> Enum.each(fn {role, caps} ->
+      Accounts.ensure_role!(role)
+      Accounts.replace_role_capabilities(role, caps, granted_by_id: nil)
+    end)
+
     :ok
   end
 
@@ -50,7 +62,7 @@ defmodule DashboardSSDWeb.HomeLiveTest do
   } do
     {:ok, adm} =
       Accounts.create_user(%{
-        email: "adm@example.com",
+        email: "adm@slickage.com",
         name: "A",
         role_id: Accounts.ensure_role!("admin").id
       })
@@ -83,7 +95,7 @@ defmodule DashboardSSDWeb.HomeLiveTest do
   test "employee sees home dashboard", %{conn: conn} do
     {:ok, emp} =
       Accounts.create_user(%{
-        email: "emp@example.com",
+        email: "emp@slickage.com",
         name: "E",
         role_id: Accounts.ensure_role!("employee").id
       })

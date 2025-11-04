@@ -1,15 +1,31 @@
 defmodule DashboardSSDWeb.AuthControllerUeberauthTest do
   use DashboardSSDWeb.ConnCase, async: false
 
-  alias DashboardSSD.{Accounts, Repo}
+  alias DashboardSSD.{Accounts, Clients, Repo}
   alias DashboardSSD.Accounts.ExternalIdentity
   alias DashboardSSD.Accounts.User
   alias Ueberauth.Auth
   alias Ueberauth.Auth.{Credentials, Info}
 
   setup do
-    # Make sure default role exists for user creation
-    Accounts.ensure_role!("employee")
+    Enum.each(["admin", "employee", "client"], &Accounts.ensure_role!/1)
+
+    prev = Application.get_env(:dashboard_ssd, DashboardSSD.Accounts)
+
+    Application.put_env(
+      :dashboard_ssd,
+      DashboardSSD.Accounts,
+      Keyword.merge(prev || [], slickage_allowed_domains: ["slickage.com", "example.com"])
+    )
+
+    on_exit(fn ->
+      if prev do
+        Application.put_env(:dashboard_ssd, DashboardSSD.Accounts, prev)
+      else
+        Application.delete_env(:dashboard_ssd, DashboardSSD.Accounts)
+      end
+    end)
+
     :ok
   end
 
@@ -17,7 +33,7 @@ defmodule DashboardSSDWeb.AuthControllerUeberauthTest do
     auth = %Auth{
       provider: :google,
       uid: "google-uid-123",
-      info: %Info{email: "oauth-user@example.com", name: "OAuth User"},
+      info: %Info{email: "oauth-user@slickage.com", name: "OAuth User"},
       credentials: %Credentials{
         token: "tok",
         refresh_token: "ref",
@@ -35,7 +51,7 @@ defmodule DashboardSSDWeb.AuthControllerUeberauthTest do
     assert redirected_to(conn) == ~p"/"
 
     user = Repo.get(User, get_session(conn, :user_id))
-    assert user.email == "oauth-user@example.com"
+    assert user.email == "oauth-user@slickage.com"
   end
 
   test "callback (real mode) logs in existing user without duplicating", %{conn: conn} do
@@ -43,7 +59,7 @@ defmodule DashboardSSDWeb.AuthControllerUeberauthTest do
     auth = %Auth{
       provider: :google,
       uid: "uid-1",
-      info: %Info{email: "exist@example.com", name: "Exist"}
+      info: %Info{email: "exist@slickage.com", name: "Exist"}
     }
 
     conn =
@@ -58,7 +74,7 @@ defmodule DashboardSSDWeb.AuthControllerUeberauthTest do
     auth2 = %Auth{
       provider: :google,
       uid: "uid-2",
-      info: %Info{email: "exist@example.com", name: "Exist"}
+      info: %Info{email: "exist@slickage.com", name: "Exist"}
     }
 
     conn2 =
@@ -96,7 +112,7 @@ defmodule DashboardSSDWeb.AuthControllerUeberauthTest do
     auth = %Auth{
       provider: :google,
       uid: "uid-post-1",
-      info: %Info{email: "post-user@example.com", name: "Post User"}
+      info: %Info{email: "post-user@slickage.com", name: "Post User"}
     }
 
     conn =
@@ -117,7 +133,7 @@ defmodule DashboardSSDWeb.AuthControllerUeberauthTest do
     auth = %Auth{
       provider: :google,
       uid: "cred-uid-1",
-      info: %Info{email: "cred-user@example.com", name: "Cred User"},
+      info: %Info{email: "cred-user@slickage.com", name: "Cred User"},
       credentials: %Credentials{token: "tok-1", refresh_token: "ref-1", expires_at: now_sec}
     }
 
@@ -143,7 +159,7 @@ defmodule DashboardSSDWeb.AuthControllerUeberauthTest do
     auth2 = %Auth{
       provider: :google,
       uid: "cred-uid-1",
-      info: %Info{email: "cred-user@example.com", name: "Cred User"},
+      info: %Info{email: "cred-user@slickage.com", name: "Cred User"},
       credentials: %Credentials{token: "tok-2", refresh_token: "ref-2", expires_at: later}
     }
 
@@ -160,5 +176,54 @@ defmodule DashboardSSDWeb.AuthControllerUeberauthTest do
     assert identity2.token == "tok-2"
     assert identity2.refresh_token == "ref-2"
     assert DateTime.to_unix(identity2.expires_at) == later
+  end
+
+  test "applies invite token on successful oauth login", %{conn: conn} do
+    client = Clients.ensure_client!("InviteCo")
+    admin_role = Accounts.ensure_role!("admin")
+
+    {:ok, admin} =
+      Accounts.create_user(%{
+        email: "admin-invite@slickage.com",
+        name: "Admin Invite",
+        role_id: admin_role.id
+      })
+
+    {:ok, invite} =
+      Accounts.create_user_invite(%{
+        "email" => "invited-user@example.com",
+        "role" => "client",
+        "client_id" => client.id,
+        "invited_by_id" => admin.id
+      })
+
+    auth = %Auth{
+      provider: :google,
+      uid: "invite-uid-1",
+      info: %Info{email: invite.email, name: "Invited User"}
+    }
+
+    conn =
+      conn
+      |> init_test_session(%{invite_token: invite.token})
+      |> Plug.Conn.assign(:ueberauth_auth, auth)
+      |> get(~p"/auth/google/callback")
+
+    assert redirected_to(conn) == ~p"/"
+    assert get_session(conn, :invite_token) == nil
+
+    flash_info = Phoenix.Flash.get(conn.assigns.flash, :info)
+    assert flash_info =~ "Invitation applied"
+
+    user =
+      Accounts.get_user_by_email(invite.email)
+      |> Repo.preload([:role, :client])
+
+    assert user.role.name == "client"
+    assert user.client_id == client.id
+
+    updated_invite = Accounts.get_invite_by_token(invite.token)
+    assert updated_invite.used_at
+    assert updated_invite.accepted_user_id == user.id
   end
 end

@@ -15,6 +15,8 @@ defmodule DashboardSSD.DataCase do
   """
 
   use ExUnit.CaseTemplate
+  alias DashboardSSD.Accounts
+  alias DashboardSSD.Auth.Capabilities
   alias Ecto.Adapters.SQL.Sandbox, as: SQLSandbox
 
   using do
@@ -30,6 +32,7 @@ defmodule DashboardSSD.DataCase do
 
   setup tags do
     DashboardSSD.DataCase.setup_sandbox(tags)
+    seed_default_rbac()
     :ok
   end
 
@@ -54,6 +57,16 @@ defmodule DashboardSSD.DataCase do
       Regex.replace(~r"%{(\w+)}", message, fn _, key ->
         opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
       end)
+    end)
+  end
+
+  @doc false
+  def seed_default_rbac do
+    Enum.each(["admin", "employee", "client"], &Accounts.ensure_role!/1)
+
+    Capabilities.default_assignments()
+    |> Enum.each(fn {role, caps} ->
+      {:ok, _} = Accounts.replace_role_capabilities(role, caps, granted_by_id: nil)
     end)
   end
 end

@@ -4,7 +4,21 @@ defmodule DashboardSSDWeb.AuthControllerTest do
   setup do
     original = Application.get_env(:dashboard_ssd, :oauth_mode)
     Application.put_env(:dashboard_ssd, :oauth_mode, :stub)
-    on_exit(fn -> Application.put_env(:dashboard_ssd, :oauth_mode, original) end)
+
+    accounts_prev = Application.get_env(:dashboard_ssd, DashboardSSD.Accounts)
+
+    Application.put_env(:dashboard_ssd, DashboardSSD.Accounts,
+      slickage_allowed_domains: ["slickage.com", "example.com"]
+    )
+
+    on_exit(fn ->
+      Application.put_env(:dashboard_ssd, :oauth_mode, original)
+
+      if accounts_prev,
+        do: Application.put_env(:dashboard_ssd, DashboardSSD.Accounts, accounts_prev),
+        else: Application.delete_env(:dashboard_ssd, DashboardSSD.Accounts)
+    end)
+
     :ok
   end
 

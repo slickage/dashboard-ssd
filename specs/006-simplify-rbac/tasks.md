@@ -17,8 +17,8 @@
 
 **Purpose**: Prepare environment configuration references needed across stories.
 
-- [ ] T001 Update `example.env` with `SLICKAGE_ALLOWED_DOMAINS` documentation in `example.env`
-- [ ] T002 Add domain allowlist setup instructions to onboarding docs in `README.md`
+- [X] T001 Update `example.env` with `SLICKAGE_ALLOWED_DOMAINS` documentation in `example.env`
+- [X] T002 Add domain allowlist setup instructions to onboarding docs in `README.md`
 
 ---
 
@@ -28,12 +28,12 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T003 Generate role capability migration in `priv/repo/migrations/*_create_role_capabilities.exs`
-- [ ] T004 Add `DashboardSSD.Accounts.RoleCapability` schema in `lib/dashboard_ssd/accounts/role_capability.ex`
-- [ ] T005 Extend `DashboardSSD.Accounts` with role capability CRUD functions in `lib/dashboard_ssd/accounts.ex`
-- [ ] T006 Create capability catalog module in `lib/dashboard_ssd/auth/capabilities.ex`
-- [ ] T007 Seed default role-capability assignments with audit data in `priv/repo/seeds.exs`
-- [ ] T008 Load Slickage domain allowlist config in `config/runtime.exs`
+- [X] T003 Generate role capability migration in `priv/repo/migrations/*_create_role_capabilities.exs`
+- [X] T004 Add `DashboardSSD.Accounts.RoleCapability` schema in `lib/dashboard_ssd/accounts/role_capability.ex`
+- [X] T005 Extend `DashboardSSD.Accounts` with role capability CRUD functions in `lib/dashboard_ssd/accounts.ex`
+- [X] T006 Create capability catalog module in `lib/dashboard_ssd/auth/capabilities.ex`
+- [X] T007 Seed default role-capability assignments with audit data in `priv/repo/seeds.exs`
+- [X] T008 Load Slickage domain allowlist config in `config/runtime.exs`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -47,18 +47,18 @@
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T009 [P] [US1] Add role capability context tests in `test/dashboard_ssd/accounts/role_capabilities_test.exs`
-- [ ] T010 [P] [US1] Add RBAC settings API controller tests in `test/dashboard_ssd_web/controllers/api/rbac_controller_test.exs`
-- [ ] T011 [P] [US1] Add RBAC admin LiveView tests in `test/dashboard_ssd_web/live/settings_live/rbac_settings_test.exs`
+- [X] T009 [P] [US1] Add role capability context tests in `test/dashboard_ssd/accounts/role_capabilities_test.exs`
+- [X] T010 [P] [US1] Add RBAC settings API controller tests in `test/dashboard_ssd_web/controllers/api/rbac_controller_test.exs`
+- [X] T011 [P] [US1] Add RBAC admin LiveView tests in `test/dashboard_ssd_web/live/settings_live/rbac_settings_test.exs`
 
 ### Implementation for User Story 1
 
-- [ ] T012 [US1] Implement RBAC settings API controller in `lib/dashboard_ssd_web/controllers/api/rbac_controller.ex`
-- [ ] T013 [US1] Register RBAC API routes and pipelines in `lib/dashboard_ssd_web/router.ex`
-- [ ] T014 [US1] Render role capability matrix and controls in `lib/dashboard_ssd_web/live/settings_live/index.ex`
-- [ ] T015 [US1] Add RBAC settings LiveComponent for per-role capability toggles in `lib/dashboard_ssd_web/live/settings_live/rbac_table_component.ex`
-- [ ] T016 [US1] Persist admin edits with last-updated metadata in `lib/dashboard_ssd/accounts.ex`
-- [ ] T017 [US1] Surface reset-to-default action with audit flash messaging in `lib/dashboard_ssd_web/live/settings_live/index.ex`
+- [X] T012 [US1] Implement RBAC settings API controller in `lib/dashboard_ssd_web/controllers/api/rbac_controller.ex`
+- [X] T013 [US1] Register RBAC API routes and pipelines in `lib/dashboard_ssd_web/router.ex`
+- [X] T014 [US1] Render role capability matrix and controls in `lib/dashboard_ssd_web/live/settings_live/index.ex`
+- [X] T015 [US1] Add RBAC settings LiveComponent for per-role capability toggles in `lib/dashboard_ssd_web/live/settings_live/rbac_table_component.ex`
+- [X] T016 [US1] Persist admin edits with last-updated metadata in `lib/dashboard_ssd/accounts.ex`
+- [X] T017 [US1] Surface reset-to-default action with audit flash messaging in `lib/dashboard_ssd_web/live/settings_live/index.ex`
 
 **Checkpoint**: User Story 1 is functional and independently testable
 
@@ -72,21 +72,21 @@
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T018 [P] [US2] Add capability-based policy coverage in `test/dashboard_ssd/auth/policy_test.exs`
-- [ ] T019 [P] [US2] Add external domain enforcement tests in `test/dashboard_ssd/accounts/upsert_user_with_identity_test.exs`
-- [ ] T020 [P] [US2] Add navigation filtering LiveView tests in `test/dashboard_ssd_web/components/navigation_test.exs`
+- [X] T018 [P] [US2] Add capability-based policy coverage in `test/dashboard_ssd/auth/policy_test.exs`
+- [X] T019 [P] [US2] Add external domain enforcement tests in `test/dashboard_ssd/accounts/upsert_user_with_identity_test.exs`
+- [X] T020 [P] [US2] Add navigation filtering LiveView tests in `test/dashboard_ssd_web/components/navigation_test.exs`
 
 ### Implementation for User Story 2
 
-- [ ] T021 [US2] Update `DashboardSSD.Auth.Policy` to evaluate stored capabilities in `lib/dashboard_ssd/auth/policy.ex`
-- [ ] T022 [US2] Enforce Slickage domain allowlist and pre-invite checks in `lib/dashboard_ssd/accounts.ex`
-- [ ] T023 [US2] Present blocked-domain messaging in `lib/dashboard_ssd_web/controllers/auth_controller.ex`
-- [ ] T024 [US2] Filter navigation items by capabilities in `lib/dashboard_ssd_web/components/navigation.ex`
-- [ ] T025 [US2] Align top-level layout links with capability checks in `lib/dashboard_ssd_web/components/layouts/app.html.heex`
-- [ ] T026 [US2] Guard LiveViews (home, projects, clients, analytics, kb) with capability redirects in `lib/dashboard_ssd_web/live/**/*` files
-- [ ] T027 [US2] Hide restricted action controls in LiveViews (new/edit/delete buttons) when capability absent in `lib/dashboard_ssd_web/live/**/*`
-- [ ] T028 [US2] Wrap shared action components with capability checks (buttons, menus) in `lib/dashboard_ssd_web/components/core_components.ex`
-- [ ] T029 [US2] Ensure unauthorized flashes and redirects use consistent copy in `lib/dashboard_ssd_web/live/clients_live/index.ex`
+- [X] T021 [US2] Update `DashboardSSD.Auth.Policy` to evaluate stored capabilities in `lib/dashboard_ssd/auth/policy.ex`
+- [X] T022 [US2] Enforce Slickage domain allowlist and pre-invite checks in `lib/dashboard_ssd/accounts.ex`
+- [X] T023 [US2] Present blocked-domain messaging in `lib/dashboard_ssd_web/controllers/auth_controller.ex`
+- [X] T024 [US2] Filter navigation items by capabilities in `lib/dashboard_ssd_web/components/navigation.ex`
+- [X] T025 [US2] Align top-level layout links with capability checks in `lib/dashboard_ssd_web/components/layouts/app.html.heex`
+- [X] T026 [US2] Guard LiveViews (home, projects, clients, analytics, kb) with capability redirects in `lib/dashboard_ssd_web/live/**/*` files
+- [X] T027 [US2] Hide restricted action controls in LiveViews (new/edit/delete buttons) when capability absent in `lib/dashboard_ssd_web/live/**/*`
+- [X] T028 [US2] Wrap shared action components with capability checks (buttons, menus) in `lib/dashboard_ssd_web/components/core_components.ex`
+- [X] T029 [US2] Ensure unauthorized flashes and redirects use consistent copy in `lib/dashboard_ssd_web/live/clients_live/index.ex`
 
 **Checkpoint**: User Stories 1 and 2 operate independently with correct authorization behavior
 
@@ -100,13 +100,13 @@
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T030 [P] [US3] Add mix task role switch tests in `test/mix/dashboard_role_switch_test.exs`
+- [X] T030 [P] [US3] Add mix task role switch tests in `test/mix/dashboard_role_switch_test.exs`
 
 ### Implementation for User Story 3
 
-- [ ] T031 [US3] Implement `mix dashboard.role_switch` task in `lib/mix/tasks/dashboard.role_switch.ex`
-- [ ] T032 [US3] Provide Accounts helper to swap user roles safely in `lib/dashboard_ssd/accounts.ex`
-- [ ] T033 [US3] Document role switch usage in developer guide at `DEVELOPMENT.md`
+- [X] T031 [US3] Implement `mix dashboard.role_switch` task in `lib/mix/tasks/dashboard.role_switch.ex`
+- [X] T032 [US3] Provide Accounts helper to swap user roles safely in `lib/dashboard_ssd/accounts.ex`
+- [X] T033 [US3] Document role switch usage in developer guide at `DEVELOPMENT.md`
 
 **Checkpoint**: All user stories deliver their independent value
 
@@ -116,10 +116,10 @@
 
 **Purpose**: Final refinements spanning multiple stories
 
-- [ ] T034 [P] Refresh RBAC configuration guidance in `docs/rbac.md`
-- [ ] T035 Run quickstart validation flow in `specs/006-simplify-rbac/quickstart.md`
+- [X] T034 [P] Refresh RBAC configuration guidance in `docs/rbac.md`
+- [X] T035 Run quickstart validation flow in `specs/006-simplify-rbac/quickstart.md`
 - [ ] T036 Perform Credo/Dialyzer sweeps and format in project root
-- [ ] T037 Capture release notes for RBAC changes in `CHANGELOG.md`
+- [X] T037 Capture release notes for RBAC changes in `CHANGELOG.md`
 
 ---
 

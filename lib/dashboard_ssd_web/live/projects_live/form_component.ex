@@ -2,8 +2,10 @@ defmodule DashboardSSDWeb.ProjectsLive.FormComponent do
   @moduledoc "LiveComponent for editing a project and its health check settings."
   use DashboardSSDWeb, :live_component
 
-  alias DashboardSSD.{Clients, Projects}
+  alias DashboardSSD.Auth.Policy
+  alias DashboardSSD.Clients
   alias DashboardSSD.Deployments
+  alias DashboardSSD.Projects
 
   @impl true
   @doc "Update the project form and prefill current health check settings."
@@ -49,7 +51,7 @@ defmodule DashboardSSDWeb.ProjectsLive.FormComponent do
   end
 
   def handle_event("save", %{"project" => params} = all_params, socket) do
-    if admin?(socket.assigns.current_user) do
+    if Policy.can?(socket.assigns.current_user, :manage, :projects) do
       hc_params = Map.get(all_params, "hc", %{})
       _ = maybe_upsert_health_check_setting(socket.assigns.project, hc_params)
       hc_flash = maybe_run_health_check_now(socket.assigns.project, hc_params)
@@ -138,8 +140,6 @@ defmodule DashboardSSDWeb.ProjectsLive.FormComponent do
       p -> p
     end
   end
-
-  defp admin?(user), do: user && user.role && user.role.name == "admin"
 
   defp project_changed?(project, params) do
     project.name != params["name"] or
@@ -235,7 +235,7 @@ defmodule DashboardSSDWeb.ProjectsLive.FormComponent do
         </fieldset>
 
         <:actions class="flex justify-start">
-          <.button>Save</.button>
+          <.button capability={{:manage, :projects}} current_user={@current_user}>Save</.button>
         </:actions>
       </.simple_form>
     </div>

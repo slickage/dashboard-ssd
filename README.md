@@ -73,6 +73,7 @@ Required environment variables in `.env`:
 - `SLACK_CHANNEL`: Slack channel for notifications
 - `NOTION_TOKEN`: Notion API access
 - `ENCRYPTION_KEY`: Base64-encoded encryption key for sensitive data
+- `SLICKAGE_ALLOWED_DOMAINS`: Comma-separated list of Google Workspace domains that should be treated as internal Slickage users (e.g., `slickage.com,subsidiary.com`)
 
 ### Testing
 

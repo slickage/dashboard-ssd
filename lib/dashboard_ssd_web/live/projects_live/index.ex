@@ -18,13 +18,18 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
     auto_sync? = linear_enabled and auto_linear_sync_enabled?()
 
     if Policy.can?(user, :read, :projects) do
+      accessible_scope = accessible_client_scope(user)
+      clients = clients_for_scope(accessible_scope)
+
       socket =
         socket
         |> assign(:current_path, "/projects")
         |> assign(:page_title, "Projects")
         |> assign(:client_id, nil)
         |> assign(:projects, [])
-        |> assign(:clients, Clients.list_clients())
+        |> assign(:clients, clients)
+        |> assign(:accessible_client_scope, accessible_scope)
+        |> assign(:client_filter_enabled?, client_filter_enabled?(accessible_scope))
         |> assign(:linear_enabled, linear_enabled)
         |> assign(:summaries, %{})
         |> assign(:loaded, false)
@@ -163,8 +168,9 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
       {:noreply, socket}
     else
       # If not loaded, load the data like in index mode
+      scope = socket.assigns[:accessible_client_scope] || :all
       client_id = socket.assigns.client_id || nil
-      projects = fetch_projects(client_id)
+      projects = fetch_projects(client_id, scope)
       spawn(fn -> run_checks_and_update(projects, self()) end)
 
       socket =
@@ -183,21 +189,31 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
   end
 
   defp handle_params_index(params, socket) do
+    scope = socket.assigns[:accessible_client_scope] || :all
     client_id = params["client_id"]
+    normalized_id = normalize_client_id_for_scope(scope, client_id)
 
-    if reuse_loaded?(socket, client_id, params["r"]) do
-      {:noreply, assign(socket, page_title: "Projects", client_id: client_id)}
+    if reuse_loaded?(socket, normalized_id, params["r"]) do
+      {:noreply,
+       socket
+       |> assign(:page_title, "Projects")
+       |> assign(:client_id, normalized_id)
+       |> assign(:accessible_client_scope, scope)
+       |> assign(:client_filter_enabled?, client_filter_enabled?(scope))
+       |> assign(:clients, clients_for_scope(scope))}
     else
-      projects = fetch_projects(client_id)
-      spawn(fn -> run_checks_and_update(projects, self()) end)
+      projects = fetch_projects(normalized_id, scope)
+      schedule_health_checks(projects, self())
 
       collapsed = prune_collapsed(socket.assigns.collapsed_teams, projects)
 
       socket =
         socket
         |> assign(:page_title, "Projects")
-        |> assign(:client_id, client_id)
-        |> assign(:clients, Clients.list_clients())
+        |> assign(:client_id, normalized_id)
+        |> assign(:accessible_client_scope, scope)
+        |> assign(:client_filter_enabled?, client_filter_enabled?(scope))
+        |> assign(:clients, clients_for_scope(scope))
         |> assign(:projects, projects)
         |> assign(:health, load_existing_health(projects))
         |> assign(:loaded, true)
@@ -217,11 +233,77 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
       socket.assigns[:summaries] != nil
   end
 
-  defp fetch_projects(client_id) do
+  defp fetch_projects(client_id, :all) do
     case client_id do
       nil -> Projects.list_projects()
       "" -> Projects.list_projects()
       id -> Projects.list_projects_by_client(String.to_integer(id))
+    end
+  end
+
+  defp fetch_projects(_client_id, []), do: []
+
+  defp fetch_projects(client_id, ids) when is_list(ids) do
+    case parse_client_id(client_id) do
+      {:ok, id} ->
+        if Enum.member?(ids, id) do
+          Projects.list_projects_by_client(id)
+        else
+          Projects.list_projects_for_clients(ids)
+        end
+
+      _ ->
+        Projects.list_projects_for_clients(ids)
+    end
+  end
+
+  defp accessible_client_scope(nil), do: :all
+
+  defp accessible_client_scope(%{role: %{name: "client"}, client_id: client_id})
+       when is_integer(client_id) do
+    [client_id]
+  end
+
+  defp accessible_client_scope(%{role: %{name: "client"}}), do: []
+  defp accessible_client_scope(_), do: :all
+
+  defp clients_for_scope(:all), do: Clients.list_clients()
+  defp clients_for_scope([]), do: []
+
+  defp clients_for_scope(ids) when is_list(ids) do
+    ids
+    |> Clients.list_clients_by_ids()
+    |> Enum.sort_by(& &1.name)
+  end
+
+  defp client_filter_enabled?(:all), do: true
+  defp client_filter_enabled?([]), do: false
+  defp client_filter_enabled?(ids) when is_list(ids), do: length(ids) > 1
+
+  defp normalize_client_id_for_scope(:all, client_id) do
+    if client_id in [nil, ""], do: nil, else: client_id
+  end
+
+  defp normalize_client_id_for_scope([], _client_id), do: nil
+
+  defp normalize_client_id_for_scope(ids, client_id) when is_list(ids) do
+    case parse_client_id(client_id) do
+      {:ok, id} ->
+        if Enum.member?(ids, id), do: Integer.to_string(id), else: nil
+
+      _ ->
+        nil
+    end
+  end
+
+  defp parse_client_id(nil), do: :error
+  defp parse_client_id(""), do: :error
+  defp parse_client_id(id) when is_integer(id), do: {:ok, id}
+
+  defp parse_client_id(id) when is_binary(id) do
+    case Integer.parse(id) do
+      {value, ""} -> {:ok, value}
+      _ -> :error
     end
   end
 
@@ -348,6 +430,12 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
       health = run_current_health_checks(projects)
       send(pid, {:health_updated, health})
     end
+  end
+
+  defp schedule_health_checks([], _pid), do: :ok
+
+  defp schedule_health_checks(projects, pid) do
+    spawn(fn -> run_checks_and_update(projects, pid) end)
   end
 
   defp run_current_health_checks(projects) do
@@ -501,7 +589,8 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
 
   @impl true
   def handle_event("filter", %{"client_id" => client_id}, socket) do
-    client_id = if client_id in [nil, ""], do: nil, else: client_id
+    scope = socket.assigns[:accessible_client_scope] || :all
+    client_id = normalize_client_id_for_scope(scope, client_id)
     path = if is_nil(client_id), do: ~p"/projects", else: ~p"/projects?client_id=#{client_id}"
     {:noreply, push_patch(socket, to: path)}
   end
@@ -540,7 +629,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         id -> Projects.list_projects_by_client(String.to_integer(id))
       end
 
-    spawn(fn -> run_checks_and_update(projects, self()) end)
+    schedule_health_checks(projects, self())
 
     collapsed = prune_collapsed(socket.assigns.collapsed_teams, projects)
 
@@ -634,50 +723,54 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
   def render(assigns) do
     ~H"""
     <div class="flex flex-col gap-8">
-      <div class="card px-4 py-4 sm:px-6">
-        <form
-          id="client-filter-form"
-          phx-change="filter"
-          class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-        >
-          <div class="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
-            <label
-              for="client-filter"
-              class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted"
-            >
-              Filter by client
-            </label>
-            <select
-              name="client_id"
-              id="client-filter"
-              class="w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white transition focus:border-white/30 focus:outline-none sm:w-64"
-            >
-              <option value="" selected={@client_id in [nil, ""]}>All Clients</option>
-              <%= for c <- @clients do %>
-                <option value={c.id} selected={to_string(c.id) == to_string(@client_id)}>
-                  {c.name}
-                </option>
-              <% end %>
-            </select>
-          </div>
-
-          <div class="flex flex-wrap items-center gap-3">
-            <%= if @linear_enabled do %>
-              <button
-                type="button"
-                phx-click="sync"
-                class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:border-white/20 hover:bg-white/10"
+      <%= if @client_filter_enabled? do %>
+        <div class="card px-4 py-4 sm:px-6">
+          <form
+            id="client-filter-form"
+            phx-change="filter"
+            class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div class="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+              <label
+                for="client-filter"
+                class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted"
               >
-                Sync from Linear
-              </button>
-            <% else %>
-              <span class="text-xs text-theme-muted">
-                Linear not configured; set LINEAR_TOKEN to enable task breakdowns.
-              </span>
-            <% end %>
-          </div>
-        </form>
-      </div>
+                Filter by client
+              </label>
+              <select
+                name="client_id"
+                id="client-filter"
+                class="w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white transition focus:border-white/30 focus:outline-none sm:w-64"
+              >
+                <%= if @accessible_client_scope == :all do %>
+                  <option value="" selected={@client_id in [nil, ""]}>All Clients</option>
+                <% end %>
+                <%= for c <- @clients do %>
+                  <option value={c.id} selected={to_string(c.id) == to_string(@client_id)}>
+                    {c.name}
+                  </option>
+                <% end %>
+              </select>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3">
+              <%= if @linear_enabled do %>
+                <button
+                  type="button"
+                  phx-click="sync"
+                  class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:border-white/20 hover:bg-white/10"
+                >
+                  Sync from Linear
+                </button>
+              <% else %>
+                <span class="text-xs text-theme-muted">
+                  Linear not configured; set LINEAR_TOKEN to enable task breakdowns.
+                </span>
+              <% end %>
+            </div>
+          </form>
+        </div>
+      <% end %>
 
       <%= if @projects == [] do %>
         <div class="theme-card px-6 py-8 text-center text-sm text-theme-muted">

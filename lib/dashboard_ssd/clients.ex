@@ -28,6 +28,16 @@ defmodule DashboardSSD.Clients do
   def list_clients, do: Repo.all(Client)
 
   @doc """
+  Lists clients whose IDs are in the provided list.
+  """
+  @spec list_clients_by_ids([pos_integer()]) :: [Client.t()]
+  def list_clients_by_ids([]), do: []
+
+  def list_clients_by_ids(ids) when is_list(ids) do
+    from(c in Client, where: c.id in ^ids) |> Repo.all()
+  end
+
+  @doc """
   Fetches a client by ID.
 
   Raises Ecto.NoResultsError if the client does not exist.

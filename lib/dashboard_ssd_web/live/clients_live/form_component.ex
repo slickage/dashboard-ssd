@@ -1,6 +1,7 @@
 defmodule DashboardSSDWeb.ClientsLive.FormComponent do
   @moduledoc "LiveComponent for creating and editing clients."
   use DashboardSSDWeb, :live_component
+  alias DashboardSSD.Auth.Policy
   alias DashboardSSD.Clients
 
   @impl true
@@ -32,7 +33,7 @@ defmodule DashboardSSDWeb.ClientsLive.FormComponent do
     if admin?(socket.assigns.current_user) do
       save(socket, socket.assigns.action, params)
     else
-      {:noreply, put_flash(socket, :error, "Forbidden")}
+      {:noreply, put_flash(socket, :error, "You don't have permission to access Clients")}
     end
   end
 
@@ -64,7 +65,7 @@ defmodule DashboardSSDWeb.ClientsLive.FormComponent do
 
   defp change(client, params \\ %{}), do: Clients.change_client(client, params)
 
-  defp admin?(user), do: user && user.role && user.role.name == "admin"
+  defp admin?(user), do: Policy.can?(user, :manage, :clients)
 
   @impl true
   def render(assigns) do
@@ -81,7 +82,7 @@ defmodule DashboardSSDWeb.ClientsLive.FormComponent do
       >
         <.input field={f[:name]} label="Name" />
         <:actions class="flex justify-start">
-          <.button>Save</.button>
+          <.button capability={{:manage, :clients}} current_user={@current_user}>Save</.button>
         </:actions>
       </.simple_form>
     </div>

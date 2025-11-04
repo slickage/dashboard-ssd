@@ -20,6 +20,11 @@ defmodule DashboardSSDWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+    plug DashboardSSDWeb.Plugs.CurrentUser
+  end
+
+  pipeline :api_rbac do
+    plug DashboardSSDWeb.Plugs.Authorize, {:manage, :rbac}
   end
 
   scope "/", DashboardSSDWeb do
@@ -58,6 +63,15 @@ defmodule DashboardSSDWeb.Router do
     delete "/logout", AuthController, :delete
     # Keep GET logout for backwards-compat, but map to a distinct action
     get "/logout", AuthController, :delete_get
+    get "/invites/:token", InviteController, :accept
+  end
+
+  scope "/api", DashboardSSDWeb.API, as: :api do
+    pipe_through [:api, :api_rbac]
+
+    get "/rbac/roles", RBACController, :index
+    put "/rbac/roles/:role_name/capabilities", RBACController, :update
+    post "/rbac/reset", RBACController, :reset
   end
 
   if Application.compile_env(:dashboard_ssd, :dev_routes) do
