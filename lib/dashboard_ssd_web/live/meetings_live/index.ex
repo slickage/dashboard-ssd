@@ -10,7 +10,15 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, meetings: [], loading: true)}
+    {:ok,
+     socket
+     |> assign(:current_path, "/meetings")
+     |> assign(:page_title, "Meetings")
+     |> assign(:meetings, [])
+     |> assign(:agenda_texts, %{})
+     |> assign(:range_start, nil)
+     |> assign(:range_end, nil)
+     |> assign(:loading, true)}
   end
 
   @impl true
@@ -49,45 +57,70 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
         Map.put(acc, m.id, text)
       end)
 
-    {:noreply, assign(socket, meetings: meetings, agenda_texts: agenda_texts, loading: false)}
+    {:noreply,
+     assign(socket,
+       meetings: meetings,
+       agenda_texts: agenda_texts,
+       range_start: now,
+       range_end: later,
+       loading: false
+     )}
   end
 
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="container mx-auto p-4">
-      <h1 class="text-xl font-semibold mb-4">Meetings</h1>
+    <div class="flex flex-col gap-8">
+      <div class="card px-4 py-4 sm:px-6">
+        <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted">Upcoming</div>
+            <div class="text-sm text-white/80">
+              <%= DateHelpers.human_date(@range_start) %> – <%= DateHelpers.human_date(@range_end) %>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <%= if @loading do %>
-        <p>Loading…</p>
+        <div class="theme-card px-6 py-8 text-center text-sm text-theme-muted">Loading…</div>
       <% else %>
         <%= if @meetings == [] do %>
-          <p>No upcoming meetings found.</p>
+          <div class="theme-card px-6 py-8 text-center text-sm text-theme-muted">No upcoming meetings found.</div>
         <% else %>
-          <ul class="space-y-2">
-            <%= for m <- @meetings do %>
-              <li class="border rounded p-3">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <div class="font-medium">
-                      <.link navigate={~p"/meetings/#{m.id}" <> if(m[:recurring_series_id], do: "?series_id=" <> m.recurring_series_id, else: "")} class="underline">
+          <div class="theme-card overflow-x-auto">
+            <table class="theme-table">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>When</th>
+                  <th class="hidden md:table-cell">Agenda</th>
+                </tr>
+              </thead>
+              <tbody>
+                <%= for m <- @meetings do %>
+                  <tr>
+                    <td>
+                      <.link navigate={~p"/meetings/#{m.id}" <> if(m[:recurring_series_id], do: "?series_id=" <> m.recurring_series_id, else: "")} class="text-white/80 transition hover:text-white">
                         <%= m.title %>
                       </.link>
-                    </div>
-                    <div class="text-sm opacity-75">
+                    </td>
+                    <td class="whitespace-nowrap text-sm text-white/80">
                       <%= DateHelpers.human_datetime(m.start_at) %> – <%= DateHelpers.human_datetime(m.end_at) %>
-                    </div>
-                    
-                  </div>
-                </div>
-                <details class="mt-2">
-                  <summary class="cursor-pointer underline">Agenda</summary>
-                  <div class="mt-2 text-sm whitespace-pre-wrap">
-                    <%= Map.get(@agenda_texts, m.id, "") %>
-                  </div>
-                </details>
-              </li>
-            <% end %>
-          </ul>
+                    </td>
+                    <td class="hidden md:table-cell text-sm">
+                      <details>
+                        <summary class="cursor-pointer underline">View</summary>
+                        <div class="mt-2 whitespace-pre-wrap text-white/80">
+                          <%= Map.get(@agenda_texts, m.id, "") %>
+                        </div>
+                      </details>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
         <% end %>
       <% end %>
     </div>
