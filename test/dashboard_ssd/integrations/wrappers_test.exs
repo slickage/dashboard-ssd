@@ -41,6 +41,54 @@ defmodule DashboardSSD.Integrations.WrappersTest do
     :ok
   end
 
+  describe "calendar_list_upcoming_for_user/4" do
+    test "uses user's stored google token when present" do
+      user = Repo.insert!(%User{name: "G", email: "g@example.com"})
+
+      Repo.insert!(
+        %ExternalIdentity{}
+        |> ExternalIdentity.changeset(%{
+          user_id: user.id,
+          provider: "google",
+          provider_id: "uid-g",
+          token: "tok-user"
+        })
+      )
+
+      Tesla.Mock.mock(fn
+        %{method: :get, url: "https://www.googleapis.com/calendar/v3/calendars/primary/events", headers: headers} ->
+          assert Enum.any?(headers, fn {k, v} -> k == "authorization" and String.starts_with?(v, "Bearer ") end)
+          %Tesla.Env{status: 200, body: %{"items" => []}}
+      end)
+
+      now = DateTime.utc_now()
+      later = DateTime.add(now, 3600, :second)
+      assert {:ok, []} = Integrations.calendar_list_upcoming_for_user(user.id, now, later)
+    end
+
+    test "falls back to env token when user token missing" do
+      user = Repo.insert!(%User{name: "G2", email: "g2@example.com"})
+      System.put_env("GOOGLE_OAUTH_TOKEN", "tok-env")
+
+      Tesla.Mock.mock(fn
+        %{method: :get, url: "https://www.googleapis.com/calendar/v3/calendars/primary/events", headers: headers} ->
+          assert Enum.any?(headers, fn {k, v} -> k == "authorization" and String.starts_with?(v, "Bearer ") end)
+          %Tesla.Env{status: 200, body: %{"items" => []}}
+      end)
+
+      now = DateTime.utc_now()
+      later = DateTime.add(now, 3600, :second)
+      assert {:ok, []} = Integrations.calendar_list_upcoming_for_user(user.id, now, later)
+    end
+
+    test "returns :no_token when no user/env token and not mock" do
+      user = Repo.insert!(%User{name: "G3", email: "g3@example.com"})
+      now = DateTime.utc_now()
+      later = DateTime.add(now, 3600, :second)
+      assert {:error, :no_token} = Integrations.calendar_list_upcoming_for_user(user.id, now, later)
+    end
+  end
+
   describe "slack_send_message/2" do
     test "uses configured token and default channel" do
       Application.put_env(:dashboard_ssd, :integrations,
