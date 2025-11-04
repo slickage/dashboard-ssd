@@ -20,13 +20,5 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
     assert html =~ "Meeting"
   end
 
-  test "shows 'What to bring' from manual items when text includes 'prepare'", %{conn: conn} do
-    # Insert a manual agenda item containing the keyword 'prepare'
-    evt = "evt-bring"
-    {:ok, _a} = DashboardSSD.Meetings.Agenda.create_item(%{calendar_event_id: evt, text: "Please prepare budget doc", position: 0})
-
-    {:ok, _view, html} = live(conn, ~p"/meetings/#{evt}")
-    assert html =~ "What to bring"
-    assert html =~ "prepare budget"
-  end
+  # What to bring section removed in favor of a single freeform agenda field
 end

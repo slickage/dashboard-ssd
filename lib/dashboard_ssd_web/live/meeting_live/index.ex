@@ -19,8 +19,7 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
        editing_id: nil,
        editing_text: "",
        association: nil,
-       loading: true,
-       what_to_bring: []
+       loading: true
      )}
   end
 
@@ -30,27 +29,36 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
     manual = Agenda.list_items(id)
     assoc = Associations.get_for_event(id)
 
-    # Derive from Fireflies latest for series, then merge with manual and de-dup
-    merged = Agenda.merged_items_for_event(id, series_id)
-    what_to_bring =
-      merged
-      |> Enum.filter(&String.contains?(String.downcase(&1.text || ""), "prepare"))
-      |> Enum.map(& &1.text)
+    # Derive from Fireflies latest for series (used to prefill agenda when empty)
+    post =
+      case series_id do
+        nil -> %{accomplished: nil, action_items: []}
+        s ->
+          case Fireflies.fetch_latest_for_series(s) do
+            {:ok, v} -> v
+            _ -> %{accomplished: nil, action_items: []}
+          end
+      end
 
     agenda_text =
       manual
       |> Enum.sort_by(& &1.position)
       |> Enum.map(&(&1.text || ""))
       |> Enum.join("\n")
+      |> case do
+        "" -> Enum.join(post.action_items || [], "\n")
+        other -> other
+      end
 
     {:noreply,
      assign(socket,
        meeting_id: id,
        series_id: series_id,
-       agenda: merged,
+       agenda: [],
        manual_agenda: manual,
+       summary_text: post.accomplished,
+       action_items: post.action_items,
        agenda_text: agenda_text,
-       what_to_bring: what_to_bring,
        association: assoc,
        loading: false
      )}
@@ -62,6 +70,15 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
     case Agenda.replace_manual_text(id, text) do
       :ok -> refresh_assigns(socket)
       {:error, _} -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("refresh_post", _params, socket) do
+    case socket.assigns.series_id do
+      nil -> {:noreply, socket}
+      s ->
+        _ = Fireflies.refresh_series(s)
+        refresh_assigns(socket)
     end
   end
 
@@ -128,13 +145,34 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
     id = socket.assigns.meeting_id
     series_id = socket.assigns.series_id
     manual = Agenda.list_items(id)
-    merged = Agenda.merged_items_for_event(id, series_id)
-    what_to_bring =
-      merged
-      |> Enum.filter(&String.contains?(String.downcase(&1.text || ""), "prepare"))
-      |> Enum.map(& &1.text)
+    # Prefill agenda when manual is empty using latest Fireflies action items
+    post =
+      case series_id do
+        nil -> %{accomplished: nil, action_items: []}
+        s ->
+          case Fireflies.fetch_latest_for_series(s) do
+            {:ok, v} -> v
+            _ -> %{accomplished: nil, action_items: []}
+          end
+      end
+    agenda_text =
+      manual
+      |> Enum.sort_by(& &1.position)
+      |> Enum.map(&(&1.text || ""))
+      |> Enum.join("\n")
+      |> case do
+        "" -> Enum.join(post.action_items || [], "\n")
+        other -> other
+      end
 
-    {:noreply, assign(socket, manual_agenda: manual, agenda: merged, what_to_bring: what_to_bring)}
+    {:noreply,
+     assign(socket,
+       manual_agenda: manual,
+       agenda: [],
+       summary_text: post.accomplished,
+       action_items: post.action_items,
+       agenda_text: agenda_text
+     )}
   end
 
   @impl true
@@ -151,16 +189,28 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
         </div>
       </form>
 
-      <%= if @what_to_bring && @what_to_bring != [] do %>
-        <div class="mt-6">
-          <h3 class="font-medium">What to bring</h3>
-          <ul class="list-disc ml-6 space-y-1">
-            <%= for t <- @what_to_bring do %>
-              <li><%= t %></li>
-            <% end %>
-          </ul>
-        </div>
-      <% end %>
+      <div class="mt-8">
+        <h3 class="font-medium">Last meeting summary</h3>
+        <%= if is_binary(@summary_text) and String.trim(@summary_text) != "" or @action_items != [] do %>
+          <%= if is_binary(@summary_text) and String.trim(@summary_text) != "" do %>
+            <div class="prose max-w-none">
+              <p><%= @summary_text %></p>
+            </div>
+          <% end %>
+          <%= if @action_items != [] do %>
+            <div class="mt-3">
+              <div class="opacity-75">Action Items</div>
+              <ul class="list-disc ml-6 space-y-1">
+                <%= for it <- @action_items do %>
+                  <li><%= it %></li>
+                <% end %>
+              </ul>
+            </div>
+          <% end %>
+        <% else %>
+          <div class="opacity-75">Summary pending. <button phx-click="refresh_post" class="underline">Refresh</button></div>
+        <% end %>
+      </div>
 
       <div class="mt-6">
         <.link navigate={~p"/meetings"} class="underline">Back to Meetings</.link>
