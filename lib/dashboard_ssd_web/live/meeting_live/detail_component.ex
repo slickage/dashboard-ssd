@@ -228,27 +228,24 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
             <form phx-target={@myself} phx-submit="assoc_save" class="flex flex-col gap-3">
               <div class="flex items-center gap-2">
                 <label class="text-xs uppercase tracking-wider">Select</label>
-                <select name="entity" phx-focus="dismiss_auto_notice" phx-target={@myself} class="border rounded px-2 py-1 text-sm bg-white/5 w-72">
+                <select name="entity" class="border rounded px-2 py-1 text-sm bg-white/5 w-72">
                   <option value="">— Choose —</option>
                   <optgroup label="Clients">
                     <%= for c <- @clients do %>
                       <option value={"client:" <> to_string(c.id)} selected={(not is_nil(@assoc) and @assoc.client_id == c.id) or (is_nil(@assoc) and @auto_entity == "client:" <> to_string(c.id))}>
-                        <%= c.name %>
+                        <%= c.name %><%= if is_nil(@assoc) and @auto_entity == "client:" <> to_string(c.id), do: " (suggested)" %>
                       </option>
                     <% end %>
                   </optgroup>
                   <optgroup label="Projects">
                     <%= for p <- @projects do %>
                       <option value={"project:" <> to_string(p.id)} selected={(not is_nil(@assoc) and @assoc.project_id == p.id) or (is_nil(@assoc) and @auto_entity == "project:" <> to_string(p.id))}>
-                        <%= p.name %>
+                        <%= p.name %><%= if is_nil(@assoc) and @auto_entity == "project:" <> to_string(p.id), do: " (suggested)" %>
                       </option>
                     <% end %>
                   </optgroup>
                 </select>
               </div>
-              <%= if @auto_suggest_notice do %>
-                <div class="text-xs text-white/60">Auto-selected based on meeting title. You can change it.</div>
-              <% end %>
               <div class="flex items-center gap-2">
                 <input type="checkbox" id="persist_series" name="persist_series" checked />
                 <label for="persist_series" class="text-xs">Persist for series</label>
@@ -259,22 +256,7 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
                 <button type="button" phx-target={@myself} phx-click="assoc_reset_series" class="underline text-white/70">Reset series</button>
               </div>
             </form>
-            <%= case @guess do %>
-              <% {:client, c} when not is_nil(c) -> %>
-                <div class="mt-2 text-xs text-white/70">
-                  Suggested: Client <span class="text-white/80"><%= c.name %></span>
-                  <button phx-target={@myself} phx-click="assoc_apply_guess" phx-value-entity={"client:" <> to_string(c.id)} class="underline ml-2">Apply</button>
-                </div>
-              <% {:project, p} when not is_nil(p) -> %>
-                <div class="mt-2 text-xs text-white/70">
-                  Suggested: Project <span class="text-white/80"><%= p.name %></span>
-                  <button phx-target={@myself} phx-click="assoc_apply_guess" phx-value-entity={"project:" <> to_string(p.id)} class="underline ml-2">Apply</button>
-                </div>
-              <% {:ambiguous, _list} -> %>
-                <div class="mt-2 text-xs text-white/50">Multiple possible matches; please choose from the select.</div>
-              <% _ -> %>
-                
-            <% end %>
+            
           </div>
         </div>
       </div>
@@ -282,8 +264,5 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
     """
   end
 
-  @impl true
-  def handle_event("dismiss_auto_notice", _params, socket) do
-    {:noreply, assign(socket, auto_suggest_notice: false)}
-  end
+  
 end
