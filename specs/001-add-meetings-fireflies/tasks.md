@@ -126,6 +126,16 @@ The following tasks are removed:
 - Deliver MVP with US1 only: list upcoming meetings, generate agenda from previous meeting via Fireflies summary split on "Action Items", and show a simple "what to bring".
 - Iterate with US2 to enable agenda editing; then US3 to show post-meeting outcomes; add US4 associations; finish with US5 polish on preparation summary.
 
+## Implementation Details — Google Calendar
+
+Reference: specs/001-add-meetings-fireflies/implementation/google_calendar_plan.md
+
+- Token strategy: prefer user ExternalIdentity (provider "google"), fallback to env `GOOGLE_OAUTH_TOKEN`; return `{:error, :no_token}` if neither is present; preserve `?mock=1` for QA.
+- API: `events.list` on primary calendar with `timeMin`, `timeMax`, `singleEvents=true`, `orderBy=startTime`; map to `%{id, title, start_at, end_at, recurring_series_id}`; handle `date` vs `dateTime`.
+- Meetings wiring: use `Integrations.calendar_list_upcoming_for_user/4`; keep page stable on error; maintain modal behavior.
+- Caching: `Meetings.CacheStore` with key `{:gcal, user_id_or_nil, {start_iso, end_iso}}`, TTL ~5m.
+- Tests: transform correctness (date/dateTime), missing token error, mock path intact.
+
 ## Format Validation
 
 - All tasks follow the checklist format: `- [ ] T### [P?] [US#?] Description (path)`
