@@ -276,6 +276,20 @@ defmodule DashboardSSD.AccountsTest do
   test "get_invite_by_token returns nil for unknown token" do
     assert Accounts.get_invite_by_token("missing-token") == nil
   end
+
+  test "replace_role_capabilities rejects invalid capability codes" do
+    Accounts.ensure_role!("employee")
+
+    assert {:error, {:invalid_capability, "bogus"}} ==
+             Accounts.replace_role_capabilities("employee", ["bogus"])
+  end
+
+  test "replace_role_capabilities enforces required admin capabilities" do
+    Accounts.ensure_role!("admin")
+
+    assert {:error, :missing_required_admin_capability} ==
+             Accounts.replace_role_capabilities("admin", ["dashboard.view"])
+  end
 end
 
 defmodule DashboardSSD.AccountsGetUserTest do
@@ -342,6 +356,10 @@ defmodule DashboardSSD.AccountsGetUserTest do
   test "ensure_role!/1 creates new role when not found" do
     role = Accounts.ensure_role!("new_role")
     assert role.name == "new_role"
+  end
+
+  test "switch_user_role returns error when user not found" do
+    assert {:error, :user_not_found} = Accounts.switch_user_role("missing@example.com", "client")
   end
 
   test "upsert_user_with_identity assigns admin role to first user" do

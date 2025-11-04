@@ -58,6 +58,12 @@ defmodule DashboardSSD.Auth.PolicyTest do
     refute Policy.can?(nil, :manage, :rbac)
   end
 
+  test "users without roles have no capabilities" do
+    user = %Accounts.User{role: nil}
+    refute Policy.can?(user, :read, :projects)
+    refute Policy.can?(user, :read, :settings)
+  end
+
   defp build_user(role_name) do
     role = Accounts.ensure_role!(role_name)
 

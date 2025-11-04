@@ -51,6 +51,17 @@ defmodule DashboardSSD.IntegrationsTest do
     assert {:ok, %{"data" => %{}}} = Integrations.linear_list_issues("query {}", %{})
   end
 
+  test "linear_list_issues strips bearer prefix" do
+    mock(fn %{method: :post, headers: headers} ->
+      assert {"authorization", "abc-123"} in headers
+      {:ok, %Tesla.Env{status: 200, body: %{"data" => %{}}}}
+    end)
+
+    Application.put_env(:dashboard_ssd, :integrations, linear_token: "Bearer abc-123")
+
+    assert {:ok, %{"data" => %{}}} = Integrations.linear_list_issues("query {}", %{})
+  end
+
   test "linear_graphql reports rate limit message" do
     mock(fn %{method: :post, url: "https://api.linear.app/graphql"} ->
       {:ok,
