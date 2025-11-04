@@ -83,13 +83,13 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
     case String.split(entity || "", ":", parts: 2) do
       ["client", id_str] ->
         case Integer.parse(id_str) do
-          {v, _} -> Associations.set_manual(meeting_id, %{client_id: v}, series_id, persist in ["true", "1", "on"]) |> respond_assoc(socket)
+          {v, _} -> Associations.set_manual(meeting_id, %{client_id: v}, series_id, persist in ["true", "1", "on", nil]) |> respond_assoc(socket)
           _ -> {:noreply, socket}
         end
 
       ["project", id_str] ->
         case Integer.parse(id_str) do
-          {v, _} -> Associations.set_manual(meeting_id, %{project_id: v}, series_id, persist in ["true", "1", "on"]) |> respond_assoc(socket)
+          {v, _} -> Associations.set_manual(meeting_id, %{project_id: v}, series_id, persist in ["true", "1", "on", nil]) |> respond_assoc(socket)
           _ -> {:noreply, socket}
         end
 
@@ -99,7 +99,7 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
 
   @impl true
   def handle_event("assoc_save", %{"entity" => entity}, socket) do
-    handle_event("assoc_save", %{"entity" => entity, "persist_series" => "false"}, socket)
+    handle_event("assoc_save", %{"entity" => entity, "persist_series" => "true"}, socket)
   end
 
   @impl true
@@ -110,18 +110,38 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
     case String.split(entity || "", ":", parts: 2) do
       ["client", id_str] ->
         case Integer.parse(id_str) do
-          {v, _} -> Associations.set_manual(meeting_id, %{client_id: v}, series_id, false) |> respond_assoc(socket)
+          {v, _} -> Associations.set_manual(meeting_id, %{client_id: v}, series_id, true) |> respond_assoc(socket)
           _ -> {:noreply, socket}
         end
 
       ["project", id_str] ->
         case Integer.parse(id_str) do
-          {v, _} -> Associations.set_manual(meeting_id, %{project_id: v}, series_id, false) |> respond_assoc(socket)
+          {v, _} -> Associations.set_manual(meeting_id, %{project_id: v}, series_id, true) |> respond_assoc(socket)
           _ -> {:noreply, socket}
         end
 
       _ -> {:noreply, socket}
     end
+  end
+
+  @impl true
+  def handle_event("assoc_reset_event", _params, socket) do
+    meeting_id = socket.assigns.meeting_id
+    series_id = socket.assigns.series_id
+    :ok = Associations.delete_for_event(meeting_id)
+    assoc = Associations.get_for_event_or_series(meeting_id, series_id)
+    {:noreply, assign(socket, assoc: assoc, association: assoc)}
+  end
+
+  @impl true
+  def handle_event("assoc_reset_series", _params, socket) do
+    series_id = socket.assigns.series_id
+    meeting_id = socket.assigns.meeting_id
+    if is_binary(series_id) do
+      :ok = Associations.delete_series(series_id)
+    end
+    assoc = Associations.get_for_event_or_series(meeting_id, series_id)
+    {:noreply, assign(socket, assoc: assoc, association: assoc)}
   end
 
   defp respond_assoc({:ok, assoc}, socket), do: {:noreply, assign(socket, assoc: assoc, association: assoc)}
@@ -219,11 +239,13 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
                 </select>
               </div>
               <div class="flex items-center gap-2">
-                <input type="checkbox" id="persist_series" name="persist_series" />
+                <input type="checkbox" id="persist_series" name="persist_series" checked />
                 <label for="persist_series" class="text-xs">Persist for series</label>
               </div>
-              <div>
+              <div class="flex items-center gap-3">
                 <button type="submit" class="underline">Save association</button>
+                <button type="button" phx-target={@myself} phx-click="assoc_reset_event" class="underline text-white/70">Reset event</button>
+                <button type="button" phx-target={@myself} phx-click="assoc_reset_series" class="underline text-white/70">Reset series</button>
               </div>
             </form>
             <%= case @guess do %>

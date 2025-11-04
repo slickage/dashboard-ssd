@@ -70,4 +70,50 @@ defmodule DashboardSSD.Meetings.AssociationsFallbackTest do
     assert %MeetingAssociation{id: id} = Associations.get_for_event_or_series("evt-y2", "series-y")
     assert id == assoc.id
   end
+
+  test "delete_for_event removes event-specific association only" do
+    {:ok, client} = Clients.create_client(%{name: "CZ"})
+    # Series-level persisted
+    {:ok, _} =
+      %MeetingAssociation{}
+      |> MeetingAssociation.changeset(%{
+        calendar_event_id: "evt-z1",
+        recurring_series_id: "series-z",
+        persist_series: true,
+        client_id: client.id,
+        origin: "manual"
+      })
+      |> Repo.insert()
+
+    # Event-specific override
+    {:ok, _} =
+      %MeetingAssociation{}
+      |> MeetingAssociation.changeset(%{
+        calendar_event_id: "evt-z2",
+        client_id: client.id,
+        origin: "manual"
+      })
+      |> Repo.insert()
+
+    :ok = Associations.delete_for_event("evt-z2")
+    # Falls back to series association for other events in series
+    assert %MeetingAssociation{} = Associations.get_for_event_or_series("evt-z3", "series-z")
+  end
+
+  test "delete_series removes persisted series association" do
+    {:ok, client} = Clients.create_client(%{name: "CW"})
+    {:ok, _} =
+      %MeetingAssociation{}
+      |> MeetingAssociation.changeset(%{
+        calendar_event_id: "evt-w1",
+        recurring_series_id: "series-w",
+        persist_series: true,
+        client_id: client.id,
+        origin: "manual"
+      })
+      |> Repo.insert()
+
+    :ok = Associations.delete_series("series-w")
+    assert nil == Associations.get_for_event_or_series("evt-w2", "series-w")
+  end
 end
