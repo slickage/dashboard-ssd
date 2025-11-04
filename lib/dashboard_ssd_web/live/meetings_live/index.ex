@@ -4,7 +4,8 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
 
   alias DashboardSSD.Integrations.GoogleCalendar
   alias DashboardSSD.Integrations.Fireflies
-  alias DashboardSSD.Meetings.Agenda
+  alias DashboardSSD.Meetings.{Agenda, Associations}
+  alias DashboardSSD.{Clients, Projects}
   alias DashboardSSDWeb.DateHelpers
   require Logger
 
@@ -57,10 +58,26 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
         Map.put(acc, m.id, text)
       end)
 
+    # Build association map (meeting_id => {:client, client} | {:project, project})
+    clients = Clients.list_clients()
+    projects = Projects.list_projects()
+    client_map = Map.new(clients, &{&1.id, &1})
+    project_map = Map.new(projects, &{&1.id, &1})
+
+    assoc_by_meeting =
+      Enum.reduce(meetings, %{}, fn m, acc ->
+        case Associations.get_for_event(m.id) do
+          %{client_id: id} when is_integer(id) -> Map.put(acc, m.id, {:client, Map.get(client_map, id)})
+          %{project_id: id} when is_integer(id) -> Map.put(acc, m.id, {:project, Map.get(project_map, id)})
+          _ -> acc
+        end
+      end)
+
     {:noreply,
      assign(socket,
        meetings: meetings,
        agenda_texts: agenda_texts,
+       assoc_by_meeting: assoc_by_meeting,
        range_start: now,
        range_end: later,
        loading: false
@@ -93,10 +110,22 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
               <div class="theme-card px-6 py-5">
                 <div class="flex items-start justify-between">
                   <div>
-                    <div class="text-base font-semibold">
+                    <div class="text-base font-semibold flex items-center gap-3 flex-wrap">
                       <.link navigate={~p"/meetings/#{m.id}" <> if(m[:recurring_series_id], do: "?series_id=" <> m.recurring_series_id, else: "")} class="text-white/80 transition hover:text-white">
                         <%= m.title %>
                       </.link>
+                      <%= case Map.get(@assoc_by_meeting || %{}, m.id) do %>
+                        <% {:client, c} when not is_nil(c) -> %>
+                          <span class="text-xs text-white/70">· Client:
+                            <.link navigate={~p"/clients/#{c.id}/edit"} class="underline"><%= c.name %></.link>
+                          </span>
+                        <% {:project, p} when not is_nil(p) -> %>
+                          <span class="text-xs text-white/70">· Project:
+                            <.link navigate={~p"/projects/#{p.id}/edit"} class="underline"><%= p.name %></.link>
+                          </span>
+                        <% _ -> %>
+                          <span class="text-xs text-white/50">· Unassigned</span>
+                      <% end %>
                     </div>
                     <div class="mt-1 text-sm text-white/70">
                       <%= DateHelpers.human_datetime(m.start_at) %> – <%= DateHelpers.human_datetime(m.end_at) %>
