@@ -10,6 +10,8 @@ defmodule DashboardSSDWeb.SettingsLive.RbacTableComponent do
     "admin" => ["settings.rbac"]
   }
 
+  @impl true
+  @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
     <section class="theme-card p-6" data-role="rbac-settings">

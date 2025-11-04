@@ -5,6 +5,10 @@ defmodule DashboardSSDWeb.InviteController do
   alias DashboardSSD.Accounts
   alias DashboardSSD.Accounts.UserInvite
 
+  @doc """
+  Accepts an invite token and either stores it for later sign-in or applies it to
+  the currently signed-in user, redirecting to the appropriate destination.
+  """
   @spec accept(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def accept(conn, %{"token" => token}) do
     case Accounts.get_invite_by_token(token) do

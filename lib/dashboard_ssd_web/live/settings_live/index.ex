@@ -549,22 +549,10 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
          |> assign_user_management()
          |> put_flash(:info, gettext("Invitation sent."))}
 
-      {:error, :user_exists} ->
+      {:error, reason} ->
         {:noreply,
          socket
-         |> put_flash(:error, gettext("A user with that email already exists."))}
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        message = changeset_errors_to_string(changeset)
-
-        {:noreply,
-         socket
-         |> put_flash(:error, message)}
-
-      {:error, other} ->
-        {:noreply,
-         socket
-         |> put_flash(:error, inspect(other))}
+         |> put_flash(:error, invite_error_message(reason))}
     end
   end
 
@@ -615,6 +603,12 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
 
   defp invite_error_message(%Ecto.Changeset{} = changeset),
     do: changeset_errors_to_string(changeset)
+
+  defp invite_error_message(:user_exists),
+    do: gettext("A user with that email already exists.")
+
+  defp invite_error_message(:invalid_email),
+    do: gettext("Please provide a valid email address.")
 
   defp invite_error_message(other), do: inspect(other)
 end

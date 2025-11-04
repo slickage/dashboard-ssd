@@ -6,6 +6,7 @@ defmodule DashboardSSD.Accounts do
   authentication data model. All functions are pure wrappers
   around Ecto with clearly defined contracts.
   """
+  @dialyzer {:nowarn_function, deliver_invite_email: 1}
   import Ecto.Query, warn: false
 
   alias DashboardSSD.Accounts.{
@@ -22,6 +23,7 @@ defmodule DashboardSSD.Accounts do
   alias DashboardSSD.Repo
 
   defmodule DomainNotAllowedError do
+    @moduledoc "Raised when a user attempts to sign in with an email domain outside the allowlist."
     defexception [:message]
   end
 
@@ -348,7 +350,10 @@ defmodule DashboardSSD.Accounts do
          :ok <- ensure_invited_user_absent(email),
          {:ok, role_name} <- resolve_invite_role(attrs),
          {:ok, invite_attrs} <- build_invite_attrs(attrs, email, role_name),
-         {:ok, invite} <- persist_invite(invite_attrs) do
+         {:ok, invite} <-
+           %UserInvite{}
+           |> UserInvite.changeset(invite_attrs)
+           |> Repo.insert() do
       invite = Repo.preload(invite, [:client, :invited_by])
       deliver_invite_email(invite)
       {:ok, invite}
@@ -412,12 +417,6 @@ defmodule DashboardSSD.Accounts do
       |> Map.update(:invited_by_id, nil, &parse_optional_integer/1)
 
     {:ok, attrs}
-  end
-
-  defp persist_invite(attrs) do
-    %UserInvite{}
-    |> UserInvite.changeset(attrs)
-    |> Repo.insert()
   end
 
   @doc """

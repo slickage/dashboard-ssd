@@ -5,20 +5,22 @@ defmodule DashboardSSD.Accounts.UserInvite do
 
   alias DashboardSSD.Accounts.User
   alias DashboardSSD.Clients.Client
+  alias Ecto.Association.NotLoaded
 
   @type t :: %__MODULE__{
           id: integer() | nil,
-          email: String.t(),
-          token: String.t(),
-          role_name: String.t(),
+          email: String.t() | nil,
+          token: String.t() | nil,
+          role_name: String.t() | nil,
           client_id: integer() | nil,
           invited_by_id: integer() | nil,
-          invited_by: User.t() | nil,
-          client: Client.t() | nil,
+          invited_by: User.t() | NotLoaded.t() | nil,
+          client: Client.t() | NotLoaded.t() | nil,
           used_at: DateTime.t() | nil,
           accepted_user_id: integer() | nil,
-          inserted_at: DateTime.t(),
-          updated_at: DateTime.t()
+          accepted_user: User.t() | NotLoaded.t() | nil,
+          inserted_at: DateTime.t() | nil,
+          updated_at: DateTime.t() | nil
         }
 
   schema "user_invites" do
@@ -37,7 +39,10 @@ defmodule DashboardSSD.Accounts.UserInvite do
     timestamps(type: :utc_datetime)
   end
 
-  @doc false
+  @doc """
+  Builds a changeset for creating or updating a `UserInvite`.
+  """
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(invite, attrs) do
     invite
     |> cast(attrs, [
@@ -55,7 +60,10 @@ defmodule DashboardSSD.Accounts.UserInvite do
     |> unique_constraint(:token)
   end
 
-  @doc false
+  @doc """
+  Convenience wrapper that ensures the token is forced to the provided value.
+  """
+  @spec creation_changeset(t(), map()) :: Ecto.Changeset.t()
   def creation_changeset(invite, attrs) do
     invite
     |> changeset(attrs)

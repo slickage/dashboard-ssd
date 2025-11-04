@@ -4,6 +4,12 @@ defmodule DashboardSSD.Accounts.InviteEmail do
   alias DashboardSSD.Accounts.UserInvite
   alias DashboardSSDWeb.Endpoint
 
+  @doc """
+  Builds a Swoosh email for a pending `UserInvite`.
+
+  The email includes both HTML and plain-text bodies with a link back to the
+  `/invites/:token` acceptance route.
+  """
   @spec new_invite_email(UserInvite.t()) :: Swoosh.Email.t()
   def new_invite_email(%UserInvite{} = invite) do
     url = invite_url(invite)
