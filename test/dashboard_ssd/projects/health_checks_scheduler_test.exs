@@ -82,7 +82,7 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
     test "treats 3xx as up", %{project: project} do
       bypass = Bypass.open()
 
-      Bypass.expect_once(bypass, "GET", "/health", fn conn ->
+      Bypass.stub(bypass, "GET", "/health", fn conn ->
         Plug.Conn.resp(conn, 302, "")
       end)
 
@@ -105,7 +105,7 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
     test "treats 4xx as degraded", %{project: project} do
       bypass = Bypass.open()
 
-      Bypass.expect_once(bypass, "GET", "/health", fn conn ->
+      Bypass.stub(bypass, "GET", "/health", fn conn ->
         Plug.Conn.resp(conn, 418, "teapot")
       end)
 
@@ -128,7 +128,7 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
     test "treats 5xx as down", %{project: project} do
       bypass = Bypass.open()
 
-      Bypass.expect_once(bypass, "GET", "/health", fn conn ->
+      Bypass.stub(bypass, "GET", "/health", fn conn ->
         Plug.Conn.resp(conn, 503, "busy")
       end)
 
@@ -151,7 +151,7 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
     test "treats unexpected statuses as degraded", %{project: project} do
       bypass = Bypass.open()
 
-      Bypass.expect_once(bypass, "GET", "/health", fn conn ->
+      Bypass.stub(bypass, "GET", "/health", fn conn ->
         Plug.Conn.resp(conn, 102, "processing")
       end)
 
