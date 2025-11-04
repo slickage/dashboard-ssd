@@ -165,7 +165,7 @@ defmodule DashboardSSD.Integrations do
           %{id: id} -> fetch_google_token_for_user(id)
           id when is_integer(id) -> fetch_google_token_for_user(id)
           _ -> nil
-        end || System.get_env("GOOGLE_OAUTH_TOKEN")
+        end
 
       if is_nil(token) or token == "" do
         {:error, :no_token}

@@ -28,7 +28,20 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
     now = DateTime.utc_now()
     later = DateTime.add(now, 14 * 24 * 60 * 60, :second)
     mock? = Map.get(params, "mock") in ["1", "true"]
-    {:ok, meetings} = GoogleCalendar.list_upcoming(now, later, mock: (mock? && :sample))
+    gc_result =
+      if mock? do
+        GoogleCalendar.list_upcoming_for_user(socket.assigns.current_user || %{}, now, later, mock: :sample)
+      else
+        GoogleCalendar.list_upcoming_for_user(socket.assigns.current_user || %{}, now, later)
+      end
+
+    meetings =
+      case gc_result do
+        {:ok, list} when is_list(list) -> list
+        {:error, :no_token} -> []
+        {:error, _} -> []
+        _ -> []
+      end
 
     # Build read-only consolidated agenda text per meeting (manual items if present, otherwise latest Fireflies action items)
     agenda_texts =

@@ -39,19 +39,12 @@ defmodule DashboardSSD.Integrations.GoogleCalendarUserTest do
     assert {:ok, []} = GoogleCalendar.list_upcoming_for_user(user.id, now, later)
   end
 
-  test "falls back to env token when user token missing" do
+  # No env fallback: when user has no token and not in mock mode, return :no_token
+  test "returns :no_token when user token missing and not mock" do
     user = Repo.insert!(%User{name: "GCal2", email: "gcal2@example.com"})
-    System.put_env("GOOGLE_OAUTH_TOKEN", "tok-env")
-
-    Tesla.Mock.mock(fn
-      %{method: :get, url: "https://www.googleapis.com/calendar/v3/calendars/primary/events", headers: headers} ->
-        assert Enum.any?(headers, fn {k, v} -> k == "authorization" and String.starts_with?(v, "Bearer ") end)
-        %Tesla.Env{status: 200, body: %{"items" => []}}
-    end)
-
     now = DateTime.utc_now()
     later = DateTime.add(now, 3600, :second)
-    assert {:ok, []} = GoogleCalendar.list_upcoming_for_user(user.id, now, later)
+    assert {:error, :no_token} = GoogleCalendar.list_upcoming_for_user(user.id, now, later)
   end
 
   test "returns :no_token when no user/env token and not mock" do
@@ -61,4 +54,3 @@ defmodule DashboardSSD.Integrations.GoogleCalendarUserTest do
     assert {:error, :no_token} = GoogleCalendar.list_upcoming_for_user(user.id, now, later)
   end
 end
-
