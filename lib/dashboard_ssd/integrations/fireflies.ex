@@ -40,4 +40,13 @@ defmodule DashboardSSD.Integrations.Fireflies do
     {:ok, parsed} = FirefliesParser.split_summary(summary_text)
     parsed
   end
+
+  @doc """
+  Refreshes (invalidates cache) and refetches latest artifacts for a series.
+  """
+  @spec refresh_series(String.t(), keyword()) :: {:ok, artifacts()} | {:error, term()}
+  def refresh_series(series_id, opts \\ []) when is_binary(series_id) do
+    CacheStore.delete({:series_artifacts, series_id})
+    fetch_latest_for_series(series_id, opts)
+  end
 end
