@@ -68,13 +68,16 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
               <li class="border rounded p-3">
                 <div class="flex items-center justify-between">
                   <div>
-                    <div class="font-medium"><%= m.title %></div>
+                    <div class="font-medium">
+                      <.link navigate={~p"/meetings/#{m.id}" <> if(m[:recurring_series_id], do: "?series_id=" <> m.recurring_series_id, else: "")} class="underline">
+                        <%= m.title %>
+                      </.link>
+                    </div>
                     <div class="text-sm opacity-75">
                       <%= DateHelpers.human_datetime(m.start_at) %> – <%= DateHelpers.human_datetime(m.end_at) %>
                     </div>
                     
                   </div>
-                  <.link navigate={~p"/meetings/#{m.id}" <> if(m[:recurring_series_id], do: "?series_id=" <> m.recurring_series_id, else: "")} class="underline">Open</.link>
                 </div>
                 <details class="mt-2">
                   <summary class="cursor-pointer underline">Agenda</summary>
