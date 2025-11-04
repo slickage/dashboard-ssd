@@ -19,6 +19,7 @@ defmodule DashboardSSDWeb.Navigation do
   @icon_class_map %{
     home: "hero-home-mini",
     projects: "hero-squares-2x2-mini",
+    meetings: "hero-calendar-days-mini",
     clients: "hero-users-mini",
     knowledge_base: "hero-book-open-mini",
     analytics: "hero-chart-pie-mini",
@@ -291,6 +292,7 @@ defmodule DashboardSSDWeb.Navigation do
       [
         %{label: "Dashboard", path: ~p"/", icon: :home, group: :main},
         %{label: "Projects", path: ~p"/projects", icon: :projects, group: :main},
+        %{label: "Meetings", path: ~p"/meetings", icon: :meetings, group: :main},
         %{label: "Clients", path: ~p"/clients", icon: :clients, group: :main},
         %{
           label: "Knowledge Base",

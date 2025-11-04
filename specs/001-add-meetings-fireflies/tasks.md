@@ -92,6 +92,8 @@ The following tasks are removed:
 - [ ] T045 Update quickstart with env + scopes (specs/001-add-meetings-fireflies/quickstart.md)
 - [ ] T046 Run format and lint for repo (mix format; mix credo --strict)
 
+- [X] T051 [P] Add Meetings icon and link in sidebar navigation (lib/dashboard_ssd_web/components/navigation.ex)
+
 ## Refactor & Standardization (Approval-Gated)
 
 - [ ] T047 [P] Prepare standardization proposal (module layout, cache keys/TTL, parser conventions, LiveView patterns) (specs/001-add-meetings-fireflies/standardization-proposal.md)
