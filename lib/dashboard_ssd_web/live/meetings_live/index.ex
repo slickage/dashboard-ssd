@@ -233,10 +233,15 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                       <% end %>
                     </div>
                     <div class="mt-1 text-sm text-white/70">
-                      <%= if DateHelpers.today?(m.start_at, @tz_offset || 0) do %>
-                        Today · <%= DateHelpers.human_time_local(m.start_at, @tz_offset || 0) %> – <%= DateHelpers.human_time_local(m.end_at, @tz_offset || 0) %>
+                      <% tz = @tz_offset || 0 %>
+                      <%= if DateHelpers.same_day?(m.start_at, m.end_at, tz) do %>
+                        <%= if DateHelpers.today?(m.start_at, tz) do %>
+                          Today · <%= DateHelpers.human_time_local(m.start_at, tz) %> – <%= DateHelpers.human_time_local(m.end_at, tz) %>
+                        <% else %>
+                          <%= DateHelpers.human_date_local(m.start_at, tz) %> · <%= DateHelpers.human_time_local(m.start_at, tz) %> – <%= DateHelpers.human_time_local(m.end_at, tz) %>
+                        <% end %>
                       <% else %>
-                        <%= DateHelpers.human_datetime_local(m.start_at, @tz_offset || 0) %> – <%= DateHelpers.human_datetime_local(m.end_at, @tz_offset || 0) %>
+                        <%= DateHelpers.human_datetime_local(m.start_at, tz) %> – <%= DateHelpers.human_datetime_local(m.end_at, tz) %>
                       <% end %>
                     </div>
                   </div>
