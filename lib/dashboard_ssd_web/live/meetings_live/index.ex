@@ -124,29 +124,25 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
     ~H"""
     <div class="flex flex-col gap-8">
       <div class="card px-4 py-4 sm:px-6">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div class="flex flex-col gap-2">
             <div class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted">Upcoming</div>
-            <div class="text-sm text-white/80">
-              <%= DateHelpers.human_date(@range_start) %> – <%= DateHelpers.human_date(@range_end) %>
-            </div>
-          </div>
-          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-            <div class="flex items-center gap-2">
-              <button phx-click="range_prev" class="underline text-sm">Prev</button>
-              <button phx-click="range_next" class="underline text-sm">Next</button>
-            </div>
             <form phx-submit="range_set" class="flex items-center gap-2">
               <input type="date" name="start" value={Date.to_iso8601(@range_start)} class="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs" />
               <span class="text-white/50 text-xs">to</span>
               <input type="date" name="end" value={Date.to_iso8601(@range_end)} class="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs" />
               <button type="submit" class="underline text-sm">Apply</button>
             </form>
+            <.month_calendar month={%Date{year: @range_start.year, month: @range_start.month, day: 1}} today={Date.utc_today()} start_date={@range_start} end_date={@range_end} compact={true} />
+          </div>
+          <div class="flex items-center gap-2 self-start">
+            <button phx-click="range_prev" class="underline text-sm">Prev</button>
+            <button phx-click="range_next" class="underline text-sm">Next</button>
           </div>
         </div>
       </div>
 
-      <.month_calendar month={%Date{year: @range_start.year, month: @range_start.month, day: 1}} today={Date.utc_today()} />
+      
 
       <%= if @loading do %>
         <div class="theme-card px-6 py-8 text-center text-sm text-theme-muted">Loading…</div>
