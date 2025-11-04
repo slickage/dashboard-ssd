@@ -37,12 +37,19 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
       |> Enum.filter(&String.contains?(String.downcase(&1.text || ""), "prepare"))
       |> Enum.map(& &1.text)
 
+    agenda_text =
+      manual
+      |> Enum.sort_by(& &1.position)
+      |> Enum.map(&(&1.text || ""))
+      |> Enum.join("\n")
+
     {:noreply,
      assign(socket,
        meeting_id: id,
        series_id: series_id,
        agenda: merged,
        manual_agenda: manual,
+       agenda_text: agenda_text,
        what_to_bring: what_to_bring,
        association: assoc,
        loading: false
@@ -50,15 +57,11 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
   end
 
   @impl true
-  def handle_event("add_item", %{"agenda_text" => text}, socket) do
+  def handle_event("save_agenda_text", %{"agenda_text" => text}, socket) do
     id = socket.assigns.meeting_id
-    pos = length(socket.assigns.manual_agenda)
-    case Agenda.create_item(%{calendar_event_id: id, text: String.trim(text), position: pos}) do
-      {:ok, _} ->
-        refresh_assigns(socket)
-
-      {:error, _cs} ->
-        {:noreply, socket}
+    case Agenda.replace_manual_text(id, text) do
+      :ok -> refresh_assigns(socket)
+      {:error, _} -> {:noreply, socket}
     end
   end
 
@@ -141,47 +144,12 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
       <h1 class="text-xl font-semibold mb-4">Meeting</h1>
 
       <h2 class="font-medium">Agenda</h2>
-      <%= if @agenda == [] do %>
-        <p class="opacity-75">No agenda items yet.</p>
-      <% else %>
-        <ul class="list-disc ml-6 space-y-1">
-          <%= for item <- @agenda do %>
-            <li>
-              <%= item.text %>
-              <%= if item[:source] == "derived" do %>
-                <span class="ml-2 text-xs opacity-60">(from last meeting)</span>
-              <% end %>
-              <%= if item[:source] != "derived" do %>
-                <span class="ml-3 text-xs">
-                  <.link phx-click="move" phx-value-id={item[:id]} phx-value-dir="up" class="underline">up</.link>
-                  <span class="mx-1">|</span>
-                  <.link phx-click="move" phx-value-id={item[:id]} phx-value-dir="down" class="underline">down</.link>
-                  <span class="mx-1">|</span>
-                  <.link phx-click="edit_item" phx-value-id={item[:id]} class="underline">edit</.link>
-                  <span class="mx-1">|</span>
-                  <.link phx-click="delete_item" phx-value-id={item[:id]} data-confirm="Delete this item?" class="underline">delete</.link>
-                </span>
-                <%= if @editing_id == item[:id] do %>
-                  <div class="mt-2">
-                    <form phx-submit="save_item">
-                      <input type="hidden" name="id" value={item[:id]} />
-                      <input type="text" name="text" value={@editing_text} class="border rounded px-2 py-1 w-80" />
-                      <button type="submit" class="ml-2 underline">Save</button>
-                    </form>
-                  </div>
-                <% end %>
-              <% end %>
-            </li>
-          <% end %>
-        </ul>
-      <% end %>
-
-      <div class="mt-4">
-        <form phx-submit="add_item" class="flex items-center gap-2">
-          <input type="text" name="agenda_text" placeholder="Add agenda item" class="border rounded px-2 py-1 w-96" />
-          <button type="submit" class="underline">Add</button>
-        </form>
-      </div>
+      <form phx-submit="save_agenda_text" class="mt-2">
+        <textarea name="agenda_text" class="border rounded px-2 py-1 w-full h-40" placeholder="Agenda notes..."><%= @agenda_text %></textarea>
+        <div class="mt-2">
+          <button type="submit" class="underline">Save agenda</button>
+        </div>
+      </form>
 
       <%= if @what_to_bring && @what_to_bring != [] do %>
         <div class="mt-6">

@@ -111,4 +111,30 @@ defmodule DashboardSSD.Meetings.Agenda do
     |> String.trim()
     |> String.replace(~r/\s+/, " ")
   end
+
+  @doc """
+  Replaces all manual agenda items for a meeting with a single text blob.
+  """
+  @spec replace_manual_text(String.t(), String.t()) :: :ok | {:error, term()}
+  def replace_manual_text(calendar_event_id, text) when is_binary(calendar_event_id) do
+    Repo.transaction(fn ->
+      from(ai in AgendaItem,
+        where: ai.calendar_event_id == ^calendar_event_id and ai.source == "manual"
+      )
+      |> Repo.delete_all()
+
+      %AgendaItem{}
+      |> AgendaItem.changeset(%{
+        calendar_event_id: calendar_event_id,
+        text: String.trim(text || ""),
+        position: 0,
+        source: "manual"
+      })
+      |> Repo.insert()
+    end)
+    |> case do
+      {:ok, _} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
 end
