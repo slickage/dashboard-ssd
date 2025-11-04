@@ -13,11 +13,11 @@ As a user, I can open a Meetings page showing my upcoming meetings and, for each
 
 **Why this priority**: Enables effective preparation and is the core value of the Meetings page.
 
-**Independent Test**: With one recurring meeting that has at least one prior occurrence in Fireflies, verify the next upcoming occurrence displays agenda text pre-filled from the previous notes/action items and a “to bring” summary.
+**Independent Test**: With one recurring meeting that has at least one prior occurrence in Fireflies, verify the next upcoming occurrence displays agenda text pre-filled from the previous notes/action items.
 
 **Acceptance Scenarios**:
 
-1. Given an upcoming meeting with at least one previous occurrence in the same series, When I view it, Then I see agenda text pre-filled from the last occurrence’s notes and action items and a “to bring” summary.
+1. Given an upcoming meeting with at least one previous occurrence in the same series, When I view it, Then I see agenda text pre-filled from the last occurrence’s notes and action items.
 2. Given an upcoming meeting with no previous occurrence, When I view it, Then I see an empty agenda text area with guidance to add content manually.
 
 ---
@@ -67,17 +67,7 @@ As a user, I see each meeting associated with an existing Client or Project base
 
 ---
 
-### User Story 5 - See what to bring (Priority: P3)
-
-As a user, I can quickly scan a “What to bring” section for each upcoming meeting, summarizing information or artifacts I should prepare based on the agenda.
-
-**Why this priority**: Reduces prep time and missed items.
-
-**Independent Test**: Confirm that the agenda text is scanned using simple heuristics (e.g., lines containing “prepare”) and those items are summarized under “What to bring.”
-
-**Acceptance Scenarios**:
-
-1. Given agenda text that indicates preparation (e.g., “prepare X”), When I view the meeting, Then those items are summarized under “What to bring.”
+<!-- User Story 5 removed: Simplified agenda to a single text field; no separate “What to bring” section. -->
 
 ---
 
@@ -89,7 +79,7 @@ As a user, I can quickly scan a “What to bring” section for each upcoming me
 - Summary not yet generated post-meeting: show “pending” and the last update time; allow refresh later.
 - Multiple potential Client/Project matches: require user selection; do not auto-pick.
 - No Client/Project match: mark as “Unassigned” and allow selection.
-- Duplicate content between pre-filled notes and manual agenda edits: avoid repeated items in previews through simple normalization.
+<!-- Removed what-to-bring related normalization note; agenda is freeform text only. -->
 - Meeting renamed between occurrences: match by series identifier when available; otherwise match by normalized title and cadence window.
 
 ## Requirements *(mandatory)*
@@ -102,7 +92,7 @@ As a user, I can quickly scan a “What to bring” section for each upcoming me
 - **FR-004**: The pre-meeting agenda for an upcoming meeting must be derived from the previous occurrence in the same recurring series using Fireflies notes and action items.
 - **FR-005**: When no previous occurrence exists, the agenda is empty with guidance to add items manually.
 - **FR-006**: Users can edit and save a single freeform agenda text field for an upcoming meeting; changes persist for that meeting.
-- **FR-007**: The system presents a “What to bring” summary compiled from agenda text that indicates preparation is required (e.g., lines containing “prepare”) and/or items recognized as needing inputs.
+<!-- FR-007 removed: No separate “What to bring” summary; agenda is freeform text only. -->
 - **FR-008**: After a meeting is completed, display Fireflies-generated meeting summary and action items on the meeting detail page when available; include a visible “pending” state until available and a manual refresh.
 - **FR-009**: Auto-associate each meeting to an existing Client or Project via keyword matching on the meeting name (and known aliases); if multiple or no matches, require user selection in the UI.
 - **FR-010**: Users can manually set or change the Client/Project association from the meeting detail view.
@@ -127,7 +117,7 @@ As a user, I can quickly scan a “What to bring” section for each upcoming me
 - User has connected Fireflies and has historical meeting notes for some recurring meetings.
 - Upcoming meetings are sourced from the user’s primary calendar by default unless specified otherwise.
 - “Previous occurrence” refers to the immediately preceding meeting within the same recurring series; if unavailable, use the most recent meeting with a matching title within the last 90 days.
-- “What to bring” is derived from the agenda text using simple heuristics (e.g., lines containing “prepare”) and/or from previous action items assigned to the user.
+<!-- Removed: No separate “What to bring”; agenda is freeform text only. -->
 
 ## Success Criteria *(mandatory)*
 
