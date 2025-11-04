@@ -71,7 +71,7 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
     {:noreply,
      socket
      |> put_flash(:info, "Client deleted successfully")
-     |> push_patch(to: ~p"/clients" <> ((Map.get(socket.assigns[:params] || %{}, "mock") && ("?mock=" <> Map.get(socket.assigns.params, "mock"))) || ""))}
+     |> push_navigate(to: ~p"/clients" <> ((Map.get(socket.assigns[:params] || %{}, "mock") && ("?mock=" <> Map.get(socket.assigns.params, "mock"))) || ""))}
   end
 
   @impl true
