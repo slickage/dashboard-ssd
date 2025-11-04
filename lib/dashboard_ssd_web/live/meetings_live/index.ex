@@ -79,7 +79,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
 
     assoc_by_meeting =
       Enum.reduce(meetings, %{}, fn m, acc ->
-        case Associations.get_for_event(m.id) do
+        case Associations.get_for_event_or_series(m.id, m[:recurring_series_id]) do
           %{client_id: id} when is_integer(id) -> Map.put(acc, m.id, {:client, Map.get(client_map, id)})
           %{project_id: id} when is_integer(id) -> Map.put(acc, m.id, {:project, Map.get(project_map, id)})
           _ -> acc

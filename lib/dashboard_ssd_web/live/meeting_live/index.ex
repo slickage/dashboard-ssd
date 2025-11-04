@@ -28,7 +28,7 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
   def handle_params(%{"id" => id} = params, _uri, socket) do
     series_id = Map.get(params, "series_id")
     manual = Agenda.list_items(id)
-    assoc = Associations.get_for_event(id)
+    assoc = Associations.get_for_event_or_series(id, series_id)
     title = Map.get(params, "title")
     clients = Clients.list_clients()
     projects = Projects.list_projects()

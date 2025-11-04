@@ -2,6 +2,7 @@ defmodule DashboardSSD.Meetings.MeetingAssociationTest do
   use DashboardSSD.DataCase, async: true
 
   alias DashboardSSD.Meetings.MeetingAssociation
+  alias DashboardSSD.Meetings.Associations
   alias DashboardSSD.{Clients, Projects}
 
   test "changeset enforces origin inclusion and required calendar_event_id" do
@@ -33,5 +34,40 @@ defmodule DashboardSSD.Meetings.MeetingAssociationTest do
       %MeetingAssociation{}
       |> MeetingAssociation.changeset(%{calendar_event_id: "evt-4", project_id: project.id, origin: "manual"})
       |> Repo.insert()
+  end
+end
+
+defmodule DashboardSSD.Meetings.AssociationsFallbackTest do
+  use DashboardSSD.DataCase, async: true
+  alias DashboardSSD.Meetings.{MeetingAssociation, Associations}
+  alias DashboardSSD.{Clients, Projects}
+
+  test "get_for_event_or_series returns event-specific when present" do
+    {:ok, client} = Clients.create_client(%{name: "CX"})
+    {:ok, assoc} =
+      %MeetingAssociation{}
+      |> MeetingAssociation.changeset(%{calendar_event_id: "evt-x", client_id: client.id, origin: "manual"})
+      |> Repo.insert()
+
+    assert %MeetingAssociation{id: id} = Associations.get_for_event_or_series("evt-x", "series-x")
+    assert id == assoc.id
+  end
+
+  test "get_for_event_or_series falls back to series persisted association" do
+    {:ok, client} = Clients.create_client(%{name: "CY"})
+
+    {:ok, assoc} =
+      %MeetingAssociation{}
+      |> MeetingAssociation.changeset(%{
+        calendar_event_id: "evt-y1",
+        recurring_series_id: "series-y",
+        persist_series: true,
+        client_id: client.id,
+        origin: "manual"
+      })
+      |> Repo.insert()
+
+    assert %MeetingAssociation{id: id} = Associations.get_for_event_or_series("evt-y2", "series-y")
+    assert id == assoc.id
   end
 end
