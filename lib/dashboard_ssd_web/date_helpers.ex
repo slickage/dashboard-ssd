@@ -31,6 +31,18 @@ defmodule DashboardSSDWeb.DateHelpers do
     ndt |> NaiveDateTime.to_date() |> human_date()
   end
 
+  @doc "Formats only the date part using a local offset in minutes."
+  @spec human_date_local(DateTime.t() | NaiveDateTime.t(), integer()) :: String.t()
+  def human_date_local(%NaiveDateTime{} = ndt, off),
+    do: ndt |> DateTime.from_naive!("Etc/UTC") |> human_date_local(off)
+
+  def human_date_local(%DateTime{} = dt, off) when is_integer(off) do
+    dt
+    |> DateTime.add(off * 60, :second)
+    |> DateTime.to_date()
+    |> human_date()
+  end
+
   @doc """
   Format a DateTime in the user's local offset (in minutes).
 
@@ -63,5 +75,15 @@ defmodule DashboardSSDWeb.DateHelpers do
     d_local = dt |> DateTime.add(off * 60, :second) |> DateTime.to_date()
     now_local = DateTime.utc_now() |> DateTime.add(off * 60, :second) |> DateTime.to_date()
     d_local == now_local
+  end
+
+  @doc "Returns true if both datetimes fall on the same local day for the given offset."
+  @spec same_day?(DateTime.t() | NaiveDateTime.t(), DateTime.t() | NaiveDateTime.t(), integer()) :: boolean()
+  def same_day?(%NaiveDateTime{} = a, b, off), do: same_day?(DateTime.from_naive!(a, "Etc/UTC"), b, off)
+  def same_day?(a, %NaiveDateTime{} = b, off), do: same_day?(a, DateTime.from_naive!(b, "Etc/UTC"), off)
+  def same_day?(%DateTime{} = a, %DateTime{} = b, off) when is_integer(off) do
+    da = a |> DateTime.add(off * 60, :second) |> DateTime.to_date()
+    db = b |> DateTime.add(off * 60, :second) |> DateTime.to_date()
+    da == db
   end
 end
