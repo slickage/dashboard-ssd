@@ -113,16 +113,24 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                 <div class="flex items-start justify-between">
                   <div>
                     <div class="text-base font-semibold flex items-center gap-3 flex-wrap">
-                      <.link patch={~p"/meetings/#{m.id}" <>
-                                    ("?" <> (
-                                      [
-                                        (m[:recurring_series_id] && "series_id=" <> m.recurring_series_id) || nil,
-                                        (m[:title] && "title=" <> URI.encode_www_form(m.title)) || ""
-                                      ]
-                                      |> Enum.reject(&is_nil/1)
-                                      |> Enum.reject(&(&1 == ""))
-                                      |> Enum.join("&")
-                                    ))} class="text-white/80 transition hover:text-white">
+                      <.link
+                        patch={
+                          ~p"/meetings" <>
+                            ("?" <>
+                               ([
+                                  # preserve existing query flags like mock=1
+                                  (Map.get(@params || %{}, "mock") && "mock=" <> Map.get(@params, "mock")) || nil,
+                                  # add modal-driving params
+                                  "id=" <> m.id,
+                                  (m[:recurring_series_id] && "series_id=" <> m.recurring_series_id) || nil,
+                                  (m[:title] && "title=" <> URI.encode_www_form(m.title)) || nil
+                                ]
+                                |> Enum.reject(&is_nil/1)
+                                |> Enum.join("&"))
+                            )
+                        }
+                        class="text-white/80 transition hover:text-white"
+                      >
                         <%= m.title %>
                       </.link>
                       <%= case Map.get(@assoc_by_meeting || %{}, m.id) do %>
@@ -158,7 +166,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
       <% end %>
     </div>
     <%= if @live_action == :show do %>
-      <.modal id="meeting-modal" show on_cancel={JS.patch(~p"/meetings")}> 
+      <.modal id="meeting-modal" show on_cancel={JS.patch(~p"/meetings" <> ((Map.get(@params || %{}, "mock") && ("?mock=" <> Map.get(@params, "mock"))) || ""))}> 
         <.live_component 
           module={DashboardSSDWeb.MeetingLive.DetailComponent} 
           id={@params["id"]} 
