@@ -57,10 +57,10 @@ Goal: After completion, show Fireflies summary and action items; show pending st
 
 Independent Test Criteria: Completed meeting with Fireflies outputs displays summary/action items; pending state visible when not yet available; refresh pulls latest.
 
-- [ ] T029 [P] [US3] Fetch and cache completed meeting summary/action items using DashboardSSD.Meetings.CacheStore (lib/dashboard_ssd/integrations/fireflies.ex)
-- [ ] T030 [US3] Add refresh function and cache via DashboardSSD.Meetings.CacheStore with configurable TTL (lib/dashboard_ssd/meetings/agenda.ex)
-- [ ] T031 [US3] Display accomplished text and action items on detail view (lib/dashboard_ssd_web/live/meeting_live.ex)
-- [ ] T032 [US3] Add manual Refresh action and pending state UI (lib/dashboard_ssd_web/live/meeting_live.ex)
+- [X] T029 [P] [US3] Fetch and cache completed meeting summary/action items using DashboardSSD.Meetings.CacheStore (lib/dashboard_ssd/integrations/fireflies.ex)
+- [X] T030 [US3] Add refresh function and cache via DashboardSSD.Meetings.CacheStore with configurable TTL (lib/dashboard_ssd/integrations/fireflies.ex)
+- [X] T031 [US3] Display accomplished text and action items on detail view (lib/dashboard_ssd_web/live/meeting_live/index.ex)
+- [X] T032 [US3] Add manual Refresh action and pending state UI (lib/dashboard_ssd_web/live/meeting_live/index.ex)
 
 ## Phase 6: User Story 4 – Associate meeting to Client/Project (P2)
 
@@ -73,15 +73,14 @@ Independent Test Criteria: Unique match auto-associates; ambiguous/no match prom
 - [ ] T035 [US4] Add prompt to persist association for series and save override (lib/dashboard_ssd_web/live/meeting_live.ex)
 - [ ] T036 [P] [US4] Surface association on index and detail views (lib/dashboard_ssd_web/live/meetings_live.ex)
 
-## Phase 7: User Story 5 – See what to bring (P3)
+## Phase 7: Removed — “What to bring”
 
-Goal: Summarize items requiring preparation into a "What to bring" section.
+Simplified agenda to a single freeform text field; no separate “What to bring” section.
+The following tasks are removed:
 
-Independent Test Criteria: Agenda items flagged as requiring preparation appear under "What to bring" on meeting detail.
-
-- [ ] T037 [P] [US5] Mark derived items as requires_preparation by default (lib/dashboard_ssd/meetings/agenda.ex)
-- [ ] T038 [US5] Allow toggling requires_preparation on manual items (lib/dashboard_ssd_web/live/meeting_live.ex)
-- [ ] T039 [US5] Render consolidated "What to bring" section (lib/dashboard_ssd_web/live/meeting_live.ex)
+- [ ] T037 [US5] (removed) Derived items requires_preparation
+- [ ] T038 [US5] (removed) Toggle requires_preparation on manual items
+- [ ] T039 [US5] (removed) Render consolidated “What to bring” section
 
 ## Final Phase: Polish & Cross-Cutting
 
