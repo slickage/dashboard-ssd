@@ -92,6 +92,12 @@ The following tasks are removed:
 - [ ] T045 Update quickstart with env + scopes (specs/001-add-meetings-fireflies/quickstart.md)
 - [ ] T046 Run format and lint for repo (mix format; mix credo --strict)
 
+- [ ] T052 [P] Open Meeting detail as modal over /meetings (lib/dashboard_ssd_web/live/meetings_live/index.ex)
+- [ ] T053 [P] Use push_patch to close modal back to /meetings (lib/dashboard_ssd_web/live/meetings_live/index.ex)
+- [ ] T054 [P] Extract Meeting detail into a component for modal mounting (lib/dashboard_ssd_web/live/meeting_live/index.ex)
+- [ ] T055 Update title links to patch to /meetings/:id (modal open) (lib/dashboard_ssd_web/live/meetings_live/index.ex)
+- [ ] T056 Mirror Projects/Clients modal patterns (modal structure, on_cancel, assigns) (lib/dashboard_ssd_web/live/meetings_live/index.ex)
+
 - [X] T051 [P] Add Meetings icon and link in sidebar navigation (lib/dashboard_ssd_web/components/navigation.ex)
 
 ## Refactor & Standardization (Approval-Gated)
