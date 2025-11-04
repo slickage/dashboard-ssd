@@ -76,7 +76,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
     live_action =
       cond do
         params["id"] -> :show
-        params["client_id"] -> :client_edit
+        params["client_id"] -> :client_show
         true -> :index
       end
 
@@ -196,16 +196,12 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
         />
       </.modal>
     <% end %>
-    <%= if @live_action == :client_edit do %>
-      <.modal id="client-edit-modal" show on_cancel={JS.patch(~p"/meetings" <> ((Map.get(@params || %{}, "mock") && ("?mock=" <> Map.get(@params, "mock"))) || ""))}>
+    <%= if @live_action == :client_show do %>
+      <.modal id="client-read-modal" show on_cancel={JS.patch(~p"/meetings" <> ((Map.get(@params || %{}, "mock") && ("?mock=" <> Map.get(@params, "mock"))) || ""))}>
         <.live_component
-          module={DashboardSSDWeb.ClientsLive.FormComponent}
+          module={DashboardSSDWeb.ClientsLive.ReadComponent}
           id={@params["client_id"]}
-          action={:edit}
-          current_user={@current_user}
-          q={""}
           client_id={@params["client_id"]}
-          patch={~p"/meetings" <> ((Map.get(@params || %{}, "mock") && ("?mock=" <> Map.get(@params, "mock"))) || "")}
         />
       </.modal>
     <% end %>
