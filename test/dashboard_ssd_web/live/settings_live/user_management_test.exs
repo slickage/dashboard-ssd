@@ -155,4 +155,24 @@ defmodule DashboardSSDWeb.SettingsLive.UserManagementTest do
 
     assert Enum.any?(socket.assigns.used_invites, &(&1.email == invite.email))
   end
+
+  test "user without settings capabilities sees empty state", %{conn: conn} do
+    role = Accounts.ensure_role!("employee")
+
+    # Remove default capabilities so the employee has no settings access
+    Accounts.replace_role_capabilities("employee", [], granted_by_id: nil)
+
+    {:ok, user} =
+      Accounts.create_user(%{
+        email: "no-settings@example.com",
+        name: "No Settings",
+        role_id: role.id
+      })
+
+    conn = init_test_session(conn, %{user_id: user.id})
+    {:ok, _view, html} = live(conn, ~p"/settings")
+
+    assert html =~ "No settings available"
+    refute html =~ "Invite people"
+  end
 end

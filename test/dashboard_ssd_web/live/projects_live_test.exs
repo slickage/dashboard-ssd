@@ -213,6 +213,58 @@ defmodule DashboardSSDWeb.ProjectsLiveTest do
     refute html =~ "Filter by client"
   end
 
+  test "admin sees edit actions column", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "adm-actions@example.com",
+        name: "Admin",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    {:ok, client} = Clients.create_client(%{name: "Acme"})
+
+    {:ok, project} =
+      Projects.create_project(%{
+        name: "Website",
+        client_id: client.id
+      })
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, _view, html} = live(conn, ~p"/projects")
+
+    assert html =~ "Actions"
+    assert html =~ ~p"/projects/#{project.id}/edit"
+  end
+
+  test "employee without manage capability cannot see edit actions", %{conn: conn} do
+    employee_role = Accounts.ensure_role!("employee")
+
+    {:ok, employee} =
+      Accounts.create_user(%{
+        email: "employee-no-manage@example.com",
+        name: "Employee",
+        role_id: employee_role.id
+      })
+
+    {:ok, client} = Clients.create_client(%{name: "Acme"})
+
+    {:ok, project} =
+      Projects.create_project(%{
+        name: "Website",
+        client_id: client.id,
+        linear_team_id: "team-1",
+        linear_team_name: "Platform"
+      })
+
+    conn = init_test_session(conn, %{user_id: employee.id})
+
+    {:ok, _view, html} = live(conn, ~p"/projects")
+
+    assert html =~ "Website"
+    refute html =~ "Actions"
+    refute html =~ ~p"/projects/#{project.id}/edit"
+  end
+
   test "edit modal opens and saves project", %{conn: conn} do
     {:ok, adm} =
       Accounts.create_user(%{

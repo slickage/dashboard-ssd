@@ -272,7 +272,7 @@ defmodule DashboardSSDWeb.CoreComponents do
       <button
         type={@type}
         class={[
-          "phx-submit-loading:opacity-75 rounded-full bg-theme-primary hover:bg-theme-primary-soft py-2 px-3",
+          "phx-submit-loading:opacity-75 rounded-full bg-theme-primary hover:bg-theme-primary py-2 px-3",
           "text-sm font-semibold leading-6 text-white active:text-white/80",
           @class
         ]}

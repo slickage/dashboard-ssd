@@ -38,7 +38,7 @@ defmodule DashboardSSDWeb.Layouts do
   """
   @spec header_action_classes(atom()) :: String.t()
   def header_action_classes(:primary) do
-    "phx-submit-loading:opacity-75 rounded-full bg-theme-primary hover:bg-theme-primary-soft py-2 px-3 text-sm font-semibold leading-6 text-white active:text-white/80"
+    "phx-submit-loading:opacity-75 rounded-full bg-theme-primary hover:bg-theme-primary py-2 px-3 text-sm font-semibold leading-6 text-white active:text-white/80"
   end
 
   def header_action_classes(:ghost) do

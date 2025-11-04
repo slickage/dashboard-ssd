@@ -311,7 +311,7 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
                       <button
                         type="submit"
                         form={form_id}
-                        class="inline-flex items-center justify-center rounded-md border border-theme-border bg-theme-surface px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-theme-text transition hover:bg-theme-surface-muted focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2"
+                        class="inline-flex items-center justify-center rounded-md border border-theme-border bg-theme-surface px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-theme-text transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2"
                         phx-disable-with={gettext("Saving…")}
                       >
                         {gettext("Save")}
