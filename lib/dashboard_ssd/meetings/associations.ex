@@ -14,6 +14,31 @@ defmodule DashboardSSD.Meetings.Associations do
     |> Repo.one()
   end
 
+  @doc """
+  Lookup an association for a specific event, falling back to series-level persisted association.
+
+  Returns the event-specific record when present; otherwise, when `series_id`
+  is provided, returns a record for the same `recurring_series_id` with
+  `persist_series = true` if one exists (most recent by `inserted_at`).
+  """
+  @spec get_for_event_or_series(String.t(), String.t() | nil) :: MeetingAssociation.t() | nil
+  def get_for_event_or_series(calendar_event_id, series_id) do
+    case get_for_event(calendar_event_id) do
+      %MeetingAssociation{} = assoc -> assoc
+      _ ->
+        if is_binary(series_id) and String.trim(series_id) != "" do
+          from(a in MeetingAssociation,
+            where: a.recurring_series_id == ^series_id and a.persist_series == true,
+            order_by: [desc: a.inserted_at],
+            limit: 1
+          )
+          |> Repo.one()
+        else
+          nil
+        end
+    end
+  end
+
   @spec upsert_for_event(String.t(), map()) :: {:ok, MeetingAssociation.t()} | {:error, Ecto.Changeset.t()}
   def upsert_for_event(calendar_event_id, attrs) do
     case get_for_event(calendar_event_id) do

@@ -13,7 +13,7 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
     title = assigns[:title]
 
     manual = Agenda.list_items(meeting_id)
-    assoc = Associations.get_for_event(meeting_id)
+    assoc = Associations.get_for_event_or_series(meeting_id, series_id)
     clients = Clients.list_clients()
     projects = Projects.list_projects()
 
@@ -249,4 +249,3 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
     """
   end
 end
-
