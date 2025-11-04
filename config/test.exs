@@ -47,6 +47,12 @@ config :dashboard_ssd, :oauth_mode, :stub
 # Enable dev/test-only routes for stubbed authorization endpoints
 config :dashboard_ssd, dev_routes: true
 
+# Flag runtime as test so optional schedulers stay disabled and avoid sandbox races
+config :dashboard_ssd, :env, :test
+
+# Ensure background health check scheduler stays off during tests/coverage runs
+config :dashboard_ssd, :health_checks, enabled: false
+
 # Use the Notion mock in tests; production defaults to the real client.
 config :dashboard_ssd, :notion_client, DashboardSSD.Integrations.NotionMock
 

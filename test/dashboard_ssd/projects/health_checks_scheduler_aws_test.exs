@@ -18,7 +18,7 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerAwsTest do
 
     {:ok, pid} = start_supervised(HealthChecksScheduler)
     Process.sleep(50)
-    Process.exit(pid, :normal)
+    :ok = HealthChecksScheduler.stop(pid)
 
     # No health check inserted because aws is not configured
     m = Deployments.latest_health_status_by_project_ids([p.id])

@@ -33,12 +33,12 @@ defmodule DashboardSSD.Projects.HealthChecksScheduler do
   def init(opts) do
     interval = interval_ms(opts)
     schedule_tick(initial_delay_ms(opts))
-    {:ok, %{interval: interval, task_ref: nil}}
+    {:ok, %{interval: interval, task_ref: nil, stop_from: nil}}
   end
 
   @impl true
   @spec handle_info(:tick, map()) :: {:noreply, map()}
-  def handle_info(:tick, %{task_ref: nil} = state) do
+  def handle_info(:tick, %{task_ref: nil, stop_from: nil} = state) do
     task =
       Task.Supervisor.async_nolink(DashboardSSD.TaskSupervisor, fn ->
         run_checks()
@@ -54,10 +54,19 @@ defmodule DashboardSSD.Projects.HealthChecksScheduler do
   @impl true
   def handle_info(
         {:DOWN, ref, :process, _pid, _reason},
-        %{task_ref: ref, interval: interval} = state
+        %{task_ref: ref, interval: interval, stop_from: nil} = state
       ) do
     schedule_tick(interval)
     {:noreply, %{state | task_ref: nil}}
+  end
+
+  def handle_info(
+        {:DOWN, ref, :process, _pid, _reason},
+        %{task_ref: ref, stop_from: from} = state
+      )
+      when not is_nil(from) do
+    GenServer.reply(from, :ok)
+    {:stop, :normal, %{state | task_ref: nil, stop_from: nil}}
   end
 
   def handle_info({:DOWN, _ref, :process, _pid, _reason}, state), do: {:noreply, state}
@@ -153,6 +162,15 @@ defmodule DashboardSSD.Projects.HealthChecksScheduler do
       @default_task_timeout
   end
 
+  @impl true
+  def handle_call(:stop, _from, %{task_ref: nil} = state) do
+    {:stop, :normal, :ok, %{state | stop_from: nil}}
+  end
+
+  def handle_call(:stop, from, %{task_ref: _ref} = state) do
+    {:noreply, %{state | stop_from: from}}
+  end
+
   defp maybe_allow_sandbox(parent, child) do
     if sandbox_repo?() do
       Sandbox.allow(DashboardSSD.Repo, parent, child)
@@ -162,5 +180,18 @@ defmodule DashboardSSD.Projects.HealthChecksScheduler do
   defp sandbox_repo? do
     config = Application.get_env(:dashboard_ssd, DashboardSSD.Repo, [])
     Keyword.get(config, :pool) == Sandbox
+  end
+
+  @doc """
+  Gracefully stops the scheduler, waiting for any in-flight health-check tasks.
+  """
+  @spec stop(pid() | atom()) :: :ok
+  def stop(target \\ __MODULE__) do
+    case GenServer.whereis(target) do
+      nil -> :ok
+      pid when is_pid(pid) -> GenServer.call(pid, :stop, :infinity)
+    end
+  catch
+    :exit, {:noproc, _} -> :ok
   end
 end

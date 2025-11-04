@@ -13,7 +13,7 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
 
       state = :sys.get_state(pid)
       assert state.interval == 10
-      Process.exit(pid, :normal)
+      :ok = HealthChecksScheduler.stop(pid)
     end
 
     test "ignores tick while run already in progress" do
@@ -31,7 +31,8 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
       {:noreply, %{task_ref: nil}} =
         HealthChecksScheduler.handle_info({:DOWN, ref, :process, self(), :normal}, %{
           task_ref: ref,
-          interval: 25
+          interval: 25,
+          stop_from: nil
         })
     end
 
@@ -65,7 +66,7 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
 
     assert :ok = wait_for_status(p.id)
     # Stop the scheduler to avoid further ticks
-    Process.exit(pid, :normal)
+    :ok = HealthChecksScheduler.stop(pid)
 
     m = Deployments.latest_health_status_by_project_ids([p.id])
     assert Map.has_key?(m, p.id)
@@ -98,7 +99,7 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
         )
 
       assert {:ok, "up"} = wait_for_status(project.id, 50, "up")
-      Process.exit(pid, :normal)
+      :ok = HealthChecksScheduler.stop(pid)
     end
 
     test "treats 4xx as degraded", %{project: project} do
@@ -121,7 +122,7 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
         )
 
       assert {:ok, "degraded"} = wait_for_status(project.id, 50, "degraded")
-      Process.exit(pid, :normal)
+      :ok = HealthChecksScheduler.stop(pid)
     end
 
     test "treats 5xx as down", %{project: project} do
@@ -144,7 +145,7 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
         )
 
       assert {:ok, "down"} = wait_for_status(project.id, 50, "down")
-      Process.exit(pid, :normal)
+      :ok = HealthChecksScheduler.stop(pid)
     end
 
     test "treats unexpected statuses as degraded", %{project: project} do
@@ -167,7 +168,7 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
         )
 
       assert {:ok, "degraded"} = wait_for_status(project.id, 50, "degraded")
-      Process.exit(pid, :normal)
+      :ok = HealthChecksScheduler.stop(pid)
     end
 
     test "skips invalid provider configs", %{project: project} do
@@ -184,7 +185,7 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
         )
 
       Process.sleep(100)
-      Process.exit(pid, :normal)
+      :ok = HealthChecksScheduler.stop(pid)
 
       m = Deployments.latest_health_status_by_project_ids([project.id])
       refute Map.has_key?(m, project.id)
@@ -214,7 +215,7 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
         )
 
       assert {:ok, "up"} = wait_for_status(project.id, 50, "up")
-      Process.exit(pid, :normal)
+      :ok = HealthChecksScheduler.stop(pid)
 
       count_after = Deployments.list_health_checks_by_project(project.id) |> length()
       assert count_after == count_before
