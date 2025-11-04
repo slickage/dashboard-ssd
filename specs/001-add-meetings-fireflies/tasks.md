@@ -91,6 +91,8 @@ The following tasks are removed:
 - [ ] T044 Add metrics/logging around cache hits/misses (lib/dashboard_ssd/meetings/agenda.ex)
 - [ ] T045 Update quickstart with env + scopes (specs/001-add-meetings-fireflies/quickstart.md)
 - [ ] T046 Run format and lint for repo (mix format; mix credo --strict)
+ - [ ] T057 [P] Make Meetings date range selectable (prev/next range + custom picker) (lib/dashboard_ssd_web/live/meetings_live/index.ex)
+ - [ ] T058 [P] Add simplified month calendar view with current-day highlight (lib/dashboard_ssd_web/components/calendar.ex)
 
 - [ ] T052 [P] Open Meeting detail as modal over /meetings (lib/dashboard_ssd_web/live/meetings_live/index.ex)
 - [ ] T053 [P] Use push_patch to close modal back to /meetings (lib/dashboard_ssd_web/live/meetings_live/index.ex)
