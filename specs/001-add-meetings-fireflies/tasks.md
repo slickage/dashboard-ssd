@@ -68,10 +68,10 @@ Goal: Auto-associate meetings to Client/Project via keyword match; let users set
 
 Independent Test Criteria: Unique match auto-associates; ambiguous/no match prompts user; choice is saved; prompt to persist for series works.
 
-- [ ] T033 [P] [US4] Implement keyword-based auto-association and confidence scoring (lib/dashboard_ssd/meetings/associations.ex)
-- [ ] T034 [US4] Implement manual association set/change in context (lib/dashboard_ssd/meetings/associations.ex)
-- [ ] T035 [US4] Add prompt to persist association for series and save override (lib/dashboard_ssd_web/live/meeting_live.ex)
-- [ ] T036 [P] [US4] Surface association on index and detail views (lib/dashboard_ssd_web/live/meetings_live.ex)
+- [X] T033 [P] [US4] Implement keyword-based auto-association and confidence scoring (lib/dashboard_ssd/meetings/associations.ex)
+- [X] T034 [US4] Implement manual association set/change in context (lib/dashboard_ssd/meetings/associations.ex)
+- [X] T035 [US4] Add prompt to persist association for series and save override (lib/dashboard_ssd_web/live/meeting_live/index.ex)
+- [ ] T036 [P] [US4] Surface association on index and detail views (lib/dashboard_ssd_web/live/meetings_live/index.ex)
 
 ## Phase 7: Removed — “What to bring”
 
