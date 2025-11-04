@@ -404,9 +404,12 @@ defmodule DashboardSSD.Accounts do
     attrs =
       attrs
       |> Enum.reduce(%{}, fn
-        {"role", _value}, acc -> acc
         {"client_id", value}, acc -> Map.put(acc, :client_id, value)
         {"invited_by_id", value}, acc -> Map.put(acc, :invited_by_id, value)
+        {"role_name", value}, acc -> Map.put(acc, :role, value)
+        {:role_name, value}, acc -> Map.put(acc, :role, value)
+        {"role", value}, acc -> Map.put(acc, :role, value)
+        {:role, value}, acc -> Map.put(acc, :role, value)
         {key, value}, acc when is_atom(key) -> Map.put(acc, key, value)
         {_key, _value}, acc -> acc
       end)
@@ -417,6 +420,17 @@ defmodule DashboardSSD.Accounts do
       |> Map.update(:invited_by_id, nil, &parse_optional_integer/1)
 
     {:ok, attrs}
+  end
+
+  @doc """
+  Returns a changeset for the invite form, used to drive inline validation.
+  """
+  @spec change_user_invite(map(), keyword()) :: Ecto.Changeset.t()
+  def change_user_invite(attrs \\ %{}, opts \\ []) do
+    validate? = Keyword.get(opts, :validate, false)
+
+    %UserInvite{}
+    |> UserInvite.form_changeset(attrs, validate: validate?)
   end
 
   @doc """

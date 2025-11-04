@@ -27,10 +27,10 @@ defmodule DashboardSSDWeb.SettingsLive.RBACSettingsTest do
   test "renders RBAC configuration table for admins", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/settings")
 
-    assert html =~ "RBAC Settings"
+    assert html =~ "Role capabilities"
     assert html =~ "Projects (Manage)"
-    assert html =~ "data-role=\"settings-theme\""
-    assert html =~ "data-role=\"settings-integrations\""
+    assert html =~ "data-section=\"settings-personal\""
+    assert html =~ "data-section=\"settings-integrations\""
   end
 
   test "admin mandatory capabilities are locked", %{conn: conn} do
@@ -89,8 +89,8 @@ defmodule DashboardSSDWeb.SettingsLive.RBACSettingsTest do
 
     assert render(view) =~ "Capabilities updated for admin"
     assert Accounts.capabilities_for_role("admin") |> Enum.sort() == Enum.sort(["settings.rbac"])
-    refute render(view) =~ "data-role=\"settings-theme\""
-    assert render(view) =~ "data-role=\"settings-integrations\""
+    refute render(view) =~ "data-section=\"settings-personal\""
+    assert render(view) =~ "data-section=\"settings-integrations\""
   end
 
   test "reset defaults restores catalog assignments", %{conn: conn} do
@@ -121,7 +121,7 @@ defmodule DashboardSSDWeb.SettingsLive.RBACSettingsTest do
       |> Phoenix.ConnTest.init_test_session(%{user_id: employee.id})
       |> live(~p"/settings")
 
-    refute html =~ "RBAC Settings"
-    refute html =~ "data-role=\"settings-integrations\""
+    refute html =~ "Role capabilities"
+    refute html =~ "data-section=\"settings-integrations\""
   end
 end

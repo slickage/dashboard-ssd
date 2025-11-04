@@ -43,6 +43,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         |> assign(:summaries_task_context, nil)
         |> assign(:summaries_loading, false)
         |> hydrate_from_cached_sync()
+        |> assign(:can_manage_projects?, Policy.can?(user, :manage, :projects))
 
       if auto_sync?, do: send(self(), :sync_from_linear)
 
@@ -793,7 +794,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                 </th>
                 <th class="hidden lg:table-cell">Assigned</th>
                 <th>Prod</th>
-                <th>Actions</th>
+                <th :if={@can_manage_projects?}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -801,7 +802,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                 <% collapsed = MapSet.member?(@collapsed_teams, group.key) %>
                 <% count = length(group.projects) %>
                 <tr class="border-b border-white/5 bg-white/5">
-                  <td colspan="6">
+                  <td colspan={if @can_manage_projects?, do: 6, else: 5}>
                     <button
                       type="button"
                       phx-click="toggle_team"
@@ -902,7 +903,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                             <.health_dot status={status} />
                         <% end %>
                       </td>
-                      <td>
+                      <td :if={@can_manage_projects?}>
                         <.link
                           navigate={~p"/projects/#{p.id}/edit"}
                           class="text-white/80 transition hover:text-white"

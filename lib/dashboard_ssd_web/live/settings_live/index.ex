@@ -8,6 +8,7 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
   alias DashboardSSD.Clients
   alias DashboardSSD.Repo
   alias DashboardSSDWeb.SettingsLive.RbacTableComponent
+  alias Ecto.Changeset
 
   @impl true
   @doc "Mount Settings view and compute current integration connection states."
@@ -99,280 +100,379 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="flex flex-col gap-8">
-      <%= if @personal_settings_enabled? do %>
-        <!-- Theme Settings -->
-        <div class="card" data-role="settings-theme">
-          <div class="p-6">
-            <h3 class="text-lg font-semibold text-theme-text mb-4">Appearance</h3>
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm font-medium text-theme-text">Theme</p>
-                <p class="text-xs text-theme-text-muted">Choose your preferred theme</p>
-              </div>
-              <div class="flex items-center gap-3">
-                <span class="text-sm text-theme-text-muted" id="theme-label">Dark</span>
-                <button
-                  type="button"
-                  id="theme-toggle"
-                  class="theme-toggle relative inline-flex h-6 w-11 items-center rounded-full bg-theme-border transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-theme-surface"
-                  phx-click="toggle_theme"
-                >
-                  <span class="sr-only">Toggle theme</span>
-                  <span class="inline-block h-4 w-4 transform rounded-full bg-theme-primary shadow-sm transition-transform duration-200 ease-in-out translate-x-1">
-                  </span>
-                </button>
-              </div>
-            </div>
+    <div class="flex flex-col gap-10">
+      <section
+        :if={@personal_settings_enabled?}
+        class="card space-y-6"
+        data-section="settings-personal"
+      >
+        <header class="space-y-1">
+          <h2 class="text-xl font-semibold text-theme-text">{gettext("Personal preferences")}</h2>
+          <p class="text-sm text-theme-text-muted">
+            {gettext("Control how the dashboard looks just for you.")}
+          </p>
+        </header>
+
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p class="text-sm font-medium text-theme-text">{gettext("Theme")}</p>
+            <p class="text-xs text-theme-text-muted">
+              {gettext("Toggle between light and dark modes at any time.")}
+            </p>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-sm text-theme-text-muted" id="theme-label">{gettext("Dark")}</span>
+            <button
+              type="button"
+              id="theme-toggle"
+              class="theme-toggle relative inline-flex h-6 w-11 items-center rounded-full bg-theme-border transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 focus:ring-offset-theme-surface"
+              phx-click="toggle_theme"
+            >
+              <span class="sr-only">{gettext("Toggle theme")}</span>
+              <span class="inline-block h-4 w-4 translate-x-1 transform rounded-full bg-theme-primary shadow-sm transition-transform duration-200 ease-in-out">
+              </span>
+            </button>
           </div>
         </div>
-      <% end %>
+      </section>
 
-      <%= if @rbac_enabled? do %>
-        <div class="theme-card overflow-x-auto" data-role="settings-integrations">
+      <section
+        :if={@rbac_enabled?}
+        class="card space-y-6"
+        data-section="settings-integrations"
+      >
+        <header class="space-y-1">
+          <h2 class="text-xl font-semibold text-theme-text">{gettext("Integrations")}</h2>
+          <p class="text-sm text-theme-text-muted">
+            {gettext("Review which services are connected and where attention is needed.")}
+          </p>
+        </header>
+
+        <div class="overflow-x-auto">
           <table class="theme-table">
             <thead>
               <tr>
-                <th>Integration</th>
-                <th>Status</th>
-                <th>Action</th>
+                <th>{gettext("Integration")}</th>
+                <th>{gettext("Status")}</th>
+                <th>{gettext("Details")}</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td>Google Drive</td>
+                <td>{gettext("Google")}</td>
                 <td>
                   <.status_badge state={@integrations.google} />
                 </td>
-                <td class="text-sm text-theme-muted">
+                <td class="text-sm text-theme-text-muted">
                   <%= if @integrations.google.connected do %>
-                    <span>Linked via Google OAuth</span>
+                    <span>{gettext("Linked via Google OAuth")}</span>
                   <% else %>
                     <.link
                       navigate={~p"/auth/google"}
-                      class="text-white/80 transition hover:text-white"
+                      class="text-theme-primary transition hover:text-theme-primary-soft"
                     >
-                      Connect Google
+                      {gettext("Connect Google")}
                     </.link>
                   <% end %>
                 </td>
               </tr>
 
               <tr>
-                <td>Linear</td>
+                <td>{gettext("Linear")}</td>
                 <td>
                   <.status_badge state={@integrations.linear} />
                 </td>
-                <td class="text-sm text-theme-muted">
+                <td class="text-sm text-theme-text-muted">
                   <%= if @integrations.linear.connected do %>
-                    <span>Configured via LINEAR_TOKEN</span>
+                    <span>{gettext("Configured via LINEAR_TOKEN")}</span>
                   <% else %>
-                    <span>Set LINEAR_TOKEN or LINEAR_API_KEY</span>
+                    <span>{gettext("Set LINEAR_TOKEN or LINEAR_API_KEY")}</span>
                   <% end %>
                 </td>
               </tr>
 
               <tr>
-                <td>Slack</td>
+                <td>{gettext("Slack")}</td>
                 <td>
                   <.status_badge state={@integrations.slack} />
                 </td>
-                <td class="text-sm text-theme-muted">
+                <td class="text-sm text-theme-text-muted">
                   <%= if @integrations.slack.connected do %>
-                    <span>App token configured</span>
+                    <span>{gettext("App token configured")}</span>
                   <% else %>
-                    <span>Add SLACK_BOT_TOKEN</span>
+                    <span>{gettext("Add SLACK_BOT_TOKEN")}</span>
                   <% end %>
                 </td>
               </tr>
 
               <tr>
-                <td>Notion</td>
+                <td>{gettext("Notion")}</td>
                 <td>
                   <.status_badge state={@integrations.notion} />
                 </td>
-                <td class="text-sm text-theme-muted">
+                <td class="text-sm text-theme-text-muted">
                   <%= if @integrations.notion.connected do %>
-                    <span>Integration token active</span>
+                    <span>{gettext("Integration token active")}</span>
                   <% else %>
-                    <span>Add NOTION_TOKEN</span>
+                    <span>{gettext("Add NOTION_TOKEN")}</span>
                   <% end %>
                 </td>
               </tr>
 
               <tr>
-                <td>GitHub</td>
+                <td>{gettext("GitHub")}</td>
                 <td>
                   <.status_badge state={@integrations.github} />
                 </td>
-                <td class="text-sm text-theme-muted">Coming soon</td>
+                <td class="text-sm text-theme-text-muted">
+                  {gettext("Coming soon")}
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
-      <% end %>
+      </section>
 
-      <%= if @rbac_enabled? do %>
-        <div class="theme-card overflow-x-auto">
-          <div class="flex items-center justify-between border-b border-white/10 px-6 py-4">
-            <div>
-              <h3 class="text-lg font-semibold text-theme-text">Users</h3>
-              <p class="text-xs text-theme-text-muted">Manage roles and client assignments.</p>
-            </div>
-          </div>
-          <table class="theme-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Client</th>
-                <th class="w-32">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <%= for user <- @users do %>
-                <% form_id = "manage-user-" <> to_string(user.id) %>
-                <tr>
-                  <td>{user.name || "—"}</td>
-                  <td class="font-mono text-sm">{user.email}</td>
-                  <td>
-                    <select
-                      form={form_id}
-                      name="role"
-                      class="w-full rounded-md border border-white/10 bg-white/5 px-2 py-1 text-sm text-white"
-                      required
-                    >
-                      <%= for role <- @roles do %>
-                        <option value={role.name} selected={user.role && user.role.name == role.name}>
-                          {role.name}
-                        </option>
-                      <% end %>
-                    </select>
-                  </td>
-                  <td>
-                    <select
-                      form={form_id}
-                      name="client_id"
-                      class="w-full rounded-md border border-white/10 bg-white/5 px-2 py-1 text-sm text-white"
-                    >
-                      <option value="" selected={is_nil(user.client_id)}>
-                        {gettext("No client")}
-                      </option>
-                      <%= for client <- @user_clients do %>
-                        <option value={client.id} selected={user.client_id == client.id}>
-                          {client.name}
-                        </option>
-                      <% end %>
-                    </select>
-                  </td>
-                  <td>
-                    <form id={form_id} phx-submit="update_user" class="flex items-center justify-end">
-                      <input type="hidden" name="user_id" value={user.id} />
-                      <button
-                        type="submit"
-                        class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:border-white/20 hover:bg-white/10"
-                      >
-                        {gettext("Save")}
-                      </button>
-                    </form>
-                  </td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="theme-card p-6">
-          <h3 class="text-lg font-semibold text-theme-text">Invite Client User</h3>
-          <p class="text-xs text-theme-text-muted mb-4">
-            Send an invitation email that assigns the role and client automatically after Google sign-in.
+      <section
+        :if={@rbac_enabled?}
+        class="card space-y-6"
+        data-section="settings-users"
+      >
+        <header class="space-y-1">
+          <h2 class="text-xl font-semibold text-theme-text">{gettext("User management")}</h2>
+          <p class="text-sm text-theme-text-muted">
+            {gettext("Adjust roles and client assignments for teammates.")}
           </p>
-          <form phx-submit="send_invite" class="flex flex-col gap-4 md:flex-row md:items-end">
-            <div class="flex-1 flex flex-col gap-2">
-              <label class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted">
-                Email
-              </label>
-              <input
-                type="email"
-                name="invite[email]"
-                required
-                class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-              />
-            </div>
-            <div class="md:w-48 flex flex-col gap-2">
-              <label class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted">
-                Role
-              </label>
-              <select
-                name="invite[role]"
-                class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-              >
-                <%= for role <- @roles do %>
-                  <option value={role.name} selected={role.name == "client"}>
-                    {role.name}
-                  </option>
-                <% end %>
-              </select>
-            </div>
-            <div class="md:w-56 flex flex-col gap-2">
-              <label class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted">
-                Client
-              </label>
-              <select
-                name="invite[client_id]"
-                class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-              >
-                <option value="">Select a client</option>
-                <%= for client <- @user_clients do %>
-                  <option value={client.id}>{client.name}</option>
-                <% end %>
-              </select>
-            </div>
-            <div class="flex w-full items-center justify-end md:w-auto">
-              <button
-                type="submit"
-                class="w-full rounded-full bg-theme-primary px-6 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-theme-primary-soft md:w-auto"
-              >
-                {gettext("Send invite")}
-              </button>
-            </div>
-          </form>
-        </div>
+        </header>
 
-        <%= if @pending_invites != [] do %>
-          <div class="theme-card overflow-x-auto">
-            <div class="flex items-center justify-between border-b border-white/10 px-6 py-4">
-              <div>
-                <h3 class="text-lg font-semibold text-theme-text">Pending Invites</h3>
-                <p class="text-xs text-theme-text-muted">Awaiting acceptance.</p>
-              </div>
-            </div>
-            <table class="theme-table">
+        <%= if Enum.empty?(@users) do %>
+          <div class="rounded-xl border border-dashed border-theme-border px-4 py-8 text-center">
+            <p class="text-sm text-theme-text-muted">
+              {gettext("No additional users are connected yet.")}
+            </p>
+          </div>
+        <% else %>
+          <div class="overflow-x-auto">
+            <table class="theme-table" data-role="user-management-table">
               <thead>
                 <tr>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Client</th>
-                  <th>Invited</th>
+                  <th>{gettext("Name")}</th>
+                  <th>{gettext("Email")}</th>
+                  <th>{gettext("Role")}</th>
+                  <th>{gettext("Client")}</th>
+                  <th class="w-32 text-right">{gettext("Action")}</th>
                 </tr>
               </thead>
               <tbody>
-                <%= for invite <- @pending_invites do %>
+                <%= for user <- @users do %>
+                  <% form_id = "manage-user-#{user.id}" %>
                   <tr>
-                    <td class="font-mono text-sm">{invite.email}</td>
-                    <td>{invite.role_name}</td>
-                    <td>{(invite.client && invite.client.name) || "—"}</td>
-                    <td>{Calendar.strftime(invite.inserted_at, "%Y-%m-%d %H:%M")}</td>
+                    <td>
+                      <div class="flex flex-col">
+                        <span class="font-semibold text-theme-text">{user.name || "—"}</span>
+                        <span class="text-xs text-theme-text-muted md:hidden">{user.email}</span>
+                      </div>
+                    </td>
+                    <td class="font-mono text-sm text-theme-text">{user.email}</td>
+                    <td>
+                      <select
+                        name="role"
+                        form={form_id}
+                        class="w-full rounded-lg border border-theme-border bg-theme-surface px-3 py-2 text-sm text-theme-text focus:border-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-opacity-25"
+                        required
+                      >
+                        <%= for role <- @roles do %>
+                          <option
+                            value={role.name}
+                            selected={user.role && user.role.name == role.name}
+                          >
+                            {role.name}
+                          </option>
+                        <% end %>
+                      </select>
+                    </td>
+                    <td>
+                      <select
+                        name="client_id"
+                        form={form_id}
+                        class="w-full rounded-lg border border-theme-border bg-theme-surface px-3 py-2 text-sm text-theme-text focus:border-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-opacity-25"
+                      >
+                        <option value="" selected={is_nil(user.client_id)}>
+                          {gettext("No client")}
+                        </option>
+                        <%= for client <- @user_clients do %>
+                          <option value={client.id} selected={user.client_id == client.id}>
+                            {client.name}
+                          </option>
+                        <% end %>
+                      </select>
+                    </td>
+                    <td class="text-right">
+                      <button
+                        type="submit"
+                        form={form_id}
+                        class="inline-flex items-center justify-center rounded-md border border-theme-border bg-theme-surface px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-theme-text transition hover:bg-theme-surface-muted focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2"
+                        phx-disable-with={gettext("Saving…")}
+                      >
+                        {gettext("Save")}
+                      </button>
+                    </td>
                   </tr>
                 <% end %>
               </tbody>
             </table>
           </div>
-        <% end %>
-      <% end %>
 
-      <%= if @rbac_enabled? do %>
+          <div class="hidden">
+            <%= for user <- @users do %>
+              <form id={"manage-user-#{user.id}"} phx-submit="update_user">
+                <input type="hidden" name="user_id" value={user.id} />
+              </form>
+            <% end %>
+          </div>
+        <% end %>
+      </section>
+
+      <section
+        :if={@rbac_enabled?}
+        class="card space-y-6"
+        data-section="settings-invites"
+      >
+        <header class="space-y-1">
+          <h2 class="text-xl font-semibold text-theme-text">{gettext("Invite people")}</h2>
+          <p class="text-sm text-theme-text-muted">
+            {gettext(
+              "Send Google OAuth invitations with the right role and client access pre-selected."
+            )}
+          </p>
+        </header>
+
+        <.form
+          for={@invite_form}
+          id="invite-form"
+          class="space-y-4"
+          phx-change="validate_invite"
+          phx-submit="send_invite"
+        >
+          <div
+            class="flex flex-col gap-4 md:flex-row md:items-end md:gap-6"
+            data-role="invite-create"
+          >
+            <div class="flex-1">
+              <.input
+                field={@invite_form[:email]}
+                type="email"
+                label={gettext("Email address")}
+                placeholder="client@example.com"
+                phx-debounce="300"
+                required
+              />
+            </div>
+
+            <div class="md:w-48">
+              <.input
+                field={@invite_form[:role]}
+                type="select"
+                label={gettext("Role")}
+                options={role_options(@roles)}
+              />
+            </div>
+
+            <div class="md:w-60">
+              <.input
+                field={@invite_form[:client_id]}
+                type="select"
+                label={gettext("Client (optional)")}
+                prompt={gettext("No client")}
+                options={client_options(@user_clients)}
+              />
+            </div>
+
+            <div class="md:w-auto">
+              <.button
+                type="submit"
+                class="btn-primary"
+                disabled={invite_submit_disabled?(@invite_form)}
+              >
+                {gettext("Send invite")}
+              </.button>
+            </div>
+          </div>
+        </.form>
+
+        <p class="text-xs text-theme-text-muted">
+          {gettext("Invites never expire and remain pending until accepted.")}
+        </p>
+
+        <div :if={@pending_invites != []} class="space-y-3">
+          <h3 class="text-sm font-semibold text-theme-text">{gettext("Pending invites")}</h3>
+          <div class="overflow-x-auto">
+            <table class="theme-table">
+              <thead>
+                <tr>
+                  <th>{gettext("Email")}</th>
+                  <th>{gettext("Role")}</th>
+                  <th>{gettext("Client")}</th>
+                  <th>{gettext("Invited on")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <%= for invite <- @pending_invites do %>
+                  <tr>
+                    <td class="text-sm">{invite.email}</td>
+                    <td class="capitalize">{invite.role_name}</td>
+                    <td>{(invite.client && invite.client.name) || gettext("No client")}</td>
+                    <td class="text-sm text-theme-text-muted">
+                      {Calendar.strftime(invite.inserted_at, "%Y-%m-%d %H:%M")}
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div :if={@used_invites != []} class="space-y-3">
+          <h3 class="text-sm font-semibold text-theme-text">{gettext("Recently accepted")}</h3>
+          <div class="overflow-x-auto">
+            <table class="theme-table">
+              <thead>
+                <tr>
+                  <th>{gettext("Email")}</th>
+                  <th>{gettext("Role")}</th>
+                  <th>{gettext("Client")}</th>
+                  <th>{gettext("Accepted on")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <%= for invite <- @used_invites do %>
+                  <tr>
+                    <td class="text-sm">{invite.email}</td>
+                    <td class="capitalize">{invite.role_name}</td>
+                    <td>{(invite.client && invite.client.name) || gettext("No client")}</td>
+                    <td class="text-sm text-theme-text-muted">
+                      {Calendar.strftime(invite.used_at, "%Y-%m-%d %H:%M")}
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section
+        :if={@rbac_enabled?}
+        class="card space-y-6"
+        data-section="settings-rbac"
+      >
+        <header class="space-y-1">
+          <h2 class="text-xl font-semibold text-theme-text">{gettext("Role capabilities")}</h2>
+          <p class="text-sm text-theme-text-muted">
+            {gettext("Fine-tune which actions each role can take across Dashboard SSD.")}
+          </p>
+        </header>
+
         <.live_component
           module={RbacTableComponent}
           id="rbac-settings"
@@ -380,7 +480,20 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
           catalog={@capability_catalog}
           current_user={@current_user}
         />
-      <% end %>
+      </section>
+
+      <section
+        :if={!@personal_settings_enabled? and !@rbac_enabled?}
+        class="card space-y-2"
+        data-section="settings-empty"
+      >
+        <h2 class="text-xl font-semibold text-theme-text">{gettext("No settings available")}</h2>
+        <p class="text-sm text-theme-text-muted">
+          {gettext(
+            "Ask an administrator to grant you additional capabilities if you need access to these controls."
+          )}
+        </p>
+      </section>
     </div>
     """
   end
@@ -406,6 +519,7 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
     |> assign(:user_clients, Clients.list_clients())
     |> assign(:pending_invites, [])
     |> assign(:used_invites, [])
+    |> assign(:invite_form, invite_form())
   end
 
   defp assign_user_management(socket) do
@@ -418,6 +532,7 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
     |> assign(:user_clients, Clients.list_clients())
     |> assign(:pending_invites, pending)
     |> assign(:used_invites, used)
+    |> assign(:invite_form, invite_form())
   end
 
   defp can_manage_rbac?(nil), do: false
@@ -521,16 +636,20 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
          |> put_flash(:info, gettext("User updated."))}
 
       {:error, reason} ->
-        message = invite_error_message(reason)
-
         {:noreply,
          socket
-         |> assign_user_management()
-         |> put_flash(:error, message)}
+         |> put_flash(:error, invite_error_message(reason))}
     end
   end
 
   def handle_event("update_user", _params, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_event("validate_invite", %{"invite" => params}, socket) do
+    {:noreply, assign(socket, :invite_form, invite_form(params, validate: true))}
+  end
+
+  def handle_event("validate_invite", _params, socket), do: {:noreply, socket}
 
   @impl true
   def handle_event(
@@ -549,10 +668,31 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
          |> assign_user_management()
          |> put_flash(:info, gettext("Invitation sent."))}
 
-      {:error, reason} ->
+      {:error, :user_exists} ->
+        {:noreply,
+         assign(
+           socket,
+           :invite_form,
+           invite_form(params,
+             validate: true,
+             errors: [email: gettext("A user with that email already exists.")]
+           )
+         )}
+
+      {:error, :invalid_email} ->
+        {:noreply, assign(socket, :invite_form, invite_form(params, validate: true))}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply,
          socket
-         |> put_flash(:error, invite_error_message(reason))}
+         |> assign(:invite_form, invite_form(params, validate: true))
+         |> put_flash(:error, changeset_errors_to_string(changeset))}
+
+      {:error, other} ->
+        {:noreply,
+         socket
+         |> assign(:invite_form, invite_form(params, validate: true))
+         |> put_flash(:error, inspect(other))}
     end
   end
 
@@ -586,6 +726,47 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
 
   defp normalize_form_client_id(value) when is_integer(value), do: value
   defp normalize_form_client_id(_), do: nil
+
+  defp role_options(roles) do
+    Enum.map(roles, &{&1.name, &1.name})
+  end
+
+  defp client_options(clients) do
+    Enum.map(clients, &{&1.name, &1.id})
+  end
+
+  defp invite_form(attrs \\ %{}, opts \\ []) do
+    validate? = Keyword.get(opts, :validate, false)
+    errors = Keyword.get(opts, :errors, [])
+
+    changeset =
+      Accounts.change_user_invite(attrs, validate: validate?)
+
+    changeset =
+      Enum.reduce(errors, changeset, fn {field, message}, acc ->
+        Changeset.add_error(acc, field, message)
+      end)
+
+    changeset = Map.put(changeset, :action, if(validate?, do: :validate, else: nil))
+
+    Phoenix.Component.to_form(changeset, as: :invite)
+  end
+
+  defp invite_submit_disabled?(%Phoenix.HTML.Form{source: %Changeset{} = changeset}) do
+    email =
+      changeset.changes
+      |> Map.get(:email)
+      |> case do
+        nil -> ""
+        value -> String.trim(to_string(value))
+      end
+
+    cond do
+      email == "" -> true
+      changeset.action in [:validate, :insert] and not changeset.valid? -> true
+      true -> false
+    end
+  end
 
   defp changeset_errors_to_string(changeset) do
     errors =

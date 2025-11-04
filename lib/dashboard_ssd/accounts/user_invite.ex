@@ -7,6 +7,8 @@ defmodule DashboardSSD.Accounts.UserInvite do
   alias DashboardSSD.Clients.Client
   alias Ecto.Association.NotLoaded
 
+  @email_regex ~r/^[^@\s]+@[^@\s]+\.[^@\s]+$/
+
   @type t :: %__MODULE__{
           id: integer() | nil,
           email: String.t() | nil,
@@ -20,7 +22,8 @@ defmodule DashboardSSD.Accounts.UserInvite do
           accepted_user_id: integer() | nil,
           accepted_user: User.t() | NotLoaded.t() | nil,
           inserted_at: DateTime.t() | nil,
-          updated_at: DateTime.t() | nil
+          updated_at: DateTime.t() | nil,
+          role: String.t() | nil
         }
 
   schema "user_invites" do
@@ -28,6 +31,7 @@ defmodule DashboardSSD.Accounts.UserInvite do
     field :token, :string
     field :role_name, :string
     field :used_at, :utc_datetime
+    field :role, :string, virtual: true
 
     belongs_to :client, DashboardSSD.Clients.Client, type: :id
     belongs_to :invited_by, DashboardSSD.Accounts.User, type: :id
@@ -56,7 +60,7 @@ defmodule DashboardSSD.Accounts.UserInvite do
     ])
     |> normalize_email()
     |> validate_required([:email, :token, :role_name])
-    |> validate_format(:email, ~r/^[^@\s]+@[^@\s]+\.[^@\s]+$/)
+    |> validate_format(:email, @email_regex)
     |> unique_constraint(:token)
   end
 
@@ -70,6 +74,22 @@ defmodule DashboardSSD.Accounts.UserInvite do
     |> force_change(:token, Map.get(attrs, :token) || Map.get(attrs, "token"))
   end
 
+  @doc """
+  Builds a changeset tailored for the invite form, validating only the fields
+  surfaced in the UI.
+  """
+  @spec form_changeset(t(), map(), keyword()) :: Ecto.Changeset.t()
+  def form_changeset(invite, attrs, opts \\ []) do
+    attrs = ensure_form_role(attrs)
+    validate? = Keyword.get(opts, :validate, false)
+
+    invite
+    |> cast(attrs, [:email, :role, :client_id])
+    |> normalize_email()
+    |> maybe_validate_required(validate?)
+    |> maybe_validate_email(validate?)
+  end
+
   defp normalize_email(changeset) do
     update_change(changeset, :email, fn email ->
       email
@@ -77,5 +97,34 @@ defmodule DashboardSSD.Accounts.UserInvite do
       |> String.trim()
       |> String.downcase()
     end)
+  end
+
+  defp maybe_validate_required(changeset, false), do: changeset
+
+  defp maybe_validate_required(changeset, true) do
+    changeset
+    |> validate_required([:email, :role])
+  end
+
+  defp maybe_validate_email(changeset, false), do: changeset
+
+  defp maybe_validate_email(changeset, true) do
+    validate_format(changeset, :email, @email_regex)
+  end
+
+  defp ensure_form_role(attrs) when is_map(attrs) do
+    cond do
+      Map.has_key?(attrs, :role) or Map.has_key?(attrs, "role") ->
+        attrs
+
+      Map.has_key?(attrs, :role_name) ->
+        Map.put(attrs, :role, Map.get(attrs, :role_name))
+
+      Map.has_key?(attrs, "role_name") ->
+        Map.put(attrs, "role", Map.get(attrs, "role_name"))
+
+      true ->
+        Map.put(attrs, "role", "client")
+    end
   end
 end

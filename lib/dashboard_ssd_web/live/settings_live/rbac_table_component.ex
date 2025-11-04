@@ -14,23 +14,24 @@ defmodule DashboardSSDWeb.SettingsLive.RbacTableComponent do
   @spec render(map()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
-    <section class="theme-card p-6" data-role="rbac-settings">
-      <header class="flex items-center justify-between">
-        <div>
-          <h2 class="text-xl font-semibold text-theme-text">RBAC Settings</h2>
-          <p class="text-sm text-theme-text-muted">
-            Control which capabilities each role can access.
-          </p>
-        </div>
-        <form phx-submit="reset_capabilities" data-role="rbac-reset-form" class="flex items-center">
-          <button
+    <div class="space-y-6" data-role="rbac-settings-table">
+      <div class="flex items-center justify-between">
+        <p class="text-sm text-theme-text-muted">
+          {gettext(
+            "Toggle capabilities to grant or revoke access per role. Required permissions are locked."
+          )}
+        </p>
+        <form phx-submit="reset_capabilities" data-role="rbac-reset-form">
+          <.button
             type="submit"
-            class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:border-white/20 hover:bg-white/10"
+            class="btn-secondary"
+            phx-disable-with={gettext("Restoring…")}
+            phx-confirm={gettext("Reset all roles to their default capabilities?")}
           >
-            Restore defaults
-          </button>
+            {gettext("Restore defaults")}
+          </.button>
         </form>
-      </header>
+      </div>
 
       <%= for %{role: role} <- @roles do %>
         <form
@@ -44,15 +45,15 @@ defmodule DashboardSSDWeb.SettingsLive.RbacTableComponent do
         </form>
       <% end %>
 
-      <div class="mt-6 overflow-x-auto">
+      <div class="overflow-x-auto">
         <table class="theme-table">
           <thead>
             <tr>
-              <th class="w-32">Role</th>
+              <th class="w-32">{gettext("Role")}</th>
               <%= for capability <- @catalog do %>
                 <th class="text-center" title={capability.description}>{capability.label}</th>
               <% end %>
-              <th class="w-48">Last Updated</th>
+              <th class="w-48">{gettext("Last updated")}</th>
             </tr>
           </thead>
           <tbody>
@@ -68,10 +69,22 @@ defmodule DashboardSSDWeb.SettingsLive.RbacTableComponent do
                       value={capability.code}
                       checked={capability.code in capabilities}
                       form={"rbac-form-#{role.name}"}
-                      class="h-4 w-4 rounded border-theme-border bg-theme-surface text-theme-primary focus:ring-theme-primary disabled:opacity-50"
+                      class={[
+                        "h-4 w-4 rounded border-theme-border bg-theme-surface text-theme-primary focus:ring-theme-primary",
+                        immutable? && "opacity-40 cursor-not-allowed"
+                      ]}
                       disabled={immutable?}
                       aria-disabled={if immutable?, do: "true", else: "false"}
-                      title={if immutable?, do: "Required capability", else: nil}
+                      title={
+                        if immutable?,
+                          do: gettext("Required capability"),
+                          else: capability.description
+                      }
+                    />
+                    <.icon
+                      :if={immutable?}
+                      name="hero-lock-closed-mini"
+                      class="h-4 w-4 text-theme-text-muted"
                     />
                   </label>
                   <%= if immutable? do %>
@@ -87,10 +100,10 @@ defmodule DashboardSSDWeb.SettingsLive.RbacTableComponent do
                   <%= if updated_at do %>
                     <div>{Calendar.strftime(updated_at, "%Y-%m-%d %H:%M")}</div>
                     <%= if updated_by do %>
-                      <div>by {updated_by.name || updated_by.email}</div>
+                      <div>{gettext("by %{name}", name: updated_by.name || updated_by.email)}</div>
                     <% end %>
                   <% else %>
-                    <span>Never</span>
+                    <span>{gettext("Never")}</span>
                   <% end %>
                 </td>
               </tr>
@@ -98,7 +111,7 @@ defmodule DashboardSSDWeb.SettingsLive.RbacTableComponent do
           </tbody>
         </table>
       </div>
-    </section>
+    </div>
     """
   end
 
