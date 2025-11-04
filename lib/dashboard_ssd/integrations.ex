@@ -7,7 +7,7 @@ defmodule DashboardSSD.Integrations do
   """
 
   alias DashboardSSD.Accounts.ExternalIdentity
-  alias DashboardSSD.Integrations.{Drive, Linear, Notion, Slack}
+  alias DashboardSSD.Integrations.{Drive, Linear, Notion, Slack, GoogleCalendar}
   alias DashboardSSD.Repo
 
   @type error :: {:error, term()}
@@ -140,4 +140,45 @@ defmodule DashboardSSD.Integrations do
   end
 
   defp strip_bearer(other), do: other
+
+  # Google Calendar (user/env token helper)
+  @doc """
+  List upcoming calendar events for a user between `start_at` and `end_at`.
+
+  Token precedence:
+    1. User's ExternalIdentity with provider "google" (uses its `token`)
+    2. Env var `GOOGLE_OAUTH_TOKEN`
+
+  Options are forwarded to the GoogleCalendar client (e.g., `mock: :sample`).
+  Returns `{:error, :no_token}` when no usable token is available and `:mock`
+  is not set.
+  """
+  @spec calendar_list_upcoming_for_user(pos_integer() | %{id: pos_integer()}, DateTime.t(), DateTime.t(), keyword()) ::
+          {:ok, list()} | {:error, term()}
+  def calendar_list_upcoming_for_user(user_or_id, start_at, end_at, opts \\ []) do
+    # Allow mock path without token
+    if Keyword.get(opts, :mock) == :sample do
+      GoogleCalendar.list_upcoming(start_at, end_at, opts)
+    else
+      token =
+        case user_or_id do
+          %{id: id} -> fetch_google_token_for_user(id)
+          id when is_integer(id) -> fetch_google_token_for_user(id)
+          _ -> nil
+        end || System.get_env("GOOGLE_OAUTH_TOKEN")
+
+      if is_nil(token) or token == "" do
+        {:error, :no_token}
+      else
+        GoogleCalendar.list_upcoming(start_at, end_at, Keyword.put(opts, :token, token))
+      end
+    end
+  end
+
+  defp fetch_google_token_for_user(user_id) when is_integer(user_id) do
+    case Repo.get_by(ExternalIdentity, user_id: user_id, provider: "google") do
+      %ExternalIdentity{token: token} when is_binary(token) and byte_size(token) > 0 -> token
+      _ -> nil
+    end
+  end
 end
