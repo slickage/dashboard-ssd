@@ -38,6 +38,10 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
 
     {:ok, start_dt} = DateTime.new(start_date, ~T[00:00:00], "Etc/UTC")
     {:ok, end_dt} = DateTime.new(end_date, ~T[23:59:59], "Etc/UTC")
+    tz_offset =
+      case Map.get(params, "tz") || Map.get(params, "tz_offset") do
+        nil -> 0
+        s -> case Integer.parse(to_string(s)) do {v, _} -> v; _ -> 0 end end
     # Load upcoming meetings for the window. In dev without integration, pass :sample mock.
     mock? = Map.get(params, "mock") in ["1", "true"]
     gc_result =
@@ -115,7 +119,8 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
        live_action: live_action,
        range_start: start_date,
        range_end: end_date,
-       loading: false
+       loading: false,
+       tz_offset: tz_offset
      )}
   end
 
@@ -152,7 +157,10 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
         <% else %>
           <div class="flex flex-col gap-4">
             <%= for m <- @meetings do %>
-              <div class="theme-card px-6 py-5">
+              <div class={[
+                    "theme-card px-6 py-5",
+                    DateHelpers.today?(m.start_at, @tz_offset || 0) && "ring-1 ring-theme-primary/40"
+                  ]}>
                 <div class="flex items-start justify-between">
                   <div>
                     <div class="text-base font-semibold flex items-center gap-3 flex-wrap">
@@ -165,6 +173,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                                   (Map.get(@params || %{}, "mock") && "mock=" <> Map.get(@params, "mock")) || nil,
                                   (Map.get(@params || %{}, "start") && "start=" <> Map.get(@params, "start")) || nil,
                                   (Map.get(@params || %{}, "end") && "end=" <> Map.get(@params, "end")) || nil,
+                                  (Map.get(@params || %{}, "tz") && "tz=" <> Map.get(@params, "tz")) || nil,
                                   # add modal-driving params
                                   "id=" <> m.id,
                                   (m[:recurring_series_id] && "series_id=" <> m.recurring_series_id) || nil,
@@ -189,6 +198,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                                         (Map.get(@params || %{}, "mock") && "mock=" <> Map.get(@params, "mock")) || nil,
                                         (Map.get(@params || %{}, "start") && "start=" <> Map.get(@params, "start")) || nil,
                                         (Map.get(@params || %{}, "end") && "end=" <> Map.get(@params, "end")) || nil,
+                                        (Map.get(@params || %{}, "tz") && "tz=" <> Map.get(@params, "tz")) || nil,
                                         "client_id=" <> to_string(c.id)
                                       ]
                                       |> Enum.reject(&is_nil/1)
@@ -208,6 +218,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                                         (Map.get(@params || %{}, "mock") && "mock=" <> Map.get(@params, "mock")) || nil,
                                         (Map.get(@params || %{}, "start") && "start=" <> Map.get(@params, "start")) || nil,
                                         (Map.get(@params || %{}, "end") && "end=" <> Map.get(@params, "end")) || nil,
+                                        (Map.get(@params || %{}, "tz") && "tz=" <> Map.get(@params, "tz")) || nil,
                                         "project_id=" <> to_string(p.id)
                                       ]
                                       |> Enum.reject(&is_nil/1)
@@ -222,7 +233,11 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                       <% end %>
                     </div>
                     <div class="mt-1 text-sm text-white/70">
-                      <%= DateHelpers.human_datetime(m.start_at) %> – <%= DateHelpers.human_datetime(m.end_at) %>
+                      <%= if DateHelpers.today?(m.start_at, @tz_offset || 0) do %>
+                        Today · <%= DateHelpers.human_time_local(m.start_at, @tz_offset || 0) %> – <%= DateHelpers.human_time_local(m.end_at, @tz_offset || 0) %>
+                      <% else %>
+                        <%= DateHelpers.human_datetime_local(m.start_at, @tz_offset || 0) %> – <%= DateHelpers.human_datetime_local(m.end_at, @tz_offset || 0) %>
+                      <% end %>
                     </div>
                   </div>
                 </div>
@@ -247,7 +262,8 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
               (([
                   (Map.get(@params || %{}, "mock") && ("?mock=" <> Map.get(@params, "mock"))) || nil,
                   (Map.get(@params || %{}, "start") && ("start=" <> Map.get(@params, "start"))) || nil,
-                  (Map.get(@params || %{}, "end") && ("end=" <> Map.get(@params, "end"))) || nil
+                  (Map.get(@params || %{}, "end") && ("end=" <> Map.get(@params, "end"))) || nil,
+                  (Map.get(@params || %{}, "tz") && ("tz=" <> Map.get(@params, "tz"))) || nil
                 ]
                 |> Enum.reject(&is_nil/1)
                 |> Enum.join("&")
@@ -270,7 +286,8 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
               (([
                   (Map.get(@params || %{}, "mock") && ("?mock=" <> Map.get(@params, "mock"))) || nil,
                   (Map.get(@params || %{}, "start") && ("start=" <> Map.get(@params, "start"))) || nil,
-                  (Map.get(@params || %{}, "end") && ("end=" <> Map.get(@params, "end"))) || nil
+                  (Map.get(@params || %{}, "end") && ("end=" <> Map.get(@params, "end"))) || nil,
+                  (Map.get(@params || %{}, "tz") && ("tz=" <> Map.get(@params, "tz"))) || nil
                 ]
                 |> Enum.reject(&is_nil/1)
                 |> Enum.join("&")
@@ -291,7 +308,8 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
               (([
                   (Map.get(@params || %{}, "mock") && ("?mock=" <> Map.get(@params, "mock"))) || nil,
                   (Map.get(@params || %{}, "start") && ("start=" <> Map.get(@params, "start"))) || nil,
-                  (Map.get(@params || %{}, "end") && ("end=" <> Map.get(@params, "end"))) || nil
+                  (Map.get(@params || %{}, "end") && ("end=" <> Map.get(@params, "end"))) || nil,
+                  (Map.get(@params || %{}, "tz") && ("tz=" <> Map.get(@params, "tz"))) || nil
                 ]
                 |> Enum.reject(&is_nil/1)
                 |> Enum.join("&")
