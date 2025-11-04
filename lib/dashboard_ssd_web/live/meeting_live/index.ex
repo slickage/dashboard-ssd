@@ -55,6 +55,12 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
       end
 
     guess = if is_binary(title) and String.trim(title) != "", do: Associations.guess_from_title(title), else: :unknown
+    {auto_entity, auto_notice?} =
+      case {assoc, guess} do
+        {nil, {:client, c}} when not is_nil(c) -> {"client:" <> to_string(c.id), true}
+        {nil, {:project, p}} when not is_nil(p) -> {"project:" <> to_string(p.id), true}
+        _ -> {nil, false}
+      end
 
     {:noreply,
      assign(socket,
@@ -70,6 +76,8 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
         clients: clients,
         projects: projects,
         association: assoc,
+        auto_entity: auto_entity,
+        auto_suggest_notice: auto_notice?,
         loading: false
      )}
   end
@@ -139,6 +147,10 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
 
       _ -> {:noreply, socket}
     end
+  end
+
+  def handle_event("dismiss_auto_notice", _params, socket) do
+    {:noreply, assign(socket, auto_suggest_notice: false)}
   end
 
   def handle_event("assoc_reset_event", _params, socket) do
@@ -305,24 +317,27 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
             <form phx-submit="assoc_save" class="flex flex-col gap-3">
               <div class="flex items-center gap-2">
                 <label class="text-xs uppercase tracking-wider">Select</label>
-                <select name="entity" class="border rounded px-2 py-1 text-sm bg-white/5 w-72">
+                <select name="entity" phx-focus="dismiss_auto_notice" class="border rounded px-2 py-1 text-sm bg-white/5 w-72">
                   <option value="">— Choose —</option>
                   <optgroup label="Clients">
                     <%= for c <- @clients do %>
-                      <option value={"client:" <> to_string(c.id)} selected={@assoc && @assoc.client_id == c.id}>
+                      <option value={"client:" <> to_string(c.id)} selected={(@assoc && @assoc.client_id == c.id) or (is_nil(@assoc) and @auto_entity == "client:" <> to_string(c.id))}>
                         <%= c.name %>
                       </option>
                     <% end %>
                   </optgroup>
                   <optgroup label="Projects">
                     <%= for p <- @projects do %>
-                      <option value={"project:" <> to_string(p.id)} selected={@assoc && @assoc.project_id == p.id}>
+                      <option value={"project:" <> to_string(p.id)} selected={(@assoc && @assoc.project_id == p.id) or (is_nil(@assoc) and @auto_entity == "project:" <> to_string(p.id))}>
                         <%= p.name %>
                       </option>
                     <% end %>
                   </optgroup>
                 </select>
               </div>
+              <%= if @auto_suggest_notice do %>
+                <div class="text-xs text-white/60">Auto-selected based on meeting title. You can change it.</div>
+              <% end %>
               <div class="flex items-center gap-2">
                 <input type="checkbox" id="persist_series" name="persist_series" checked />
                 <label for="persist_series" class="text-xs">Persist for series</label>
