@@ -78,6 +78,8 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
        meetings: meetings,
        agenda_texts: agenda_texts,
        assoc_by_meeting: assoc_by_meeting,
+       params: params,
+       live_action: if(params["id"], do: :show, else: :index),
        range_start: now,
        range_end: later,
        loading: false
@@ -111,7 +113,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                 <div class="flex items-start justify-between">
                   <div>
                     <div class="text-base font-semibold flex items-center gap-3 flex-wrap">
-                      <.link navigate={~p"/meetings/#{m.id}" <>
+                      <.link patch={~p"/meetings/#{m.id}" <>
                                     ("?" <> (
                                       [
                                         (m[:recurring_series_id] && "series_id=" <> m.recurring_series_id) || nil,
@@ -155,6 +157,17 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
         <% end %>
       <% end %>
     </div>
+    <%= if @live_action == :show do %>
+      <.modal id="meeting-modal" show on_cancel={JS.patch(~p"/meetings")}> 
+        <.live_component 
+          module={DashboardSSDWeb.MeetingLive.DetailComponent} 
+          id={@params["id"]} 
+          meeting_id={@params["id"]}
+          series_id={@params["series_id"]}
+          title={@params["title"]}
+        />
+      </.modal>
+    <% end %>
     """
   end
 end
