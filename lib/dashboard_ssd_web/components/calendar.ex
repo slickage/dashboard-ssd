@@ -45,8 +45,8 @@ defmodule DashboardSSDWeb.CalendarComponents do
             <% in_range = in_range?(date, @start_date, @end_date) %>
             <div class={[
                   "h-5 rounded text-[10px] leading-none flex items-center justify-center",
-                  in_range && "bg-white/20 text-white",
-                  is_today && "ring-1 ring-white/60"
+                  in_range && "bg-theme-primary text-white",
+                  is_today && "ring-1 ring-theme-primary"
                 ]}
             >
               <%= day %>
@@ -78,8 +78,8 @@ defmodule DashboardSSDWeb.CalendarComponents do
             <% in_range = in_range?(date, @start_date, @end_date) %>
             <div class={[
                 "h-7 rounded text-xs flex items-center justify-center",
-                in_range && "bg-white/20 text-white",
-                is_today && "bg-white/10 text-white border border-white/30"
+                in_range && "bg-theme-primary text-white",
+                is_today && "bg-white/10 text-white border border-theme-primary"
               ]}
             >
               <%= day %>
