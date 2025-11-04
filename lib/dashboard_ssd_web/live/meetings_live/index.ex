@@ -77,6 +77,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
       cond do
         params["id"] -> :show
         params["client_id"] -> :client_show
+        params["project_id"] -> :project_show
         true -> :index
       end
 
@@ -160,7 +161,20 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                           </span>
                         <% {:project, p} when not is_nil(p) -> %>
                           <span class="text-xs text-white/70">· Project:
-                            <.link navigate={~p"/projects/#{p.id}/edit"} class="underline"><%= p.name %></.link>
+                            <.link
+                              patch={
+                                ~p"/meetings" <>
+                                  ("?" <>
+                                     ([
+                                        (Map.get(@params || %{}, "mock") && "mock=" <> Map.get(@params, "mock")) || nil,
+                                        "project_id=" <> to_string(p.id)
+                                      ]
+                                      |> Enum.reject(&is_nil/1)
+                                      |> Enum.join("&"))
+                                  )
+                              }
+                              class="underline"
+                            ><%= p.name %></.link>
                           </span>
                         <% _ -> %>
                           <span class="text-xs text-white/50">· Unassigned</span>
@@ -193,6 +207,15 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
           meeting_id={@params["id"]}
           series_id={@params["series_id"]}
           title={@params["title"]}
+        />
+      </.modal>
+    <% end %>
+    <%= if @live_action == :project_show do %>
+      <.modal id="project-read-modal" show on_cancel={JS.patch(~p"/meetings" <> ((Map.get(@params || %{}, "mock") && ("?mock=" <> Map.get(@params, "mock"))) || ""))}>
+        <.live_component
+          module={DashboardSSDWeb.ProjectsLive.ReadComponent}
+          id={@params["project_id"]}
+          project_id={@params["project_id"]}
         />
       </.modal>
     <% end %>
