@@ -71,7 +71,7 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
     {:noreply,
      socket
      |> put_flash(:info, "Client deleted successfully")
-     |> push_navigate(to: ~p"/clients")}
+     |> push_patch(to: ~p"/clients" <> ((Map.get(socket.assigns[:params] || %{}, "mock") && ("?mock=" <> Map.get(socket.assigns.params, "mock"))) || ""))}
   end
 
   @impl true
@@ -102,7 +102,10 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
         <%= if @current_user && @current_user.role && @current_user.role.name == "admin" do %>
           <div class="flex items-center gap-3">
             <.link
-              navigate={~p"/clients/new"}
+              patch={
+                ~p"/clients/new" <>
+                  ((Map.get(@params || %{}, "mock") && ("?mock=" <> Map.get(@params, "mock"))) || "")
+              }
               class="phx-submit-loading:opacity-75 rounded-full bg-theme-primary hover:bg-theme-primary-soft py-2 px-3 text-sm font-semibold leading-6 text-white active:text-white/80"
             >
               New Client
@@ -161,14 +164,20 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
                     <%= if @current_user && @current_user.role && @current_user.role.name == "admin" do %>
                       <span class="text-white/30">•</span>
                       <.link
-                        navigate={~p"/clients/#{c.id}/edit"}
+                        patch={
+                          ~p"/clients/#{c.id}/edit" <>
+                            ((Map.get(@params || %{}, "mock") && ("?mock=" <> Map.get(@params, "mock"))) || "")
+                        }
                         class="text-white/80 transition hover:text-white"
                       >
                         Edit
                       </.link>
                       <span class="text-white/30">•</span>
                       <.link
-                        navigate={~p"/clients/#{c.id}/delete"}
+                        patch={
+                          ~p"/clients/#{c.id}/delete" <>
+                            ((Map.get(@params || %{}, "mock") && ("?mock=" <> Map.get(@params, "mock"))) || "")
+                        }
                         class="text-rose-500 transition hover:text-rose-400"
                       >
                         Delete
@@ -183,7 +192,7 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
       <% end %>
 
       <%= if @live_action in [:new, :edit] do %>
-        <.modal id="client-modal" show on_cancel={JS.navigate(~p"/clients")}>
+        <.modal id="client-modal" show on_cancel={JS.patch(~p"/clients" <> ((Map.get(@params || %{}, "mock") && ("?mock=" <> Map.get(@params, "mock"))) || ""))}>
           <.live_component
             module={DashboardSSDWeb.ClientsLive.FormComponent}
             id={(@live_action == :new && :new) || @params["id"]}
@@ -191,13 +200,13 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
             current_user={@current_user}
             q={@q}
             client_id={@params["id"]}
-            patch={~p"/clients"}
+            patch={~p"/clients" <> ((Map.get(@params || %{}, "mock") && ("?mock=" <> Map.get(@params, "mock"))) || "")}
           />
         </.modal>
       <% end %>
 
       <%= if @live_action == :delete do %>
-        <.modal id="delete-client-modal" show on_cancel={JS.navigate(~p"/clients")}>
+        <.modal id="delete-client-modal" show on_cancel={JS.patch(~p"/clients" <> ((Map.get(@params || %{}, "mock") && ("?mock=" <> Map.get(@params, "mock"))) || ""))}>
           <div class="flex flex-col gap-6">
             <div class="flex items-center gap-3">
               <div class="flex h-10 w-10 items-center justify-center rounded-full bg-rose-500/10">
