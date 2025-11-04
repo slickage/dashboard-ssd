@@ -13,27 +13,27 @@ As a user, I can open a Meetings page showing my upcoming meetings and, for each
 
 **Why this priority**: Enables effective preparation and is the core value of the Meetings page.
 
-**Independent Test**: With one recurring meeting that has at least one prior occurrence in Fireflies, verify the next upcoming occurrence displays an agenda derived from the previous notes/action items and a “to bring” summary.
+**Independent Test**: With one recurring meeting that has at least one prior occurrence in Fireflies, verify the next upcoming occurrence displays agenda text pre-filled from the previous notes/action items and a “to bring” summary.
 
 **Acceptance Scenarios**:
 
-1. Given an upcoming meeting with at least one previous occurrence in the same series, When I view it, Then I see agenda items derived from the last occurrence’s notes and action items and a “to bring” summary.
-2. Given an upcoming meeting with no previous occurrence, When I view it, Then I see an empty agenda with guidance to add items manually.
+1. Given an upcoming meeting with at least one previous occurrence in the same series, When I view it, Then I see agenda text pre-filled from the last occurrence’s notes and action items and a “to bring” summary.
+2. Given an upcoming meeting with no previous occurrence, When I view it, Then I see an empty agenda text area with guidance to add content manually.
 
 ---
 
 ### User Story 2 - Edit agenda before meeting (Priority: P1)
 
-As a user, I can add, edit, delete, and reorder agenda items for an upcoming meeting so the agenda reflects what I want to cover.
+As a user, I can edit a single freeform agenda text field for an upcoming meeting so the agenda reflects what I want to cover.
 
-**Why this priority**: Users must tailor the auto-generated agenda to their needs.
+**Why this priority**: Users must tailor the auto-generated agenda to their needs with minimal friction.
 
-**Independent Test**: Open an upcoming meeting and add/edit/delete/reorder items; changes persist for that meeting and display consistently.
+**Independent Test**: Open an upcoming meeting, modify the agenda text, save, and verify it persists on refresh.
 
 **Acceptance Scenarios**:
 
-1. Given an upcoming meeting, When I add a new agenda item, Then it appears in the list and persists on refresh.
-2. Given I have multiple agenda items, When I reorder them, Then the new order is preserved.
+1. Given an upcoming meeting, When I edit the agenda text and save, Then the updated text persists on refresh.
+2. Given pre-filled agenda text, When I remove or add content and save, Then those changes are reflected on subsequent views.
 
 ---
 
@@ -73,11 +73,11 @@ As a user, I can quickly scan a “What to bring” section for each upcoming me
 
 **Why this priority**: Reduces prep time and missed items.
 
-**Independent Test**: Confirm that agenda items marked as requiring preparation are summarized under “What to bring.”
+**Independent Test**: Confirm that the agenda text is scanned using simple heuristics (e.g., lines containing “prepare”) and those items are summarized under “What to bring.”
 
 **Acceptance Scenarios**:
 
-1. Given agenda items marked as “requires preparation,” When I view the meeting, Then those items are summarized under “What to bring.”
+1. Given agenda text that indicates preparation (e.g., “prepare X”), When I view the meeting, Then those items are summarized under “What to bring.”
 
 ---
 
@@ -89,7 +89,7 @@ As a user, I can quickly scan a “What to bring” section for each upcoming me
 - Summary not yet generated post-meeting: show “pending” and the last update time; allow refresh later.
 - Multiple potential Client/Project matches: require user selection; do not auto-pick.
 - No Client/Project match: mark as “Unassigned” and allow selection.
-- Duplicate items between notes and action items: deduplicate by content and recency.
+- Duplicate content between pre-filled notes and manual agenda edits: avoid repeated items in previews through simple normalization.
 - Meeting renamed between occurrences: match by series identifier when available; otherwise match by normalized title and cadence window.
 
 ## Requirements *(mandatory)*
@@ -101,8 +101,8 @@ As a user, I can quickly scan a “What to bring” section for each upcoming me
 - **FR-003**: For each upcoming meeting, display title, date/time, and link to its detail view; include Client/Project association if available.
 - **FR-004**: The pre-meeting agenda for an upcoming meeting must be derived from the previous occurrence in the same recurring series using Fireflies notes and action items.
 - **FR-005**: When no previous occurrence exists, the agenda is empty with guidance to add items manually.
-- **FR-006**: Users can add, edit, delete, and reorder agenda items for an upcoming meeting; changes persist for that meeting.
-- **FR-007**: The system presents a “What to bring” summary compiled from agenda items that indicate preparation is required (e.g., items tagged or recognized as needing inputs).
+- **FR-006**: Users can edit and save a single freeform agenda text field for an upcoming meeting; changes persist for that meeting.
+- **FR-007**: The system presents a “What to bring” summary compiled from agenda text that indicates preparation is required (e.g., lines containing “prepare”) and/or items recognized as needing inputs.
 - **FR-008**: After a meeting is completed, display Fireflies-generated meeting summary and action items on the meeting detail page when available; include a visible “pending” state until available and a manual refresh.
 - **FR-009**: Auto-associate each meeting to an existing Client or Project via keyword matching on the meeting name (and known aliases); if multiple or no matches, require user selection in the UI.
 - **FR-010**: Users can manually set or change the Client/Project association from the meeting detail view.
@@ -116,7 +116,7 @@ As a user, I can quickly scan a “What to bring” section for each upcoming me
 
 - **Meeting**: A single scheduled event (title, start/end, attendees if available, source link, status: upcoming/completed, association to Client/Project).
 - **MeetingSeries**: A recurring meeting grouping used to find the “previous occurrence.”
-- **AgendaItem**: Pre-meeting item with text, optional “requires preparation” flag, order, and source (derived or manual).
+- **Agenda (text)**: Pre-meeting freeform text, pre-filled from previous Fireflies action items/notes; editable by the user.
 - **ActionItem**: Post-meeting follow-up item with text, owner (if available), and status.
 - **Summary**: Post-meeting narrative summary text.
 - **Client / Project**: Existing business entities to which meetings can be associated.
@@ -127,7 +127,7 @@ As a user, I can quickly scan a “What to bring” section for each upcoming me
 - User has connected Fireflies and has historical meeting notes for some recurring meetings.
 - Upcoming meetings are sourced from the user’s primary calendar by default unless specified otherwise.
 - “Previous occurrence” refers to the immediately preceding meeting within the same recurring series; if unavailable, use the most recent meeting with a matching title within the last 90 days.
-- “What to bring” is derived from agenda items flagged as requiring preparation and/or items recognized from previous action items assigned to the user.
+- “What to bring” is derived from the agenda text using simple heuristics (e.g., lines containing “prepare”) and/or from previous action items assigned to the user.
 
 ## Success Criteria *(mandatory)*
 
@@ -135,7 +135,7 @@ As a user, I can quickly scan a “What to bring” section for each upcoming me
 
 - **SC-001**: Users can locate and open any upcoming meeting from the Meetings page in under 5 seconds (p50) with a stable network connection.
 - **SC-002**: For recurring meetings with at least one prior occurrence, 90% display at least one auto-generated agenda item.
-- **SC-003**: 95% of users can add, edit, and reorder agenda items without assistance in under 60 seconds for a single meeting.
+- **SC-003**: 95% of users can edit and save the agenda text without assistance in under 60 seconds for a single meeting.
 - **SC-004**: Post-meeting summaries become visible within 2 hours of meeting end for 90% of meetings where Fireflies produces outputs; pending state is clearly indicated otherwise.
 - **SC-005**: Auto-association to Client/Project is correct at least 80% of the time on first display; 100% of meetings can be manually corrected within two clicks.
 - **SC-006**: Users report a 30% reduction in meeting preparation time after two weeks of usage (self-reported or observed).
