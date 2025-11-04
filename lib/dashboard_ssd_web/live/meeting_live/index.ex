@@ -4,6 +4,7 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
 
   alias DashboardSSD.Meetings.Agenda
   alias DashboardSSD.Meetings.Associations
+  alias DashboardSSD.{Clients, Projects}
   alias DashboardSSD.Integrations.Fireflies
   require Logger
 
@@ -28,6 +29,8 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
     series_id = Map.get(params, "series_id")
     manual = Agenda.list_items(id)
     assoc = Associations.get_for_event(id)
+    clients = Clients.list_clients()
+    projects = Projects.list_projects()
 
     # Derive from Fireflies latest for series (used to prefill agenda when empty)
     post =
@@ -55,12 +58,15 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
        meeting_id: id,
        series_id: series_id,
        agenda: [],
-       manual_agenda: manual,
-       summary_text: post.accomplished,
-       action_items: post.action_items,
-       agenda_text: agenda_text,
-       association: assoc,
-       loading: false
+        manual_agenda: manual,
+        summary_text: post.accomplished,
+        action_items: post.action_items,
+        agenda_text: agenda_text,
+        assoc: assoc,
+        clients: clients,
+        projects: projects,
+        association: assoc,
+        loading: false
      )}
   end
 
@@ -81,6 +87,25 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
         refresh_assigns(socket)
     end
   end
+
+  def handle_event("assoc_save", %{"type" => type, "id" => id_str, "persist_series" => persist}, socket) do
+    id = case Integer.parse(id_str) do {v, _} -> v; _ -> nil end
+    series_id = socket.assigns.series_id
+    meeting_id = socket.assigns.meeting_id
+
+    case {type, id} do
+      {"client", v} when is_integer(v) -> Associations.set_manual(meeting_id, %{client_id: v}, series_id, persist in ["true", "1", "on"]) |> respond_assoc(socket)
+      {"project", v} when is_integer(v) -> Associations.set_manual(meeting_id, %{project_id: v}, series_id, persist in ["true", "1", "on"]) |> respond_assoc(socket)
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("assoc_save", %{"type" => type, "id" => id_str}, socket) do
+    handle_event("assoc_save", %{"type" => type, "id" => id_str, "persist_series" => "false"}, socket)
+  end
+
+  defp respond_assoc({:ok, assoc}, socket), do: {:noreply, assign(socket, assoc: assoc, association: assoc)}
+  defp respond_assoc({:error, _}, socket), do: {:noreply, socket}
 
   def handle_event("edit_item", %{"id" => id}, socket) do
     id = String.to_integer(id)
@@ -210,6 +235,43 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
         <% else %>
           <div class="opacity-75">Summary pending. <button phx-click="refresh_post" class="underline">Refresh</button></div>
         <% end %>
+      </div>
+
+      <div class="mt-8">
+        <h3 class="font-medium">Association</h3>
+        <div class="mt-2 text-sm">
+          <%= cond do %>
+            <% @assoc && @assoc.client_id -> %>
+              <div>Client: <span class="text-white/80"><%= Enum.find(@clients, &(&1.id == @assoc.client_id)) |> then(&(&1 && &1.name || "(deleted)")) %></span></div>
+            <% @assoc && @assoc.project_id -> %>
+              <div>Project: <span class="text-white/80"><%= Enum.find(@projects, &(&1.id == @assoc.project_id)) |> then(&(&1 && &1.name || "(deleted)")) %></span></div>
+            <% true -> %>
+              <div class="text-white/70">Unassigned</div>
+          <% end %>
+
+          <div class="mt-3">
+            <form phx-submit="assoc_save" class="flex flex-col gap-2">
+              <div class="flex items-center gap-2">
+                <label class="text-xs uppercase tracking-wider">Type</label>
+                <select name="type" class="border rounded px-2 py-1 text-sm bg-white/5">
+                  <option value="client">Client</option>
+                  <option value="project">Project</option>
+                </select>
+              </div>
+              <div class="flex items-center gap-2">
+                <label class="text-xs uppercase tracking-wider">ID</label>
+                <input type="number" name="id" class="border rounded px-2 py-1 text-sm bg-white/5 w-36" placeholder="Enter ID" />
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="persist_series" name="persist_series" />
+                <label for="persist_series" class="text-xs">Persist for series</label>
+              </div>
+              <div>
+                <button type="submit" class="underline">Save association</button>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
 
       <div class="mt-6">
