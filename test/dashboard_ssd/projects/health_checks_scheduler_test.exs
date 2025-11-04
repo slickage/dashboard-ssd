@@ -52,6 +52,27 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
       assert {:noreply, ^state} =
                HealthChecksScheduler.handle_info({make_ref(), :ok}, state)
     end
+
+    test "records stop caller when task in progress" do
+      from = {self(), make_ref()}
+      state = %{task_ref: make_ref(), stop_from: nil}
+
+      assert {:noreply, %{stop_from: ^from}} =
+               HealthChecksScheduler.handle_call(:stop, from, state)
+    end
+
+    test "replies to stop caller when task completes" do
+      ref = make_ref()
+      from = {self(), make_ref()}
+      ref_tag = elem(from, 1)
+
+      state = %{task_ref: ref, interval: 25, stop_from: from}
+
+      assert {:stop, :normal, %{task_ref: nil, stop_from: nil}} =
+               HealthChecksScheduler.handle_info({:DOWN, ref, :process, self(), :normal}, state)
+
+      assert_receive {^ref_tag, :ok}
+    end
   end
 
   test "scheduler inserts a down status for unreachable HTTP endpoint" do
@@ -259,4 +280,11 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
         wait_for_status(project_id, attempts - 1, expected_status)
     end
   end
+
+  defp start_scheduler(child_spec) do
+    spec = Supervisor.child_spec(child_spec, restart: :temporary)
+    start_supervised(spec)
+  end
+
+  defp stop_scheduler(pid), do: HealthChecksScheduler.stop(pid)
 end
