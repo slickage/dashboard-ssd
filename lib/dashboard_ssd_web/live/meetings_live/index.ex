@@ -4,6 +4,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
 
   alias DashboardSSD.Integrations.GoogleCalendar
   alias DashboardSSD.Integrations.Fireflies
+  alias DashboardSSD.Meetings.Agenda
   alias DashboardSSDWeb.DateHelpers
   require Logger
 
@@ -20,20 +21,35 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
     mock? = Map.get(params, "mock") in ["1", "true"]
     {:ok, meetings} = GoogleCalendar.list_upcoming(now, later, mock: (mock? && :sample))
 
-    # Build agenda previews from Fireflies (latest for series)
-    preview =
+    # Build read-only consolidated agenda text per meeting (manual items if present, otherwise latest Fireflies action items)
+    agenda_texts =
       Enum.reduce(meetings, %{}, fn m, acc ->
-        case m[:recurring_series_id] do
-          nil -> Map.put(acc, m.id, [])
-          series_id ->
-            case Fireflies.fetch_latest_for_series(series_id) do
-              {:ok, %{action_items: items}} -> Map.put(acc, m.id, Enum.take(items, 3))
-              _ -> Map.put(acc, m.id, [])
-            end
-        end
+        manual =
+          m.id
+          |> Agenda.list_items()
+          |> Enum.sort_by(& &1.position)
+          |> Enum.map(&(&1.text || ""))
+          |> Enum.join("\n")
+
+        text =
+          case String.trim(manual) do
+            "" ->
+              case m[:recurring_series_id] do
+                nil -> ""
+                s ->
+                  case Fireflies.fetch_latest_for_series(s) do
+                    {:ok, %{action_items: items}} -> Enum.join(items || [], "\n")
+                    _ -> ""
+                  end
+              end
+
+            other -> other
+          end
+
+        Map.put(acc, m.id, text)
       end)
 
-    {:noreply, assign(socket, meetings: meetings, preview: preview, loading: false)}
+    {:noreply, assign(socket, meetings: meetings, agenda_texts: agenda_texts, loading: false)}
   end
 
   @impl true
@@ -56,19 +72,16 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                     <div class="text-sm opacity-75">
                       <%= DateHelpers.human_datetime(m.start_at) %> – <%= DateHelpers.human_datetime(m.end_at) %>
                     </div>
-                    <%= if Map.get(@preview, m.id, []) != [] do %>
-                      <div class="text-sm mt-2">
-                        <div class="opacity-75">Agenda preview:</div>
-                        <ul class="list-disc ml-5">
-                          <%= for it <- Map.get(@preview, m.id, []) do %>
-                            <li><%= it %></li>
-                          <% end %>
-                        </ul>
-                      </div>
-                    <% end %>
+                    
                   </div>
                   <.link navigate={~p"/meetings/#{m.id}" <> if(m[:recurring_series_id], do: "?series_id=" <> m.recurring_series_id, else: "")} class="underline">Open</.link>
                 </div>
+                <details class="mt-2">
+                  <summary class="cursor-pointer underline">Agenda</summary>
+                  <div class="mt-2 text-sm whitespace-pre-wrap">
+                    <%= Map.get(@agenda_texts, m.id, "") %>
+                  </div>
+                </details>
               </li>
             <% end %>
           </ul>
