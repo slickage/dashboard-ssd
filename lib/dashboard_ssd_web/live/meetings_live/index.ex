@@ -73,13 +73,20 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
         end
       end)
 
+    live_action =
+      cond do
+        params["id"] -> :show
+        params["client_id"] -> :client_edit
+        true -> :index
+      end
+
     {:noreply,
      assign(socket,
        meetings: meetings,
        agenda_texts: agenda_texts,
        assoc_by_meeting: assoc_by_meeting,
        params: params,
-       live_action: if(params["id"], do: :show, else: :index),
+       live_action: live_action,
        range_start: now,
        range_end: later,
        loading: false
@@ -136,7 +143,20 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                       <%= case Map.get(@assoc_by_meeting || %{}, m.id) do %>
                         <% {:client, c} when not is_nil(c) -> %>
                           <span class="text-xs text-white/70">· Client:
-                            <.link navigate={~p"/clients/#{c.id}/edit"} class="underline"><%= c.name %></.link>
+                            <.link
+                              patch={
+                                ~p"/meetings" <>
+                                  ("?" <>
+                                     ([
+                                        (Map.get(@params || %{}, "mock") && "mock=" <> Map.get(@params, "mock")) || nil,
+                                        "client_id=" <> to_string(c.id)
+                                      ]
+                                      |> Enum.reject(&is_nil/1)
+                                      |> Enum.join("&"))
+                                  )
+                              }
+                              class="underline"
+                            ><%= c.name %></.link>
                           </span>
                         <% {:project, p} when not is_nil(p) -> %>
                           <span class="text-xs text-white/70">· Project:
@@ -173,6 +193,19 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
           meeting_id={@params["id"]}
           series_id={@params["series_id"]}
           title={@params["title"]}
+        />
+      </.modal>
+    <% end %>
+    <%= if @live_action == :client_edit do %>
+      <.modal id="client-edit-modal" show on_cancel={JS.patch(~p"/meetings" <> ((Map.get(@params || %{}, "mock") && ("?mock=" <> Map.get(@params, "mock"))) || ""))}>
+        <.live_component
+          module={DashboardSSDWeb.ClientsLive.FormComponent}
+          id={@params["client_id"]}
+          action={:edit}
+          current_user={@current_user}
+          q={""}
+          client_id={@params["client_id"]}
+          patch={~p"/meetings" <> ((Map.get(@params || %{}, "mock") && ("?mock=" <> Map.get(@params, "mock"))) || "")}
         />
       </.modal>
     <% end %>
