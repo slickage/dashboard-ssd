@@ -21,7 +21,7 @@ defmodule DashboardSSD.Meetings.MeetingAssociation do
     field :calendar_event_id, :string
     field :recurring_series_id, :string
     field :origin, :string, default: "auto"
-    field :persist_series, :boolean, default: false
+    field :persist_series, :boolean, default: true
     belongs_to :client, DashboardSSD.Clients.Client, type: :id
     belongs_to :project, DashboardSSD.Projects.Project, type: :id
     timestamps(type: :utc_datetime)
@@ -49,4 +49,3 @@ defmodule DashboardSSD.Meetings.MeetingAssociation do
     |> foreign_key_constraint(:project_id)
   end
 end
-

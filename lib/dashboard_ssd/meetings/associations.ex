@@ -70,10 +70,29 @@ defmodule DashboardSSD.Meetings.Associations do
   """
   @spec set_manual(String.t(), map(), String.t() | nil, boolean()) ::
           {:ok, MeetingAssociation.t()} | {:error, Ecto.Changeset.t()}
+  def set_manual(calendar_event_id, attrs, series_id, persist_series \\ true)
   def set_manual(calendar_event_id, attrs, series_id, persist_series) do
-    base = %{origin: "manual", persist_series: !!persist_series}
+    base = %{origin: "manual", persist_series: if(is_nil(persist_series), do: true, else: !!persist_series)}
     extend = if series_id, do: Map.put(base, :recurring_series_id, series_id), else: base
     upsert_for_event(calendar_event_id, Map.merge(attrs, extend))
+  end
+
+  @doc "Deletes the association for a specific calendar event, if present."
+  @spec delete_for_event(String.t()) :: :ok
+  def delete_for_event(calendar_event_id) when is_binary(calendar_event_id) do
+    from(a in MeetingAssociation, where: a.calendar_event_id == ^calendar_event_id)
+    |> Repo.delete_all()
+    :ok
+  end
+
+  @doc "Deletes any persisted series-level associations for the given series id."
+  @spec delete_series(String.t()) :: :ok
+  def delete_series(series_id) when is_binary(series_id) do
+    from(a in MeetingAssociation,
+      where: a.recurring_series_id == ^series_id and a.persist_series == true
+    )
+    |> Repo.delete_all()
+    :ok
   end
 
   @doc """
