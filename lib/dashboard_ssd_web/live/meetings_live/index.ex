@@ -4,6 +4,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
 
   alias DashboardSSD.Integrations.GoogleCalendar
   alias DashboardSSD.Integrations.Fireflies
+  alias DashboardSSDWeb.DateHelpers
   require Logger
 
   @impl true
@@ -53,7 +54,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                   <div>
                     <div class="font-medium"><%= m.title %></div>
                     <div class="text-sm opacity-75">
-                      <%= m.start_at %> – <%= m.end_at %>
+                      <%= DateHelpers.human_datetime(m.start_at) %> – <%= DateHelpers.human_datetime(m.end_at) %>
                     </div>
                     <%= if Map.get(@preview, m.id, []) != [] do %>
                       <div class="text-sm mt-2">
