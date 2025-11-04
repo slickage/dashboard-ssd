@@ -232,14 +232,14 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
                   <option value="">— Choose —</option>
                   <optgroup label="Clients">
                     <%= for c <- @clients do %>
-                      <option value={"client:" <> to_string(c.id)} selected={(@assoc && @assoc.client_id == c.id) or (is_nil(@assoc) and @auto_entity == "client:" <> to_string(c.id))}>
+                      <option value={"client:" <> to_string(c.id)} selected={(not is_nil(@assoc) and @assoc.client_id == c.id) or (is_nil(@assoc) and @auto_entity == "client:" <> to_string(c.id))}>
                         <%= c.name %>
                       </option>
                     <% end %>
                   </optgroup>
                   <optgroup label="Projects">
                     <%= for p <- @projects do %>
-                      <option value={"project:" <> to_string(p.id)} selected={(@assoc && @assoc.project_id == p.id) or (is_nil(@assoc) and @auto_entity == "project:" <> to_string(p.id))}>
+                      <option value={"project:" <> to_string(p.id)} selected={(not is_nil(@assoc) and @assoc.project_id == p.id) or (is_nil(@assoc) and @auto_entity == "project:" <> to_string(p.id))}>
                         <%= p.name %>
                       </option>
                     <% end %>

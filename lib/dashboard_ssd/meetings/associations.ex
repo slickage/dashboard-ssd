@@ -72,7 +72,8 @@ defmodule DashboardSSD.Meetings.Associations do
           {:ok, MeetingAssociation.t()} | {:error, Ecto.Changeset.t()}
   def set_manual(calendar_event_id, attrs, series_id, persist_series \\ true)
   def set_manual(calendar_event_id, attrs, series_id, persist_series) do
-    base = %{origin: "manual", persist_series: if(is_nil(persist_series), do: true, else: !!persist_series)}
+    persist = if is_nil(persist_series), do: true, else: truthy?(persist_series)
+    base = %{origin: "manual", persist_series: persist}
     extend = if series_id, do: Map.put(base, :recurring_series_id, series_id), else: base
     upsert_for_event(calendar_event_id, Map.merge(attrs, extend))
   end
@@ -115,5 +116,9 @@ defmodule DashboardSSD.Meetings.Associations do
       client_matches == [] and project_matches == [] -> :unknown
       true -> {:ambiguous, client_matches ++ project_matches}
     end
+  end
+
+  defp truthy?(v) do
+    v in [true, "true", "1", 1, :true, "on", :on]
   end
 end
