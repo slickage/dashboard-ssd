@@ -88,20 +88,29 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
     end
   end
 
-  def handle_event("assoc_save", %{"type" => type, "id" => id_str, "persist_series" => persist}, socket) do
-    id = case Integer.parse(id_str) do {v, _} -> v; _ -> nil end
+  def handle_event("assoc_save", %{"entity" => entity, "persist_series" => persist}, socket) do
     series_id = socket.assigns.series_id
     meeting_id = socket.assigns.meeting_id
 
-    case {type, id} do
-      {"client", v} when is_integer(v) -> Associations.set_manual(meeting_id, %{client_id: v}, series_id, persist in ["true", "1", "on"]) |> respond_assoc(socket)
-      {"project", v} when is_integer(v) -> Associations.set_manual(meeting_id, %{project_id: v}, series_id, persist in ["true", "1", "on"]) |> respond_assoc(socket)
+    case String.split(entity || "", ":", parts: 2) do
+      ["client", id_str] ->
+        case Integer.parse(id_str) do
+          {v, _} -> Associations.set_manual(meeting_id, %{client_id: v}, series_id, persist in ["true", "1", "on"]) |> respond_assoc(socket)
+          _ -> {:noreply, socket}
+        end
+
+      ["project", id_str] ->
+        case Integer.parse(id_str) do
+          {v, _} -> Associations.set_manual(meeting_id, %{project_id: v}, series_id, persist in ["true", "1", "on"]) |> respond_assoc(socket)
+          _ -> {:noreply, socket}
+        end
+
       _ -> {:noreply, socket}
     end
   end
 
-  def handle_event("assoc_save", %{"type" => type, "id" => id_str}, socket) do
-    handle_event("assoc_save", %{"type" => type, "id" => id_str, "persist_series" => "false"}, socket)
+  def handle_event("assoc_save", %{"entity" => entity}, socket) do
+    handle_event("assoc_save", %{"entity" => entity, "persist_series" => "false"}, socket)
   end
 
   defp respond_assoc({:ok, assoc}, socket), do: {:noreply, assign(socket, assoc: assoc, association: assoc)}
@@ -250,17 +259,26 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
           <% end %>
 
           <div class="mt-3">
-            <form phx-submit="assoc_save" class="flex flex-col gap-2">
+            <form phx-submit="assoc_save" class="flex flex-col gap-3">
               <div class="flex items-center gap-2">
-                <label class="text-xs uppercase tracking-wider">Type</label>
-                <select name="type" class="border rounded px-2 py-1 text-sm bg-white/5">
-                  <option value="client">Client</option>
-                  <option value="project">Project</option>
+                <label class="text-xs uppercase tracking-wider">Select</label>
+                <select name="entity" class="border rounded px-2 py-1 text-sm bg-white/5 w-72">
+                  <option value="">— Choose —</option>
+                  <optgroup label="Clients">
+                    <%= for c <- @clients do %>
+                      <option value={"client:" <> to_string(c.id)} selected={@assoc && @assoc.client_id == c.id}>
+                        <%= c.name %>
+                      </option>
+                    <% end %>
+                  </optgroup>
+                  <optgroup label="Projects">
+                    <%= for p <- @projects do %>
+                      <option value={"project:" <> to_string(p.id)} selected={@assoc && @assoc.project_id == p.id}>
+                        <%= p.name %>
+                      </option>
+                    <% end %>
+                  </optgroup>
                 </select>
-              </div>
-              <div class="flex items-center gap-2">
-                <label class="text-xs uppercase tracking-wider">ID</label>
-                <input type="number" name="id" class="border rounded px-2 py-1 text-sm bg-white/5 w-36" placeholder="Enter ID" />
               </div>
               <div class="flex items-center gap-2">
                 <input type="checkbox" id="persist_series" name="persist_series" />
