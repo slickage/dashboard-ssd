@@ -5,15 +5,19 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
   alias DashboardSSD.Projects.HealthChecksScheduler
 
   describe "options and lifecycle" do
+    test "stop returns ok when scheduler not running" do
+      assert :ok = HealthChecksScheduler.stop(:nonexistent_scheduler)
+    end
+
     test "honours custom interval and initial delay" do
       {:ok, pid} =
-        start_supervised(
+        start_scheduler(
           {HealthChecksScheduler, name: :hc_interval_test, initial_delay_ms: 5, interval_ms: 10}
         )
 
       state = :sys.get_state(pid)
       assert state.interval == 10
-      :ok = HealthChecksScheduler.stop(pid)
+      :ok = stop_scheduler(pid)
     end
 
     test "ignores tick while run already in progress" do
@@ -62,11 +66,11 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
       })
 
     # Start scheduler manually (even though app does not start it in test)
-    {:ok, pid} = start_supervised({HealthChecksScheduler, initial_delay_ms: 0, interval_ms: 50})
+    {:ok, pid} = start_scheduler({HealthChecksScheduler, initial_delay_ms: 0, interval_ms: 50})
 
     assert :ok = wait_for_status(p.id)
     # Stop the scheduler to avoid further ticks
-    :ok = HealthChecksScheduler.stop(pid)
+    :ok = stop_scheduler(pid)
 
     m = Deployments.latest_health_status_by_project_ids([p.id])
     assert Map.has_key?(m, p.id)
@@ -94,12 +98,12 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
         })
 
       {:ok, pid} =
-        start_supervised(
+        start_scheduler(
           {HealthChecksScheduler, name: :hc_http_up, initial_delay_ms: 0, interval_ms: 50}
         )
 
       assert {:ok, "up"} = wait_for_status(project.id, 50, "up")
-      :ok = HealthChecksScheduler.stop(pid)
+      :ok = stop_scheduler(pid)
     end
 
     test "treats 4xx as degraded", %{project: project} do
@@ -117,12 +121,12 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
         })
 
       {:ok, pid} =
-        start_supervised(
+        start_scheduler(
           {HealthChecksScheduler, name: :hc_http_degraded, initial_delay_ms: 0, interval_ms: 50}
         )
 
       assert {:ok, "degraded"} = wait_for_status(project.id, 50, "degraded")
-      :ok = HealthChecksScheduler.stop(pid)
+      :ok = stop_scheduler(pid)
     end
 
     test "treats 5xx as down", %{project: project} do
@@ -140,12 +144,12 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
         })
 
       {:ok, pid} =
-        start_supervised(
+        start_scheduler(
           {HealthChecksScheduler, name: :hc_http_down, initial_delay_ms: 0, interval_ms: 50}
         )
 
       assert {:ok, "down"} = wait_for_status(project.id, 50, "down")
-      :ok = HealthChecksScheduler.stop(pid)
+      :ok = stop_scheduler(pid)
     end
 
     test "treats unexpected statuses as degraded", %{project: project} do
@@ -163,12 +167,12 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
         })
 
       {:ok, pid} =
-        start_supervised(
+        start_scheduler(
           {HealthChecksScheduler, name: :hc_http_weird, initial_delay_ms: 0, interval_ms: 50}
         )
 
       assert {:ok, "degraded"} = wait_for_status(project.id, 50, "degraded")
-      :ok = HealthChecksScheduler.stop(pid)
+      :ok = stop_scheduler(pid)
     end
 
     test "skips invalid provider configs", %{project: project} do
@@ -180,12 +184,12 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
         })
 
       {:ok, pid} =
-        start_supervised(
+        start_scheduler(
           {HealthChecksScheduler, name: :hc_http_invalid, initial_delay_ms: 0, interval_ms: 20}
         )
 
       Process.sleep(100)
-      :ok = HealthChecksScheduler.stop(pid)
+      :ok = stop_scheduler(pid)
 
       m = Deployments.latest_health_status_by_project_ids([project.id])
       refute Map.has_key?(m, project.id)
@@ -210,12 +214,12 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
       count_before = Deployments.list_health_checks_by_project(project.id) |> length()
 
       {:ok, pid} =
-        start_supervised(
+        start_scheduler(
           {HealthChecksScheduler, name: :hc_http_repeat, initial_delay_ms: 0, interval_ms: 50}
         )
 
       assert {:ok, "up"} = wait_for_status(project.id, 50, "up")
-      :ok = HealthChecksScheduler.stop(pid)
+      :ok = stop_scheduler(pid)
 
       count_after = Deployments.list_health_checks_by_project(project.id) |> length()
       assert count_after == count_before
