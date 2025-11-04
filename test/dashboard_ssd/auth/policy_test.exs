@@ -36,6 +36,7 @@ defmodule DashboardSSD.Auth.PolicyTest do
   test "employee permissions follow stored capabilities", %{employee: employee} do
     assert Policy.can?(employee, :read, :projects)
     refute Policy.can?(employee, :manage, :rbac)
+    refute Policy.can?(employee, :delete, :projects)
 
     {:ok, _} =
       Accounts.replace_role_capabilities("employee", ["settings.personal"], granted_by_id: nil)
@@ -62,6 +63,8 @@ defmodule DashboardSSD.Auth.PolicyTest do
     user = %Accounts.User{role: nil}
     refute Policy.can?(user, :read, :projects)
     refute Policy.can?(user, :read, :settings)
+
+    assert Policy.can?(%{role: %{id: -1}}, :read, :projects) == false
   end
 
   defp build_user(role_name) do

@@ -61,6 +61,29 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
                HealthChecksScheduler.handle_call(:stop, from, state)
     end
 
+    test "ignores tick when already processing" do
+      state = %{task_ref: make_ref(), stop_from: nil, interval: 10}
+      assert {:noreply, ^state} = HealthChecksScheduler.handle_info(:tick, state)
+    end
+
+    test "ignores DOWN for unknown ref" do
+      state = %{task_ref: make_ref(), stop_from: nil, interval: 10}
+
+      assert {:noreply, ^state} =
+               HealthChecksScheduler.handle_info(
+                 {:DOWN, make_ref(), :process, self(), :normal},
+                 state
+               )
+    end
+
+    test "stop returns immediately when idle" do
+      from = {self(), make_ref()}
+      state = %{task_ref: nil, stop_from: nil, interval: 10}
+
+      assert {:stop, :normal, :ok, %{stop_from: nil}} =
+               HealthChecksScheduler.handle_call(:stop, from, state)
+    end
+
     test "replies to stop caller when task completes" do
       ref = make_ref()
       from = {self(), make_ref()}
@@ -72,6 +95,18 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
                HealthChecksScheduler.handle_info({:DOWN, ref, :process, self(), :normal}, state)
 
       assert_receive {^ref_tag, :ok}
+    end
+
+    test "stop handles dead pid" do
+      pid =
+        spawn(fn ->
+          :ok
+        end)
+
+      ref = Process.monitor(pid)
+      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}
+
+      assert :ok = HealthChecksScheduler.stop(pid)
     end
   end
 
