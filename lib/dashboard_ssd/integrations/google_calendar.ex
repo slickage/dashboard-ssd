@@ -7,6 +7,8 @@ defmodule DashboardSSD.Integrations.GoogleCalendar do
 
   use Tesla
   require Logger
+  alias DashboardSSD.Repo
+  alias DashboardSSD.Accounts.ExternalIdentity
 
   @base "https://www.googleapis.com/calendar/v3"
 
@@ -95,6 +97,37 @@ defmodule DashboardSSD.Integrations.GoogleCalendar do
   end
 
   @doc """
+  Lists upcoming meetings for a specific user between `start_at` and `end_at`.
+
+  Token precedence:
+    1. User's ExternalIdentity (provider: "google")
+    2. `GOOGLE_OAUTH_TOKEN` environment variable
+
+  Accepts `opts` (e.g., `mock: :sample`). Returns `{:error, :no_token}` if no
+  token is available and not in mock mode.
+  """
+  @spec list_upcoming_for_user(pos_integer() | %{id: pos_integer()}, DateTime.t(), DateTime.t(), keyword()) ::
+          {:ok, [meeting_event()]} | {:error, term()}
+  def list_upcoming_for_user(user_or_id, start_at, end_at, opts \\ []) do
+    if Keyword.get(opts, :mock) == :sample do
+      list_upcoming(start_at, end_at, opts)
+    else
+      token =
+        case user_or_id do
+          %{id: id} -> fetch_google_token_for_user(id)
+          id when is_integer(id) -> fetch_google_token_for_user(id)
+          _ -> nil
+        end || System.get_env("GOOGLE_OAUTH_TOKEN")
+
+      if is_nil(token) or token == "" do
+        {:error, :no_token}
+      else
+        list_upcoming(start_at, end_at, Keyword.put(opts, :token, token))
+      end
+    end
+  end
+
+  @doc """
   Extracts or estimates a recurrence identifier for grouping occurrences.
   """
   @spec recurrence_id(map()) :: String.t() | nil
@@ -133,5 +166,12 @@ defmodule DashboardSSD.Integrations.GoogleCalendar do
   defp scrub(opts) do
     # Avoid logging tokens/headers
     Keyword.drop(opts, [:token, :headers])
+  end
+
+  defp fetch_google_token_for_user(user_id) when is_integer(user_id) do
+    case Repo.get_by(ExternalIdentity, user_id: user_id, provider: "google") do
+      %ExternalIdentity{token: token} when is_binary(token) and byte_size(token) > 0 -> token
+      _ -> nil
+    end
   end
 end
