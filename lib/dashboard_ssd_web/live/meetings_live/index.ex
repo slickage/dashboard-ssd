@@ -111,7 +111,16 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                 <div class="flex items-start justify-between">
                   <div>
                     <div class="text-base font-semibold flex items-center gap-3 flex-wrap">
-                      <.link navigate={~p"/meetings/#{m.id}" <> if(m[:recurring_series_id], do: "?series_id=" <> m.recurring_series_id, else: "")} class="text-white/80 transition hover:text-white">
+                      <.link navigate={~p"/meetings/#{m.id}" <>
+                                    ("?" <> (
+                                      [
+                                        (m[:recurring_series_id] && "series_id=" <> m.recurring_series_id) || nil,
+                                        (m[:title] && "title=" <> URI.encode_www_form(m.title)) || ""
+                                      ]
+                                      |> Enum.reject(&is_nil/1)
+                                      |> Enum.reject(&(&1 == ""))
+                                      |> Enum.join("&")
+                                    ))} class="text-white/80 transition hover:text-white">
                         <%= m.title %>
                       </.link>
                       <%= case Map.get(@assoc_by_meeting || %{}, m.id) do %>

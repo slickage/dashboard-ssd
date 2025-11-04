@@ -29,6 +29,7 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
     series_id = Map.get(params, "series_id")
     manual = Agenda.list_items(id)
     assoc = Associations.get_for_event(id)
+    title = Map.get(params, "title")
     clients = Clients.list_clients()
     projects = Projects.list_projects()
 
@@ -53,6 +54,8 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
         other -> other
       end
 
+    guess = if is_binary(title) and String.trim(title) != "", do: Associations.guess_from_title(title), else: :unknown
+
     {:noreply,
      assign(socket,
        meeting_id: id,
@@ -63,6 +66,7 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
         action_items: post.action_items,
         agenda_text: agenda_text,
         assoc: assoc,
+        guess: guess,
         clients: clients,
         projects: projects,
         association: assoc,
@@ -115,6 +119,27 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
 
   defp respond_assoc({:ok, assoc}, socket), do: {:noreply, assign(socket, assoc: assoc, association: assoc)}
   defp respond_assoc({:error, _}, socket), do: {:noreply, socket}
+
+  def handle_event("assoc_apply_guess", %{"entity" => entity}, socket) do
+    series_id = socket.assigns.series_id
+    meeting_id = socket.assigns.meeting_id
+
+    case String.split(entity || "", ":", parts: 2) do
+      ["client", id_str] ->
+        case Integer.parse(id_str) do
+          {v, _} -> Associations.set_manual(meeting_id, %{client_id: v}, series_id, false) |> respond_assoc(socket)
+          _ -> {:noreply, socket}
+        end
+
+      ["project", id_str] ->
+        case Integer.parse(id_str) do
+          {v, _} -> Associations.set_manual(meeting_id, %{project_id: v}, series_id, false) |> respond_assoc(socket)
+          _ -> {:noreply, socket}
+        end
+
+      _ -> {:noreply, socket}
+    end
+  end
 
   def handle_event("edit_item", %{"id" => id}, socket) do
     id = String.to_integer(id)
@@ -288,6 +313,22 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
                 <button type="submit" class="underline">Save association</button>
               </div>
             </form>
+            <%= case @guess do %>
+              <% {:client, c} when not is_nil(c) -> %>
+                <div class="mt-2 text-xs text-white/70">
+                  Suggested: Client <span class="text-white/80"><%= c.name %></span>
+                  <button phx-click="assoc_apply_guess" phx-value-entity={"client:" <> to_string(c.id)} class="underline ml-2">Apply</button>
+                </div>
+              <% {:project, p} when not is_nil(p) -> %>
+                <div class="mt-2 text-xs text-white/70">
+                  Suggested: Project <span class="text-white/80"><%= p.name %></span>
+                  <button phx-click="assoc_apply_guess" phx-value-entity={"project:" <> to_string(p.id)} class="underline ml-2">Apply</button>
+                </div>
+              <% {:ambiguous, _list} -> %>
+                <div class="mt-2 text-xs text-white/50">Multiple possible matches; please choose from the select.</div>
+              <% _ -> %>
+                
+            <% end %>
           </div>
         </div>
       </div>
