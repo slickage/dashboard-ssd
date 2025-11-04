@@ -125,8 +125,6 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
     handle_event("assoc_save", %{"entity" => entity, "persist_series" => "true"}, socket)
   end
 
-  defp respond_assoc({:ok, assoc}, socket), do: {:noreply, assign(socket, assoc: assoc, association: assoc)}
-  defp respond_assoc({:error, _}, socket), do: {:noreply, socket}
 
   def handle_event("assoc_apply_guess", %{"entity" => entity}, socket) do
     series_id = socket.assigns.series_id
@@ -354,4 +352,7 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
     </div>
     """
   end
+
+  defp respond_assoc({:ok, assoc}, socket), do: {:noreply, assign(socket, assoc: assoc, association: assoc)}
+  defp respond_assoc({:error, _}, socket), do: {:noreply, socket}
 end
