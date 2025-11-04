@@ -32,7 +32,7 @@ defmodule DashboardSSDWeb.CalendarComponents do
         <div class="text-[11px] font-medium text-white/80">
           <%= Calendar.strftime(@month, "%b %Y") %>
         </div>
-        <div class="grid grid-cols-7 gap-0.5 text-center text-[10px] text-white/60">
+        <div class="grid grid-cols-7 gap-0.5 text-center text-[10px]">
           <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
         </div>
         <div class="grid grid-cols-7 gap-0.5 text-center">
@@ -59,7 +59,7 @@ defmodule DashboardSSDWeb.CalendarComponents do
         <div class="text-sm font-medium text-white/80">
           <%= Calendar.strftime(@month, "%B %Y") %>
         </div>
-        <div class="mt-3 grid grid-cols-7 gap-1 text-center text-xs text-white/60">
+        <div class="mt-3 grid grid-cols-7 gap-1 text-center text-xs">
           <div>Sun</div>
           <div>Mon</div>
           <div>Tue</div>
