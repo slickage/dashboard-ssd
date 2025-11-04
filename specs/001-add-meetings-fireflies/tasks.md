@@ -93,6 +93,8 @@ The following tasks are removed:
 - [ ] T046 Run format and lint for repo (mix format; mix credo --strict)
  - [ ] T057 [P] Make Meetings date range selectable (prev/next range + custom picker) (lib/dashboard_ssd_web/live/meetings_live/index.ex)
  - [ ] T058 [P] Add simplified month calendar view with current-day highlight (lib/dashboard_ssd_web/components/calendar.ex)
+ - [ ] T059 [P] Show meeting times in the user's current timezone (lib/dashboard_ssd_web/date_helpers.ex)
+ - [ ] T060 [P] Highlight meetings happening today and label date as "Today" (lib/dashboard_ssd_web/live/meetings_live/index.ex)
 
 - [ ] T052 [P] Open Meeting detail as modal over /meetings (lib/dashboard_ssd_web/live/meetings_live/index.ex)
 - [ ] T053 [P] Use push_patch to close modal back to /meetings (lib/dashboard_ssd_web/live/meetings_live/index.ex)
