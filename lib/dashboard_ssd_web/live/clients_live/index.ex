@@ -12,14 +12,23 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
 
     if Policy.can?(user, :read, :clients) do
       _ = Clients.subscribe()
+      can_manage? = Policy.can?(user, :manage, :clients)
+      role_name = user && user.role && user.role.name
+      search_enabled? = can_manage? or role_name != "client"
+      client_assignment_missing? = role_name == "client" and is_nil(user && user.client_id)
+      q = ""
+      clients = Clients.list_clients_for_user(user)
 
       {:ok,
        socket
        |> assign(:current_path, "/clients")
-       |> assign(:q, "")
-       |> assign(:clients, Clients.list_clients())
+       |> assign(:q, q)
+       |> assign(:clients, clients)
        |> assign(:page_title, "Clients")
-       |> assign(:mobile_menu_open, false)}
+       |> assign(:mobile_menu_open, false)
+       |> assign(:can_manage_clients?, can_manage?)
+       |> assign(:search_enabled?, search_enabled?)
+       |> assign(:client_assignment_missing?, client_assignment_missing?)}
     else
       {:ok,
        socket
@@ -74,9 +83,11 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
 
   @impl true
   @doc "Handle clients page events (search/delete)."
-  def handle_event("search", %{"q" => q}, socket) do
-    {:noreply, socket |> assign(:q, q) |> assign(:clients, Clients.search_clients(q))}
+  def handle_event("search", %{"q" => q}, %{assigns: %{search_enabled?: true}} = socket) do
+    {:noreply, socket |> assign(:q, q) |> refresh_clients()}
   end
+
+  def handle_event("search", _params, socket), do: {:noreply, socket}
 
   def handle_event("delete_client", %{"id" => id}, socket) do
     case ensure_manage(socket) do
@@ -111,7 +122,13 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
   end
 
   defp refresh_clients(socket) do
-    assign(socket, :clients, Clients.search_clients(socket.assigns.q))
+    clients =
+      Clients.search_clients_for_user(
+        socket.assigns.current_user,
+        (socket.assigns.search_enabled? && socket.assigns.q) || ""
+      )
+
+    assign(socket, :clients, clients)
   end
 
   defp ensure_manage(socket) do
@@ -130,7 +147,7 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
     ~H"""
     <div class="flex flex-col gap-8">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <%= if Policy.can?(@current_user, :manage, :clients) do %>
+        <%= if @can_manage_clients? do %>
           <div class="flex items-center gap-3">
             <.link
               navigate={~p"/clients/new"}
@@ -142,75 +159,82 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
         <% end %>
       </div>
 
-      <div class="theme-card px-4 py-4 sm:px-6">
-        <form
-          phx-change="search"
-          phx-submit="search"
-          class="flex flex-col gap-3 sm:flex-row sm:items-center"
-        >
-          <div class="flex flex-1 items-center gap-2">
-            <input
-              name="q"
-              value={@q}
-              placeholder="Search clients"
-              class="w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white placeholder:text-theme-muted focus:border-white/30 focus:outline-none"
-            />
-          </div>
-          <button
-            type="submit"
-            class="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:border-white/20 hover:bg-white/10"
+      <%= if @search_enabled? do %>
+        <div class="theme-card px-4 py-4 sm:px-6">
+          <form
+            phx-change="search"
+            phx-submit="search"
+            class="flex flex-col gap-3 sm:flex-row sm:items-center"
           >
-            Search
-          </button>
-        </form>
-      </div>
-
-      <%= if @clients == [] do %>
-        <div class="theme-card px-6 py-8 text-center text-sm text-theme-muted">
-          No clients found.
+            <div class="flex flex-1 items-center gap-2">
+              <input
+                name="q"
+                value={@q}
+                placeholder="Search clients"
+                class="w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white placeholder:text-theme-muted focus:border-white/30 focus:outline-none"
+              />
+            </div>
+            <button
+              type="submit"
+              class="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:border-white/20 hover:bg-white/10"
+            >
+              Search
+            </button>
+          </form>
         </div>
-      <% else %>
-        <div class="theme-card overflow-x-auto">
-          <table class="theme-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <%= for c <- @clients do %>
+      <% end %>
+
+      <%= cond do %>
+        <% @client_assignment_missing? -> %>
+          <div class="theme-card px-6 py-8 text-center text-sm text-theme-muted">
+            You are not currently assigned to a client. Please contact an administrator for access.
+          </div>
+        <% @clients == [] -> %>
+          <div class="theme-card px-6 py-8 text-center text-sm text-theme-muted">
+            No clients found.
+          </div>
+        <% true -> %>
+          <div class="theme-card overflow-x-auto">
+            <table class="theme-table">
+              <thead>
                 <tr>
-                  <td>{c.name}</td>
-                  <td class="flex flex-wrap items-center gap-2 text-sm text-theme-muted">
-                    <.link
-                      navigate={~p"/projects?client_id=#{c.id}"}
-                      class="text-white/80 transition hover:text-white"
-                    >
-                      View Projects
-                    </.link>
-                    <%= if Policy.can?(@current_user, :manage, :clients) do %>
-                      <span class="text-white/30">•</span>
+                  <th>Name</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <%= for c <- @clients do %>
+                  <tr>
+                    <td>{c.name}</td>
+                    <td class="flex flex-wrap items-center gap-2 text-sm text-theme-muted">
                       <.link
-                        navigate={~p"/clients/#{c.id}/edit"}
+                        navigate={~p"/projects?client_id=#{c.id}"}
                         class="text-white/80 transition hover:text-white"
                       >
-                        Edit
+                        View Projects
                       </.link>
-                      <span class="text-white/30">•</span>
-                      <.link
-                        navigate={~p"/clients/#{c.id}/delete"}
-                        class="text-rose-500 transition hover:text-rose-400"
-                      >
-                        Delete
-                      </.link>
-                    <% end %>
-                  </td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-        </div>
+                      <%= if Policy.can?(@current_user, :manage, :clients) do %>
+                        <span class="text-white/30">•</span>
+                        <.link
+                          navigate={~p"/clients/#{c.id}/edit"}
+                          class="text-white/80 transition hover:text-white"
+                        >
+                          Edit
+                        </.link>
+                        <span class="text-white/30">•</span>
+                        <.link
+                          navigate={~p"/clients/#{c.id}/delete"}
+                          class="text-rose-500 transition hover:text-rose-400"
+                        >
+                          Delete
+                        </.link>
+                      <% end %>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
       <% end %>
 
       <%= if @live_action in [:new, :edit] do %>

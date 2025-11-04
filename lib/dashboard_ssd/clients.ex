@@ -28,6 +28,23 @@ defmodule DashboardSSD.Clients do
   def list_clients, do: Repo.all(Client)
 
   @doc """
+  Lists clients visible to the given user.
+
+  Clients with the `client` role are limited to their assigned client (if any).
+  Staff users (employees/admins) see all clients.
+  """
+  @spec list_clients_for_user(map() | nil) :: [Client.t()]
+  def list_clients_for_user(nil), do: []
+
+  def list_clients_for_user(%{role: %{name: "client"}, client_id: nil}), do: []
+
+  def list_clients_for_user(%{role: %{name: "client"}, client_id: client_id})
+      when is_integer(client_id),
+      do: client_scope_query(client_id) |> Repo.all()
+
+  def list_clients_for_user(_user), do: list_clients()
+
+  @doc """
   Lists clients whose IDs are in the provided list.
   """
   @spec list_clients_by_ids([pos_integer()]) :: [Client.t()]
@@ -100,12 +117,24 @@ defmodule DashboardSSD.Clients do
   Returns a list of matching Client structs.
   """
   @spec search_clients(String.t()) :: [Client.t()]
-  def search_clients(term) when is_binary(term) do
-    like = "%" <> String.replace(term, "%", "\\%") <> "%"
-    from(c in Client, where: ilike(c.name, ^like)) |> Repo.all()
-  end
-
+  def search_clients(term) when is_binary(term), do: scoped_search(Client, term)
   def search_clients(_), do: list_clients()
+
+  @doc """
+  Searches clients applying the current user's visibility scope.
+  """
+  @spec search_clients_for_user(map() | nil, term :: String.t()) :: [Client.t()]
+  def search_clients_for_user(user, term \\ "")
+
+  def search_clients_for_user(nil, _term), do: []
+
+  def search_clients_for_user(%{role: %{name: "client"}, client_id: nil}, _term), do: []
+
+  def search_clients_for_user(%{role: %{name: "client"}, client_id: client_id}, term)
+      when is_integer(client_id),
+      do: scoped_search(client_scope_query(client_id), term)
+
+  def search_clients_for_user(_user, term), do: scoped_search(Client, term)
 
   @doc """
   Ensures a client with the given name exists.
@@ -124,4 +153,21 @@ defmodule DashboardSSD.Clients do
   end
 
   defp broadcast({:error, _} = error, _event), do: error
+
+  defp client_scope_query(client_id), do: from(c in Client, where: c.id == ^client_id)
+
+  defp scoped_search(queryable, term) when term in [nil, ""],
+    do: Repo.all(normalize_queryable(queryable))
+
+  defp scoped_search(queryable, term) do
+    like = "%" <> String.replace(term, "%", "\\%") <> "%"
+
+    queryable
+    |> normalize_queryable()
+    |> where([c], ilike(c.name, ^like))
+    |> Repo.all()
+  end
+
+  defp normalize_queryable(%Ecto.Query{} = query), do: query
+  defp normalize_queryable(module) when is_atom(module), do: from(c in module)
 end

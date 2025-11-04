@@ -47,6 +47,46 @@ defmodule DashboardSSDWeb.ClientsLiveTest do
     refute has_element?(view, "a", "New Client")
   end
 
+  test "client user sees only their client without search", %{conn: conn} do
+    Accounts.ensure_role!("client")
+
+    {:ok, acme} = Clients.create_client(%{name: "Acme"})
+    {:ok, _other} = Clients.create_client(%{name: "Globex"})
+
+    {:ok, client_user} =
+      Accounts.create_user(%{
+        email: "client-visibility@example.com",
+        name: "Client",
+        role_id: Accounts.ensure_role!("client").id,
+        client_id: acme.id
+      })
+
+    conn = init_test_session(conn, %{user_id: client_user.id})
+    {:ok, view, html} = live(conn, ~p"/clients")
+
+    assert html =~ "Acme"
+    refute html =~ "Globex"
+    refute has_element?(view, "form[phx-change='search']")
+    # Clients can still navigate to their projects
+    assert html =~ ~p"/projects?client_id=#{acme.id}"
+  end
+
+  test "client without assignment is prompted to contact admin", %{conn: conn} do
+    Accounts.ensure_role!("client")
+
+    {:ok, client_user} =
+      Accounts.create_user(%{
+        email: "client-unassigned@example.com",
+        name: "Client",
+        role_id: Accounts.ensure_role!("client").id
+      })
+
+    conn = init_test_session(conn, %{user_id: client_user.id})
+    {:ok, _view, html} = live(conn, ~p"/clients")
+
+    assert html =~ "Please contact an administrator for access"
+  end
+
   test "anonymous is redirected", %{conn: conn} do
     assert {:error, {:redirect, %{to: "/login?redirect_to=%2Fclients"}}} =
              live(conn, ~p"/clients")
