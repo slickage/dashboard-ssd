@@ -22,6 +22,8 @@ Google OAuth (Drive + Calendar)
 - Scope: app requests `email profile https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/calendar.readonly` and asks for offline access to obtain `refresh_token`.
 - Sign in at `http://localhost:4000/auth/google` to store the tokens on your user (table `external_identities`).
 - After sign-in, the stored access token can be used for Drive and Calendar API calls.
+  - Calendar listing in the Meetings feature uses the signed-in user's token only (no env fallback) to avoid ambiguity across users.
+  - `GOOGLE_OAUTH_TOKEN` can still be used for Drive helpers in scripts, but is not used for Calendar listing in the UI.
 
 Fireflies.ai for Meetings
 - Provide `FIREFLIES_API_TOKEN` in `.env`.
