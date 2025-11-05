@@ -7,8 +7,7 @@ defmodule DashboardSSD.Integrations.GoogleCalendar do
 
   use Tesla
   require Logger
-  alias DashboardSSD.Repo
-  alias DashboardSSD.Accounts.ExternalIdentity
+  alias DashboardSSD.Integrations.GoogleToken
 
   @base "https://www.googleapis.com/calendar/v3"
 
@@ -112,17 +111,12 @@ defmodule DashboardSSD.Integrations.GoogleCalendar do
     if Keyword.get(opts, :mock) == :sample do
       list_upcoming(start_at, end_at, opts)
     else
-      token =
-        case user_or_id do
-          %{id: id} -> fetch_google_token_for_user(id)
-          id when is_integer(id) -> fetch_google_token_for_user(id)
-          _ -> nil
-        end
-
-      if is_nil(token) or token == "" do
-        {:error, :no_token}
-      else
+      user_id = case user_or_id do %{id: id} -> id; id when is_integer(id) -> id; _ -> nil end
+      with {:ok, token} <- GoogleToken.get_access_token_for_user(user_id) do
         list_upcoming(start_at, end_at, Keyword.put(opts, :token, token))
+      else
+        {:error, _} = err -> err
+        _ -> {:error, :no_token}
       end
     end
   end
@@ -168,10 +162,5 @@ defmodule DashboardSSD.Integrations.GoogleCalendar do
     Keyword.drop(opts, [:token, :headers])
   end
 
-  defp fetch_google_token_for_user(user_id) when is_integer(user_id) do
-    case Repo.get_by(ExternalIdentity, user_id: user_id, provider: "google") do
-      %ExternalIdentity{token: token} when is_binary(token) and byte_size(token) > 0 -> token
-      _ -> nil
-    end
-  end
+  # Token fetch/refresh handled by DashboardSSD.Integrations.GoogleToken
 end
