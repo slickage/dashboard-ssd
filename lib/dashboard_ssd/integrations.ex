@@ -172,21 +172,15 @@ defmodule DashboardSSD.Integrations do
       ttl = Keyword.get(opts, :ttl, :timer.minutes(5))
 
       MeetingsCache.fetch(key, fn ->
-        token = fetch_google_token_for_user(user_id)
-
-        if is_nil(token) or token == "" do
-          {:error, :no_token}
-        else
+        with {:ok, token} <- DashboardSSD.Integrations.GoogleToken.get_access_token_for_user(user_id) do
           GoogleCalendar.list_upcoming(start_at, end_at, Keyword.put(opts, :token, token))
+        else
+          {:error, _} = err -> err
+          _ -> {:error, :no_token}
         end
       end, ttl: ttl)
     end
   end
 
-  defp fetch_google_token_for_user(user_id) when is_integer(user_id) do
-    case Repo.get_by(ExternalIdentity, user_id: user_id, provider: "google") do
-      %ExternalIdentity{token: token} when is_binary(token) and byte_size(token) > 0 -> token
-      _ -> nil
-    end
-  end
+  # Deprecated: fetching tokens without refresh moved to GoogleToken helper.
 end
