@@ -53,6 +53,7 @@ defmodule DashboardSSD.MixProject do
         coveralls: :test,
         "coveralls.github": :test,
         "coveralls.html": :test,
+        "coveralls.multiple": :test,
         sobelow: :dev
       ],
       docs: [
@@ -177,7 +178,7 @@ defmodule DashboardSSD.MixProject do
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
       {:git_hooks, "~> 0.8", only: :dev, runtime: false},
       {:sobelow, "~> 0.13", only: :dev, runtime: false},
-      {:excoveralls, "~> 0.18", only: :test, runtime: false},
+      {:excoveralls, "~> 0.18", only: [:dev, :test], runtime: false},
       {:cloak_ecto, "~> 1.2"},
       {:ueberauth, "~> 0.10"},
       {:ueberauth_google, "~> 0.10"},

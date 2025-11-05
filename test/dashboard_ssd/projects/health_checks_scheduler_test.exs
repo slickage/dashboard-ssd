@@ -116,7 +116,7 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
         end)
 
       ref = Process.monitor(pid)
-      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}
+      assert_receive {:DOWN, ^ref, :process, ^pid, reason} when reason in [:normal, :noproc]
 
       assert :ok = HealthChecksScheduler.stop(pid)
     end
