@@ -65,6 +65,9 @@ defmodule DashboardSSD.Auth.PolicyTest do
     refute Policy.can?(user, :read, :settings)
 
     assert Policy.can?(%{role: %{id: -1}}, :read, :projects) == false
+
+    malformed = %Accounts.User{role: %{}}
+    refute Policy.can?(malformed, :read, :projects)
   end
 
   defp build_user(role_name) do

@@ -9,6 +9,18 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
       assert :ok = HealthChecksScheduler.stop(:nonexistent_scheduler)
     end
 
+    test "start_link supports custom name" do
+      {:ok, pid} =
+        HealthChecksScheduler.start_link(
+          name: :hc_direct_test,
+          initial_delay_ms: 1000,
+          interval_ms: 1000
+        )
+
+      assert Process.alive?(pid)
+      assert :ok = HealthChecksScheduler.stop(:hc_direct_test)
+    end
+
     test "honours custom interval and initial delay" do
       {:ok, pid} =
         start_scheduler(
@@ -242,6 +254,28 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
       {:ok, pid} =
         start_scheduler(
           {HealthChecksScheduler, name: :hc_http_invalid, initial_delay_ms: 0, interval_ms: 20}
+        )
+
+      Process.sleep(100)
+      :ok = stop_scheduler(pid)
+
+      m = Deployments.latest_health_status_by_project_ids([project.id])
+      refute Map.has_key?(m, project.id)
+    end
+
+    test "skips aws provider when integration disabled", %{project: project} do
+      {:ok, _} =
+        Deployments.upsert_health_check_setting(project.id, %{
+          enabled: true,
+          provider: "aws_elbv2",
+          endpoint_url: nil,
+          aws_region: "us-east-1",
+          aws_target_group_arn: "arn:aws:elasticloadbalancing:example"
+        })
+
+      {:ok, pid} =
+        start_scheduler(
+          {HealthChecksScheduler, name: :hc_http_aws, initial_delay_ms: 0, interval_ms: 20}
         )
 
       Process.sleep(100)
