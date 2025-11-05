@@ -16,7 +16,7 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerAwsTest do
         aws_target_group_arn: "arn:aws:elasticloadbalancing:...:targetgroup/..."
       })
 
-    {:ok, pid} = start_supervised(HealthChecksScheduler)
+    {:ok, pid} = start_supervised({HealthChecksScheduler, sandbox_owner: self()})
     Process.sleep(50)
     :ok = HealthChecksScheduler.stop(pid)
 

@@ -14,7 +14,8 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
         HealthChecksScheduler.start_link(
           name: :hc_direct_test,
           initial_delay_ms: 1000,
-          interval_ms: 1000
+          interval_ms: 1000,
+          sandbox_owner: self()
         )
 
       assert Process.alive?(pid)
@@ -351,7 +352,13 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerTest do
   end
 
   defp start_scheduler(child_spec) do
-    spec = Supervisor.child_spec(child_spec, restart: :temporary)
+    normalized =
+      case child_spec do
+        {mod, opts} when is_list(opts) -> {mod, Keyword.put_new(opts, :sandbox_owner, self())}
+        mod when is_atom(mod) -> {mod, [sandbox_owner: self()]}
+      end
+
+    spec = Supervisor.child_spec(normalized, restart: :temporary)
     start_supervised(spec)
   end
 

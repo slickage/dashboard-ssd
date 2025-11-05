@@ -32,6 +32,11 @@ defmodule DashboardSSD.Projects.HealthChecksScheduler do
   @spec init(term()) :: {:ok, map()}
   def init(opts) do
     interval = interval_ms(opts)
+
+    if owner = Keyword.get(opts, :sandbox_owner) do
+      maybe_allow_sandbox(owner, self())
+    end
+
     schedule_tick(initial_delay_ms(opts))
     {:ok, %{interval: interval, task_ref: nil, stop_from: nil}}
   end
