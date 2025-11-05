@@ -8,6 +8,7 @@ defmodule DashboardSSD.Integrations do
 
   alias DashboardSSD.Accounts.ExternalIdentity
   alias DashboardSSD.Integrations.{Drive, Linear, Notion, Slack, GoogleCalendar}
+  alias DashboardSSD.Meetings.CacheStore, as: MeetingsCache
   alias DashboardSSD.Repo
 
   @type error :: {:error, term()}
@@ -156,22 +157,29 @@ defmodule DashboardSSD.Integrations do
   @spec calendar_list_upcoming_for_user(pos_integer() | %{id: pos_integer()}, DateTime.t(), DateTime.t(), keyword()) ::
           {:ok, list()} | {:error, term()}
   def calendar_list_upcoming_for_user(user_or_id, start_at, end_at, opts \\ []) do
-    # Allow mock path without token
+    # Allow mock path without token and without caching (deterministic QA)
     if Keyword.get(opts, :mock) == :sample do
       GoogleCalendar.list_upcoming(start_at, end_at, opts)
     else
-      token =
+      user_id =
         case user_or_id do
-          %{id: id} -> fetch_google_token_for_user(id)
-          id when is_integer(id) -> fetch_google_token_for_user(id)
+          %{id: id} -> id
+          id when is_integer(id) -> id
           _ -> nil
         end
 
-      if is_nil(token) or token == "" do
-        {:error, :no_token}
-      else
-        GoogleCalendar.list_upcoming(start_at, end_at, Keyword.put(opts, :token, token))
-      end
+      key = {:gcal, user_id, {Date.to_iso8601(DateTime.to_date(start_at)), Date.to_iso8601(DateTime.to_date(end_at))}}
+      ttl = Keyword.get(opts, :ttl, :timer.minutes(5))
+
+      MeetingsCache.fetch(key, fn ->
+        token = fetch_google_token_for_user(user_id)
+
+        if is_nil(token) or token == "" do
+          {:error, :no_token}
+        else
+          GoogleCalendar.list_upcoming(start_at, end_at, Keyword.put(opts, :token, token))
+        end
+      end, ttl: ttl)
     end
   end
 

@@ -2,7 +2,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
   @moduledoc "Meetings index listing upcoming meetings and agenda previews."
   use DashboardSSDWeb, :live_view
 
-  alias DashboardSSD.Integrations.GoogleCalendar
+  alias DashboardSSD.Integrations
   alias DashboardSSD.Integrations.Fireflies
   alias DashboardSSD.Meetings.{Agenda, Associations}
   alias DashboardSSD.{Clients, Projects}
@@ -46,9 +46,9 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
     mock? = Map.get(params, "mock") in ["1", "true"]
     gc_result =
       if mock? do
-        GoogleCalendar.list_upcoming_for_user(socket.assigns.current_user || %{}, start_dt, end_dt, mock: :sample)
+        Integrations.calendar_list_upcoming_for_user(socket.assigns.current_user || %{}, start_dt, end_dt, mock: :sample)
       else
-        GoogleCalendar.list_upcoming_for_user(socket.assigns.current_user || %{}, start_dt, end_dt)
+        Integrations.calendar_list_upcoming_for_user(socket.assigns.current_user || %{}, start_dt, end_dt)
       end
 
     meetings =
