@@ -20,8 +20,8 @@ defmodule DashboardSSDWeb.API.RBACControllerTest do
 
       assert %{"data" => roles} = response
 
-      assert Enum.any?(roles, fn %{"role" => "admin", "capabilities" => caps} ->
-               "settings.rbac" in caps
+      assert Enum.any?(roles, fn role ->
+               role["role"] == "admin" and "settings.rbac" in List.wrap(role["capabilities"])
              end)
     end
 

@@ -215,7 +215,7 @@ defmodule DashboardSSD.MixProject do
         "cmd MIX_ENV=dev mix dialyzer --format short",
         "cmd MIX_ENV=test mix ecto.create --quiet",
         "cmd MIX_ENV=test mix ecto.migrate --quiet",
-        "cmd COVERALLS_MINIMUM_COVERAGE=90 MIX_ENV=test mix coveralls",
+        "cmd COVERALLS_MINIMUM_COVERAGE=${COVERALLS_MINIMUM_COVERAGE:-90} MIX_ENV=test mix coveralls.ci",
         "cmd MIX_ENV=dev mix docs",
         "cmd MIX_ENV=dev mix doctor --summary --raise"
       ],
