@@ -35,7 +35,7 @@ defmodule DashboardSSDWeb.CalendarComponents do
         <div class="text-sm font-medium text-white/80">
           {Calendar.strftime(@month, "%b %Y")}
         </div>
-        <div class="grid grid-cols-7 gap-0.5 text-center text-[10px]">
+        <div class="grid grid-cols-7 gap-1 text-center text-xs">
           <div>Su</div>
           <div>Mo</div>
           <div>Tu</div>
@@ -44,9 +44,9 @@ defmodule DashboardSSDWeb.CalendarComponents do
           <div>Fr</div>
           <div>Sa</div>
         </div>
-        <div class="grid grid-cols-7 gap-0.5 text-center">
+        <div class="grid grid-cols-7 gap-1 text-center">
           <%= for _d <- leading_blanks(@month) do %>
-            <div class="h-5 text-white/20">&nbsp;</div>
+            <div class="h-6 text-white/20">&nbsp;</div>
           <% end %>
           <%= for day <- 1..days_in_month(@month) do %>
             <% date = %Date{year: @month.year, month: @month.month, day: day} %>
@@ -54,7 +54,7 @@ defmodule DashboardSSDWeb.CalendarComponents do
             <% in_range = in_range?(date, @start_date, @end_date) %>
             <% busy? = Map.get(@has_meetings || %{}, date, false) %>
             <div phx-click={@on_day_click} phx-value-date={@on_day_click && Date.to_iso8601(date)} class={[
-              "h-5 rounded text-[10px] leading-none flex items-center justify-center",
+              "h-6 rounded text-xs leading-none flex items-center justify-center",
               (in_range and not is_today) && "bg-theme-primary text-white",
               is_today && "ring-1 ring-theme-primary ring-offset-transparent bg-transparent"
             ]}>
@@ -79,7 +79,7 @@ defmodule DashboardSSDWeb.CalendarComponents do
         </div>
         <div class="mt-2 grid grid-cols-7 gap-1 text-center">
           <%= for _d <- leading_blanks(@month) do %>
-            <div class="h-7 text-white/20">&nbsp;</div>
+            <div class="h-8 text-white/20">&nbsp;</div>
           <% end %>
           <%= for day <- 1..days_in_month(@month) do %>
             <% date = %Date{year: @month.year, month: @month.month, day: day} %>
@@ -87,7 +87,7 @@ defmodule DashboardSSDWeb.CalendarComponents do
             <% in_range = in_range?(date, @start_date, @end_date) %>
             <% busy? = Map.get(@has_meetings || %{}, date, false) %>
             <div phx-click={@on_day_click} phx-value-date={@on_day_click && Date.to_iso8601(date)} class={[
-              "h-7 rounded text-xs flex items-center justify-center",
+              "h-8 rounded text-xs flex items-center justify-center",
               (in_range and not is_today) && "bg-theme-primary text-white",
               is_today && "ring-1 ring-theme-primary ring-offset-transparent bg-transparent"
             ]}>
