@@ -118,7 +118,7 @@
 
 - [X] T034 [P] Refresh RBAC configuration guidance in `docs/rbac.md`
 - [X] T035 Run quickstart validation flow in `specs/006-simplify-rbac/quickstart.md`
-- [ ] T036 Perform Credo/Dialyzer sweeps and format in project root
+- [X] T036 Perform Credo/Dialyzer sweeps and format in project root
 - [X] T037 Capture release notes for RBAC changes in `CHANGELOG.md`
 
 ---
