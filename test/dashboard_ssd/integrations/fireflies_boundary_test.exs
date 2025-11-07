@@ -28,8 +28,9 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
     # Mock Fireflies GraphQL for bites and transcript summary
     Tesla.Mock.mock(fn
       %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
-        query = Map.get(body, :query) || Map.get(body, "query")
-        vars = Map.get(body, :variables) || Map.get(body, "variables") || %{}
+        payload = if is_binary(body), do: Jason.decode!(body), else: body
+        query = Map.get(payload, :query) || Map.get(payload, "query")
+        vars = Map.get(payload, :variables) || Map.get(payload, "variables") || %{}
 
         cond do
           is_binary(query) and String.contains?(query, "query Bites") ->
