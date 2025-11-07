@@ -72,13 +72,18 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
         text =
           case String.trim(manual) do
             "" ->
-              case m[:recurring_series_id] do
-                nil -> ""
-                s ->
-                  case Fireflies.fetch_latest_for_series(s, title: m.title) do
-                    {:ok, %{action_items: items}} -> Enum.join(items || [], "\n")
-                    _ -> ""
-                  end
+              # In mock mode, avoid Fireflies API calls entirely
+              if mock? do
+                ""
+              else
+                case m[:recurring_series_id] do
+                  nil -> ""
+                  s ->
+                    case Fireflies.fetch_latest_for_series(s, title: m.title) do
+                      {:ok, %{action_items: items}} -> Enum.join(items || [], "\n")
+                      _ -> ""
+                    end
+                end
               end
 
             other -> other

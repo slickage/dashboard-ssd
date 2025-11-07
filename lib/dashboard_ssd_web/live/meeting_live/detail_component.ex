@@ -21,9 +21,14 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
       case series_id do
         nil -> %{accomplished: nil, action_items: []}
         s ->
-          case Fireflies.fetch_latest_for_series(s, title: title) do
-            {:ok, v} -> v
-            _ -> %{accomplished: nil, action_items: []}
+          # Skip Fireflies in mock mode
+          if Map.get(assigns || %{}, :params) |> then(&(&1 && Map.get(&1, "mock"))) do
+            %{accomplished: nil, action_items: []}
+          else
+            case Fireflies.fetch_latest_for_series(s, title: title) do
+              {:ok, v} -> v
+              _ -> %{accomplished: nil, action_items: []}
+            end
           end
       end
 
@@ -163,9 +168,14 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
       case series_id do
         nil -> %{accomplished: nil, action_items: []}
         s ->
-          case Fireflies.fetch_latest_for_series(s, title: socket.assigns[:title]) do
-            {:ok, v} -> v
-            _ -> %{accomplished: nil, action_items: []}
+          # Skip Fireflies in mock mode
+          if Map.get(socket.assigns[:params] || %{}, "mock") do
+            %{accomplished: nil, action_items: []}
+          else
+            case Fireflies.fetch_latest_for_series(s, title: socket.assigns[:title]) do
+              {:ok, v} -> v
+              _ -> %{accomplished: nil, action_items: []}
+            end
           end
       end
 
