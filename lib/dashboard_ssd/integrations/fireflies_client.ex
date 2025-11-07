@@ -63,8 +63,9 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
 
       case post_graphql(token, query, variables) do
         {:ok, %{"data" => %{"bites" => bites}}} when is_list(bites) -> {:ok, bites}
-        {:ok, %{"errors" => errs}} -> {:error, {:graphql_error, errs}}
+        {:ok, %{"errors" => errs}} -> handle_graphql_errors(errs)
         {:ok, _other} -> {:ok, []}
+        {:error, {:http_error, status, body}} -> handle_http_error(status, body)
         {:error, reason} -> {:error, reason}
       end
     end
@@ -96,8 +97,9 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
 
       case post_graphql(token, query, %{"biteId" => bite_id}) do
         {:ok, %{"data" => %{"bite" => bite}}} when is_map(bite) -> {:ok, bite}
-        {:ok, %{"errors" => errs}} -> {:error, {:graphql_error, errs}}
+        {:ok, %{"errors" => errs}} -> handle_graphql_errors(errs)
         {:ok, _other} -> {:error, :not_found}
+        {:error, {:http_error, status, body}} -> handle_http_error(status, body)
         {:error, reason} -> {:error, reason}
       end
     end
@@ -134,14 +136,10 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
         {:ok, %{"data" => %{"bites" => [bite | _]}}} ->
           {:ok, %{notes: Map.get(bite, "summary"), action_items: [], bullet_gist: nil}}
 
-        {:ok, %{"errors" => errs}} ->
-          {:error, {:graphql_error, errs}}
-
-        {:ok, _other} ->
-          {:ok, %{notes: nil, action_items: [], bullet_gist: nil}}
-
-        {:error, reason} ->
-          {:error, reason}
+        {:ok, %{"errors" => errs}} -> handle_graphql_errors(errs)
+        {:ok, _other} -> {:ok, %{notes: nil, action_items: [], bullet_gist: nil}}
+        {:error, {:http_error, status, body}} -> handle_http_error(status, body)
+        {:error, reason} -> {:error, reason}
       end
     end
   end
@@ -245,8 +243,9 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
 
       case post_graphql(token, query, variables) do
         {:ok, %{"data" => %{"transcripts" => list}}} when is_list(list) -> {:ok, list}
-        {:ok, %{"errors" => errs}} -> {:error, {:graphql_error, errs}}
+        {:ok, %{"errors" => errs}} -> handle_graphql_errors(errs)
         {:ok, _} -> {:ok, []}
+        {:error, {:http_error, status, body}} -> handle_http_error(status, body)
         {:error, reason} -> {:error, reason}
       end
     end
@@ -285,14 +284,10 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
           bullet_gist = Map.get(summary, "bullet_gist")
           {:ok, %{notes: notes, action_items: action_items, bullet_gist: bullet_gist}}
 
-        {:ok, %{"errors" => errs}} ->
-          {:error, {:graphql_error, errs}}
-
-        {:ok, _other} ->
-          {:ok, %{notes: nil, action_items: [], bullet_gist: nil}}
-
-        {:error, reason} ->
-          {:error, reason}
+        {:ok, %{"errors" => errs}} -> handle_graphql_errors(errs)
+        {:ok, _other} -> {:ok, %{notes: nil, action_items: [], bullet_gist: nil}}
+        {:error, {:http_error, status, body}} -> handle_http_error(status, body)
+        {:error, reason} -> {:error, reason}
       end
     end
   end
@@ -401,6 +396,31 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
     user_id = if is_binary(user_id), do: String.trim(user_id), else: nil
     if user_id in [nil, ""], do: nil, else: user_id
   end
+
+  # ===== Error helpers =====
+  defp handle_graphql_errors(errs) when is_list(errs) do
+    case find_rate_limit_error(errs) do
+      {:rate_limited, msg} -> {:error, {:rate_limited, msg}}
+      :none -> {:error, {:graphql_error, errs}}
+    end
+  end
+
+  defp handle_http_error(429, body), do: {:error, {:rate_limited, extract_error_message(body) || "Too many requests"}}
+  defp handle_http_error(status, body), do: {:error, {:http_error, status, body}}
+
+  defp find_rate_limit_error(errs) do
+    Enum.find_value(errs, :none, fn err ->
+      code = Map.get(err, "code") || get_in(err, ["extensions", "code"]) || Map.get(err, :code)
+      if is_binary(code) and String.downcase(code) == "too_many_requests" do
+        {:rate_limited, Map.get(err, "message") || Map.get(err, :message) || "Too many requests"}
+      else
+        false
+      end
+    end)
+  end
+
+  defp extract_error_message(%{"errors" => [first | _]}) when is_map(first), do: Map.get(first, "message")
+  defp extract_error_message(_), do: nil
 
   @doc """
   Lists users visible to the API token. Useful for discovering user_id for transcript queries.

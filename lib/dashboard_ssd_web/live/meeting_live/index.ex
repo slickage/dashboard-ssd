@@ -34,20 +34,24 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
     projects = Projects.list_projects()
 
     # Derive from Fireflies latest for series (used to prefill agenda when empty)
-    post =
+    post_result =
       case series_id do
         nil ->
-          %{accomplished: nil, action_items: []}
+          {:ok, %{accomplished: nil, action_items: []}}
 
         s ->
           if Map.get(params, "mock") in ["1", "true"] do
-            %{accomplished: nil, action_items: []}
+            {:ok, %{accomplished: nil, action_items: []}}
           else
-            case Fireflies.fetch_latest_for_series(s, title: title) do
-              {:ok, v} -> v
-              _ -> %{accomplished: nil, action_items: []}
-            end
+            Fireflies.fetch_latest_for_series(s, title: title)
           end
+      end
+
+    {post, post_error} =
+      case post_result do
+        {:ok, v} -> {v, nil}
+        {:error, {:rate_limited, msg}} -> {%{accomplished: nil, action_items: []}, %{type: :rate_limited, message: msg}}
+        {:error, _} -> {%{accomplished: nil, action_items: []}, %{type: :generic, message: "Fireflies data unavailable. Please try again later."}}
       end
 
     agenda_text =
@@ -87,7 +91,8 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
        projects: projects,
        association: assoc,
        auto_entity: auto_entity,
-       auto_suggest_notice: auto_notice?,
+        auto_suggest_notice: auto_notice?,
+       post_error: post_error,
        loading: false
      )}
   end
@@ -279,20 +284,24 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
     series_id = socket.assigns.series_id
     manual = Agenda.list_items(id)
     # Prefill agenda when manual is empty using latest Fireflies action items
-    post =
+    post_result =
       case series_id do
         nil ->
-          %{accomplished: nil, action_items: []}
+          {:ok, %{accomplished: nil, action_items: []}}
 
         s ->
           if Map.get(socket.assigns[:params] || %{}, "mock") in ["1", "true"] do
-            %{accomplished: nil, action_items: []}
+            {:ok, %{accomplished: nil, action_items: []}}
           else
-            case Fireflies.fetch_latest_for_series(s, title: socket.assigns[:title]) do
-              {:ok, v} -> v
-              _ -> %{accomplished: nil, action_items: []}
-            end
+            Fireflies.fetch_latest_for_series(s, title: socket.assigns[:title])
           end
+      end
+
+    {post, post_error} =
+      case post_result do
+        {:ok, v} -> {v, nil}
+        {:error, {:rate_limited, msg}} -> {%{accomplished: nil, action_items: []}, %{type: :rate_limited, message: msg}}
+        {:error, _} -> {%{accomplished: nil, action_items: []}, %{type: :generic, message: "Fireflies data unavailable. Please try again later."}}
       end
 
     agenda_text =
@@ -309,10 +318,11 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
      assign(socket,
        manual_agenda: manual,
        agenda: [],
-       summary_text: post.accomplished,
-       action_items: post.action_items,
-       agenda_text: agenda_text
-     )}
+      summary_text: post.accomplished,
+      action_items: post.action_items,
+      agenda_text: agenda_text,
+      post_error: post_error
+    )}
   end
 
   @impl true
@@ -335,6 +345,9 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
 
       <div class="mt-8">
         <h3 class="font-medium">Last meeting summary</h3>
+        <%= if @post_error do %>
+          <div class={"mt-2 text-red-400 text-sm whitespace-pre-wrap"}><%= @post_error.message %></div>
+        <% end %>
         <%= if is_binary(@summary_text) and String.trim(@summary_text) != "" or @action_items != [] do %>
           <%= if is_binary(@summary_text) and String.trim(@summary_text) != "" do %>
             <div class="prose max-w-none">
