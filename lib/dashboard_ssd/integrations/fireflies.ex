@@ -7,6 +7,7 @@ defmodule DashboardSSD.Integrations.Fireflies do
   require Logger
   alias DashboardSSD.Meetings.CacheStore
   alias DashboardSSD.Integrations.FirefliesClient
+  alias DashboardSSD.Meetings.FirefliesStore
 
   @type artifacts :: %{
           accomplished: String.t() | nil,
@@ -37,7 +38,11 @@ defmodule DashboardSSD.Integrations.Fireflies do
         %{msg: "fireflies.fetch_latest_for_series/2", series_id: series_id}
         |> Jason.encode!()
       end)
-      do_fetch_latest_for_series(series_id, opts)
+      # Retrieval order: DB → API (ETS handled by CacheStore)
+      case FirefliesStore.get(series_id) do
+        {:ok, art} -> {:ok, art}
+        :not_found -> do_fetch_latest_for_series(series_id, opts)
+      end
     end, ttl: ttl)
   end
 
@@ -56,7 +61,7 @@ defmodule DashboardSSD.Integrations.Fireflies do
     # 1) Try mapping cache
     case CacheStore.get({:series_map, series_id}) do
       {:ok, transcript_id} when is_binary(transcript_id) ->
-        case fetch_summary_for_transcript(transcript_id) do
+        case fetch_summary_for_transcript(series_id, transcript_id) do
           {:ok, art} -> {:ok, art}
           _ -> search_and_map(series_id, opts)
         end
@@ -74,7 +79,7 @@ defmodule DashboardSSD.Integrations.Fireflies do
          {:ok, transcript_id} <- pick_bite_transcript_by_series(bites, series_id) do
       # Cache mapping and fetch
       CacheStore.put({:series_map, series_id}, transcript_id, :timer.hours(24))
-      fetch_summary_for_transcript(transcript_id)
+      fetch_summary_for_transcript(series_id, transcript_id)
     else
       _ ->
         # Fallback to team bites
@@ -83,7 +88,7 @@ defmodule DashboardSSD.Integrations.Fireflies do
             case pick_bite_transcript_by_series(bites2, series_id) do
               {:ok, transcript_id} ->
                 CacheStore.put({:series_map, series_id}, transcript_id, :timer.hours(24))
-                fetch_summary_for_transcript(transcript_id)
+                fetch_summary_for_transcript(series_id, transcript_id)
 
               _ ->
                 # 3) Fallback: try title hint against recent transcripts
@@ -126,7 +131,7 @@ defmodule DashboardSSD.Integrations.Fireflies do
         case pick_best_title_match(transcripts, title) do
           {:ok, %{"id" => tid}} ->
             CacheStore.put({:series_map, series_id}, tid, :timer.hours(24))
-            fetch_summary_for_transcript(tid)
+            fetch_summary_for_transcript(series_id, tid)
 
           _ -> {:ok, %{accomplished: nil, action_items: []}}
         end
@@ -170,9 +175,13 @@ defmodule DashboardSSD.Integrations.Fireflies do
   defp normalize(nil), do: ""
   defp normalize(s), do: s |> String.downcase() |> String.trim()
 
-  defp fetch_summary_for_transcript(transcript_id) do
+  defp fetch_summary_for_transcript(series_id, transcript_id) do
     case FirefliesClient.get_transcript_summary(transcript_id) do
-      {:ok, %{notes: notes, action_items: items}} ->
+      {:ok, %{notes: notes, action_items: items, bullet_gist: bullet}} ->
+        # Only persist non-empty results
+        if (is_binary(notes) and String.trim(notes) != "") or (is_list(items) and items != []) or (is_binary(bullet) and String.trim(bullet) != "") do
+          :ok = FirefliesStore.upsert(series_id, %{transcript_id: transcript_id, accomplished: notes, action_items: items, bullet_gist: bullet})
+        end
         {:ok, %{accomplished: notes, action_items: items || []}}
 
       {:error, _} = err -> err
