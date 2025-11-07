@@ -1,0 +1,185 @@
+defmodule DashboardSSD.Integrations.FirefliesClient do
+  @moduledoc """
+  Fireflies.ai GraphQL client for querying meeting artifacts (bites, summaries).
+
+  Authentication: Bearer token via `FIREFLIES_API_TOKEN` loaded into
+  `Application.get_env(:dashboard_ssd, :integrations)[:fireflies_api_token]`.
+
+  This module avoids logging secrets and returns normalized `{:ok, ...}` / `{:error, ...}` tuples.
+  """
+
+  use Tesla
+  require Logger
+
+  @base "https://api.fireflies.ai/graphql"
+
+  plug Tesla.Middleware.BaseUrl, @base
+  plug Tesla.Middleware.JSON
+
+  @type bite :: map()
+
+  @doc """
+  Lists bites with optional filters.
+
+  Options:
+    * `:mine` - boolean; filter to the API key owner (default: true)
+    * `:my_team` - boolean; filter to the team of the API key owner
+    * `:transcript_id` - ID; list bites for a specific transcript
+    * `:limit` - integer; max 50
+    * `:skip` - integer; offset for pagination
+
+  Returns `{:ok, [bite]}` or `{:error, reason}`.
+  """
+  @spec list_bites(keyword()) :: {:ok, [bite()]} | {:error, term()}
+  def list_bites(opts \\ []) do
+    with {:ok, token} <- token() do
+      query = """
+      query Bites($limit: Int, $skip: Int, $transcript_id: ID, $mine: Boolean, $my_team: Boolean) {
+        bites(limit: $limit, skip: $skip, transcript_id: $transcript_id, mine: $mine, my_team: $my_team) {
+          id
+          transcript_id
+          name
+          status
+          summary
+          start_time
+          end_time
+          summary_status
+          media_type
+          created_at
+          created_from { id name type description duration }
+        }
+      }
+      """
+
+      variables = %{
+        "limit" => clamp(Keyword.get(opts, :limit)),
+        "skip" => Keyword.get(opts, :skip),
+        "transcript_id" => Keyword.get(opts, :transcript_id),
+        "mine" => Keyword.get(opts, :mine, true),
+        "my_team" => Keyword.get(opts, :my_team)
+      }
+      |> drop_nils()
+
+      case post_graphql(token, query, variables) do
+        {:ok, %{"data" => %{"bites" => bites}}} when is_list(bites) -> {:ok, bites}
+        {:ok, %{"errors" => errs}} -> {:error, {:graphql_error, errs}}
+        {:ok, _other} -> {:ok, []}
+        {:error, reason} -> {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Retrieves a single bite by ID with common fields.
+  """
+  @spec get_bite(String.t()) :: {:ok, bite()} | {:error, term()}
+  def get_bite(bite_id) when is_binary(bite_id) do
+    with {:ok, token} <- token() do
+      query = """
+      query Bite($biteId: ID!) {
+        bite(id: $biteId) {
+          id
+          transcript_id
+          name
+          status
+          summary
+          start_time
+          end_time
+          summary_status
+          media_type
+          created_at
+          created_from { id name type description duration }
+        }
+      }
+      """
+
+      case post_graphql(token, query, %{"biteId" => bite_id}) do
+        {:ok, %{"data" => %{"bite" => bite}}} when is_map(bite) -> {:ok, bite}
+        {:ok, %{"errors" => errs}} -> {:error, {:graphql_error, errs}}
+        {:ok, _other} -> {:error, :not_found}
+        {:error, reason} -> {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Retrieves summary information for a transcript.
+
+  Currently returns a map with keys:
+    * `:notes` - text from the bite summary when available
+    * `:action_items` - currently an empty list (AI Apps integration to be added)
+  """
+  @spec get_summary_for_transcript(String.t()) :: {:ok, %{notes: String.t() | nil, action_items: [String.t()]}} | {:error, term()}
+  def get_summary_for_transcript(transcript_id) when is_binary(transcript_id) do
+    with {:ok, token} <- token() do
+      query = """
+      query TranscriptBites($transcript_id: ID!, $limit: Int) {
+        bites(transcript_id: $transcript_id, limit: $limit) {
+          id
+          transcript_id
+          summary
+          end_time
+        }
+      }
+      """
+
+      variables = %{"transcript_id" => transcript_id, "limit" => 1}
+
+      case post_graphql(token, query, variables) do
+        {:ok, %{"data" => %{"bites" => [bite | _]}}} ->
+          {:ok, %{notes: Map.get(bite, "summary"), action_items: []}}
+
+        {:ok, %{"errors" => errs}} -> {:error, {:graphql_error, errs}}
+        {:ok, _other} -> {:ok, %{notes: nil, action_items: []}}
+        {:error, reason} -> {:error, reason}
+      end
+    end
+  end
+
+  # ============ Internals ============
+
+  defp post_graphql(token, query, variables) do
+    headers = [{"authorization", "Bearer #{token}"}, {"content-type", "application/json"}]
+
+    Logger.debug(fn ->
+      %{
+        msg: "fireflies.graphql.request",
+        query_preview: String.slice(String.replace(query, "\n", " "), 0, 120),
+        variables: variables
+      }
+      |> Jason.encode!()
+    end)
+
+    case post("", %{query: query, variables: variables}, headers: headers) do
+      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, body}
+      {:ok, %Tesla.Env{status: status, body: body}} -> {:error, {:http_error, status, body}}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp token do
+    conf = Application.get_env(:dashboard_ssd, :integrations, [])
+    token = Keyword.get(conf, :fireflies_api_token) || System.get_env("FIREFLIES_API_TOKEN")
+
+    if is_binary(token) and String.trim(token) != "" do
+      {:ok, String.trim(token) |> strip_bearer()}
+    else
+      {:error, {:missing_env, "FIREFLIES_API_TOKEN"}}
+    end
+  end
+
+  defp strip_bearer(token) do
+    token
+    |> String.replace_prefix("Bearer ", "")
+    |> String.replace_prefix("bearer ", "")
+  end
+
+  defp drop_nils(map) when is_map(map) do
+    map |> Enum.reject(fn {_k, v} -> is_nil(v) end) |> Map.new()
+  end
+
+  defp clamp(nil), do: nil
+  defp clamp(limit) when is_integer(limit) and limit > 50, do: 50
+  defp clamp(limit), do: limit
+end
+
