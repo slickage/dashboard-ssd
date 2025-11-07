@@ -296,16 +296,8 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
           %{
             msg: "fireflies.graphql.response",
             status: 200,
-            data_keys:
-              case body do
-                %{"data" => data} when is_map(data) -> Map.keys(data)
-                _ -> nil
-              end,
-            error_count:
-              case body do
-                %{"errors" => errs} when is_list(errs) -> length(errs)
-                _ -> 0
-              end
+            data: Map.get(body, "data"),
+            errors: Map.get(body, "errors")
           }
           |> Jason.encode!()
         end)
@@ -316,12 +308,7 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
           %{
             msg: "fireflies.graphql.response",
             status: status,
-            has_body: not is_nil(body),
-            error_count:
-              case body do
-                %{"errors" => errs} when is_list(errs) -> length(errs)
-                _ -> 0
-              end
+            body: body
           }
           |> Jason.encode!()
         end)
