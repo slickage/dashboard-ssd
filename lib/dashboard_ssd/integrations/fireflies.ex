@@ -6,7 +6,6 @@ defmodule DashboardSSD.Integrations.Fireflies do
 
   require Logger
   alias DashboardSSD.Meetings.CacheStore
-  alias DashboardSSD.Meetings.Parsers.FirefliesParser
 
   @type artifacts :: %{
           accomplished: String.t() | nil,
@@ -16,6 +15,11 @@ defmodule DashboardSSD.Integrations.Fireflies do
   @doc """
   Fetches the latest completed meeting artifacts for a given recurring series.
   Results are cached via `Meetings.CacheStore`.
+
+  Note: We no longer parse freeform summary text locally. This function will
+  eventually call the Fireflies API to retrieve structured notes and
+  action_items directly. For now, it returns an empty placeholder until the
+  client implementation lands.
   """
   @spec fetch_latest_for_series(String.t(), keyword()) :: {:ok, artifacts()} | {:error, term()}
   def fetch_latest_for_series(series_id, opts \\ []) when is_binary(series_id) do
@@ -29,16 +33,9 @@ defmodule DashboardSSD.Integrations.Fireflies do
       end)
 
       # TODO: Replace with Fireflies API call using FIREFLIES_API_TOKEN
-      summary_text = nil
-      {:ok, parse_summary(summary_text)}
+      # Placeholder: return empty accomplished and no action items
+      {:ok, %{accomplished: nil, action_items: []}}
     end, ttl: ttl)
-  end
-
-  @doc "Parses a raw summary text into accomplished text and action items."
-  @spec parse_summary(String.t() | nil) :: artifacts()
-  def parse_summary(summary_text) do
-    {:ok, parsed} = FirefliesParser.split_summary(summary_text)
-    parsed
   end
 
   @doc """
