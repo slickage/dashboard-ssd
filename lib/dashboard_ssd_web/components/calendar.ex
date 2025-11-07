@@ -32,7 +32,7 @@ defmodule DashboardSSDWeb.CalendarComponents do
     ~H"""
     <%= if @compact do %>
       <div class="flex flex-col gap-1">
-        <div class="text-[11px] font-medium text-white/80">
+        <div class="text-sm font-medium text-white/80">
           {Calendar.strftime(@month, "%b %Y")}
         </div>
         <div class="grid grid-cols-7 gap-0.5 text-center text-[10px]">
@@ -65,7 +65,7 @@ defmodule DashboardSSDWeb.CalendarComponents do
       </div>
     <% else %>
       <div class="theme-card px-4 py-4 sm:px-6">
-        <div class="text-sm font-medium text-white/80">
+        <div class="text-lg font-medium text-white/80">
           {Calendar.strftime(@month, "%B %Y")}
         </div>
         <div class="mt-3 grid grid-cols-7 gap-1 text-center text-xs">
