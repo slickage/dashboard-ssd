@@ -291,9 +291,52 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
     end)
 
     case post("", %{query: query, variables: variables}, headers: headers) do
-      {:ok, %Tesla.Env{status: 200, body: body}} -> {:ok, body}
-      {:ok, %Tesla.Env{status: status, body: body}} -> {:error, {:http_error, status, body}}
-      {:error, reason} -> {:error, reason}
+      {:ok, %Tesla.Env{status: 200, body: body}} ->
+        Logger.debug(fn ->
+          %{
+            msg: "fireflies.graphql.response",
+            status: 200,
+            data_keys:
+              case body do
+                %{"data" => data} when is_map(data) -> Map.keys(data)
+                _ -> nil
+              end,
+            error_count:
+              case body do
+                %{"errors" => errs} when is_list(errs) -> length(errs)
+                _ -> 0
+              end
+          }
+          |> Jason.encode!()
+        end)
+        {:ok, body}
+
+      {:ok, %Tesla.Env{status: status, body: body}} ->
+        Logger.debug(fn ->
+          %{
+            msg: "fireflies.graphql.response",
+            status: status,
+            has_body: not is_nil(body),
+            error_count:
+              case body do
+                %{"errors" => errs} when is_list(errs) -> length(errs)
+                _ -> 0
+              end
+          }
+          |> Jason.encode!()
+        end)
+        {:error, {:http_error, status, body}}
+
+      {:error, reason} ->
+        Logger.debug(fn ->
+          %{
+            msg: "fireflies.graphql.response",
+            status: :error,
+            reason: inspect(reason)
+          }
+          |> Jason.encode!()
+        end)
+        {:error, reason}
     end
   end
 
