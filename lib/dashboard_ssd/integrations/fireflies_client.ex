@@ -136,6 +136,93 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
     end
   end
 
+  @doc """
+  Lists transcripts with optional filters and includes summary fields.
+
+  Options (subset, subject to Fireflies API constraints):
+    * `:mine` - boolean; filter to API key owner
+    * `:organizers` - [String]
+    * `:participants` - [String]
+    * `:from_date` - ISO 8601 string
+    * `:to_date` - ISO 8601 string
+    * `:limit` - integer (max 50)
+    * `:skip` - integer
+  """
+  @spec list_transcripts(keyword()) :: {:ok, [map()]} | {:error, term()}
+  def list_transcripts(opts \\ []) do
+    with {:ok, token} <- token() do
+      query = """
+      query Transcripts($mine: Boolean, $organizers: [String], $participants: [String], $fromDate: String, $toDate: String, $limit: Int, $skip: Int) {
+        transcripts(mine: $mine, organizers: $organizers, participants: $participants, fromDate: $fromDate, toDate: $toDate, limit: $limit, skip: $skip) {
+          id
+          title
+          date
+          summary {
+            action_items
+            overview
+            short_summary
+            short_overview
+            bullet_gist
+          }
+        }
+      }
+      """
+
+      variables = %{
+        "mine" => Keyword.get(opts, :mine, true),
+        "organizers" => Keyword.get(opts, :organizers),
+        "participants" => Keyword.get(opts, :participants),
+        "fromDate" => Keyword.get(opts, :from_date),
+        "toDate" => Keyword.get(opts, :to_date),
+        "limit" => clamp(Keyword.get(opts, :limit, 10)),
+        "skip" => Keyword.get(opts, :skip)
+      }
+      |> drop_nils()
+
+      case post_graphql(token, query, variables) do
+        {:ok, %{"data" => %{"transcripts" => list}}} when is_list(list) -> {:ok, list}
+        {:ok, %{"errors" => errs}} -> {:error, {:graphql_error, errs}}
+        {:ok, _} -> {:ok, []}
+        {:error, reason} -> {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Retrieves a single transcript with summary fields.
+  Returns {:ok, %{notes: text | nil, action_items: [String]}}.
+  Notes prefer `summary.overview` then `summary.short_summary`.
+  """
+  @spec get_transcript_summary(String.t()) :: {:ok, %{notes: String.t() | nil, action_items: [String.t()]}} | {:error, term()}
+  def get_transcript_summary(transcript_id) when is_binary(transcript_id) do
+    with {:ok, token} <- token() do
+      query = """
+      query Transcript($transcriptId: String!) {
+        transcript(id: $transcriptId) {
+          id
+          title
+          summary {
+            action_items
+            overview
+            short_summary
+          }
+        }
+      }
+      """
+
+      case post_graphql(token, query, %{"transcriptId" => transcript_id}) do
+        {:ok, %{"data" => %{"transcript" => %{"summary" => summary}}}} when is_map(summary) ->
+          action_items = Map.get(summary, "action_items") || []
+          notes = Map.get(summary, "overview") || Map.get(summary, "short_summary")
+          {:ok, %{notes: notes, action_items: action_items}}
+
+        {:ok, %{"errors" => errs}} -> {:error, {:graphql_error, errs}}
+        {:ok, _other} -> {:ok, %{notes: nil, action_items: []}}
+        {:error, reason} -> {:error, reason}
+      end
+    end
+  end
+
   # ============ Internals ============
 
   defp post_graphql(token, query, variables) do
@@ -182,4 +269,3 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
   defp clamp(limit) when is_integer(limit) and limit > 50, do: 50
   defp clamp(limit), do: limit
 end
-
