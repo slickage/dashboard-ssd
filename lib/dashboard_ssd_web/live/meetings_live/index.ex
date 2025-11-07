@@ -92,6 +92,13 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
         _ -> []
       end
 
+    # Build a Date => has_meetings? map for the current month range
+    has_meetings =
+      meetings
+      |> Enum.map(fn m -> DateTime.to_date(m.start_at) end)
+      |> Enum.frequencies()
+      |> Map.new(fn {date, _} -> {date, true} end)
+
     # Build read-only consolidated agenda text per meeting (manual items if present, otherwise latest Fireflies action items)
     agenda_texts =
       Enum.reduce(meetings, %{}, fn m, acc ->
@@ -208,6 +215,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
               end_date={@range_end}
               compact={true}
               on_day_click="calendar_pick"
+              has_meetings={has_meetings}
             />
           </div>
         </div>
