@@ -10,18 +10,17 @@ Scope: specs/001-add-meetings-fireflies
 - Next: pull previous meeting’s action items into the agenda field for the next occurrence.
 
 ## Current State Snapshot
-- Parser exists: `lib/dashboard_ssd/meetings/parsers/fireflies_parser.ex` splits a freeform summary into `accomplished` and `action_items`.
 - Cache exists: `lib/dashboard_ssd/meetings/cache_store.ex` wraps ETS cache for meetings.
 - UI calls Fireflies: 
   - List view builds agenda text using `DashboardSSD.Integrations.Fireflies.fetch_latest_for_series/2` when no manual agenda exists (`lib/dashboard_ssd_web/live/meetings_live/index.ex:62`, `:78`).
   - Detail modal shows last summary + action items using the same fetch (`lib/dashboard_ssd_web/live/meeting_live/detail_component.ex:24`, `:166`).
-- Fireflies boundary is stubbed: `lib/dashboard_ssd/integrations/fireflies.ex` has TODO; it returns empty artifacts.
+- Fireflies boundary is stubbed: `lib/dashboard_ssd/integrations/fireflies.ex` has TODO; it returns empty artifacts (parser removed).
 - Env var present: `example.env` includes `FIREFLIES_API_TOKEN`, but `config/runtime.exs` does not yet wire it into the `:integrations` config.
 - Meetings storage exists: `agenda_items` and `meeting_associations` tables + contexts.
 
 ## Key Design Choices
 - API: Use Fireflies GraphQL endpoint `https://api.fireflies.ai/graphql` with Bearer token.
-- Fetch strategy: Get latest processed “bite” (meeting) in the series, retrieve its summary text, and parse action items.
+- Fetch strategy: Get latest processed “bite” (meeting) in the series and use structured fields (Summary schema) for notes and action_items when available; avoid local text parsing.
 - Series matching: Prefer exact link if `created_from.id` equals a stable calendar meeting identifier; otherwise use title/time hints to match recent bites and cache the transcript mapping per series for reuse.
 - Caching: Cache series artifacts via `Meetings.CacheStore` with configurable TTL (default 24h), plus explicit refresh.
 
@@ -39,35 +38,35 @@ Scope: specs/001-add-meetings-fireflies
   - `get_bite(id) :: {:ok, map()} | {:error, term()}`
     - Returns fields incl. `summary`, `summary_status`, `created_from`.
   - `get_summary_for_transcript(transcript_id) :: {:ok, %{notes: String.t() | nil, action_items: [String.t()]}} | {:error, term()}`
-    - First try AI Apps outputs (Summary schema) if accessible; fallback to `bite.summary` text.
+    - Use AI Apps Summary schema fields for notes/action_items when available; no local parsing.
 
-3) Implement series-aware fetch in boundary
+3) Implement minimal boundary fetch to support debugging
 - Expand `DashboardSSD.Integrations.Fireflies.fetch_latest_for_series(series_id, opts \\ [])`:
   - Accept hints: `:title` (string), `:lookback_days` (default 90), `:limit` (default 25), `:ttl` (forward to cache).
-  - Cache key: `{:series_artifacts, series_id}` via `Meetings.CacheStore.fetch/3`.
+  - For debug readiness, start without UI wiring and with a simple selection of latest bite (e.g., `mine: true`, `limit: N`).
+  - Later steps will refine matching and caching.
   - Resolution algorithm (in order):
     1. If cache has `{:series_map, series_id} => transcript_id`, use it directly.
     2. Query recent bites (mine: true, limit N). Prefer those with `created_from.id == series_id` when present.
     3. Fallback: fuzzy match by normalized title tokens within time window; pick latest `end_time`.
-  - Once bite/transcript identified, fetch summary text and action items; parse with `FirefliesParser.split_summary/1` when only freeform text is available. Cache result and `{:series_map, series_id} => transcript_id` for future.
+  - Once bite/transcript identified, fetch structured notes/action items (or fallback summary text minimally) and return without local parsing.
 
-4) Pass title hints from UI
-- In `lib/dashboard_ssd_web/live/meetings_live/index.ex`: when deriving agenda text per meeting, call `Fireflies.fetch_latest_for_series(m.recurring_series_id, title: m.title)`.
-- In `lib/dashboard_ssd_web/live/meeting_live/detail_component.ex`: call `Fireflies.fetch_latest_for_series(series_id, title: title)`.
-
-5) IEx debug helpers
+4) IEx debug helpers (move earlier for backend verification)
 - Add in `DashboardSSD.Integrations.Fireflies`:
   - `debug_list_bites(opts \\ [mine: true, limit: 10])`
   - `debug_summary_for_transcript(transcript_id)` → returns notes text
   - `debug_action_items_for_transcript(transcript_id)` → returns array of items
-- Purpose: quick manual checks during development (`iex -S mix`).
+- Purpose: verify backend functionality in IEx before any UI wiring.
+
+5) Pass title hints from UI
+- In `lib/dashboard_ssd_web/live/meetings_live/index.ex`: when deriving agenda text per meeting, call `Fireflies.fetch_latest_for_series(m.recurring_series_id, title: m.title)`.
+- In `lib/dashboard_ssd_web/live/meeting_live/detail_component.ex`: call `Fireflies.fetch_latest_for_series(series_id, title: title)`.
 
 6) Caching and refresh
 - Default TTL: 24h for series artifacts (configurable via opts).
 - `refresh_series(series_id, opts \\ [])` keeps interface (already present) → delete cache + refetch.
 
 7) Tests
-- Parser: add cases for summaries with/without “Action Items” section; trimming, dedup.
 - Client: stub responses; map bites to internal shape; ensure token scrubbed from logs.
 - Boundary: with a stubbed client, verify hint-based selection and caching behavior.
 
@@ -98,13 +97,13 @@ Scope: specs/001-add-meetings-fireflies
 ## Rough Task Breakdown (suggested commit order)
 1. Runtime config: wire `FIREFLIES_API_TOKEN` into `:integrations`.
 2. Client: add `FirefliesClient` with queries and token handling.
-3. Boundary: implement `fetch_latest_for_series/2` with hints + cache, `refresh_series/2`.
-4. UI: pass title hints to the boundary in index + detail components.
-5. IEx helpers: add helpers and doc snippets.
-6. Tests: parser + client mapping + boundary selection with stubs.
-7. Docs: quickstart and env note.
+3. Boundary (minimal): implement functions needed for IEx to fetch bites/summary for a series.
+4. IEx helpers: add helpers and doc snippets (verify backend works in IEx).
+5. Boundary (full): refine matching + add caching + refresh.
+6. UI: pass title hints and wire to boundary in index + detail components.
+7. Tests: client mapping + boundary selection with stubs.
+8. Docs: quickstart and env note.
 
 ---
 
 Please review and suggest adjustments (e.g., different matching strategy, cache TTL, IEx helper names), and I’ll proceed to implement Phase 1.
-
