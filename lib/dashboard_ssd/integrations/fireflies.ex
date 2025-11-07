@@ -33,22 +33,25 @@ defmodule DashboardSSD.Integrations.Fireflies do
     # Default to 24h unless explicitly overridden
     ttl = Keyword.get(opts, :ttl, :timer.hours(24))
 
-    CacheStore.fetch(
-      key,
-      fn ->
-        Logger.debug(fn ->
-          %{msg: "fireflies.fetch_latest_for_series/2", series_id: series_id}
-          |> Jason.encode!()
-        end)
+    CacheStore.fetch(key, fn ->
+      Logger.debug(fn ->
+        %{msg: "fireflies.fetch_latest_for_series/2", series_id: series_id}
+        |> Jason.encode!()
+      end)
 
-        # Retrieval order: DB → API (ETS handled by CacheStore)
+      # Retrieval order: DB → API (ETS handled by CacheStore)
+      result =
         case FirefliesStore.get(series_id) do
           {:ok, art} -> {:ok, art}
           :not_found -> do_fetch_latest_for_series(series_id, opts)
         end
-      end,
-      ttl: ttl
-    )
+
+      case result do
+        {:error, _} = err -> err
+        {:rate_limited, _} = rl -> {:error, rl}
+        other -> other
+      end
+    end, ttl: ttl)
   end
 
   @doc """
