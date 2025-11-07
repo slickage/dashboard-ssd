@@ -207,6 +207,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
               start_date={@range_start}
               end_date={@range_end}
               compact={true}
+              on_day_click="calendar_pick"
             />
           </div>
         </div>
@@ -454,6 +455,20 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
     new_start = Date.add(start_date, len)
     new_end = Date.add(end_date, len)
     {:noreply, push_patch_to_range(socket, new_start, new_end)}
+  end
+
+  @impl true
+  def handle_event("calendar_pick", %{"date" => iso}, socket) do
+    with {:ok, d} <- Date.from_iso8601(to_string(iso)) do
+      start_date = socket.assigns.range_start
+      end_date = socket.assigns.range_end
+      len = Date.diff(end_date, start_date) + 1
+      new_start = d
+      new_end = Date.add(new_start, max(len - 1, 0))
+      {:noreply, push_patch_to_range(socket, new_start, new_end)}
+    else
+      _ -> {:noreply, socket}
+    end
   end
 
   @impl true
