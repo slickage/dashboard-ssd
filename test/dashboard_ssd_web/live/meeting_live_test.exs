@@ -20,5 +20,18 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
     assert html =~ "Meeting"
   end
 
+  test "shows inline rate limit message in meeting detail" do
+    # Mock Fireflies to return rate-limited error for any query
+    Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
+      %Tesla.Env{status: 200, body: %{"data" => nil, "errors" => [
+        %{"code" => "too_many_requests", "message" => "Too many requests. Please retry after 02:34:56 AM (UTC)",
+          "extensions" => %{"code" => "too_many_requests", "status" => 429}}
+      ]}}
+    end)
+
+    {:ok, _view, html} = live(build_conn(), ~p"/meetings/evt-1?series_id=series-1&title=Weekly")
+    assert html =~ "Last meeting summary"
+    assert html =~ "Too many requests"
+  end
   # What to bring section removed in favor of a single freeform agenda field
 end
