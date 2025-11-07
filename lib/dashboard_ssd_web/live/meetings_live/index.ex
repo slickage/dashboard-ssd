@@ -7,6 +7,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
   alias DashboardSSD.Meetings.{Agenda, Associations}
   alias DashboardSSD.{Clients, Projects}
   alias DashboardSSDWeb.DateHelpers
+  alias DashboardSSD.Meetings.CacheStore
   import DashboardSSDWeb.CalendarComponents, only: [month_calendar: 1]
   require Logger
 
@@ -77,17 +78,39 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
         _ -> []
       end
 
-    # Build a Date => has_meetings? map for the current month range
-    has_meetings =
-      meetings
-      |> Enum.map(fn m -> DateTime.to_date(m.start_at) end)
-      |> Enum.frequencies()
-      |> Map.new(fn {date, _} -> {date, true} end)
-
     # Compute previous, current, next months for calendar strip (anchor on selected month)
     cal_anchor = %Date{year: selected_date.year, month: selected_date.month, day: 1}
-
     {month_prev, month_curr, month_next} = month_triplet(cal_anchor)
+
+    # Build a Date => has_meetings? map for all three months (cached 5 minutes)
+    month_prev_start = %Date{year: month_prev.year, month: month_prev.month, day: 1}
+    last_day_next = :calendar.last_day_of_the_month(month_next.year, month_next.month)
+    month_next_end = %Date{year: month_next.year, month: month_next.month, day: last_day_next}
+
+    {:ok, range3_start} = DateTime.new(month_prev_start, ~T[00:00:00], "Etc/UTC")
+    {:ok, range3_end} = DateTime.new(month_next_end, ~T[23:59:59], "Etc/UTC")
+
+    user_id = (socket.assigns.current_user && socket.assigns.current_user.id) || :anon
+    key = {:gcal_has_event_days, user_id, {month_prev_start, month_next_end}, tz_offset}
+    ttl = :timer.minutes(5)
+
+    {:ok, has_meetings} =
+      CacheStore.fetch(key, fn ->
+        opts = if mock?, do: [mock: :sample], else: []
+        case Integrations.calendar_list_upcoming_for_user(socket.assigns.current_user || %{}, range3_start, range3_end, opts) do
+          {:ok, list} when is_list(list) ->
+            tz = tz_offset || 0
+            dates =
+              Enum.reduce(list, MapSet.new(), fn e, acc ->
+                s = DateTime.add(e.start_at, tz * 60, :second) |> DateTime.to_date()
+                en = DateTime.add(e.end_at, tz * 60, :second) |> DateTime.to_date()
+                expand_dates(s, en, acc)
+              end)
+            {:ok, Map.new(dates, fn d -> {d, true} end)}
+
+          _ -> {:ok, %{}}
+        end
+      end, ttl: ttl)
 
     # Build read-only consolidated agenda text per meeting (manual items if present, otherwise latest Fireflies action items)
     agenda_texts =
@@ -186,7 +209,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
             <!-- Removed manual range prev/next and date inputs; selection driven by calendar -->
             <div class="flex items-start gap-2">
               <button type="button" phx-click="cal_prev_month" class="px-2 py-1 rounded border border-white/10 text-xs hover:bg-white/5" aria-label="Previous months">‹</button>
-              <div class="grid grid-cols-3 gap-4">
+            <div class="grid grid-cols-3 gap-4">
               <.month_calendar
                 month={@month_prev}
                 today={Date.utc_today()}
@@ -196,15 +219,17 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                 on_day_click="calendar_pick"
                 has_meetings={@has_meetings}
               />
-              <.month_calendar
-                month={@month_curr}
-                today={Date.utc_today()}
-                start_date={@range_start}
-                end_date={@range_end}
-                compact={true}
-                on_day_click="calendar_pick"
-                has_meetings={@has_meetings}
-              />
+              <div class="rounded-md border border-white/10 p-2">
+                <.month_calendar
+                  month={@month_curr}
+                  today={Date.utc_today()}
+                  start_date={@range_start}
+                  end_date={@range_end}
+                  compact={true}
+                  on_day_click="calendar_pick"
+                  has_meetings={@has_meetings}
+                />
+              </div>
               <.month_calendar
                 month={@month_next}
                 today={Date.utc_today()}
@@ -214,7 +239,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                 on_day_click="calendar_pick"
                 has_meetings={@has_meetings}
               />
-              </div>
+            </div>
               <button type="button" phx-click="cal_next_month" class="px-2 py-1 rounded border border-white/10 text-xs hover:bg-white/5" aria-label="Next months">›</button>
             </div>
           </div>
@@ -541,5 +566,12 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
     Phoenix.LiveView.push_patch(socket,
       to: ~p"/meetings" <> if(qs == "", do: "", else: "?" <> qs)
     )
+  end
+
+  defp expand_dates(s, e, acc) do
+    case Date.compare(s, e) do
+      :gt -> acc
+      _ -> expand_dates(Date.add(s, 1), e, MapSet.put(acc, s))
+    end
   end
 end
