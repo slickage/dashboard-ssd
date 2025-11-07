@@ -209,37 +209,41 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
             <!-- Removed manual range prev/next and date inputs; selection driven by calendar -->
             <div class="flex items-start gap-2">
               <button type="button" phx-click="cal_prev_month" class="px-2 py-1 rounded border border-white/10 text-xs hover:bg-white/5" aria-label="Previous months">‹</button>
-            <div class="grid grid-cols-3 gap-4">
-              <.month_calendar
-                month={@month_prev}
-                today={Date.utc_today()}
-                start_date={@range_start}
-                end_date={@range_end}
-                compact={true}
-                on_day_click="calendar_pick"
-                has_meetings={@has_meetings}
-              />
-              <div class="rounded-md border border-white/10 p-2">
-                <.month_calendar
-                  month={@month_curr}
-                  today={Date.utc_today()}
-                  start_date={@range_start}
-                  end_date={@range_end}
-                  compact={true}
-                  on_day_click="calendar_pick"
-                  has_meetings={@has_meetings}
-                />
+              <div class="grid grid-cols-3 gap-4">
+                <div class="p-2 rounded-md">
+                  <.month_calendar
+                    month={@month_prev}
+                    today={Date.utc_today()}
+                    start_date={@range_start}
+                    end_date={@range_end}
+                    compact={true}
+                    on_day_click="calendar_pick"
+                    has_meetings={@has_meetings}
+                  />
+                </div>
+                <div class="p-2 rounded-md ring-2 ring-theme-primary">
+                  <.month_calendar
+                    month={@month_curr}
+                    today={Date.utc_today()}
+                    start_date={@range_start}
+                    end_date={@range_end}
+                    compact={true}
+                    on_day_click="calendar_pick"
+                    has_meetings={@has_meetings}
+                  />
+                </div>
+                <div class="p-2 rounded-md">
+                  <.month_calendar
+                    month={@month_next}
+                    today={Date.utc_today()}
+                    start_date={@range_start}
+                    end_date={@range_end}
+                    compact={true}
+                    on_day_click="calendar_pick"
+                    has_meetings={@has_meetings}
+                  />
+                </div>
               </div>
-              <.month_calendar
-                month={@month_next}
-                today={Date.utc_today()}
-                start_date={@range_start}
-                end_date={@range_end}
-                compact={true}
-                on_day_click="calendar_pick"
-                has_meetings={@has_meetings}
-              />
-            </div>
               <button type="button" phx-click="cal_next_month" class="px-2 py-1 rounded border border-white/10 text-xs hover:bg-white/5" aria-label="Next months">›</button>
             </div>
           </div>
