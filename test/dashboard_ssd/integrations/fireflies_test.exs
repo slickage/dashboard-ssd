@@ -4,7 +4,6 @@ defmodule DashboardSSD.Integrations.FirefliesTest do
   """
   use DashboardSSD.DataCase, async: false
 
-  import Ecto.Query
   alias DashboardSSD.Repo
   alias DashboardSSD.Meetings.CacheStore
   alias DashboardSSD.Meetings.FirefliesArtifact
