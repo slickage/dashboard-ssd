@@ -16,4 +16,3 @@ defmodule DashboardSSD.Repo.Migrations.CreateFirefliesArtifacts do
     create index(:fireflies_artifacts, [:transcript_id])
   end
 end
-

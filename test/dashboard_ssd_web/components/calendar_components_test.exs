@@ -31,7 +31,13 @@ defmodule DashboardSSDWeb.CalendarComponentsTest do
 
     html =
       rendered_to_string(~H"""
-      <.month_calendar month={@month} today={@today} start_date={@start_date} end_date={@end_date} compact={false} />
+      <.month_calendar
+        month={@month}
+        today={@today}
+        start_date={@start_date}
+        end_date={@end_date}
+        compact={false}
+      />
       """)
 
     assert html =~ ">Sun<"
@@ -57,4 +63,3 @@ defmodule DashboardSSDWeb.CalendarComponentsTest do
     assert html =~ "ring-theme-primary"
   end
 end
-

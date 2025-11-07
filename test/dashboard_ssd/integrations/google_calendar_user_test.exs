@@ -14,7 +14,9 @@ defmodule DashboardSSD.Integrations.GoogleCalendarUserTest do
     System.delete_env("GOOGLE_OAUTH_TOKEN")
 
     on_exit(fn ->
-      if prev_env, do: System.put_env("GOOGLE_OAUTH_TOKEN", prev_env), else: System.delete_env("GOOGLE_OAUTH_TOKEN")
+      if prev_env,
+        do: System.put_env("GOOGLE_OAUTH_TOKEN", prev_env),
+        else: System.delete_env("GOOGLE_OAUTH_TOKEN")
     end)
 
     :ok
@@ -25,12 +27,24 @@ defmodule DashboardSSD.Integrations.GoogleCalendarUserTest do
 
     Repo.insert!(
       %ExternalIdentity{}
-      |> ExternalIdentity.changeset(%{user_id: user.id, provider: "google", provider_id: "uid", token: "tok-user"})
+      |> ExternalIdentity.changeset(%{
+        user_id: user.id,
+        provider: "google",
+        provider_id: "uid",
+        token: "tok-user"
+      })
     )
 
     Tesla.Mock.mock(fn
-      %{method: :get, url: "https://www.googleapis.com/calendar/v3/calendars/primary/events", headers: headers} ->
-        assert Enum.any?(headers, fn {k, v} -> k == "authorization" and String.starts_with?(v, "Bearer ") end)
+      %{
+        method: :get,
+        url: "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        headers: headers
+      } ->
+        assert Enum.any?(headers, fn {k, v} ->
+                 k == "authorization" and String.starts_with?(v, "Bearer ")
+               end)
+
         %Tesla.Env{status: 200, body: %{"items" => []}}
     end)
 

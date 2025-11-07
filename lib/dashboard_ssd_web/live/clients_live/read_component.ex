@@ -7,10 +7,15 @@ defmodule DashboardSSDWeb.ClientsLive.ReadComponent do
   @impl true
   def update(assigns, socket) do
     id = assigns[:id] || assigns[:client_id]
+
     client =
       case id do
-        nil -> nil
-        v when is_integer(v) -> Clients.get_client!(v)
+        nil ->
+          nil
+
+        v when is_integer(v) ->
+          Clients.get_client!(v)
+
         v when is_binary(v) ->
           case Integer.parse(v) do
             {n, _} -> Clients.get_client!(n)
@@ -30,16 +35,16 @@ defmodule DashboardSSDWeb.ClientsLive.ReadComponent do
         <div class="grid grid-cols-1 gap-3">
           <div>
             <div class="text-xs uppercase tracking-wider text-theme-muted">Name</div>
-            <div class="text-white/90"><%= @client.name %></div>
+            <div class="text-white/90">{@client.name}</div>
           </div>
           <div class="grid grid-cols-2 gap-3 text-sm">
             <div>
               <div class="text-xs uppercase tracking-wider text-theme-muted">Created</div>
-              <div class="text-white/70"><%= @client.inserted_at %></div>
+              <div class="text-white/70">{@client.inserted_at}</div>
             </div>
             <div>
               <div class="text-xs uppercase tracking-wider text-theme-muted">Updated</div>
-              <div class="text-white/70"><%= @client.updated_at %></div>
+              <div class="text-white/70">{@client.updated_at}</div>
             </div>
           </div>
         </div>
@@ -50,4 +55,3 @@ defmodule DashboardSSDWeb.ClientsLive.ReadComponent do
     """
   end
 end
-

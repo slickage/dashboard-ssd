@@ -16,8 +16,13 @@ defmodule DashboardSSD.Integrations.GoogleTokenTest do
 
     on_exit(fn ->
       case prev do
-        {nil, nil} -> (System.delete_env("GOOGLE_CLIENT_ID"); System.delete_env("GOOGLE_CLIENT_SECRET"))
-        {cid, csec} -> (System.put_env("GOOGLE_CLIENT_ID", cid || ""); System.put_env("GOOGLE_CLIENT_SECRET", csec || ""))
+        {nil, nil} ->
+          System.delete_env("GOOGLE_CLIENT_ID")
+          System.delete_env("GOOGLE_CLIENT_SECRET")
+
+        {cid, csec} ->
+          System.put_env("GOOGLE_CLIENT_ID", cid || "")
+          System.put_env("GOOGLE_CLIENT_SECRET", csec || "")
       end
     end)
 
@@ -27,7 +32,13 @@ defmodule DashboardSSD.Integrations.GoogleTokenTest do
   test "returns existing token when not expired" do
     user = Repo.insert!(%User{name: "A", email: "a@example.com"})
     future = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.add(3600, :second)
-    Repo.insert!(%ExternalIdentity{user_id: user.id, provider: "google", token: "tok", expires_at: future})
+
+    Repo.insert!(%ExternalIdentity{
+      user_id: user.id,
+      provider: "google",
+      token: "tok",
+      expires_at: future
+    })
 
     assert {:ok, "tok"} = GoogleToken.get_access_token_for_user(user.id)
   end
@@ -35,7 +46,15 @@ defmodule DashboardSSD.Integrations.GoogleTokenTest do
   test "refreshes expired token with refresh_token" do
     user = Repo.insert!(%User{name: "B", email: "b@example.com"})
     past = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.add(-60, :second)
-    idn = Repo.insert!(%ExternalIdentity{user_id: user.id, provider: "google", token: "old", refresh_token: "r1", expires_at: past})
+
+    idn =
+      Repo.insert!(%ExternalIdentity{
+        user_id: user.id,
+        provider: "google",
+        token: "old",
+        refresh_token: "r1",
+        expires_at: past
+      })
 
     Tesla.Mock.mock(fn
       %{method: :post, url: "https://oauth2.googleapis.com/token", body: _body} ->

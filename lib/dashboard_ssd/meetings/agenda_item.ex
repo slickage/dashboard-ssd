@@ -31,4 +31,3 @@ defmodule DashboardSSD.Meetings.AgendaItem do
     |> validate_inclusion(:source, ["manual", "derived"])
   end
 end
-

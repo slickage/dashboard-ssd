@@ -14,9 +14,9 @@ defmodule DashboardSSD.Repo.Migrations.CreateMeetingAssociations do
 
     create index(:meeting_associations, [:calendar_event_id])
     create index(:meeting_associations, [:recurring_series_id])
+
     create constraint(:meeting_associations, :client_or_project_must_be_set,
              check: "(client_id IS NOT NULL) OR (project_id IS NOT NULL)"
            )
   end
 end
-

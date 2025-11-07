@@ -35,7 +35,14 @@ defmodule DashboardSSD.Meetings.FirefliesArtifact do
     attrs = normalize_action_items_attr(attrs)
 
     artifact
-    |> cast(attrs, [:recurring_series_id, :transcript_id, :accomplished, :bullet_gist, :action_items, :fetched_at])
+    |> cast(attrs, [
+      :recurring_series_id,
+      :transcript_id,
+      :accomplished,
+      :bullet_gist,
+      :action_items,
+      :fetched_at
+    ])
     |> validate_required([:recurring_series_id])
     |> unique_constraint(:recurring_series_id)
   end
@@ -52,5 +59,6 @@ defmodule DashboardSSD.Meetings.FirefliesArtifact do
         attrs
     end
   end
+
   defp normalize_action_items_attr(attrs), do: attrs
 end

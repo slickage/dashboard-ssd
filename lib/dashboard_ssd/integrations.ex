@@ -154,7 +154,12 @@ defmodule DashboardSSD.Integrations do
   Returns `{:error, :no_token}` when no usable token is available and `:mock`
   is not set.
   """
-  @spec calendar_list_upcoming_for_user(pos_integer() | %{id: pos_integer()}, DateTime.t(), DateTime.t(), keyword()) ::
+  @spec calendar_list_upcoming_for_user(
+          pos_integer() | %{id: pos_integer()},
+          DateTime.t(),
+          DateTime.t(),
+          keyword()
+        ) ::
           {:ok, list()} | {:error, term()}
   def calendar_list_upcoming_for_user(user_or_id, start_at, end_at, opts \\ []) do
     # Allow mock path without token and without caching (deterministic QA)
@@ -168,17 +173,25 @@ defmodule DashboardSSD.Integrations do
           _ -> nil
         end
 
-      key = {:gcal, user_id, {Date.to_iso8601(DateTime.to_date(start_at)), Date.to_iso8601(DateTime.to_date(end_at))}}
+      key =
+        {:gcal, user_id,
+         {Date.to_iso8601(DateTime.to_date(start_at)), Date.to_iso8601(DateTime.to_date(end_at))}}
+
       ttl = Keyword.get(opts, :ttl, :timer.minutes(5))
 
-      MeetingsCache.fetch(key, fn ->
-        with {:ok, token} <- DashboardSSD.Integrations.GoogleToken.get_access_token_for_user(user_id) do
-          GoogleCalendar.list_upcoming(start_at, end_at, Keyword.put(opts, :token, token))
-        else
-          {:error, _} = err -> err
-          _ -> {:error, :no_token}
-        end
-      end, ttl: ttl)
+      MeetingsCache.fetch(
+        key,
+        fn ->
+          with {:ok, token} <-
+                 DashboardSSD.Integrations.GoogleToken.get_access_token_for_user(user_id) do
+            GoogleCalendar.list_upcoming(start_at, end_at, Keyword.put(opts, :token, token))
+          else
+            {:error, _} = err -> err
+            _ -> {:error, :no_token}
+          end
+        end,
+        ttl: ttl
+      )
     end
   end
 

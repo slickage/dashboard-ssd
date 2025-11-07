@@ -33,17 +33,22 @@ defmodule DashboardSSD.Integrations.Fireflies do
     # Default to 24h unless explicitly overridden
     ttl = Keyword.get(opts, :ttl, :timer.hours(24))
 
-    CacheStore.fetch(key, fn ->
-      Logger.debug(fn ->
-        %{msg: "fireflies.fetch_latest_for_series/2", series_id: series_id}
-        |> Jason.encode!()
-      end)
-      # Retrieval order: DB → API (ETS handled by CacheStore)
-      case FirefliesStore.get(series_id) do
-        {:ok, art} -> {:ok, art}
-        :not_found -> do_fetch_latest_for_series(series_id, opts)
-      end
-    end, ttl: ttl)
+    CacheStore.fetch(
+      key,
+      fn ->
+        Logger.debug(fn ->
+          %{msg: "fireflies.fetch_latest_for_series/2", series_id: series_id}
+          |> Jason.encode!()
+        end)
+
+        # Retrieval order: DB → API (ETS handled by CacheStore)
+        case FirefliesStore.get(series_id) do
+          {:ok, art} -> {:ok, art}
+          :not_found -> do_fetch_latest_for_series(series_id, opts)
+        end
+      end,
+      ttl: ttl
+    )
   end
 
   @doc """
@@ -117,14 +122,18 @@ defmodule DashboardSSD.Integrations.Fireflies do
     |> Enum.sort_by(fn b -> Map.get(b, "created_at") || Map.get(b, :created_at) || "" end, :desc)
     |> List.first()
     |> case do
-      nil -> {:error, :not_found}
+      nil ->
+        {:error, :not_found}
+
       b ->
         tid = Map.get(b, "transcript_id") || Map.get(b, :transcript_id)
         if is_binary(tid) and tid != "", do: {:ok, tid}, else: {:error, :no_transcript}
     end
   end
 
-  defp fallback_by_title(_series_id, nil, _limit), do: {:ok, %{accomplished: nil, action_items: []}}
+  defp fallback_by_title(_series_id, nil, _limit),
+    do: {:ok, %{accomplished: nil, action_items: []}}
+
   defp fallback_by_title(series_id, title, limit) when is_binary(title) do
     case FirefliesClient.list_transcripts(limit: limit) do
       {:ok, transcripts} when is_list(transcripts) and transcripts != [] ->
@@ -133,10 +142,12 @@ defmodule DashboardSSD.Integrations.Fireflies do
             CacheStore.put({:series_map, series_id}, tid, :timer.hours(24))
             fetch_summary_for_transcript(series_id, tid)
 
-          _ -> {:ok, %{accomplished: nil, action_items: []}}
+          _ ->
+            {:ok, %{accomplished: nil, action_items: []}}
         end
 
-      _ -> {:ok, %{accomplished: nil, action_items: []}}
+      _ ->
+        {:ok, %{accomplished: nil, action_items: []}}
     end
   end
 
@@ -179,13 +190,24 @@ defmodule DashboardSSD.Integrations.Fireflies do
     case FirefliesClient.get_transcript_summary(transcript_id) do
       {:ok, %{notes: notes, action_items: items, bullet_gist: bullet}} ->
         # Only persist non-empty results
-        if (is_binary(notes) and String.trim(notes) != "") or (is_list(items) and items != []) or (is_binary(bullet) and String.trim(bullet) != "") do
-          :ok = FirefliesStore.upsert(series_id, %{transcript_id: transcript_id, accomplished: notes, action_items: items, bullet_gist: bullet})
+        if (is_binary(notes) and String.trim(notes) != "") or (is_list(items) and items != []) or
+             (is_binary(bullet) and String.trim(bullet) != "") do
+          :ok =
+            FirefliesStore.upsert(series_id, %{
+              transcript_id: transcript_id,
+              accomplished: notes,
+              action_items: items,
+              bullet_gist: bullet
+            })
         end
+
         {:ok, %{accomplished: notes, action_items: items || []}}
 
-      {:error, _} = err -> err
-      _ -> {:ok, %{accomplished: nil, action_items: []}}
+      {:error, _} = err ->
+        err
+
+      _ ->
+        {:ok, %{accomplished: nil, action_items: []}}
     end
   end
 end
