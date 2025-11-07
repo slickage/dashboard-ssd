@@ -173,7 +173,8 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
        range_start: start_date,
        range_end: end_date,
        loading: false,
-       tz_offset: tz_offset
+       tz_offset: tz_offset,
+       has_meetings: has_meetings
      )}
   end
 
@@ -215,7 +216,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
               end_date={@range_end}
               compact={true}
               on_day_click="calendar_pick"
-              has_meetings={has_meetings}
+              has_meetings={@has_meetings}
             />
           </div>
         </div>
