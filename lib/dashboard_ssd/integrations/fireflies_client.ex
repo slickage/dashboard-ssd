@@ -103,13 +103,14 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
   end
 
   @doc """
-  Retrieves summary information for a transcript.
+  Retrieves summary information for a transcript (via bites).
 
-  Currently returns a map with keys:
+  Returns a map with keys:
     * `:notes` - text from the bite summary when available
     * `:action_items` - currently an empty list (AI Apps integration to be added)
+    * `:bullet_gist` - always nil for bites path (not provided on this query)
   """
-  @spec get_summary_for_transcript(String.t()) :: {:ok, %{notes: String.t() | nil, action_items: [String.t()]}} | {:error, term()}
+  @spec get_summary_for_transcript(String.t()) :: {:ok, %{notes: String.t() | nil, action_items: [String.t()], bullet_gist: String.t() | nil}} | {:error, term()}
   def get_summary_for_transcript(transcript_id) when is_binary(transcript_id) do
     with {:ok, token} <- token() do
       query = """
@@ -127,10 +128,10 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
 
       case post_graphql(token, query, variables) do
         {:ok, %{"data" => %{"bites" => [bite | _]}}} ->
-          {:ok, %{notes: Map.get(bite, "summary"), action_items: []}}
+          {:ok, %{notes: Map.get(bite, "summary"), action_items: [], bullet_gist: nil}}
 
         {:ok, %{"errors" => errs}} -> {:error, {:graphql_error, errs}}
-        {:ok, _other} -> {:ok, %{notes: nil, action_items: []}}
+        {:ok, _other} -> {:ok, %{notes: nil, action_items: [], bullet_gist: nil}}
         {:error, reason} -> {:error, reason}
       end
     end
@@ -240,10 +241,10 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
 
   @doc """
   Retrieves a single transcript with summary fields.
-  Returns {:ok, %{notes: text | nil, action_items: [String]}}.
+  Returns {:ok, %{notes: text | nil, action_items: [String], bullet_gist: String | nil}}.
   Notes prefer `summary.overview` then `summary.short_summary`.
   """
-  @spec get_transcript_summary(String.t()) :: {:ok, %{notes: String.t() | nil, action_items: [String.t()]}} | {:error, term()}
+  @spec get_transcript_summary(String.t()) :: {:ok, %{notes: String.t() | nil, action_items: [String.t()], bullet_gist: String.t() | nil}} | {:error, term()}
   def get_transcript_summary(transcript_id) when is_binary(transcript_id) do
     with {:ok, token} <- token() do
       query = """
@@ -255,6 +256,7 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
             action_items
             overview
             short_summary
+            bullet_gist
           }
         }
       }
@@ -264,10 +266,11 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
         {:ok, %{"data" => %{"transcript" => %{"summary" => summary}}}} when is_map(summary) ->
           action_items = Map.get(summary, "action_items") || []
           notes = Map.get(summary, "overview") || Map.get(summary, "short_summary")
-          {:ok, %{notes: notes, action_items: action_items}}
+          bullet_gist = Map.get(summary, "bullet_gist")
+          {:ok, %{notes: notes, action_items: action_items, bullet_gist: bullet_gist}}
 
         {:ok, %{"errors" => errs}} -> {:error, {:graphql_error, errs}}
-        {:ok, _other} -> {:ok, %{notes: nil, action_items: []}}
+        {:ok, _other} -> {:ok, %{notes: nil, action_items: [], bullet_gist: nil}}
         {:error, reason} -> {:error, reason}
       end
     end
