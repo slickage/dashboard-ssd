@@ -452,11 +452,8 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
   @impl true
   def handle_event("calendar_pick", %{"date" => iso}, socket) do
     with {:ok, d} <- Date.from_iso8601(to_string(iso)) do
-      start_date = socket.assigns.range_start
-      end_date = socket.assigns.range_end
-      len = Date.diff(end_date, start_date) + 1
-      new_start = d
-      new_end = Date.add(new_start, max(len - 1, 0))
+      new_start = Date.add(d, -6)
+      new_end = Date.add(d, 6)
       # Center the clicked date's month as the anchor
       anchor = %Date{year: d.year, month: d.month, day: 1}
       {m_prev, m_curr, m_next} = month_triplet(anchor)
