@@ -25,30 +25,15 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
 
   @impl true
   def handle_params(params, _uri, socket) do
-    # Determine date range from params or default to next 14 days from today
-    start_date =
-      case Map.get(params, "start") do
-        nil ->
-          Date.utc_today()
-
-        s ->
-          case Date.from_iso8601(s) do
-            {:ok, d} -> d
-            _ -> Date.utc_today()
-          end
+    # Selected date drives a +/- 6 day window
+    selected_date =
+      case Map.get(params, "d") do
+        nil -> Date.utc_today()
+        s -> case Date.from_iso8601(s) do {:ok, d} -> d; _ -> Date.utc_today() end
       end
 
-    end_date =
-      case Map.get(params, "end") do
-        nil ->
-          Date.add(start_date, 13)
-
-        s ->
-          case Date.from_iso8601(s) do
-            {:ok, d} -> d
-            _ -> Date.add(start_date, 13)
-          end
-      end
+    start_date = Date.add(selected_date, -6)
+    end_date = Date.add(selected_date, 6)
 
     {:ok, start_dt} = DateTime.new(start_date, ~T[00:00:00], "Etc/UTC")
     {:ok, end_dt} = DateTime.new(end_date, ~T[23:59:59], "Etc/UTC")
@@ -99,12 +84,8 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
       |> Enum.frequencies()
       |> Map.new(fn {date, _} -> {date, true} end)
 
-    # Compute previous, current, next months for calendar strip (anchor on current month)
-    cal_anchor =
-      case Map.get(socket.assigns, :cal_anchor) do
-        %Date{} = d -> d
-        _ -> %Date{year: start_date.year, month: start_date.month, day: 1}
-      end
+    # Compute previous, current, next months for calendar strip (anchor on selected month)
+    cal_anchor = %Date{year: selected_date.year, month: selected_date.month, day: 1}
 
     {month_prev, month_curr, month_next} = month_triplet(cal_anchor)
 
@@ -202,26 +183,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
             <div class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted">
               Upcoming
             </div>
-            <div class="flex items-center gap-2">
-              <button phx-click="range_prev" class="underline text-sm">Prev</button>
-              <button phx-click="range_next" class="underline text-sm">Next</button>
-            </div>
-            <form phx-submit="range_set" class="flex items-center gap-2">
-              <input
-                type="date"
-                name="start"
-                value={Date.to_iso8601(@range_start)}
-                class="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs"
-              />
-              <span class="text-white/50 text-xs">to</span>
-              <input
-                type="date"
-                name="end"
-                value={Date.to_iso8601(@range_end)}
-                class="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs"
-              />
-              <button type="submit" class="underline text-sm">Apply</button>
-            </form>
+            <!-- Removed manual range prev/next and date inputs; selection driven by calendar -->
             <div class="flex items-start gap-2">
               <button type="button" phx-click="cal_prev_month" class="px-2 py-1 rounded border border-white/10 text-xs hover:bg-white/5" aria-label="Previous months">‹</button>
               <div class="grid grid-cols-3 gap-4">
@@ -286,10 +248,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                                # preserve existing query flags like mock=1
                                (Map.get(@params || %{}, "mock") && "mock=" <> Map.get(@params, "mock")) ||
                                  nil,
-                               (Map.get(@params || %{}, "start") &&
-                                  "start=" <> Map.get(@params, "start")) || nil,
-                               (Map.get(@params || %{}, "end") && "end=" <> Map.get(@params, "end")) ||
-                                 nil,
+                               (Map.get(@params || %{}, "d") && "d=" <> Map.get(@params, "d")) || nil,
                                (Map.get(@params || %{}, "tz") && "tz=" <> Map.get(@params, "tz")) ||
                                  nil,
                                # add modal-driving params
@@ -315,8 +274,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                                   ("?" <>
                                      ([
                                         (Map.get(@params || %{}, "mock") && "mock=" <> Map.get(@params, "mock")) || nil,
-                                        (Map.get(@params || %{}, "start") && "start=" <> Map.get(@params, "start")) || nil,
-                                        (Map.get(@params || %{}, "end") && "end=" <> Map.get(@params, "end")) || nil,
+                                        (Map.get(@params || %{}, "d") && "d=" <> Map.get(@params, "d")) || nil,
                                         (Map.get(@params || %{}, "tz") && "tz=" <> Map.get(@params, "tz")) || nil,
                                         "client_id=" <> to_string(c.id)
                                       ]
@@ -338,8 +296,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                                   ("?" <>
                                      ([
                                         (Map.get(@params || %{}, "mock") && "mock=" <> Map.get(@params, "mock")) || nil,
-                                        (Map.get(@params || %{}, "start") && "start=" <> Map.get(@params, "start")) || nil,
-                                        (Map.get(@params || %{}, "end") && "end=" <> Map.get(@params, "end")) || nil,
+                                        (Map.get(@params || %{}, "d") && "d=" <> Map.get(@params, "d")) || nil,
                                         (Map.get(@params || %{}, "tz") && "tz=" <> Map.get(@params, "tz")) || nil,
                                         "project_id=" <> to_string(p.id)
                                       ]
@@ -402,8 +359,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
             ~p"/meetings" <>
               ([
                  (Map.get(@params || %{}, "mock") && "?mock=" <> Map.get(@params, "mock")) || nil,
-                 (Map.get(@params || %{}, "start") && "start=" <> Map.get(@params, "start")) || nil,
-                 (Map.get(@params || %{}, "end") && "end=" <> Map.get(@params, "end")) || nil,
+                 (Map.get(@params || %{}, "d") && "d=" <> Map.get(@params, "d")) || nil,
                  (Map.get(@params || %{}, "tz") && "tz=" <> Map.get(@params, "tz")) || nil
                ]
                |> Enum.reject(&is_nil/1)
@@ -433,8 +389,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
             ~p"/meetings" <>
               ([
                  (Map.get(@params || %{}, "mock") && "?mock=" <> Map.get(@params, "mock")) || nil,
-                 (Map.get(@params || %{}, "start") && "start=" <> Map.get(@params, "start")) || nil,
-                 (Map.get(@params || %{}, "end") && "end=" <> Map.get(@params, "end")) || nil,
+                 (Map.get(@params || %{}, "d") && "d=" <> Map.get(@params, "d")) || nil,
                  (Map.get(@params || %{}, "tz") && "tz=" <> Map.get(@params, "tz")) || nil
                ]
                |> Enum.reject(&is_nil/1)
@@ -462,8 +417,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
             ~p"/meetings" <>
               ([
                  (Map.get(@params || %{}, "mock") && "?mock=" <> Map.get(@params, "mock")) || nil,
-                 (Map.get(@params || %{}, "start") && "start=" <> Map.get(@params, "start")) || nil,
-                 (Map.get(@params || %{}, "end") && "end=" <> Map.get(@params, "end")) || nil,
+                 (Map.get(@params || %{}, "d") && "d=" <> Map.get(@params, "d")) || nil,
                  (Map.get(@params || %{}, "tz") && "tz=" <> Map.get(@params, "tz")) || nil
                ]
                |> Enum.reject(&is_nil/1)
@@ -487,22 +441,12 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
 
   @impl true
   def handle_event("range_prev", _params, socket) do
-    start_date = socket.assigns.range_start
-    end_date = socket.assigns.range_end
-    len = Date.diff(end_date, start_date) + 1
-    new_start = Date.add(start_date, -len)
-    new_end = Date.add(end_date, -len)
-    {:noreply, push_patch_to_range(socket, new_start, new_end)}
+    {:noreply, socket}
   end
 
   @impl true
   def handle_event("range_next", _params, socket) do
-    start_date = socket.assigns.range_start
-    end_date = socket.assigns.range_end
-    len = Date.diff(end_date, start_date) + 1
-    new_start = Date.add(start_date, len)
-    new_end = Date.add(end_date, len)
-    {:noreply, push_patch_to_range(socket, new_start, new_end)}
+    {:noreply, socket}
   end
 
   @impl true
@@ -527,19 +471,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
 
   @impl true
   def handle_event("range_set", %{"start" => s, "end" => e}, socket) do
-    start_date =
-      case Date.from_iso8601(to_string(s)) do
-        {:ok, d} -> d
-        _ -> socket.assigns.range_start
-      end
-
-    end_date =
-      case Date.from_iso8601(to_string(e)) do
-        {:ok, d} -> d
-        _ -> socket.assigns.range_end
-      end
-
-    {:noreply, push_patch_to_range(socket, start_date, end_date)}
+    {:noreply, socket}
   end
 
   @impl true
@@ -604,8 +536,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
       [
         (Map.get(socket.assigns[:params] || %{}, "mock") &&
            "mock=" <> Map.get(socket.assigns.params, "mock")) || nil,
-        "start=" <> Date.to_iso8601(start_date),
-        "end=" <> Date.to_iso8601(end_date)
+        "d=" <> Date.to_iso8601(Date.add(start_date, 6))
       ]
       |> Enum.reject(&is_nil/1)
       |> Enum.join("&")
