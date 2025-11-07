@@ -18,6 +18,7 @@ defmodule DashboardSSDWeb.CalendarComponents do
   attr :end_date, :any, default: nil
   attr :compact, :boolean, default: true
   attr :on_day_click, :string, default: nil
+  attr :has_meetings, :map, default: %{}
 
   def month_calendar(assigns) do
     assigns =
@@ -51,12 +52,13 @@ defmodule DashboardSSDWeb.CalendarComponents do
             <% date = %Date{year: @month.year, month: @month.month, day: day} %>
             <% is_today = date == @today %>
             <% in_range = in_range?(date, @start_date, @end_date) %>
+            <% busy? = Map.get(@has_meetings || %{}, date, false) %>
             <div phx-click={@on_day_click} phx-value-date={@on_day_click && Date.to_iso8601(date)} class={[
               "h-5 rounded text-[10px] leading-none flex items-center justify-center",
               (in_range and not is_today) && "bg-theme-primary text-white",
               is_today && "ring-1 ring-theme-primary ring-offset-transparent bg-transparent"
             ]}>
-              {day}
+              <span class={busy? && "font-bold"}>{day}</span>
             </div>
           <% end %>
         </div>
@@ -83,12 +85,13 @@ defmodule DashboardSSDWeb.CalendarComponents do
             <% date = %Date{year: @month.year, month: @month.month, day: day} %>
             <% is_today = date == @today %>
             <% in_range = in_range?(date, @start_date, @end_date) %>
+            <% busy? = Map.get(@has_meetings || %{}, date, false) %>
             <div phx-click={@on_day_click} phx-value-date={@on_day_click && Date.to_iso8601(date)} class={[
               "h-7 rounded text-xs flex items-center justify-center",
               (in_range and not is_today) && "bg-theme-primary text-white",
               is_today && "ring-1 ring-theme-primary ring-offset-transparent bg-transparent"
             ]}>
-              {day}
+              <span class={busy? && "font-bold"}>{day}</span>
             </div>
           <% end %>
         </div>
