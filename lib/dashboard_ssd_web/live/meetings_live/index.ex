@@ -513,7 +513,13 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
       len = Date.diff(end_date, start_date) + 1
       new_start = d
       new_end = Date.add(new_start, max(len - 1, 0))
-      {:noreply, push_patch_to_range(socket, new_start, new_end)}
+      # Center the clicked date's month as the anchor
+      anchor = %Date{year: d.year, month: d.month, day: 1}
+      {m_prev, m_curr, m_next} = month_triplet(anchor)
+      {:noreply,
+       socket
+       |> assign(cal_anchor: anchor, month_prev: m_prev, month_curr: m_curr, month_next: m_next)
+       |> push_patch_to_range(new_start, new_end)}
     else
       _ -> {:noreply, socket}
     end
@@ -549,18 +555,38 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
 
   @impl true
   def handle_event("cal_prev_month", _params, socket) do
-    anchor = Map.get(socket.assigns, :cal_anchor) || %Date{year: socket.assigns.range_start.year, month: socket.assigns.range_start.month, day: 1}
+    anchor =
+      Map.get(socket.assigns, :cal_anchor) ||
+        %Date{year: socket.assigns.range_start.year, month: socket.assigns.range_start.month, day: 1}
+
     new_anchor = prev_month(anchor)
     {m_prev, m_curr, m_next} = month_triplet(new_anchor)
-    {:noreply, assign(socket, cal_anchor: new_anchor, month_prev: m_prev, month_curr: m_curr, month_next: m_next)}
+    # Move selection to the middle month start while preserving window length
+    len = Date.diff(socket.assigns.range_end, socket.assigns.range_start) + 1
+    new_start = new_anchor
+    new_end = Date.add(new_start, max(len - 1, 0))
+    {:noreply,
+     socket
+     |> assign(cal_anchor: new_anchor, month_prev: m_prev, month_curr: m_curr, month_next: m_next)
+     |> push_patch_to_range(new_start, new_end)}
   end
 
   @impl true
   def handle_event("cal_next_month", _params, socket) do
-    anchor = Map.get(socket.assigns, :cal_anchor) || %Date{year: socket.assigns.range_start.year, month: socket.assigns.range_start.month, day: 1}
+    anchor =
+      Map.get(socket.assigns, :cal_anchor) ||
+        %Date{year: socket.assigns.range_start.year, month: socket.assigns.range_start.month, day: 1}
+
     new_anchor = next_month(anchor)
     {m_prev, m_curr, m_next} = month_triplet(new_anchor)
-    {:noreply, assign(socket, cal_anchor: new_anchor, month_prev: m_prev, month_curr: m_curr, month_next: m_next)}
+    # Move selection to the middle month start while preserving window length
+    len = Date.diff(socket.assigns.range_end, socket.assigns.range_start) + 1
+    new_start = new_anchor
+    new_end = Date.add(new_start, max(len - 1, 0))
+    {:noreply,
+     socket
+     |> assign(cal_anchor: new_anchor, month_prev: m_prev, month_curr: m_curr, month_next: m_next)
+     |> push_patch_to_range(new_start, new_end)}
   end
 
   defp month_triplet(%Date{} = anchor) do
