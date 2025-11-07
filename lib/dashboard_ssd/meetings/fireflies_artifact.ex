@@ -32,10 +32,25 @@ defmodule DashboardSSD.Meetings.FirefliesArtifact do
   @doc false
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(artifact, attrs) do
+    attrs = normalize_action_items_attr(attrs)
+
     artifact
     |> cast(attrs, [:recurring_series_id, :transcript_id, :accomplished, :bullet_gist, :action_items, :fetched_at])
     |> validate_required([:recurring_series_id])
     |> unique_constraint(:recurring_series_id)
   end
-end
 
+  defp normalize_action_items_attr(attrs) when is_map(attrs) do
+    cond do
+      is_list(Map.get(attrs, :action_items)) ->
+        Map.put(attrs, :action_items, %{"items" => Map.get(attrs, :action_items)})
+
+      is_list(Map.get(attrs, "action_items")) ->
+        Map.put(attrs, "action_items", %{"items" => Map.get(attrs, "action_items")})
+
+      true ->
+        attrs
+    end
+  end
+  defp normalize_action_items_attr(attrs), do: attrs
+end
