@@ -282,7 +282,9 @@ config :dashboard_ssd, :integrations,
   # For Drive, prefer a direct access token if present; otherwise rely on user-scoped DB token
   drive_token:
     System.get_env("GOOGLE_DRIVE_TOKEN") ||
-      System.get_env("GOOGLE_OAUTH_TOKEN")
+      System.get_env("GOOGLE_OAUTH_TOKEN"),
+  # Fireflies API token for Meetings integration
+  fireflies_api_token: System.get_env("FIREFLIES_API_TOKEN")
 
 # Load environment variables from a local .env file in development.
 # This helps when running locally without exporting vars manually.

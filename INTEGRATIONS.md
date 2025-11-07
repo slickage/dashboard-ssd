@@ -27,10 +27,8 @@ Google OAuth (Drive + Calendar)
 
 Fireflies.ai for Meetings
 - Provide `FIREFLIES_API_TOKEN` in `.env`.
-- The Meetings feature uses Fireflies summaries to split into two sections:
-  - What was accomplished: content before the `Action Items` heading.
-  - Action Items: content under the `Action Items` heading, used as the starting agenda for the next meeting.
-- If `Action Items` is not present in summary text, the app attempts to use Fireflies Action Items API where available; otherwise the agenda starts empty and can be edited manually.
+- The Meetings feature fetches structured summary fields from Fireflies (notes and action_items) when available, avoiding any local parsing.
+- If structured action_items are not available, the agenda starts empty and can be edited manually (future fallback logic may use vendor-provided alternatives).
 
 Load `.env`
 - Option 1 (recommended): it is auto-loaded on app start in dev/test by `config/runtime.exs`.
