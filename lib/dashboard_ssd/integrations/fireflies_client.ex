@@ -152,8 +152,32 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
   def list_transcripts(opts \\ []) do
     with {:ok, token} <- token() do
       query = """
-      query Transcripts($mine: Boolean, $userId: String, $organizers: [String!], $participants: [String!], $fromDate: DateTime, $toDate: DateTime, $limit: Int, $skip: Int) {
-        transcripts(mine: $mine, user_id: $userId, organizers: $organizers, participants: $participants, fromDate: $fromDate, toDate: $toDate, limit: $limit, skip: $skip) {
+      query Transcripts(
+        $mine: Boolean,
+        $userId: String,
+        $hostEmail: String,
+        $organizerEmail: String,
+        $participantEmail: String,
+        $organizers: [String!],
+        $participants: [String!],
+        $fromDate: DateTime,
+        $toDate: DateTime,
+        $limit: Int,
+        $skip: Int
+      ) {
+        transcripts(
+          mine: $mine,
+          user_id: $userId,
+          host_email: $hostEmail,
+          organizer_email: $organizerEmail,
+          participant_email: $participantEmail,
+          organizers: $organizers,
+          participants: $participants,
+          fromDate: $fromDate,
+          toDate: $toDate,
+          limit: $limit,
+          skip: $skip
+        ) {
           id
           title
           date
@@ -168,9 +192,23 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
       }
       """
 
-      variables = %{
-        "mine" => Keyword.get(opts, :mine, true),
+      # Respect Fireflies exclusivity: only one of mine, userId, hostEmail, organizerEmail, participantEmail may be set.
+      exclusives = %{
         "userId" => Keyword.get(opts, :user_id),
+        "hostEmail" => Keyword.get(opts, :host_email),
+        "organizerEmail" => Keyword.get(opts, :organizer_email),
+        "participantEmail" => Keyword.get(opts, :participant_email)
+      } |> drop_nils()
+
+      # Only set mine when no other exclusive is provided; default true for convenience.
+      mine_opt = if map_size(exclusives) == 0, do: Keyword.get(opts, :mine, true), else: nil
+
+      variables = %{
+        "mine" => mine_opt,
+        "userId" => Map.get(exclusives, "userId"),
+        "hostEmail" => Map.get(exclusives, "hostEmail"),
+        "organizerEmail" => Map.get(exclusives, "organizerEmail"),
+        "participantEmail" => Map.get(exclusives, "participantEmail"),
         "organizers" => sanitize_string_list(Keyword.get(opts, :organizers)),
         "participants" => sanitize_string_list(Keyword.get(opts, :participants)),
         "fromDate" => Keyword.get(opts, :from_date),
