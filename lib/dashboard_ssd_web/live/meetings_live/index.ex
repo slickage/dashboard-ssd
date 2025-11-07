@@ -99,6 +99,22 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
       |> Enum.frequencies()
       |> Map.new(fn {date, _} -> {date, true} end)
 
+    # Compute previous, current, next months for calendar strip
+    month_curr = %Date{year: start_date.year, month: start_date.month, day: 1}
+    month_prev =
+      if start_date.month == 1 do
+        %Date{year: start_date.year - 1, month: 12, day: 1}
+      else
+        %Date{year: start_date.year, month: start_date.month - 1, day: 1}
+      end
+
+    month_next =
+      if start_date.month == 12 do
+        %Date{year: start_date.year + 1, month: 1, day: 1}
+      else
+        %Date{year: start_date.year, month: start_date.month + 1, day: 1}
+      end
+
     # Build read-only consolidated agenda text per meeting (manual items if present, otherwise latest Fireflies action items)
     agenda_texts =
       Enum.reduce(meetings, %{}, fn m, acc ->
@@ -174,7 +190,10 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
        range_end: end_date,
        loading: false,
        tz_offset: tz_offset,
-       has_meetings: has_meetings
+       has_meetings: has_meetings,
+       month_prev: month_prev,
+       month_curr: month_curr,
+       month_next: month_next
      )}
   end
 
@@ -209,15 +228,35 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
               />
               <button type="submit" class="underline text-sm">Apply</button>
             </form>
-            <.month_calendar
-              month={%Date{year: @range_start.year, month: @range_start.month, day: 1}}
-              today={Date.utc_today()}
-              start_date={@range_start}
-              end_date={@range_end}
-              compact={true}
-              on_day_click="calendar_pick"
-              has_meetings={@has_meetings}
-            />
+            <div class="grid grid-cols-3 gap-2">
+              <.month_calendar
+                month={@month_prev}
+                today={Date.utc_today()}
+                start_date={@range_start}
+                end_date={@range_end}
+                compact={true}
+                on_day_click="calendar_pick"
+                has_meetings={@has_meetings}
+              />
+              <.month_calendar
+                month={@month_curr}
+                today={Date.utc_today()}
+                start_date={@range_start}
+                end_date={@range_end}
+                compact={true}
+                on_day_click="calendar_pick"
+                has_meetings={@has_meetings}
+              />
+              <.month_calendar
+                month={@month_next}
+                today={Date.utc_today()}
+                start_date={@range_start}
+                end_date={@range_end}
+                compact={true}
+                on_day_click="calendar_pick"
+                has_meetings={@has_meetings}
+              />
+            </div>
           </div>
         </div>
       </div>
