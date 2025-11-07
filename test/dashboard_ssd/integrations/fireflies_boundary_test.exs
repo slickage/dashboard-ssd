@@ -63,7 +63,7 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
     rec = Repo.one(from a in FirefliesArtifact, where: a.recurring_series_id == ^series_id, limit: 1)
     assert rec && rec.transcript_id == "t1"
     assert rec.accomplished == notes
-    assert rec.action_items == ["Do X"]
+    assert rec.action_items == %{"items" => ["Do X"]}
 
     # Replace HTTP mock to ensure no further calls occur (cache hit expected)
     Tesla.Mock.mock(fn _ -> flunk("HTTP should not be called on cache hit") end)
