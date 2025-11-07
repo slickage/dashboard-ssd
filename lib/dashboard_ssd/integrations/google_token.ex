@@ -7,7 +7,6 @@ defmodule DashboardSSD.Integrations.GoogleToken do
   """
 
   use Tesla
-  import Ecto.Query
   alias DashboardSSD.Accounts.ExternalIdentity
   alias DashboardSSD.Repo
 
@@ -30,7 +29,7 @@ defmodule DashboardSSD.Integrations.GoogleToken do
     end
   end
 
-  defp ensure_fresh_token(%ExternalIdentity{token: token, expires_at: nil} = idn) when is_binary(token) and byte_size(token) > 0 do
+  defp ensure_fresh_token(%ExternalIdentity{token: token, expires_at: nil} = _idn) when is_binary(token) and byte_size(token) > 0 do
     {:ok, token}
   end
 
