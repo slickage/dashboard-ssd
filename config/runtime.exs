@@ -284,7 +284,9 @@ config :dashboard_ssd, :integrations,
     System.get_env("GOOGLE_DRIVE_TOKEN") ||
       System.get_env("GOOGLE_OAUTH_TOKEN"),
   # Fireflies API token for Meetings integration
-  fireflies_api_token: System.get_env("FIREFLIES_API_TOKEN")
+  fireflies_api_token: System.get_env("FIREFLIES_API_TOKEN"),
+  # Optional default Fireflies user id for transcript queries
+  fireflies_user_id: System.get_env("FIREFLIES_USER_ID")
 
 # Load environment variables from a local .env file in development.
 # This helps when running locally without exporting vars manually.

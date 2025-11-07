@@ -200,12 +200,23 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
         "participantEmail" => Keyword.get(opts, :participant_email)
       } |> drop_nils()
 
-      # Only set mine when no other exclusive is provided; default true for convenience.
-      mine_opt = if map_size(exclusives) == 0, do: Keyword.get(opts, :mine, true), else: nil
+      # Determine default exclusive: prefer configured user_id when none provided
+      # and :mine is not explicitly set; otherwise fallback to mine=true.
+      cfg_user = configured_user_id()
+      {mine_opt, user_opt} =
+        if map_size(exclusives) == 0 do
+          cond do
+            Keyword.has_key?(opts, :mine) -> {Keyword.get(opts, :mine), nil}
+            is_binary(cfg_user) and String.trim(cfg_user) != "" -> {nil, cfg_user}
+            true -> {true, nil}
+          end
+        else
+          {nil, nil}
+        end
 
       variables = %{
         "mine" => mine_opt,
-        "userId" => Map.get(exclusives, "userId"),
+        "userId" => Map.get(exclusives, "userId") || user_opt,
         "hostEmail" => Map.get(exclusives, "hostEmail"),
         "organizerEmail" => Map.get(exclusives, "organizerEmail"),
         "participantEmail" => Map.get(exclusives, "participantEmail"),
@@ -316,6 +327,20 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
       [] -> []
       xs -> xs
     end
+  end
+
+  @doc false
+  @spec configured_user_id() :: String.t() | nil
+  def configured_user_id do
+    conf = Application.get_env(:dashboard_ssd, :integrations, [])
+    user_id =
+      case Keyword.get(conf, :fireflies_user_id) do
+        v when is_binary(v) and v != "" -> v
+        _ -> System.get_env("FIREFLIES_USER_ID")
+      end
+
+    user_id = if is_binary(user_id), do: String.trim(user_id), else: nil
+    if user_id in [nil, ""], do: nil, else: user_id
   end
 
   @doc """

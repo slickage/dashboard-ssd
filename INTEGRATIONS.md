@@ -30,6 +30,11 @@ Fireflies.ai for Meetings
 - The Meetings feature fetches structured summary fields from Fireflies (notes and action_items) when available, avoiding any local parsing.
 - If structured action_items are not available, the agenda starts empty and can be edited manually (future fallback logic may use vendor-provided alternatives).
 
+Default Fireflies user id (optional)
+- Set `FIREFLIES_USER_ID` in `.env` to scope transcript queries to a specific user by default (helpful when `mine: true` returns no results).
+- Discover your user id via IEx: `DashboardSSD.Integrations.FirefliesClient.list_users()`.
+- The client prefers `FIREFLIES_USER_ID` when no exclusive filter is passed to `list_transcripts/1` and `:mine` isn’t explicitly set.
+
 Load `.env`
 - Option 1 (recommended): it is auto-loaded on app start in dev/test by `config/runtime.exs`.
 - Option 2: export manually in shell before running the app:
