@@ -232,9 +232,11 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
         <% else %>
           <div class="flex flex-col gap-4">
             <%= for m <- @meetings do %>
+              <% past? = DateTime.compare(m.end_at, DateTime.utc_now()) == :lt %>
               <div class={[
                 "theme-card px-6 py-5",
-                DateHelpers.today?(m.start_at, @tz_offset || 0) && "ring-1 ring-theme-primary/40"
+                DateHelpers.today?(m.start_at, @tz_offset || 0) && "ring-1 ring-theme-primary/40",
+                past? && "bg-white/5"
               ]}>
                 <div class="flex items-start justify-between">
                   <div>
