@@ -59,6 +59,15 @@ Scope: specs/001-add-meetings-fireflies
 6) Caching and refresh
 - Default TTL: 24h for series artifacts (configurable via opts).
 - `refresh_series(series_id, opts \\ [])` keeps interface (already present) → delete cache + refetch.
+- Persist successful Fireflies results in DB and do not persist empty results.
+  - Add a `fireflies_artifacts` table keyed by `recurring_series_id` with fields `{transcript_id, accomplished (notes), action_items (jsonb), bullet_gist, fetched_at}` and a unique index on `recurring_series_id`.
+  - On a successful fetch from Fireflies, upsert the row and populate ETS cache.
+  - Retrieval order: (1) ETS cache hit → return; (2) DB row → populate cache and return; (3) Query Fireflies API → on success, persist to DB + cache and return; on failure, return error.
+  - Never overwrite a non-empty DB row with an empty result; only update when new non-empty data is returned.
+- Rate limit handling and UI feedback
+  - Treat Fireflies GraphQL responses with `errors[0].code == "too_many_requests"` (or HTTP 429) as a rate-limit error. Surface `errors[0].message` (human-readable retry time) directly in the Meetings UI (inline on the page, not a disappearing toast).
+  - For other errors, display a concise generic error message (e.g., "Fireflies data unavailable. Please try again later.") and avoid replacing existing cached/DB data.
+  - Log details at debug (no tokens), including the `errors` array for diagnostics.
 
 7) Tests
 - Client: stub responses; map bites to internal shape; ensure token scrubbed from logs.
