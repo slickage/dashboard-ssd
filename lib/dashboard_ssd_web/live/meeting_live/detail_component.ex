@@ -28,9 +28,15 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
             {%{accomplished: nil, action_items: []}, nil}
           else
             case Fireflies.fetch_latest_for_series(s, title: title) do
-              {:ok, v} -> {v, nil}
-              {:error, {:rate_limited, msg}} -> {%{accomplished: nil, action_items: []}, %{type: :rate_limited, message: msg}}
-              {:error, _} -> {%{accomplished: nil, action_items: []}, %{type: :generic, message: "Fireflies data unavailable. Please try again later."}}
+              {:ok, v} ->
+                {v, nil}
+
+              {:error, {:rate_limited, msg}} ->
+                {%{accomplished: nil, action_items: []}, %{type: :rate_limited, message: msg}}
+
+              {:error, _} ->
+                {%{accomplished: nil, action_items: []},
+                 %{type: :generic, message: "Fireflies data unavailable. Please try again later."}}
             end
           end
       end
@@ -224,9 +230,15 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
 
     {post, post_error} =
       case post_result do
-        {:ok, v} -> {v, nil}
-        {:error, {:rate_limited, msg}} -> {%{accomplished: nil, action_items: []}, %{type: :rate_limited, message: msg}}
-        {:error, _} -> {%{accomplished: nil, action_items: []}, %{type: :generic, message: "Fireflies data unavailable. Please try again later."}}
+        {:ok, v} ->
+          {v, nil}
+
+        {:error, {:rate_limited, msg}} ->
+          {%{accomplished: nil, action_items: []}, %{type: :rate_limited, message: msg}}
+
+        {:error, _} ->
+          {%{accomplished: nil, action_items: []},
+           %{type: :generic, message: "Fireflies data unavailable. Please try again later."}}
       end
 
     agenda_text =
@@ -268,7 +280,7 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
       <div class="mt-8">
         <h3 class="font-medium">Last meeting summary</h3>
         <%= if @post_error do %>
-          <div class={"mt-2 text-red-400 text-sm whitespace-pre-wrap"}><%= @post_error.message %></div>
+          <div class="mt-2 text-red-400 text-sm whitespace-pre-wrap">{@post_error.message}</div>
         <% end %>
         <%= if is_binary(@summary_text) and String.trim(@summary_text) != "" or @action_items != [] do %>
           <%= if is_binary(@summary_text) and String.trim(@summary_text) != "" do %>

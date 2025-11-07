@@ -78,10 +78,19 @@ defmodule DashboardSSD.Integrations.FirefliesClientTest do
 
   test "rate limit error is mapped from GraphQL errors for bites" do
     Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
-      %Tesla.Env{status: 200, body: %{"data" => nil, "errors" => [
-        %{"code" => "too_many_requests", "message" => "Too many requests. Please retry after 12:35:57 AM (UTC)",
-          "extensions" => %{"code" => "too_many_requests", "status" => 429}}
-      ]}}
+      %Tesla.Env{
+        status: 200,
+        body: %{
+          "data" => nil,
+          "errors" => [
+            %{
+              "code" => "too_many_requests",
+              "message" => "Too many requests. Please retry after 12:35:57 AM (UTC)",
+              "extensions" => %{"code" => "too_many_requests", "status" => 429}
+            }
+          ]
+        }
+      }
     end)
 
     assert {:error, {:rate_limited, msg}} = FirefliesClient.list_bites(limit: 1)
@@ -90,10 +99,19 @@ defmodule DashboardSSD.Integrations.FirefliesClientTest do
 
   test "rate limit error is mapped from GraphQL errors for transcript summary" do
     Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
-      %Tesla.Env{status: 200, body: %{"data" => nil, "errors" => [
-        %{"code" => "too_many_requests", "message" => "Too many requests. Please retry after 12:00:00 AM (UTC)",
-          "extensions" => %{"code" => "too_many_requests", "status" => 429}}
-      ]}}
+      %Tesla.Env{
+        status: 200,
+        body: %{
+          "data" => nil,
+          "errors" => [
+            %{
+              "code" => "too_many_requests",
+              "message" => "Too many requests. Please retry after 12:00:00 AM (UTC)",
+              "extensions" => %{"code" => "too_many_requests", "status" => 429}
+            }
+          ]
+        }
+      }
     end)
 
     assert {:error, {:rate_limited, msg}} = FirefliesClient.get_transcript_summary("t1")

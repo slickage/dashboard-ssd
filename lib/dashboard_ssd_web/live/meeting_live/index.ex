@@ -49,9 +49,15 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
 
     {post, post_error} =
       case post_result do
-        {:ok, v} -> {v, nil}
-        {:error, {:rate_limited, msg}} -> {%{accomplished: nil, action_items: []}, %{type: :rate_limited, message: msg}}
-        {:error, _} -> {%{accomplished: nil, action_items: []}, %{type: :generic, message: "Fireflies data unavailable. Please try again later."}}
+        {:ok, v} ->
+          {v, nil}
+
+        {:error, {:rate_limited, msg}} ->
+          {%{accomplished: nil, action_items: []}, %{type: :rate_limited, message: msg}}
+
+        {:error, _} ->
+          {%{accomplished: nil, action_items: []},
+           %{type: :generic, message: "Fireflies data unavailable. Please try again later."}}
       end
 
     agenda_text =
@@ -91,7 +97,7 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
        projects: projects,
        association: assoc,
        auto_entity: auto_entity,
-        auto_suggest_notice: auto_notice?,
+       auto_suggest_notice: auto_notice?,
        post_error: post_error,
        loading: false
      )}
@@ -299,9 +305,15 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
 
     {post, post_error} =
       case post_result do
-        {:ok, v} -> {v, nil}
-        {:error, {:rate_limited, msg}} -> {%{accomplished: nil, action_items: []}, %{type: :rate_limited, message: msg}}
-        {:error, _} -> {%{accomplished: nil, action_items: []}, %{type: :generic, message: "Fireflies data unavailable. Please try again later."}}
+        {:ok, v} ->
+          {v, nil}
+
+        {:error, {:rate_limited, msg}} ->
+          {%{accomplished: nil, action_items: []}, %{type: :rate_limited, message: msg}}
+
+        {:error, _} ->
+          {%{accomplished: nil, action_items: []},
+           %{type: :generic, message: "Fireflies data unavailable. Please try again later."}}
       end
 
     agenda_text =
@@ -318,11 +330,11 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
      assign(socket,
        manual_agenda: manual,
        agenda: [],
-      summary_text: post.accomplished,
-      action_items: post.action_items,
-      agenda_text: agenda_text,
-      post_error: post_error
-    )}
+       summary_text: post.accomplished,
+       action_items: post.action_items,
+       agenda_text: agenda_text,
+       post_error: post_error
+     )}
   end
 
   @impl true
@@ -346,7 +358,7 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
       <div class="mt-8">
         <h3 class="font-medium">Last meeting summary</h3>
         <%= if @post_error do %>
-          <div class={"mt-2 text-red-400 text-sm whitespace-pre-wrap"}><%= @post_error.message %></div>
+          <div class="mt-2 text-red-400 text-sm whitespace-pre-wrap">{@post_error.message}</div>
         <% end %>
         <%= if is_binary(@summary_text) and String.trim(@summary_text) != "" or @action_items != [] do %>
           <%= if is_binary(@summary_text) and String.trim(@summary_text) != "" do %>
