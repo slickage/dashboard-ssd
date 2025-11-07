@@ -152,8 +152,8 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
   def list_transcripts(opts \\ []) do
     with {:ok, token} <- token() do
       query = """
-      query Transcripts($mine: Boolean, $organizers: [String!], $participants: [String!], $fromDate: DateTime, $toDate: DateTime, $limit: Int, $skip: Int) {
-        transcripts(mine: $mine, organizers: $organizers, participants: $participants, fromDate: $fromDate, toDate: $toDate, limit: $limit, skip: $skip) {
+      query Transcripts($mine: Boolean, $userId: String, $organizers: [String!], $participants: [String!], $fromDate: DateTime, $toDate: DateTime, $limit: Int, $skip: Int) {
+        transcripts(mine: $mine, user_id: $userId, organizers: $organizers, participants: $participants, fromDate: $fromDate, toDate: $toDate, limit: $limit, skip: $skip) {
           id
           title
           date
@@ -170,6 +170,7 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
 
       variables = %{
         "mine" => Keyword.get(opts, :mine, true),
+        "userId" => Keyword.get(opts, :user_id),
         "organizers" => sanitize_string_list(Keyword.get(opts, :organizers)),
         "participants" => sanitize_string_list(Keyword.get(opts, :participants)),
         "fromDate" => Keyword.get(opts, :from_date),
@@ -276,6 +277,25 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
     |> case do
       [] -> []
       xs -> xs
+    end
+  end
+
+  @doc """
+  Lists users visible to the API token. Useful for discovering user_id for transcript queries.
+  """
+  @spec list_users() :: {:ok, [map()]} | {:error, term()}
+  def list_users do
+    with {:ok, token} <- token() do
+      query = """
+      query Users { users { user_id name integrations } }
+      """
+
+      case post_graphql(token, query, %{}) do
+        {:ok, %{"data" => %{"users" => users}}} when is_list(users) -> {:ok, users}
+        {:ok, %{"errors" => errs}} -> {:error, {:graphql_error, errs}}
+        {:ok, _} -> {:ok, []}
+        {:error, reason} -> {:error, reason}
+      end
     end
   end
 end
