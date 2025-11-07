@@ -136,10 +136,17 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
         {:ok, %{"data" => %{"bites" => [bite | _]}}} ->
           {:ok, %{notes: Map.get(bite, "summary"), action_items: [], bullet_gist: nil}}
 
-        {:ok, %{"errors" => errs}} -> handle_graphql_errors(errs)
-        {:ok, _other} -> {:ok, %{notes: nil, action_items: [], bullet_gist: nil}}
-        {:error, {:http_error, status, body}} -> handle_http_error(status, body)
-        {:error, reason} -> {:error, reason}
+        {:ok, %{"errors" => errs}} ->
+          handle_graphql_errors(errs)
+
+        {:ok, _other} ->
+          {:ok, %{notes: nil, action_items: [], bullet_gist: nil}}
+
+        {:error, {:http_error, status, body}} ->
+          handle_http_error(status, body)
+
+        {:error, reason} ->
+          {:error, reason}
       end
     end
   end
@@ -284,10 +291,17 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
           bullet_gist = Map.get(summary, "bullet_gist")
           {:ok, %{notes: notes, action_items: action_items, bullet_gist: bullet_gist}}
 
-        {:ok, %{"errors" => errs}} -> handle_graphql_errors(errs)
-        {:ok, _other} -> {:ok, %{notes: nil, action_items: [], bullet_gist: nil}}
-        {:error, {:http_error, status, body}} -> handle_http_error(status, body)
-        {:error, reason} -> {:error, reason}
+        {:ok, %{"errors" => errs}} ->
+          handle_graphql_errors(errs)
+
+        {:ok, _other} ->
+          {:ok, %{notes: nil, action_items: [], bullet_gist: nil}}
+
+        {:error, {:http_error, status, body}} ->
+          handle_http_error(status, body)
+
+        {:error, reason} ->
+          {:error, reason}
       end
     end
   end
@@ -405,12 +419,15 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
     end
   end
 
-  defp handle_http_error(429, body), do: {:error, {:rate_limited, extract_error_message(body) || "Too many requests"}}
+  defp handle_http_error(429, body),
+    do: {:error, {:rate_limited, extract_error_message(body) || "Too many requests"}}
+
   defp handle_http_error(status, body), do: {:error, {:http_error, status, body}}
 
   defp find_rate_limit_error(errs) do
     Enum.find_value(errs, :none, fn err ->
       code = Map.get(err, "code") || get_in(err, ["extensions", "code"]) || Map.get(err, :code)
+
       if is_binary(code) and String.downcase(code) == "too_many_requests" do
         {:rate_limited, Map.get(err, "message") || Map.get(err, :message) || "Too many requests"}
       else
@@ -419,7 +436,9 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
     end)
   end
 
-  defp extract_error_message(%{"errors" => [first | _]}) when is_map(first), do: Map.get(first, "message")
+  defp extract_error_message(%{"errors" => [first | _]}) when is_map(first),
+    do: Map.get(first, "message")
+
   defp extract_error_message(_), do: nil
 
   @doc """

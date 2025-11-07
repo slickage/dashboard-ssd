@@ -135,13 +135,24 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
     series_id = "series-rl"
 
     Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
-      %Tesla.Env{status: 200, body: %{"data" => nil, "errors" => [
-        %{"code" => "too_many_requests", "message" => "Too many requests. Please retry after 01:23:45 AM (UTC)",
-          "extensions" => %{"code" => "too_many_requests", "status" => 429}}
-      ]}}
+      %Tesla.Env{
+        status: 200,
+        body: %{
+          "data" => nil,
+          "errors" => [
+            %{
+              "code" => "too_many_requests",
+              "message" => "Too many requests. Please retry after 01:23:45 AM (UTC)",
+              "extensions" => %{"code" => "too_many_requests", "status" => 429}
+            }
+          ]
+        }
+      }
     end)
 
-    assert {:error, {:rate_limited, msg}} = Fireflies.fetch_latest_for_series(series_id, title: "Anything")
+    assert {:error, {:rate_limited, msg}} =
+             Fireflies.fetch_latest_for_series(series_id, title: "Anything")
+
     assert String.contains?(msg, "Too many requests")
     # DB should not have an artifact inserted
     refute Repo.one(from a in FirefliesArtifact, where: a.recurring_series_id == ^series_id)
