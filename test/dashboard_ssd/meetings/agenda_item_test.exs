@@ -12,8 +12,9 @@ defmodule DashboardSSD.Meetings.AgendaItemTest do
   end
 
   test "source must be either manual or derived" do
-    bad = AgendaItem.changeset(%AgendaItem{}, %{calendar_event_id: "evt-1", text: "x", source: "nope"})
+    bad =
+      AgendaItem.changeset(%AgendaItem{}, %{calendar_event_id: "evt-1", text: "x", source: "nope"})
+
     refute bad.valid?
   end
 end
-

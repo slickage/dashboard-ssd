@@ -28,27 +28,60 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
     # Determine date range from params or default to next 14 days from today
     start_date =
       case Map.get(params, "start") do
-        nil -> Date.utc_today()
-        s -> case Date.from_iso8601(s) do {:ok, d} -> d; _ -> Date.utc_today() end end
+        nil ->
+          Date.utc_today()
+
+        s ->
+          case Date.from_iso8601(s) do
+            {:ok, d} -> d
+            _ -> Date.utc_today()
+          end
+      end
 
     end_date =
       case Map.get(params, "end") do
-        nil -> Date.add(start_date, 13)
-        s -> case Date.from_iso8601(s) do {:ok, d} -> d; _ -> Date.add(start_date, 13) end end
+        nil ->
+          Date.add(start_date, 13)
+
+        s ->
+          case Date.from_iso8601(s) do
+            {:ok, d} -> d
+            _ -> Date.add(start_date, 13)
+          end
+      end
 
     {:ok, start_dt} = DateTime.new(start_date, ~T[00:00:00], "Etc/UTC")
     {:ok, end_dt} = DateTime.new(end_date, ~T[23:59:59], "Etc/UTC")
+
     tz_offset =
       case Map.get(params, "tz") || Map.get(params, "tz_offset") do
-        nil -> 0
-        s -> case Integer.parse(to_string(s)) do {v, _} -> v; _ -> 0 end end
+        nil ->
+          0
+
+        s ->
+          case Integer.parse(to_string(s)) do
+            {v, _} -> v
+            _ -> 0
+          end
+      end
+
     # Load upcoming meetings for the window. In dev without integration, pass :sample mock.
     mock? = Map.get(params, "mock") in ["1", "true"]
+
     gc_result =
       if mock? do
-        Integrations.calendar_list_upcoming_for_user(socket.assigns.current_user || %{}, start_dt, end_dt, mock: :sample)
+        Integrations.calendar_list_upcoming_for_user(
+          socket.assigns.current_user || %{},
+          start_dt,
+          end_dt,
+          mock: :sample
+        )
       else
-        Integrations.calendar_list_upcoming_for_user(socket.assigns.current_user || %{}, start_dt, end_dt)
+        Integrations.calendar_list_upcoming_for_user(
+          socket.assigns.current_user || %{},
+          start_dt,
+          end_dt
+        )
       end
 
     meetings =
@@ -77,7 +110,9 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                 ""
               else
                 case m[:recurring_series_id] do
-                  nil -> ""
+                  nil ->
+                    ""
+
                   s ->
                     case Fireflies.fetch_latest_for_series(s, title: m.title) do
                       {:ok, %{action_items: items}} -> Enum.join(items || [], "\n")
@@ -86,7 +121,8 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                 end
               end
 
-            other -> other
+            other ->
+              other
           end
 
         Map.put(acc, m.id, text)
@@ -101,9 +137,14 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
     assoc_by_meeting =
       Enum.reduce(meetings, %{}, fn m, acc ->
         case Associations.get_for_event_or_series(m.id, m[:recurring_series_id]) do
-          %{client_id: id} when is_integer(id) -> Map.put(acc, m.id, {:client, Map.get(client_map, id)})
-          %{project_id: id} when is_integer(id) -> Map.put(acc, m.id, {:project, Map.get(project_map, id)})
-          _ -> acc
+          %{client_id: id} when is_integer(id) ->
+            Map.put(acc, m.id, {:client, Map.get(client_map, id)})
+
+          %{project_id: id} when is_integer(id) ->
+            Map.put(acc, m.id, {:project, Map.get(project_map, id)})
+
+          _ ->
+            acc
         end
       end)
 
@@ -136,65 +177,88 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
       <div class="card px-4 py-4 sm:px-6">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div class="flex flex-col gap-2">
-            <div class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted">Upcoming</div>
+            <div class="text-xs font-semibold uppercase tracking-[0.2em] text-theme-muted">
+              Upcoming
+            </div>
             <div class="flex items-center gap-2">
               <button phx-click="range_prev" class="underline text-sm">Prev</button>
               <button phx-click="range_next" class="underline text-sm">Next</button>
             </div>
             <form phx-submit="range_set" class="flex items-center gap-2">
-              <input type="date" name="start" value={Date.to_iso8601(@range_start)} class="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs" />
+              <input
+                type="date"
+                name="start"
+                value={Date.to_iso8601(@range_start)}
+                class="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs"
+              />
               <span class="text-white/50 text-xs">to</span>
-              <input type="date" name="end" value={Date.to_iso8601(@range_end)} class="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs" />
+              <input
+                type="date"
+                name="end"
+                value={Date.to_iso8601(@range_end)}
+                class="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs"
+              />
               <button type="submit" class="underline text-sm">Apply</button>
             </form>
-            <.month_calendar month={%Date{year: @range_start.year, month: @range_start.month, day: 1}} today={Date.utc_today()} start_date={@range_start} end_date={@range_end} compact={true} />
+            <.month_calendar
+              month={%Date{year: @range_start.year, month: @range_start.month, day: 1}}
+              today={Date.utc_today()}
+              start_date={@range_start}
+              end_date={@range_end}
+              compact={true}
+            />
           </div>
         </div>
       </div>
-
-      
 
       <%= if @loading do %>
         <div class="theme-card px-6 py-8 text-center text-sm text-theme-muted">Loading…</div>
       <% else %>
         <%= if @meetings == [] do %>
-          <div class="theme-card px-6 py-8 text-center text-sm text-theme-muted">No upcoming meetings found.</div>
+          <div class="theme-card px-6 py-8 text-center text-sm text-theme-muted">
+            No upcoming meetings found.
+          </div>
         <% else %>
           <div class="flex flex-col gap-4">
             <%= for m <- @meetings do %>
               <div class={[
-                    "theme-card px-6 py-5",
-                    DateHelpers.today?(m.start_at, @tz_offset || 0) && "ring-1 ring-theme-primary/40"
-                  ]}>
+                "theme-card px-6 py-5",
+                DateHelpers.today?(m.start_at, @tz_offset || 0) && "ring-1 ring-theme-primary/40"
+              ]}>
                 <div class="flex items-start justify-between">
                   <div>
                     <div class="text-base font-semibold flex items-center gap-3 flex-wrap">
                       <.link
                         patch={
                           ~p"/meetings" <>
-                            ("?" <>
-                               ([
-                                  # preserve existing query flags like mock=1
-                                  (Map.get(@params || %{}, "mock") && "mock=" <> Map.get(@params, "mock")) || nil,
-                                  (Map.get(@params || %{}, "start") && "start=" <> Map.get(@params, "start")) || nil,
-                                  (Map.get(@params || %{}, "end") && "end=" <> Map.get(@params, "end")) || nil,
-                                  (Map.get(@params || %{}, "tz") && "tz=" <> Map.get(@params, "tz")) || nil,
-                                  # add modal-driving params
-                                  "id=" <> m.id,
-                                  (m[:recurring_series_id] && "series_id=" <> m.recurring_series_id) || nil,
-                                  (m[:title] && "title=" <> URI.encode_www_form(m.title)) || nil
-                                ]
-                                |> Enum.reject(&is_nil/1)
-                                |> Enum.join("&"))
-                            )
+                            "?" <>
+                            ([
+                               # preserve existing query flags like mock=1
+                               (Map.get(@params || %{}, "mock") && "mock=" <> Map.get(@params, "mock")) ||
+                                 nil,
+                               (Map.get(@params || %{}, "start") &&
+                                  "start=" <> Map.get(@params, "start")) || nil,
+                               (Map.get(@params || %{}, "end") && "end=" <> Map.get(@params, "end")) ||
+                                 nil,
+                               (Map.get(@params || %{}, "tz") && "tz=" <> Map.get(@params, "tz")) ||
+                                 nil,
+                               # add modal-driving params
+                               "id=" <> m.id,
+                               (m[:recurring_series_id] && "series_id=" <> m.recurring_series_id) ||
+                                 nil,
+                               (m[:title] && "title=" <> URI.encode_www_form(m.title)) || nil
+                             ]
+                             |> Enum.reject(&is_nil/1)
+                             |> Enum.join("&"))
                         }
                         class="text-white/80 transition hover:text-white"
                       >
-                        <%= m.title %>
+                        {m.title}
                       </.link>
                       <%= case Map.get(@assoc_by_meeting || %{}, m.id) do %>
                         <% {:client, c} when not is_nil(c) -> %>
-                          <span class="text-xs text-white/70">· Client:
+                          <span class="text-xs text-white/70">
+                            · Client:
                             <.link
                               patch={
                                 ~p"/meetings" <>
@@ -211,10 +275,13 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                                   )
                               }
                               class="underline"
-                            ><%= c.name %></.link>
+                            >
+                              {c.name}
+                            </.link>
                           </span>
                         <% {:project, p} when not is_nil(p) -> %>
-                          <span class="text-xs text-white/70">· Project:
+                          <span class="text-xs text-white/70">
+                            · Project:
                             <.link
                               patch={
                                 ~p"/meetings" <>
@@ -231,7 +298,9 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                                   )
                               }
                               class="underline"
-                            ><%= p.name %></.link>
+                            >
+                              {p.name}
+                            </.link>
                           </span>
                         <% _ -> %>
                           <span class="text-xs text-white/50">· Unassigned</span>
@@ -241,12 +310,21 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                       <% tz = @tz_offset || 0 %>
                       <%= if DateHelpers.same_day?(m.start_at, m.end_at, tz) do %>
                         <%= if DateHelpers.today?(m.start_at, tz) do %>
-                          Today · <%= DateHelpers.human_time_local(m.start_at, tz) %> – <%= DateHelpers.human_time_local(m.end_at, tz) %>
+                          Today · {DateHelpers.human_time_local(m.start_at, tz)} – {DateHelpers.human_time_local(
+                            m.end_at,
+                            tz
+                          )}
                         <% else %>
-                          <%= DateHelpers.human_date_local(m.start_at, tz) %> · <%= DateHelpers.human_time_local(m.start_at, tz) %> – <%= DateHelpers.human_time_local(m.end_at, tz) %>
+                          {DateHelpers.human_date_local(m.start_at, tz)} · {DateHelpers.human_time_local(
+                            m.start_at,
+                            tz
+                          )} – {DateHelpers.human_time_local(m.end_at, tz)}
                         <% end %>
                       <% else %>
-                        <%= DateHelpers.human_datetime_local(m.start_at, tz) %> – <%= DateHelpers.human_datetime_local(m.end_at, tz) %>
+                        {DateHelpers.human_datetime_local(m.start_at, tz)} – {DateHelpers.human_datetime_local(
+                          m.end_at,
+                          tz
+                        )}
                       <% end %>
                     </div>
                   </div>
@@ -255,7 +333,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                   <details>
                     <summary class="cursor-pointer underline">Agenda</summary>
                     <div class="mt-2 whitespace-pre-wrap text-white/80">
-                      <%= Map.get(@agenda_texts, m.id, "") %>
+                      {Map.get(@agenda_texts, m.id, "")}
                     </div>
                   </details>
                 </div>
@@ -266,23 +344,30 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
       <% end %>
     </div>
     <%= if @live_action == :show do %>
-      <.modal id="meeting-modal" show on_cancel={
+      <.modal
+        id="meeting-modal"
+        show
+        on_cancel={
           JS.patch(
             ~p"/meetings" <>
-              (([
-                  (Map.get(@params || %{}, "mock") && ("?mock=" <> Map.get(@params, "mock"))) || nil,
-                  (Map.get(@params || %{}, "start") && ("start=" <> Map.get(@params, "start"))) || nil,
-                  (Map.get(@params || %{}, "end") && ("end=" <> Map.get(@params, "end"))) || nil,
-                  (Map.get(@params || %{}, "tz") && ("tz=" <> Map.get(@params, "tz"))) || nil
-                ]
-                |> Enum.reject(&is_nil/1)
-                |> Enum.join("&")
-                |> case do "" -> ""; qs -> "?" <> qs end))
+              ([
+                 (Map.get(@params || %{}, "mock") && "?mock=" <> Map.get(@params, "mock")) || nil,
+                 (Map.get(@params || %{}, "start") && "start=" <> Map.get(@params, "start")) || nil,
+                 (Map.get(@params || %{}, "end") && "end=" <> Map.get(@params, "end")) || nil,
+                 (Map.get(@params || %{}, "tz") && "tz=" <> Map.get(@params, "tz")) || nil
+               ]
+               |> Enum.reject(&is_nil/1)
+               |> Enum.join("&")
+               |> case do
+                 "" -> ""
+                 qs -> "?" <> qs
+               end)
           )
-        }>
-        <.live_component 
-          module={DashboardSSDWeb.MeetingLive.DetailComponent} 
-          id={@params["id"]} 
+        }
+      >
+        <.live_component
+          module={DashboardSSDWeb.MeetingLive.DetailComponent}
+          id={@params["id"]}
           meeting_id={@params["id"]}
           series_id={@params["series_id"]}
           title={@params["title"]}
@@ -290,20 +375,27 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
       </.modal>
     <% end %>
     <%= if @live_action == :project_show do %>
-      <.modal id="project-read-modal" show on_cancel={
+      <.modal
+        id="project-read-modal"
+        show
+        on_cancel={
           JS.patch(
             ~p"/meetings" <>
-              (([
-                  (Map.get(@params || %{}, "mock") && ("?mock=" <> Map.get(@params, "mock"))) || nil,
-                  (Map.get(@params || %{}, "start") && ("start=" <> Map.get(@params, "start"))) || nil,
-                  (Map.get(@params || %{}, "end") && ("end=" <> Map.get(@params, "end"))) || nil,
-                  (Map.get(@params || %{}, "tz") && ("tz=" <> Map.get(@params, "tz"))) || nil
-                ]
-                |> Enum.reject(&is_nil/1)
-                |> Enum.join("&")
-                |> case do "" -> ""; qs -> "?" <> qs end))
+              ([
+                 (Map.get(@params || %{}, "mock") && "?mock=" <> Map.get(@params, "mock")) || nil,
+                 (Map.get(@params || %{}, "start") && "start=" <> Map.get(@params, "start")) || nil,
+                 (Map.get(@params || %{}, "end") && "end=" <> Map.get(@params, "end")) || nil,
+                 (Map.get(@params || %{}, "tz") && "tz=" <> Map.get(@params, "tz")) || nil
+               ]
+               |> Enum.reject(&is_nil/1)
+               |> Enum.join("&")
+               |> case do
+                 "" -> ""
+                 qs -> "?" <> qs
+               end)
           )
-        }>
+        }
+      >
         <.live_component
           module={DashboardSSDWeb.ProjectsLive.ReadComponent}
           id={@params["project_id"]}
@@ -312,20 +404,27 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
       </.modal>
     <% end %>
     <%= if @live_action == :client_show do %>
-      <.modal id="client-read-modal" show on_cancel={
+      <.modal
+        id="client-read-modal"
+        show
+        on_cancel={
           JS.patch(
             ~p"/meetings" <>
-              (([
-                  (Map.get(@params || %{}, "mock") && ("?mock=" <> Map.get(@params, "mock"))) || nil,
-                  (Map.get(@params || %{}, "start") && ("start=" <> Map.get(@params, "start"))) || nil,
-                  (Map.get(@params || %{}, "end") && ("end=" <> Map.get(@params, "end"))) || nil,
-                  (Map.get(@params || %{}, "tz") && ("tz=" <> Map.get(@params, "tz"))) || nil
-                ]
-                |> Enum.reject(&is_nil/1)
-                |> Enum.join("&")
-                |> case do "" -> ""; qs -> "?" <> qs end))
+              ([
+                 (Map.get(@params || %{}, "mock") && "?mock=" <> Map.get(@params, "mock")) || nil,
+                 (Map.get(@params || %{}, "start") && "start=" <> Map.get(@params, "start")) || nil,
+                 (Map.get(@params || %{}, "end") && "end=" <> Map.get(@params, "end")) || nil,
+                 (Map.get(@params || %{}, "tz") && "tz=" <> Map.get(@params, "tz")) || nil
+               ]
+               |> Enum.reject(&is_nil/1)
+               |> Enum.join("&")
+               |> case do
+                 "" -> ""
+                 qs -> "?" <> qs
+               end)
           )
-        }>
+        }
+      >
         <.live_component
           module={DashboardSSDWeb.ClientsLive.ReadComponent}
           id={@params["client_id"]}
@@ -358,21 +457,34 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
 
   @impl true
   def handle_event("range_set", %{"start" => s, "end" => e}, socket) do
-    start_date = case Date.from_iso8601(to_string(s)) do {:ok, d} -> d; _ -> socket.assigns.range_start end
-    end_date = case Date.from_iso8601(to_string(e)) do {:ok, d} -> d; _ -> socket.assigns.range_end end
+    start_date =
+      case Date.from_iso8601(to_string(s)) do
+        {:ok, d} -> d
+        _ -> socket.assigns.range_start
+      end
+
+    end_date =
+      case Date.from_iso8601(to_string(e)) do
+        {:ok, d} -> d
+        _ -> socket.assigns.range_end
+      end
+
     {:noreply, push_patch_to_range(socket, start_date, end_date)}
   end
 
   defp push_patch_to_range(socket, start_date, end_date) do
     qs =
       [
-        (Map.get(socket.assigns[:params] || %{}, "mock") && "mock=" <> Map.get(socket.assigns.params, "mock")) || nil,
+        (Map.get(socket.assigns[:params] || %{}, "mock") &&
+           "mock=" <> Map.get(socket.assigns.params, "mock")) || nil,
         "start=" <> Date.to_iso8601(start_date),
         "end=" <> Date.to_iso8601(end_date)
       ]
       |> Enum.reject(&is_nil/1)
       |> Enum.join("&")
 
-    Phoenix.LiveView.push_patch(socket, to: ~p"/meetings" <> (if qs == "", do: "", else: "?" <> qs))
+    Phoenix.LiveView.push_patch(socket,
+      to: ~p"/meetings" <> if(qs == "", do: "", else: "?" <> qs)
+    )
   end
 end

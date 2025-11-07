@@ -31,7 +31,8 @@ defmodule DashboardSSD.Integrations.GoogleCalendar do
     * `:mock` - set to `:sample` to return sample events
     * `:token` - OAuth access token for Google Calendar API
   """
-  @spec list_upcoming(DateTime.t(), DateTime.t(), keyword()) :: {:ok, [meeting_event()]} | {:error, term()}
+  @spec list_upcoming(DateTime.t(), DateTime.t(), keyword()) ::
+          {:ok, [meeting_event()]} | {:error, term()}
   def list_upcoming(start_at, end_at, opts \\ []) do
     Logger.debug(fn ->
       %{
@@ -47,6 +48,7 @@ defmodule DashboardSSD.Integrations.GoogleCalendar do
       :sample ->
         # Return a couple of sample meetings for preview purposes
         now = start_at
+
         {:ok,
          [
            %{
@@ -73,6 +75,7 @@ defmodule DashboardSSD.Integrations.GoogleCalendar do
           {:ok, []}
         else
           headers = [{"authorization", "Bearer #{token}"}]
+
           params = [
             timeMin: DateTime.to_iso8601(start_at),
             timeMax: DateTime.to_iso8601(end_at),
@@ -105,13 +108,24 @@ defmodule DashboardSSD.Integrations.GoogleCalendar do
   Accepts `opts` (e.g., `mock: :sample`). Returns `{:error, :no_token}` if no
   token is available and not in mock mode.
   """
-  @spec list_upcoming_for_user(pos_integer() | %{id: pos_integer()}, DateTime.t(), DateTime.t(), keyword()) ::
+  @spec list_upcoming_for_user(
+          pos_integer() | %{id: pos_integer()},
+          DateTime.t(),
+          DateTime.t(),
+          keyword()
+        ) ::
           {:ok, [meeting_event()]} | {:error, term()}
   def list_upcoming_for_user(user_or_id, start_at, end_at, opts \\ []) do
     if Keyword.get(opts, :mock) == :sample do
       list_upcoming(start_at, end_at, opts)
     else
-      user_id = case user_or_id do %{id: id} -> id; id when is_integer(id) -> id; _ -> nil end
+      user_id =
+        case user_or_id do
+          %{id: id} -> id
+          id when is_integer(id) -> id
+          _ -> nil
+        end
+
       with {:ok, token} <- GoogleToken.get_access_token_for_user(user_id) do
         list_upcoming(start_at, end_at, Keyword.put(opts, :token, token))
       else
@@ -133,13 +147,18 @@ defmodule DashboardSSD.Integrations.GoogleCalendar do
     %{
       id: Map.get(event, "id") || Map.get(event, :id),
       title: Map.get(event, "summary") || Map.get(event, :title) || "(untitled)",
-      start_at: parse_time(get_in(event, ["start"])) || parse_time(Map.get(event, :start)) || DateTime.utc_now(),
-      end_at: parse_time(get_in(event, ["end"])) || parse_time(Map.get(event, :end)) || DateTime.utc_now(),
+      start_at:
+        parse_time(get_in(event, ["start"])) || parse_time(Map.get(event, :start)) ||
+          DateTime.utc_now(),
+      end_at:
+        parse_time(get_in(event, ["end"])) || parse_time(Map.get(event, :end)) ||
+          DateTime.utc_now(),
       recurring_series_id: recurrence_id(event)
     }
   end
 
   defp parse_time(nil), do: nil
+
   defp parse_time(%{"dateTime" => dt}) when is_binary(dt) do
     case DateTime.from_iso8601(dt) do
       {:ok, v, _offset} -> v

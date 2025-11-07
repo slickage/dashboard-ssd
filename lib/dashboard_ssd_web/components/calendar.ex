@@ -17,6 +17,7 @@ defmodule DashboardSSDWeb.CalendarComponents do
   attr :start_date, :any, default: nil
   attr :end_date, :any, default: nil
   attr :compact, :boolean, default: true
+
   def month_calendar(assigns) do
     assigns =
       assigns
@@ -30,10 +31,16 @@ defmodule DashboardSSDWeb.CalendarComponents do
     <%= if @compact do %>
       <div class="flex flex-col gap-1">
         <div class="text-[11px] font-medium text-white/80">
-          <%= Calendar.strftime(@month, "%b %Y") %>
+          {Calendar.strftime(@month, "%b %Y")}
         </div>
         <div class="grid grid-cols-7 gap-0.5 text-center text-[10px]">
-          <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
+          <div>Su</div>
+          <div>Mo</div>
+          <div>Tu</div>
+          <div>We</div>
+          <div>Th</div>
+          <div>Fr</div>
+          <div>Sa</div>
         </div>
         <div class="grid grid-cols-7 gap-0.5 text-center">
           <%= for _d <- leading_blanks(@month) do %>
@@ -44,12 +51,11 @@ defmodule DashboardSSDWeb.CalendarComponents do
             <% is_today = date == @today %>
             <% in_range = in_range?(date, @start_date, @end_date) %>
             <div class={[
-                  "h-5 rounded text-[10px] leading-none flex items-center justify-center",
-                  (in_range and not is_today) && "bg-theme-primary text-white",
-                  is_today && "ring-1 ring-theme-primary ring-offset-transparent bg-transparent"
-                ]}
-            >
-              <%= day %>
+              "h-5 rounded text-[10px] leading-none flex items-center justify-center",
+              (in_range and not is_today) && "bg-theme-primary text-white",
+              is_today && "ring-1 ring-theme-primary ring-offset-transparent bg-transparent"
+            ]}>
+              {day}
             </div>
           <% end %>
         </div>
@@ -57,7 +63,7 @@ defmodule DashboardSSDWeb.CalendarComponents do
     <% else %>
       <div class="theme-card px-4 py-4 sm:px-6">
         <div class="text-sm font-medium text-white/80">
-          <%= Calendar.strftime(@month, "%B %Y") %>
+          {Calendar.strftime(@month, "%B %Y")}
         </div>
         <div class="mt-3 grid grid-cols-7 gap-1 text-center text-xs">
           <div>Sun</div>
@@ -77,12 +83,11 @@ defmodule DashboardSSDWeb.CalendarComponents do
             <% is_today = date == @today %>
             <% in_range = in_range?(date, @start_date, @end_date) %>
             <div class={[
-                "h-7 rounded text-xs flex items-center justify-center",
-                (in_range and not is_today) && "bg-theme-primary text-white",
-                is_today && "ring-1 ring-theme-primary ring-offset-transparent bg-transparent"
-              ]}
-            >
-              <%= day %>
+              "h-7 rounded text-xs flex items-center justify-center",
+              (in_range and not is_today) && "bg-theme-primary text-white",
+              is_today && "ring-1 ring-theme-primary ring-offset-transparent bg-transparent"
+            ]}>
+              {day}
             </div>
           <% end %>
         </div>
@@ -96,11 +101,14 @@ defmodule DashboardSSDWeb.CalendarComponents do
   # Number of blank cells before the first of the month when weeks start on Sunday
   defp leading_blanks(%Date{year: y, month: m}) do
     first = %Date{year: y, month: m, day: 1}
-    dow = Date.day_of_week(first) # 1=Mon .. 7=Sun
+    # 1=Mon .. 7=Sun
+    dow = Date.day_of_week(first)
     count = if dow == 7, do: 0, else: dow
     for _ <- 1..count, do: :blank
   end
 
-  defp in_range?(%Date{} = d, %Date{} = s, %Date{} = e), do: Date.compare(d, s) in [:eq, :gt] and Date.compare(d, e) in [:eq, :lt] or d == e
+  defp in_range?(%Date{} = d, %Date{} = s, %Date{} = e),
+    do: (Date.compare(d, s) in [:eq, :gt] and Date.compare(d, e) in [:eq, :lt]) or d == e
+
   defp in_range?(_d, _s, _e), do: false
 end

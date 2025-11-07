@@ -9,7 +9,12 @@ defmodule DashboardSSD.Meetings.MeetingAssociationTest do
     cs = MeetingAssociation.changeset(%MeetingAssociation{}, %{})
     refute cs.valid?
 
-    cs2 = MeetingAssociation.changeset(%MeetingAssociation{}, %{calendar_event_id: "evt-1", origin: "auto"})
+    cs2 =
+      MeetingAssociation.changeset(%MeetingAssociation{}, %{
+        calendar_event_id: "evt-1",
+        origin: "auto"
+      })
+
     assert cs2.valid?
   end
 
@@ -27,12 +32,20 @@ defmodule DashboardSSD.Meetings.MeetingAssociationTest do
 
     {:ok, _} =
       %MeetingAssociation{}
-      |> MeetingAssociation.changeset(%{calendar_event_id: "evt-3", client_id: client.id, origin: "manual"})
+      |> MeetingAssociation.changeset(%{
+        calendar_event_id: "evt-3",
+        client_id: client.id,
+        origin: "manual"
+      })
       |> Repo.insert()
 
     {:ok, _} =
       %MeetingAssociation{}
-      |> MeetingAssociation.changeset(%{calendar_event_id: "evt-4", project_id: project.id, origin: "manual"})
+      |> MeetingAssociation.changeset(%{
+        calendar_event_id: "evt-4",
+        project_id: project.id,
+        origin: "manual"
+      })
       |> Repo.insert()
   end
 end
@@ -44,9 +57,14 @@ defmodule DashboardSSD.Meetings.AssociationsFallbackTest do
 
   test "get_for_event_or_series returns event-specific when present" do
     {:ok, client} = Clients.create_client(%{name: "CX"})
+
     {:ok, assoc} =
       %MeetingAssociation{}
-      |> MeetingAssociation.changeset(%{calendar_event_id: "evt-x", client_id: client.id, origin: "manual"})
+      |> MeetingAssociation.changeset(%{
+        calendar_event_id: "evt-x",
+        client_id: client.id,
+        origin: "manual"
+      })
       |> Repo.insert()
 
     assert %MeetingAssociation{id: id} = Associations.get_for_event_or_series("evt-x", "series-x")
@@ -67,7 +85,9 @@ defmodule DashboardSSD.Meetings.AssociationsFallbackTest do
       })
       |> Repo.insert()
 
-    assert %MeetingAssociation{id: id} = Associations.get_for_event_or_series("evt-y2", "series-y")
+    assert %MeetingAssociation{id: id} =
+             Associations.get_for_event_or_series("evt-y2", "series-y")
+
     assert id == assoc.id
   end
 
@@ -102,6 +122,7 @@ defmodule DashboardSSD.Meetings.AssociationsFallbackTest do
 
   test "delete_series removes persisted series association" do
     {:ok, client} = Clients.create_client(%{name: "CW"})
+
     {:ok, _} =
       %MeetingAssociation{}
       |> MeetingAssociation.changeset(%{

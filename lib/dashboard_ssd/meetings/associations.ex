@@ -24,7 +24,9 @@ defmodule DashboardSSD.Meetings.Associations do
   @spec get_for_event_or_series(String.t(), String.t() | nil) :: MeetingAssociation.t() | nil
   def get_for_event_or_series(calendar_event_id, series_id) do
     case get_for_event(calendar_event_id) do
-      %MeetingAssociation{} = assoc -> assoc
+      %MeetingAssociation{} = assoc ->
+        assoc
+
       _ ->
         if is_binary(series_id) and String.trim(series_id) != "" do
           from(a in MeetingAssociation,
@@ -39,7 +41,8 @@ defmodule DashboardSSD.Meetings.Associations do
     end
   end
 
-  @spec upsert_for_event(String.t(), map()) :: {:ok, MeetingAssociation.t()} | {:error, Ecto.Changeset.t()}
+  @spec upsert_for_event(String.t(), map()) ::
+          {:ok, MeetingAssociation.t()} | {:error, Ecto.Changeset.t()}
   def upsert_for_event(calendar_event_id, attrs) do
     case get_for_event(calendar_event_id) do
       nil ->
@@ -54,7 +57,8 @@ defmodule DashboardSSD.Meetings.Associations do
     end
   end
 
-  @spec set_manual(String.t(), map()) :: {:ok, MeetingAssociation.t()} | {:error, Ecto.Changeset.t()}
+  @spec set_manual(String.t(), map()) ::
+          {:ok, MeetingAssociation.t()} | {:error, Ecto.Changeset.t()}
   def set_manual(calendar_event_id, %{client_id: _} = attrs),
     do: upsert_for_event(calendar_event_id, Map.merge(attrs, %{origin: "manual"}))
 
@@ -71,6 +75,7 @@ defmodule DashboardSSD.Meetings.Associations do
   @spec set_manual(String.t(), map(), String.t() | nil, boolean()) ::
           {:ok, MeetingAssociation.t()} | {:error, Ecto.Changeset.t()}
   def set_manual(calendar_event_id, attrs, series_id, persist_series \\ true)
+
   def set_manual(calendar_event_id, attrs, series_id, persist_series) do
     persist = if is_nil(persist_series), do: true, else: truthy?(persist_series)
     base = %{origin: "manual", persist_series: persist}
@@ -83,6 +88,7 @@ defmodule DashboardSSD.Meetings.Associations do
   def delete_for_event(calendar_event_id) when is_binary(calendar_event_id) do
     from(a in MeetingAssociation, where: a.calendar_event_id == ^calendar_event_id)
     |> Repo.delete_all()
+
     :ok
   end
 
@@ -93,6 +99,7 @@ defmodule DashboardSSD.Meetings.Associations do
       where: a.recurring_series_id == ^series_id and a.persist_series == true
     )
     |> Repo.delete_all()
+
     :ok
   end
 
@@ -101,14 +108,22 @@ defmodule DashboardSSD.Meetings.Associations do
 
   Returns {:client, client} | {:project, project} | :unknown | {:ambiguous, list}.
   """
-  @spec guess_from_title(String.t()) :: {:client, Clients.Client.t()} | {:project, Projects.Project.t()} | :unknown | {:ambiguous, list()}
+  @spec guess_from_title(String.t()) ::
+          {:client, Clients.Client.t()}
+          | {:project, Projects.Project.t()}
+          | :unknown
+          | {:ambiguous, list()}
   def guess_from_title(title) when is_binary(title) do
     t = String.downcase(title)
     clients = Clients.list_clients()
-    client_matches = Enum.filter(clients, fn c -> c.name && String.contains?(t, String.downcase(c.name)) end)
+
+    client_matches =
+      Enum.filter(clients, fn c -> c.name && String.contains?(t, String.downcase(c.name)) end)
 
     projects = Projects.list_projects()
-    project_matches = Enum.filter(projects, fn p -> p.name && String.contains?(t, String.downcase(p.name)) end)
+
+    project_matches =
+      Enum.filter(projects, fn p -> p.name && String.contains?(t, String.downcase(p.name)) end)
 
     cond do
       length(client_matches) == 1 and project_matches == [] -> {:client, hd(client_matches)}
@@ -119,6 +134,6 @@ defmodule DashboardSSD.Meetings.Associations do
   end
 
   defp truthy?(v) do
-    v in [true, "true", "1", 1, :true, "on", :on]
+    v in [true, "true", "1", 1, true, "on", :on]
   end
 end

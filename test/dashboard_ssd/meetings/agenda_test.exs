@@ -28,7 +28,9 @@ defmodule DashboardSSD.Meetings.AgendaTest do
   test "merged_items_for_event de-duplicates by normalized text" do
     evt = "evt-dedup"
     {:ok, _} = Agenda.create_item(%{calendar_event_id: evt, text: "Prepare Budget", position: 0})
-    {:ok, _} = Agenda.create_item(%{calendar_event_id: evt, text: "  prepare   budget  ", position: 1})
+
+    {:ok, _} =
+      Agenda.create_item(%{calendar_event_id: evt, text: "  prepare   budget  ", position: 1})
 
     merged = Agenda.merged_items_for_event(evt, nil)
     texts = Enum.map(merged, &String.downcase(&1.text))

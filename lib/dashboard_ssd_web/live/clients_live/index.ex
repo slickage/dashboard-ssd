@@ -71,7 +71,12 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
     {:noreply,
      socket
      |> put_flash(:info, "Client deleted successfully")
-     |> push_navigate(to: ~p"/clients" <> ((Map.get(socket.assigns[:params] || %{}, "mock") && ("?mock=" <> Map.get(socket.assigns.params, "mock"))) || ""))}
+     |> push_navigate(
+       to:
+         ~p"/clients" <>
+           ((Map.get(socket.assigns[:params] || %{}, "mock") &&
+               "?mock=" <> Map.get(socket.assigns.params, "mock")) || "")
+     )}
   end
 
   @impl true
@@ -192,7 +197,16 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
       <% end %>
 
       <%= if @live_action in [:new, :edit] do %>
-        <.modal id="client-modal" show on_cancel={JS.patch(~p"/clients" <> ((Map.get(@params || %{}, "mock") && ("?mock=" <> Map.get(@params, "mock"))) || ""))}>
+        <.modal
+          id="client-modal"
+          show
+          on_cancel={
+            JS.patch(
+              ~p"/clients" <>
+                ((Map.get(@params || %{}, "mock") && "?mock=" <> Map.get(@params, "mock")) || "")
+            )
+          }
+        >
           <.live_component
             module={DashboardSSDWeb.ClientsLive.FormComponent}
             id={(@live_action == :new && :new) || @params["id"]}
@@ -206,7 +220,16 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
       <% end %>
 
       <%= if @live_action == :delete do %>
-        <.modal id="delete-client-modal" show on_cancel={JS.patch(~p"/clients" <> ((Map.get(@params || %{}, "mock") && ("?mock=" <> Map.get(@params, "mock"))) || ""))}>
+        <.modal
+          id="delete-client-modal"
+          show
+          on_cancel={
+            JS.patch(
+              ~p"/clients" <>
+                ((Map.get(@params || %{}, "mock") && "?mock=" <> Map.get(@params, "mock")) || "")
+            )
+          }
+        >
           <div class="flex flex-col gap-6">
             <div class="flex items-center gap-3">
               <div class="flex h-10 w-10 items-center justify-center rounded-full bg-rose-500/10">

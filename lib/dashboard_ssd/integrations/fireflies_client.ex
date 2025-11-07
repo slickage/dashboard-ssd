@@ -51,14 +51,15 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
       }
       """
 
-      variables = %{
-        "limit" => clamp(Keyword.get(opts, :limit)),
-        "skip" => Keyword.get(opts, :skip),
-        "transcript_id" => Keyword.get(opts, :transcript_id),
-        "mine" => Keyword.get(opts, :mine, true),
-        "my_team" => Keyword.get(opts, :my_team)
-      }
-      |> drop_nils()
+      variables =
+        %{
+          "limit" => clamp(Keyword.get(opts, :limit)),
+          "skip" => Keyword.get(opts, :skip),
+          "transcript_id" => Keyword.get(opts, :transcript_id),
+          "mine" => Keyword.get(opts, :mine, true),
+          "my_team" => Keyword.get(opts, :my_team)
+        }
+        |> drop_nils()
 
       case post_graphql(token, query, variables) do
         {:ok, %{"data" => %{"bites" => bites}}} when is_list(bites) -> {:ok, bites}
@@ -110,7 +111,10 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
     * `:action_items` - currently an empty list (AI Apps integration to be added)
     * `:bullet_gist` - always nil for bites path (not provided on this query)
   """
-  @spec get_summary_for_transcript(String.t()) :: {:ok, %{notes: String.t() | nil, action_items: [String.t()], bullet_gist: String.t() | nil}} | {:error, term()}
+  @spec get_summary_for_transcript(String.t()) ::
+          {:ok,
+           %{notes: String.t() | nil, action_items: [String.t()], bullet_gist: String.t() | nil}}
+          | {:error, term()}
   def get_summary_for_transcript(transcript_id) when is_binary(transcript_id) do
     with {:ok, token} <- token() do
       query = """
@@ -130,9 +134,14 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
         {:ok, %{"data" => %{"bites" => [bite | _]}}} ->
           {:ok, %{notes: Map.get(bite, "summary"), action_items: [], bullet_gist: nil}}
 
-        {:ok, %{"errors" => errs}} -> {:error, {:graphql_error, errs}}
-        {:ok, _other} -> {:ok, %{notes: nil, action_items: [], bullet_gist: nil}}
-        {:error, reason} -> {:error, reason}
+        {:ok, %{"errors" => errs}} ->
+          {:error, {:graphql_error, errs}}
+
+        {:ok, _other} ->
+          {:ok, %{notes: nil, action_items: [], bullet_gist: nil}}
+
+        {:error, reason} ->
+          {:error, reason}
       end
     end
   end
@@ -194,16 +203,19 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
       """
 
       # Respect Fireflies exclusivity: only one of mine, userId, hostEmail, organizerEmail, participantEmail may be set.
-      exclusives = %{
-        "userId" => Keyword.get(opts, :user_id),
-        "hostEmail" => Keyword.get(opts, :host_email),
-        "organizerEmail" => Keyword.get(opts, :organizer_email),
-        "participantEmail" => Keyword.get(opts, :participant_email)
-      } |> drop_nils()
+      exclusives =
+        %{
+          "userId" => Keyword.get(opts, :user_id),
+          "hostEmail" => Keyword.get(opts, :host_email),
+          "organizerEmail" => Keyword.get(opts, :organizer_email),
+          "participantEmail" => Keyword.get(opts, :participant_email)
+        }
+        |> drop_nils()
 
       # Determine default exclusive: prefer configured user_id when none provided
       # and :mine is not explicitly set; otherwise fallback to mine=true.
       cfg_user = configured_user_id()
+
       {mine_opt, user_opt} =
         if map_size(exclusives) == 0 do
           cond do
@@ -215,20 +227,21 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
           {nil, nil}
         end
 
-      variables = %{
-        "mine" => mine_opt,
-        "userId" => Map.get(exclusives, "userId") || user_opt,
-        "hostEmail" => Map.get(exclusives, "hostEmail"),
-        "organizerEmail" => Map.get(exclusives, "organizerEmail"),
-        "participantEmail" => Map.get(exclusives, "participantEmail"),
-        "organizers" => sanitize_string_list(Keyword.get(opts, :organizers)),
-        "participants" => sanitize_string_list(Keyword.get(opts, :participants)),
-        "fromDate" => Keyword.get(opts, :from_date),
-        "toDate" => Keyword.get(opts, :to_date),
-        "limit" => clamp(Keyword.get(opts, :limit, 10)),
-        "skip" => Keyword.get(opts, :skip)
-      }
-      |> drop_nils()
+      variables =
+        %{
+          "mine" => mine_opt,
+          "userId" => Map.get(exclusives, "userId") || user_opt,
+          "hostEmail" => Map.get(exclusives, "hostEmail"),
+          "organizerEmail" => Map.get(exclusives, "organizerEmail"),
+          "participantEmail" => Map.get(exclusives, "participantEmail"),
+          "organizers" => sanitize_string_list(Keyword.get(opts, :organizers)),
+          "participants" => sanitize_string_list(Keyword.get(opts, :participants)),
+          "fromDate" => Keyword.get(opts, :from_date),
+          "toDate" => Keyword.get(opts, :to_date),
+          "limit" => clamp(Keyword.get(opts, :limit, 10)),
+          "skip" => Keyword.get(opts, :skip)
+        }
+        |> drop_nils()
 
       case post_graphql(token, query, variables) do
         {:ok, %{"data" => %{"transcripts" => list}}} when is_list(list) -> {:ok, list}
@@ -244,7 +257,10 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
   Returns {:ok, %{notes: text | nil, action_items: [String], bullet_gist: String | nil}}.
   Notes prefer `summary.overview` then `summary.short_summary`.
   """
-  @spec get_transcript_summary(String.t()) :: {:ok, %{notes: String.t() | nil, action_items: [String.t()], bullet_gist: String.t() | nil}} | {:error, term()}
+  @spec get_transcript_summary(String.t()) ::
+          {:ok,
+           %{notes: String.t() | nil, action_items: [String.t()], bullet_gist: String.t() | nil}}
+          | {:error, term()}
   def get_transcript_summary(transcript_id) when is_binary(transcript_id) do
     with {:ok, token} <- token() do
       query = """
@@ -269,9 +285,14 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
           bullet_gist = Map.get(summary, "bullet_gist")
           {:ok, %{notes: notes, action_items: action_items, bullet_gist: bullet_gist}}
 
-        {:ok, %{"errors" => errs}} -> {:error, {:graphql_error, errs}}
-        {:ok, _other} -> {:ok, %{notes: nil, action_items: [], bullet_gist: nil}}
-        {:error, reason} -> {:error, reason}
+        {:ok, %{"errors" => errs}} ->
+          {:error, {:graphql_error, errs}}
+
+        {:ok, _other} ->
+          {:ok, %{notes: nil, action_items: [], bullet_gist: nil}}
+
+        {:error, reason} ->
+          {:error, reason}
       end
     end
   end
@@ -301,6 +322,7 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
           }
           |> Jason.encode!()
         end)
+
         {:ok, body}
 
       {:ok, %Tesla.Env{status: status, body: body}} ->
@@ -312,6 +334,7 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
           }
           |> Jason.encode!()
         end)
+
         {:error, {:http_error, status, body}}
 
       {:error, reason} ->
@@ -323,6 +346,7 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
           }
           |> Jason.encode!()
         end)
+
         {:error, reason}
     end
   end
@@ -353,6 +377,7 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
   defp clamp(limit), do: limit
 
   defp sanitize_string_list(nil), do: nil
+
   defp sanitize_string_list(list) when is_list(list) do
     list
     |> Enum.reject(&is_nil/1)
@@ -366,6 +391,7 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
   @spec configured_user_id() :: String.t() | nil
   def configured_user_id do
     conf = Application.get_env(:dashboard_ssd, :integrations, [])
+
     user_id =
       case Keyword.get(conf, :fireflies_user_id) do
         v when is_binary(v) and v != "" -> v

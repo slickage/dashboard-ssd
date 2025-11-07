@@ -38,15 +38,18 @@ defmodule DashboardSSD.Meetings.Agenda do
     items = list_items(calendar_event_id)
     pos_map = ordered_ids |> Enum.with_index(0) |> Map.new()
 
-    result = Repo.transaction(fn ->
-      for item <- items do
-        new_pos = Map.get(pos_map, item.id, item.position)
-        if new_pos != item.position do
-          {:ok, _} = update_item(item, %{position: new_pos})
+    result =
+      Repo.transaction(fn ->
+        for item <- items do
+          new_pos = Map.get(pos_map, item.id, item.position)
+
+          if new_pos != item.position do
+            {:ok, _} = update_item(item, %{position: new_pos})
+          end
         end
-      end
-      :ok
-    end)
+
+        :ok
+      end)
 
     case result do
       {:ok, _} -> :ok
@@ -63,6 +66,7 @@ defmodule DashboardSSD.Meetings.Agenda do
   @spec derive_items_for_event(String.t(), String.t() | nil, keyword()) :: [map()]
   def derive_items_for_event(_calendar_event_id, _series_id, _opts \\ [])
   def derive_items_for_event(_calendar_event_id, nil, _opts), do: []
+
   def derive_items_for_event(_calendar_event_id, series_id, opts) when is_binary(series_id) do
     case Fireflies.fetch_latest_for_series(series_id, opts) do
       {:ok, %{action_items: items}} ->
@@ -94,6 +98,7 @@ defmodule DashboardSSD.Meetings.Agenda do
     {acc, _seen} =
       Enum.reduce(items, {[], MapSet.new()}, fn item, {acc, seen} ->
         key = normalize_text(item.text)
+
         if MapSet.member?(seen, key) do
           {acc, seen}
         else
@@ -105,6 +110,7 @@ defmodule DashboardSSD.Meetings.Agenda do
   end
 
   defp normalize_text(nil), do: ""
+
   defp normalize_text(text) do
     text
     |> String.downcase()

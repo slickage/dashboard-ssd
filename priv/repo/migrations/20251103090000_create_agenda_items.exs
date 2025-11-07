@@ -14,4 +14,3 @@ defmodule DashboardSSD.Repo.Migrations.CreateAgendaItems do
     create index(:agenda_items, [:calendar_event_id])
   end
 end
-

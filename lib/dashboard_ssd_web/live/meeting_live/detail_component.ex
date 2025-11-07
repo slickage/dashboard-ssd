@@ -19,7 +19,9 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
 
     post =
       case series_id do
-        nil -> %{accomplished: nil, action_items: []}
+        nil ->
+          %{accomplished: nil, action_items: []}
+
         s ->
           # Skip Fireflies in mock mode
           if Map.get(assigns || %{}, :params) |> then(&(&1 && Map.get(&1, "mock"))) do
@@ -42,7 +44,11 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
         other -> other
       end
 
-    guess = if is_binary(title) and String.trim(title) != "", do: Associations.guess_from_title(title), else: :unknown
+    guess =
+      if is_binary(title) and String.trim(title) != "",
+        do: Associations.guess_from_title(title),
+        else: :unknown
+
     {auto_entity, auto_notice?} =
       case {assoc, guess} do
         {nil, {:client, c}} when not is_nil(c) -> {"client:" <> to_string(c.id), true}
@@ -72,6 +78,7 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
   @impl true
   def handle_event("save_agenda_text", %{"agenda_text" => text}, socket) do
     id = socket.assigns.meeting_id
+
     case Agenda.replace_manual_text(id, text) do
       :ok -> refresh_assigns(socket)
       {:error, _} -> {:noreply, socket}
@@ -81,7 +88,9 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
   @impl true
   def handle_event("refresh_post", _params, socket) do
     case socket.assigns.series_id do
-      nil -> {:noreply, socket}
+      nil ->
+        {:noreply, socket}
+
       s ->
         _ = Fireflies.refresh_series(s)
         refresh_assigns(socket)
@@ -96,17 +105,36 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
     case String.split(entity || "", ":", parts: 2) do
       ["client", id_str] ->
         case Integer.parse(id_str) do
-          {v, _} -> Associations.set_manual(meeting_id, %{client_id: v}, series_id, persist in ["true", "1", "on", nil]) |> respond_assoc(socket)
-          _ -> {:noreply, socket}
+          {v, _} ->
+            Associations.set_manual(
+              meeting_id,
+              %{client_id: v},
+              series_id,
+              persist in ["true", "1", "on", nil]
+            )
+            |> respond_assoc(socket)
+
+          _ ->
+            {:noreply, socket}
         end
 
       ["project", id_str] ->
         case Integer.parse(id_str) do
-          {v, _} -> Associations.set_manual(meeting_id, %{project_id: v}, series_id, persist in ["true", "1", "on", nil]) |> respond_assoc(socket)
-          _ -> {:noreply, socket}
+          {v, _} ->
+            Associations.set_manual(
+              meeting_id,
+              %{project_id: v},
+              series_id,
+              persist in ["true", "1", "on", nil]
+            )
+            |> respond_assoc(socket)
+
+          _ ->
+            {:noreply, socket}
         end
 
-      _ -> {:noreply, socket}
+      _ ->
+        {:noreply, socket}
     end
   end
 
@@ -123,17 +151,26 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
     case String.split(entity || "", ":", parts: 2) do
       ["client", id_str] ->
         case Integer.parse(id_str) do
-          {v, _} -> Associations.set_manual(meeting_id, %{client_id: v}, series_id, true) |> respond_assoc(socket)
-          _ -> {:noreply, socket}
+          {v, _} ->
+            Associations.set_manual(meeting_id, %{client_id: v}, series_id, true)
+            |> respond_assoc(socket)
+
+          _ ->
+            {:noreply, socket}
         end
 
       ["project", id_str] ->
         case Integer.parse(id_str) do
-          {v, _} -> Associations.set_manual(meeting_id, %{project_id: v}, series_id, true) |> respond_assoc(socket)
-          _ -> {:noreply, socket}
+          {v, _} ->
+            Associations.set_manual(meeting_id, %{project_id: v}, series_id, true)
+            |> respond_assoc(socket)
+
+          _ ->
+            {:noreply, socket}
         end
 
-      _ -> {:noreply, socket}
+      _ ->
+        {:noreply, socket}
     end
   end
 
@@ -150,23 +187,30 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
   def handle_event("assoc_reset_series", _params, socket) do
     series_id = socket.assigns.series_id
     meeting_id = socket.assigns.meeting_id
+
     if is_binary(series_id) do
       :ok = Associations.delete_series(series_id)
     end
+
     assoc = Associations.get_for_event_or_series(meeting_id, series_id)
     {:noreply, assign(socket, assoc: assoc, association: assoc)}
   end
 
-  defp respond_assoc({:ok, assoc}, socket), do: {:noreply, assign(socket, assoc: assoc, association: assoc)}
+  defp respond_assoc({:ok, assoc}, socket),
+    do: {:noreply, assign(socket, assoc: assoc, association: assoc)}
+
   defp respond_assoc({:error, _}, socket), do: {:noreply, socket}
 
   defp refresh_assigns(socket) do
     id = socket.assigns.meeting_id
     series_id = socket.assigns.series_id
     manual = Agenda.list_items(id)
+
     post =
       case series_id do
-        nil -> %{accomplished: nil, action_items: []}
+        nil ->
+          %{accomplished: nil, action_items: []}
+
         s ->
           # Skip Fireflies in mock mode
           if Map.get(socket.assigns[:params] || %{}, "mock") do
@@ -204,7 +248,11 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
     <div>
       <h2 class="font-medium">Agenda</h2>
       <form phx-target={@myself} phx-submit="save_agenda_text" class="mt-2">
-        <textarea name="agenda_text" class="border rounded px-2 py-1 w-full h-40" placeholder="Agenda notes..."><%= @agenda_text %></textarea>
+        <textarea
+          name="agenda_text"
+          class="border rounded px-2 py-1 w-full h-40"
+          placeholder="Agenda notes..."
+        ><%= @agenda_text %></textarea>
         <div class="mt-2">
           <button type="submit" class="underline">Save agenda</button>
         </div>
@@ -214,20 +262,25 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
         <h3 class="font-medium">Last meeting summary</h3>
         <%= if is_binary(@summary_text) and String.trim(@summary_text) != "" or @action_items != [] do %>
           <%= if is_binary(@summary_text) and String.trim(@summary_text) != "" do %>
-            <div class="prose max-w-none"><p><%= @summary_text %></p></div>
+            <div class="prose max-w-none">
+              <p>{@summary_text}</p>
+            </div>
           <% end %>
           <%= if @action_items != [] do %>
             <div class="mt-3">
               <div class="opacity-75">Action Items</div>
               <ul class="list-disc ml-6 space-y-1">
                 <%= for it <- @action_items do %>
-                  <li><%= it %></li>
+                  <li>{it}</li>
                 <% end %>
               </ul>
             </div>
           <% end %>
         <% else %>
-          <div class="opacity-75">Summary pending. <button phx-target={@myself} phx-click="refresh_post" class="underline">Refresh</button></div>
+          <div class="opacity-75">
+            Summary pending.
+            <button phx-target={@myself} phx-click="refresh_post" class="underline">Refresh</button>
+          </div>
         <% end %>
       </div>
 
@@ -242,15 +295,29 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
                   <option value="">— Choose —</option>
                   <optgroup label="Clients">
                     <%= for c <- @clients do %>
-                      <option value={"client:" <> to_string(c.id)} selected={(not is_nil(@assoc) and @assoc.client_id == c.id) or (is_nil(@assoc) and @auto_entity == "client:" <> to_string(c.id))}>
-                        <%= c.name %><%= if is_nil(@assoc) and @auto_entity == "client:" <> to_string(c.id), do: " (suggested)" %>
+                      <option
+                        value={"client:" <> to_string(c.id)}
+                        selected={
+                          (not is_nil(@assoc) and @assoc.client_id == c.id) or
+                            (is_nil(@assoc) and @auto_entity == "client:" <> to_string(c.id))
+                        }
+                      >
+                        {c.name}{if is_nil(@assoc) and @auto_entity == "client:" <> to_string(c.id),
+                          do: " (suggested)"}
                       </option>
                     <% end %>
                   </optgroup>
                   <optgroup label="Projects">
                     <%= for p <- @projects do %>
-                      <option value={"project:" <> to_string(p.id)} selected={(not is_nil(@assoc) and @assoc.project_id == p.id) or (is_nil(@assoc) and @auto_entity == "project:" <> to_string(p.id))}>
-                        <%= p.name %><%= if is_nil(@assoc) and @auto_entity == "project:" <> to_string(p.id), do: " (suggested)" %>
+                      <option
+                        value={"project:" <> to_string(p.id)}
+                        selected={
+                          (not is_nil(@assoc) and @assoc.project_id == p.id) or
+                            (is_nil(@assoc) and @auto_entity == "project:" <> to_string(p.id))
+                        }
+                      >
+                        {p.name}{if is_nil(@assoc) and @auto_entity == "project:" <> to_string(p.id),
+                          do: " (suggested)"}
                       </option>
                     <% end %>
                   </optgroup>
@@ -262,17 +329,28 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
               </div>
               <div class="flex items-center gap-3">
                 <button type="submit" class="underline">Save association</button>
-                <button type="button" phx-target={@myself} phx-click="assoc_reset_event" class="underline text-white/70">Reset event</button>
-                <button type="button" phx-target={@myself} phx-click="assoc_reset_series" class="underline text-white/70">Reset series</button>
+                <button
+                  type="button"
+                  phx-target={@myself}
+                  phx-click="assoc_reset_event"
+                  class="underline text-white/70"
+                >
+                  Reset event
+                </button>
+                <button
+                  type="button"
+                  phx-target={@myself}
+                  phx-click="assoc_reset_series"
+                  class="underline text-white/70"
+                >
+                  Reset series
+                </button>
               </div>
             </form>
-            
           </div>
         </div>
       </div>
     </div>
     """
   end
-
-  
 end

@@ -28,32 +28,46 @@ defmodule DashboardSSD.Integrations.GoogleCalendarTest do
         query: query
       } ->
         # Ensure Authorization header present
-        assert Enum.any?(headers, fn {k, v} -> k == "authorization" and String.starts_with?(v, "Bearer ") end)
+        assert Enum.any?(headers, fn {k, v} ->
+                 k == "authorization" and String.starts_with?(v, "Bearer ")
+               end)
+
         # Ensure typical query keys present
         assert Enum.any?(query, fn {k, _} -> k in [:timeMin, :timeMax] end)
 
-        %Tesla.Env{status: 200, body: %{
-          "items" => [
-            %{
-              "id" => "evt-dt",
-              "summary" => "Design Sync",
-              "start" => %{"dateTime" => "2025-11-04T09:00:00Z"},
-              "end" => %{"dateTime" => "2025-11-04T10:00:00Z"},
-              "recurringEventId" => "series-dt"
-            },
-            %{
-              "id" => "evt-all",
-              "summary" => "All-day Planning",
-              "start" => %{"date" => "2025-11-05"},
-              "end" => %{"date" => "2025-11-06"}
-            }
-          ]
-        }}
+        %Tesla.Env{
+          status: 200,
+          body: %{
+            "items" => [
+              %{
+                "id" => "evt-dt",
+                "summary" => "Design Sync",
+                "start" => %{"dateTime" => "2025-11-04T09:00:00Z"},
+                "end" => %{"dateTime" => "2025-11-04T10:00:00Z"},
+                "recurringEventId" => "series-dt"
+              },
+              %{
+                "id" => "evt-all",
+                "summary" => "All-day Planning",
+                "start" => %{"date" => "2025-11-05"},
+                "end" => %{"date" => "2025-11-06"}
+              }
+            ]
+          }
+        }
     end)
 
     assert {:ok, events} = GoogleCalendar.list_upcoming(now, later, token: "tok")
-    assert [%{id: "evt-dt", title: "Design Sync", start_at: %DateTime{}, end_at: %DateTime{}},
-            %{id: "evt-all", title: "All-day Planning", start_at: %DateTime{}, end_at: %DateTime{}}] = events
+
+    assert [
+             %{id: "evt-dt", title: "Design Sync", start_at: %DateTime{}, end_at: %DateTime{}},
+             %{
+               id: "evt-all",
+               title: "All-day Planning",
+               start_at: %DateTime{},
+               end_at: %DateTime{}
+             }
+           ] = events
 
     dt = Enum.find(events, &(&1.id == "evt-dt"))
     assert DateTime.to_iso8601(dt.start_at) == "2025-11-04T09:00:00Z"

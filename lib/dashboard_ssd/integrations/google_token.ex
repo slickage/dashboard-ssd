@@ -12,7 +12,9 @@ defmodule DashboardSSD.Integrations.GoogleToken do
 
   @token_url "https://oauth2.googleapis.com/token"
 
-  plug Tesla.Middleware.BaseUrl, @token_url |> URI.parse() |> Map.put(:path, "") |> URI.to_string()
+  plug Tesla.Middleware.BaseUrl,
+       @token_url |> URI.parse() |> Map.put(:path, "") |> URI.to_string()
+
   plug Tesla.Middleware.FormUrlencoded
   plug Tesla.Middleware.JSON
 
@@ -29,7 +31,8 @@ defmodule DashboardSSD.Integrations.GoogleToken do
     end
   end
 
-  defp ensure_fresh_token(%ExternalIdentity{token: token, expires_at: nil} = _idn) when is_binary(token) and byte_size(token) > 0 do
+  defp ensure_fresh_token(%ExternalIdentity{token: token, expires_at: nil} = _idn)
+       when is_binary(token) and byte_size(token) > 0 do
     {:ok, token}
   end
 

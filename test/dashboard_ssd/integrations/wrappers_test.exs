@@ -56,8 +56,15 @@ defmodule DashboardSSD.Integrations.WrappersTest do
       )
 
       Tesla.Mock.mock(fn
-        %{method: :get, url: "https://www.googleapis.com/calendar/v3/calendars/primary/events", headers: headers} ->
-          assert Enum.any?(headers, fn {k, v} -> k == "authorization" and String.starts_with?(v, "Bearer ") end)
+        %{
+          method: :get,
+          url: "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+          headers: headers
+        } ->
+          assert Enum.any?(headers, fn {k, v} ->
+                   k == "authorization" and String.starts_with?(v, "Bearer ")
+                 end)
+
           %Tesla.Env{status: 200, body: %{"items" => []}}
       end)
 
@@ -71,14 +78,18 @@ defmodule DashboardSSD.Integrations.WrappersTest do
       user = Repo.insert!(%User{name: "G2", email: "g2@example.com"})
       now = DateTime.utc_now()
       later = DateTime.add(now, 3600, :second)
-      assert {:error, :no_token} = Integrations.calendar_list_upcoming_for_user(user.id, now, later)
+
+      assert {:error, :no_token} =
+               Integrations.calendar_list_upcoming_for_user(user.id, now, later)
     end
 
     test "returns :no_token when no user/env token and not mock" do
       user = Repo.insert!(%User{name: "G3", email: "g3@example.com"})
       now = DateTime.utc_now()
       later = DateTime.add(now, 3600, :second)
-      assert {:error, :no_token} = Integrations.calendar_list_upcoming_for_user(user.id, now, later)
+
+      assert {:error, :no_token} =
+               Integrations.calendar_list_upcoming_for_user(user.id, now, later)
     end
   end
 
