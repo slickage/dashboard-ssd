@@ -53,6 +53,7 @@ defmodule DashboardSSD.MixProject do
         coveralls: :test,
         "coveralls.github": :test,
         "coveralls.html": :test,
+        "coveralls.multiple": :test,
         sobelow: :dev
       ],
       docs: [
@@ -177,7 +178,7 @@ defmodule DashboardSSD.MixProject do
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
       {:git_hooks, "~> 0.8", only: :dev, runtime: false},
       {:sobelow, "~> 0.13", only: :dev, runtime: false},
-      {:excoveralls, "~> 0.18", only: :test, runtime: false},
+      {:excoveralls, "~> 0.18", only: [:dev, :test], runtime: false},
       {:cloak_ecto, "~> 1.2"},
       {:ueberauth, "~> 0.10"},
       {:ueberauth_google, "~> 0.10"},
@@ -214,7 +215,7 @@ defmodule DashboardSSD.MixProject do
         "cmd MIX_ENV=dev mix dialyzer --format short",
         "cmd MIX_ENV=test mix ecto.create --quiet",
         "cmd MIX_ENV=test mix ecto.migrate --quiet",
-        "cmd COVERALLS_MINIMUM_COVERAGE=90 MIX_ENV=test mix coveralls",
+        "cmd COVERALLS_MINIMUM_COVERAGE=${COVERALLS_MINIMUM_COVERAGE:-90} MIX_ENV=test mix coveralls.ci",
         "cmd MIX_ENV=dev mix docs",
         "cmd MIX_ENV=dev mix doctor --summary --raise"
       ],
@@ -232,6 +233,7 @@ defmodule DashboardSSD.MixProject do
     [
       plt_core_path: "priv/plts",
       plt_local_path: "priv/plts",
+      plt_add_apps: [:mix],
       list_unused_filters: true
     ]
   end

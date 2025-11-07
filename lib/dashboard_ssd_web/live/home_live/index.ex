@@ -6,6 +6,7 @@ defmodule DashboardSSDWeb.HomeLive.Index do
 
   alias DashboardSSD.{Analytics, Clients, Deployments, Notifications, Projects}
   alias DashboardSSD.Analytics.Workload
+  alias DashboardSSD.Auth.Policy
   alias DashboardSSD.Integrations.LinearUtils
   alias DashboardSSDWeb.Layouts
 
@@ -14,23 +15,30 @@ defmodule DashboardSSDWeb.HomeLive.Index do
   def mount(_params, _session, socket) do
     current_user = socket.assigns[:current_user]
 
-    {:ok,
-     socket
-     |> assign(:current_path, "/")
-     |> assign(:page_title, "Overview")
-     |> assign(:theme_section, "Dashboard")
-     |> assign(:theme_header_meta, nil)
-     |> assign(:theme_header_actions, header_actions_for(current_user))
-     |> assign(:projects, [])
-     |> assign(:clients, [])
-     |> assign(:alerts, [])
-     |> assign(:deployments, [])
-     |> assign(:workload_summary, %{})
-     |> assign(:analytics_summary, %{})
-     |> assign(:linear_enabled, LinearUtils.linear_enabled?())
-     |> assign(:last_synced_at, nil)
-     |> assign(:loaded, false)
-     |> assign(:mobile_menu_open, false)}
+    if Policy.can?(current_user, :read, :dashboard) do
+      {:ok,
+       socket
+       |> assign(:current_path, "/")
+       |> assign(:page_title, "Overview")
+       |> assign(:theme_section, "Dashboard")
+       |> assign(:theme_header_meta, nil)
+       |> assign(:theme_header_actions, header_actions_for(current_user))
+       |> assign(:projects, [])
+       |> assign(:clients, [])
+       |> assign(:alerts, [])
+       |> assign(:deployments, [])
+       |> assign(:workload_summary, %{})
+       |> assign(:analytics_summary, %{})
+       |> assign(:linear_enabled, LinearUtils.linear_enabled?())
+       |> assign(:last_synced_at, nil)
+       |> assign(:loaded, false)
+       |> assign(:mobile_menu_open, false)}
+    else
+      {:ok,
+       socket
+       |> put_flash(:error, "You don't have permission to view the dashboard")
+       |> redirect(to: ~p"/settings")}
+    end
   end
 
   @impl true

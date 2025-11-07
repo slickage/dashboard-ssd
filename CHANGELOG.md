@@ -362,3 +362,9 @@
 ### BREAKING CHANGES
 
 * **mobile:** Sidebar layout changes may affect custom CSS targeting sidebar elements
+## Unreleased
+
+### Features
+
+* Simplified RBAC capability management with admin UI, API, and persistent role-capability storage.
+* Added Google domain allowlist enforcement and local role switch mix task for testing.

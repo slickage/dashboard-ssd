@@ -3,6 +3,7 @@ defmodule DashboardSSDWeb.ProjectsLiveTest do
   import Phoenix.LiveViewTest
 
   alias DashboardSSD.Accounts
+  alias DashboardSSD.Auth.Capabilities
   alias DashboardSSD.Clients
   alias DashboardSSD.Projects
   alias DashboardSSD.Projects.LinearTeamMember
@@ -23,6 +24,13 @@ defmodule DashboardSSDWeb.ProjectsLiveTest do
   setup do
     Accounts.ensure_role!("admin")
     Accounts.ensure_role!("employee")
+
+    Capabilities.default_assignments()
+    |> Enum.each(fn {role, caps} ->
+      Accounts.ensure_role!(role)
+      Accounts.replace_role_capabilities(role, caps, granted_by_id: nil)
+    end)
+
     # Disable Linear summaries in these tests to avoid external calls
     prev = Application.get_env(:dashboard_ssd, :integrations)
 
@@ -52,7 +60,7 @@ defmodule DashboardSSDWeb.ProjectsLiveTest do
   test "admin sees projects list", %{conn: conn} do
     {:ok, adm} =
       Accounts.create_user(%{
-        email: "adm@example.com",
+        email: "adm@slickage.com",
         name: "A",
         role_id: Accounts.ensure_role!("admin").id
       })
@@ -146,7 +154,7 @@ defmodule DashboardSSDWeb.ProjectsLiveTest do
   test "filter by client from dropdown updates view and URL", %{conn: conn} do
     {:ok, adm} =
       Accounts.create_user(%{
-        email: "adm@example.com",
+        email: "adm@slickage.com",
         name: "A",
         role_id: Accounts.ensure_role!("admin").id
       })
@@ -179,10 +187,88 @@ defmodule DashboardSSDWeb.ProjectsLiveTest do
     assert html2 =~ "Mobile App"
   end
 
+  test "client sees only their assigned projects", %{conn: conn} do
+    client_role = Accounts.ensure_role!("client")
+    {:ok, c1} = Clients.create_client(%{name: "Acme"})
+    {:ok, c2} = Clients.create_client(%{name: "Globex"})
+
+    {:ok, _} = Projects.create_project(%{name: "Website", client_id: c1.id})
+    {:ok, _} = Projects.create_project(%{name: "Mobile App", client_id: c2.id})
+
+    {:ok, client_user} =
+      Accounts.create_user(%{
+        email: "client-1@slickage.com",
+        name: "Client User",
+        role_id: client_role.id,
+        client_id: c1.id
+      })
+
+    conn = init_test_session(conn, %{user_id: client_user.id})
+    {:ok, _view, html} = live(conn, ~p"/projects")
+
+    assert html =~ "Website"
+    assert html =~ "Acme"
+    refute html =~ "Mobile App"
+    refute html =~ "Globex"
+    refute html =~ "Filter by client"
+  end
+
+  test "admin sees edit actions column", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "adm-actions@example.com",
+        name: "Admin",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    {:ok, client} = Clients.create_client(%{name: "Acme"})
+
+    {:ok, project} =
+      Projects.create_project(%{
+        name: "Website",
+        client_id: client.id
+      })
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, _view, html} = live(conn, ~p"/projects")
+
+    assert html =~ "Actions"
+    assert html =~ ~p"/projects/#{project.id}/edit"
+  end
+
+  test "employee without manage capability cannot see edit actions", %{conn: conn} do
+    employee_role = Accounts.ensure_role!("employee")
+
+    {:ok, employee} =
+      Accounts.create_user(%{
+        email: "employee-no-manage@example.com",
+        name: "Employee",
+        role_id: employee_role.id
+      })
+
+    {:ok, client} = Clients.create_client(%{name: "Acme"})
+
+    {:ok, project} =
+      Projects.create_project(%{
+        name: "Website",
+        client_id: client.id,
+        linear_team_id: "team-1",
+        linear_team_name: "Platform"
+      })
+
+    conn = init_test_session(conn, %{user_id: employee.id})
+
+    {:ok, _view, html} = live(conn, ~p"/projects")
+
+    assert html =~ "Website"
+    refute html =~ "Actions"
+    refute html =~ ~p"/projects/#{project.id}/edit"
+  end
+
   test "edit modal opens and saves project", %{conn: conn} do
     {:ok, adm} =
       Accounts.create_user(%{
-        email: "adm@example.com",
+        email: "adm@slickage.com",
         name: "A",
         role_id: Accounts.ensure_role!("admin").id
       })
@@ -210,7 +296,7 @@ defmodule DashboardSSDWeb.ProjectsLiveTest do
   test "edit modal forbids non-admin", %{conn: conn} do
     {:ok, emp} =
       Accounts.create_user(%{
-        email: "emp2@example.com",
+        email: "emp2@slickage.com",
         name: "E2",
         role_id: Accounts.ensure_role!("employee").id
       })

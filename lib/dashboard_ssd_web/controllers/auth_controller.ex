@@ -36,21 +36,32 @@ defmodule DashboardSSDWeb.AuthController do
 
   # Matches the Ueberauth success case
   def callback(%{assigns: %{ueberauth_auth: _auth}} = conn, _params) do
-    user = handle_ueberauth(conn)
-    raw_redirect = get_session(conn, :redirect_to)
+    case handle_ueberauth(conn) do
+      {:ok, user} ->
+        {user, conn} = maybe_apply_invite(conn, user)
+        raw_redirect = get_session(conn, :redirect_to)
 
-    redirect_to =
-      case raw_redirect do
-        {:safe, val} -> val
-        nil -> "/"
-        val -> val
-      end
+        redirect_to =
+          case raw_redirect do
+            {:safe, val} -> val
+            nil -> "/"
+            val -> val
+          end
 
-    conn
-    |> put_session(:user_id, user.id)
-    |> delete_session(:redirect_to)
-    |> configure_session(renew: true)
-    |> handle_callback_redirect(redirect_to)
+        conn
+        |> put_session(:user_id, user.id)
+        |> delete_session(:redirect_to)
+        |> configure_session(renew: true)
+        |> handle_callback_redirect(redirect_to)
+
+      {:error, :domain_not_allowed} ->
+        conn
+        |> put_flash(
+          :error,
+          gettext("This Google account is not permitted. Ask an admin to invite you.")
+        )
+        |> redirect(to: ~p"/login")
+    end
   end
 
   # Test/stub path (no auth assigns present). Enables deterministic tests.
@@ -105,16 +116,36 @@ defmodule DashboardSSDWeb.AuthController do
       provider_id: (auth && auth.uid) || nil,
       token: Map.get(creds, :token),
       refresh_token: Map.get(creds, :refresh_token),
-      expires_at: normalize_expires(Map.get(creds, :expires_at))
+      expires_at: normalize_expires(Map.get(creds, :expires_at)),
+      invite_token: get_session(conn, :invite_token)
     }
 
-    Accounts.upsert_user_with_identity("google", attrs)
+    {:ok, Accounts.upsert_user_with_identity("google", attrs)}
+  rescue
+    Accounts.DomainNotAllowedError -> {:error, :domain_not_allowed}
   end
 
   defp normalize_expires(%DateTime{} = dt), do: dt
   defp normalize_expires(nil), do: nil
   defp normalize_expires(int) when is_integer(int), do: DateTime.from_unix!(int)
   defp normalize_expires(other), do: other
+
+  defp maybe_apply_invite(conn, user) do
+    case get_session(conn, :invite_token) do
+      nil ->
+        {user, conn}
+
+      invite_token ->
+        {:ok, updated_user} = Accounts.apply_invite(user, invite_token)
+
+        conn =
+          conn
+          |> delete_session(:invite_token)
+          |> put_flash(:info, gettext("Invitation applied."))
+
+        {updated_user, conn}
+    end
+  end
 
   # Log out: clear all session data and redirect home
   @doc "Log the user out by clearing the session."
