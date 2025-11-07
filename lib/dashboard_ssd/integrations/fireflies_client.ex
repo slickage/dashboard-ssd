@@ -152,7 +152,7 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
   def list_transcripts(opts \\ []) do
     with {:ok, token} <- token() do
       query = """
-      query Transcripts($mine: Boolean, $organizers: [String!], $participants: [String!], $fromDate: String, $toDate: String, $limit: Int, $skip: Int) {
+      query Transcripts($mine: Boolean, $organizers: [String!], $participants: [String!], $fromDate: DateTime, $toDate: DateTime, $limit: Int, $skip: Int) {
         transcripts(mine: $mine, organizers: $organizers, participants: $participants, fromDate: $fromDate, toDate: $toDate, limit: $limit, skip: $skip) {
           id
           title
