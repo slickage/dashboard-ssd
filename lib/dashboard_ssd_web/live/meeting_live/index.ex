@@ -340,6 +340,7 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
+    <div id="tz-detector" phx-hook="TzDetect" class="hidden"></div>
     <div class="container mx-auto p-4">
       <h1 class="text-xl font-semibold mb-4">Meeting</h1>
 
@@ -466,6 +467,12 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
       </div>
     </div>
     """
+  end
+
+  @impl true
+  def handle_event("tz:set", %{"offset" => off}, socket) do
+    off_int = case Integer.parse(to_string(off)) do {v,_} -> v; _ -> 0 end
+    {:noreply, assign(socket, tz_offset: off_int)}
   end
 
   defp respond_assoc({:ok, assoc}, socket),

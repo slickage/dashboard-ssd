@@ -173,6 +173,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
+    <div id="tz-detector" phx-hook="TzDetect" class="hidden" />
     <div class="flex flex-col gap-8">
       <div class="card px-4 py-4 sm:px-6">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -470,6 +471,17 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
       end
 
     {:noreply, push_patch_to_range(socket, start_date, end_date)}
+  end
+
+  @impl true
+  def handle_event("tz:set", %{"offset" => off}, socket) do
+    off_int =
+      case Integer.parse(to_string(off)) do
+        {v, _} -> v
+        _ -> 0
+      end
+
+    {:noreply, assign(socket, tz_offset: off_int)}
   end
 
   defp push_patch_to_range(socket, start_date, end_date) do
