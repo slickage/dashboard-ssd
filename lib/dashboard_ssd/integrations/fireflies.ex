@@ -124,7 +124,7 @@ defmodule DashboardSSD.Integrations.Fireflies do
     end
   end
 
-  defp fallback_by_title(series_id, nil, _limit), do: {:ok, %{accomplished: nil, action_items: []}}
+  defp fallback_by_title(_series_id, nil, _limit), do: {:ok, %{accomplished: nil, action_items: []}}
   defp fallback_by_title(series_id, title, limit) when is_binary(title) do
     case FirefliesClient.list_transcripts(limit: limit) do
       {:ok, transcripts} when is_list(transcripts) and transcripts != [] ->
