@@ -152,7 +152,7 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
   def list_transcripts(opts \\ []) do
     with {:ok, token} <- token() do
       query = """
-      query Transcripts($mine: Boolean, $organizers: [String], $participants: [String], $fromDate: String, $toDate: String, $limit: Int, $skip: Int) {
+      query Transcripts($mine: Boolean, $organizers: [String!], $participants: [String!], $fromDate: String, $toDate: String, $limit: Int, $skip: Int) {
         transcripts(mine: $mine, organizers: $organizers, participants: $participants, fromDate: $fromDate, toDate: $toDate, limit: $limit, skip: $skip) {
           id
           title
@@ -170,8 +170,8 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
 
       variables = %{
         "mine" => Keyword.get(opts, :mine, true),
-        "organizers" => Keyword.get(opts, :organizers),
-        "participants" => Keyword.get(opts, :participants),
+        "organizers" => sanitize_string_list(Keyword.get(opts, :organizers)),
+        "participants" => sanitize_string_list(Keyword.get(opts, :participants)),
         "fromDate" => Keyword.get(opts, :from_date),
         "toDate" => Keyword.get(opts, :to_date),
         "limit" => clamp(Keyword.get(opts, :limit, 10)),
@@ -268,4 +268,14 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
   defp clamp(nil), do: nil
   defp clamp(limit) when is_integer(limit) and limit > 50, do: 50
   defp clamp(limit), do: limit
+
+  defp sanitize_string_list(nil), do: nil
+  defp sanitize_string_list(list) when is_list(list) do
+    list
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> []
+      xs -> xs
+    end
+  end
 end
