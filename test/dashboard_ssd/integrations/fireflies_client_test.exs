@@ -75,4 +75,28 @@ defmodule DashboardSSD.Integrations.FirefliesClientTest do
     refute String.contains?(log, "secret-token")
     refute String.contains?(log, "Authorization")
   end
+
+  test "rate limit error is mapped from GraphQL errors for bites" do
+    Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
+      %Tesla.Env{status: 200, body: %{"data" => nil, "errors" => [
+        %{"code" => "too_many_requests", "message" => "Too many requests. Please retry after 12:35:57 AM (UTC)",
+          "extensions" => %{"code" => "too_many_requests", "status" => 429}}
+      ]}}
+    end)
+
+    assert {:error, {:rate_limited, msg}} = FirefliesClient.list_bites(limit: 1)
+    assert String.contains?(msg, "Too many requests")
+  end
+
+  test "rate limit error is mapped from GraphQL errors for transcript summary" do
+    Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
+      %Tesla.Env{status: 200, body: %{"data" => nil, "errors" => [
+        %{"code" => "too_many_requests", "message" => "Too many requests. Please retry after 12:00:00 AM (UTC)",
+          "extensions" => %{"code" => "too_many_requests", "status" => 429}}
+      ]}}
+    end)
+
+    assert {:error, {:rate_limited, msg}} = FirefliesClient.get_transcript_summary("t1")
+    assert String.contains?(msg, "Too many requests")
+  end
 end
