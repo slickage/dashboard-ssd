@@ -228,7 +228,8 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
               />
               <button type="submit" class="underline text-sm">Apply</button>
             </form>
-            <div class="grid grid-cols-3 gap-2">
+            <div class="inline-block transform scale-150 origin-top-left">
+              <div class="grid grid-cols-3 gap-2">
               <.month_calendar
                 month={@month_prev}
                 today={Date.utc_today()}
@@ -256,6 +257,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                 on_day_click="calendar_pick"
                 has_meetings={@has_meetings}
               />
+              </div>
             </div>
           </div>
         </div>
