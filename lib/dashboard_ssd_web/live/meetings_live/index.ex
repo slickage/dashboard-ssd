@@ -99,21 +99,14 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
       |> Enum.frequencies()
       |> Map.new(fn {date, _} -> {date, true} end)
 
-    # Compute previous, current, next months for calendar strip
-    month_curr = %Date{year: start_date.year, month: start_date.month, day: 1}
-    month_prev =
-      if start_date.month == 1 do
-        %Date{year: start_date.year - 1, month: 12, day: 1}
-      else
-        %Date{year: start_date.year, month: start_date.month - 1, day: 1}
+    # Compute previous, current, next months for calendar strip (anchor on current month)
+    cal_anchor =
+      case Map.get(socket.assigns, :cal_anchor) do
+        %Date{} = d -> d
+        _ -> %Date{year: start_date.year, month: start_date.month, day: 1}
       end
 
-    month_next =
-      if start_date.month == 12 do
-        %Date{year: start_date.year + 1, month: 1, day: 1}
-      else
-        %Date{year: start_date.year, month: start_date.month + 1, day: 1}
-      end
+    {month_prev, month_curr, month_next} = month_triplet(cal_anchor)
 
     # Build read-only consolidated agenda text per meeting (manual items if present, otherwise latest Fireflies action items)
     agenda_texts =
@@ -191,6 +184,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
        loading: false,
        tz_offset: tz_offset,
        has_meetings: has_meetings,
+       cal_anchor: cal_anchor,
        month_prev: month_prev,
        month_curr: month_curr,
        month_next: month_next
@@ -228,7 +222,9 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
               />
               <button type="submit" class="underline text-sm">Apply</button>
             </form>
-            <div class="grid grid-cols-3 gap-4">
+            <div class="flex items-start gap-2">
+              <button type="button" phx-click="cal_prev_month" class="px-2 py-1 rounded border border-white/10 text-xs hover:bg-white/5" aria-label="Previous months">‹</button>
+              <div class="grid grid-cols-3 gap-4">
               <.month_calendar
                 month={@month_prev}
                 today={Date.utc_today()}
@@ -256,6 +252,8 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                 on_day_click="calendar_pick"
                 has_meetings={@has_meetings}
               />
+              </div>
+              <button type="button" phx-click="cal_next_month" class="px-2 py-1 rounded border border-white/10 text-xs hover:bg-white/5" aria-label="Next months">›</button>
             </div>
           </div>
         </div>
@@ -548,6 +546,32 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
 
     {:noreply, assign(socket, tz_offset: off_int)}
   end
+
+  @impl true
+  def handle_event("cal_prev_month", _params, socket) do
+    anchor = Map.get(socket.assigns, :cal_anchor) || %Date{year: socket.assigns.range_start.year, month: socket.assigns.range_start.month, day: 1}
+    new_anchor = prev_month(anchor)
+    {m_prev, m_curr, m_next} = month_triplet(new_anchor)
+    {:noreply, assign(socket, cal_anchor: new_anchor, month_prev: m_prev, month_curr: m_curr, month_next: m_next)}
+  end
+
+  @impl true
+  def handle_event("cal_next_month", _params, socket) do
+    anchor = Map.get(socket.assigns, :cal_anchor) || %Date{year: socket.assigns.range_start.year, month: socket.assigns.range_start.month, day: 1}
+    new_anchor = next_month(anchor)
+    {m_prev, m_curr, m_next} = month_triplet(new_anchor)
+    {:noreply, assign(socket, cal_anchor: new_anchor, month_prev: m_prev, month_curr: m_curr, month_next: m_next)}
+  end
+
+  defp month_triplet(%Date{} = anchor) do
+    {prev_month(anchor), anchor, next_month(anchor)}
+  end
+
+  defp prev_month(%Date{year: y, month: 1}), do: %Date{year: y - 1, month: 12, day: 1}
+  defp prev_month(%Date{year: y, month: m}), do: %Date{year: y, month: m - 1, day: 1}
+
+  defp next_month(%Date{year: y, month: 12}), do: %Date{year: y + 1, month: 1, day: 1}
+  defp next_month(%Date{year: y, month: m}), do: %Date{year: y, month: m + 1, day: 1}
 
   defp push_patch_to_range(socket, start_date, end_date) do
     qs =
