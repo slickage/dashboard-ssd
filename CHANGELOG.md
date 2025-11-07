@@ -1,3 +1,18 @@
+# [1.8.0](https://github.com/slickage/dashboard-ssd/compare/v1.7.1...v1.8.0) (2025-11-07)
+
+
+### Bug Fixes
+
+* satisfy invite docs requirements ([e42488e](https://github.com/slickage/dashboard-ssd/commit/e42488e21b562bff1f071cf7e4b93e0ec7c6e083))
+* **tests:** stabilize health scheduler teardown ([54c9890](https://github.com/slickage/dashboard-ssd/commit/54c98900620bb21431e6986429c6f4feb5f438a2))
+
+
+### Features
+
+* **clients:** scope client list to assigned users ([c121dd1](https://github.com/slickage/dashboard-ssd/commit/c121dd1910aca6bf7c9760c7520b3eed599d2b3c))
+* **rbac:** simplify roles and add invite management ([56116e3](https://github.com/slickage/dashboard-ssd/commit/56116e316f9a8506245783e0aa0fdd3940b1dfe7))
+* **settings:** refine RBAC UI and enforce project edit gating ([a8fb862](https://github.com/slickage/dashboard-ssd/commit/a8fb8626a7256205402838f73becafa1aa504bbd))
+
 ## [1.7.1](https://github.com/slickage/dashboard-ssd/compare/v1.7.0...v1.7.1) (2025-11-01)
 
 
