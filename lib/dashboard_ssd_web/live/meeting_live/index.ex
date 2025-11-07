@@ -38,9 +38,13 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
       case series_id do
         nil -> %{accomplished: nil, action_items: []}
         s ->
-          case Fireflies.fetch_latest_for_series(s, title: title) do
-            {:ok, v} -> v
-            _ -> %{accomplished: nil, action_items: []}
+          if Map.get(params, "mock") in ["1", "true"] do
+            %{accomplished: nil, action_items: []}
+          else
+            case Fireflies.fetch_latest_for_series(s, title: title) do
+              {:ok, v} -> v
+              _ -> %{accomplished: nil, action_items: []}
+            end
           end
       end
 
@@ -235,9 +239,13 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
       case series_id do
         nil -> %{accomplished: nil, action_items: []}
         s ->
-          case Fireflies.fetch_latest_for_series(s, title: socket.assigns[:title]) do
-            {:ok, v} -> v
-            _ -> %{accomplished: nil, action_items: []}
+          if Map.get(socket.assigns[:params] || %{}, "mock") in ["1", "true"] do
+            %{accomplished: nil, action_items: []}
+          else
+            case Fireflies.fetch_latest_for_series(s, title: socket.assigns[:title]) do
+              {:ok, v} -> v
+              _ -> %{accomplished: nil, action_items: []}
+            end
           end
       end
     agenda_text =
