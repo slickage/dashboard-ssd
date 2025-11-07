@@ -38,7 +38,7 @@ defmodule DashboardSSD.Integrations.GoogleTokenTest do
     idn = Repo.insert!(%ExternalIdentity{user_id: user.id, provider: "google", token: "old", refresh_token: "r1", expires_at: past})
 
     Tesla.Mock.mock(fn
-      %{method: :post, url: "https://oauth2.googleapis.com/token", body: body} ->
+      %{method: :post, url: "https://oauth2.googleapis.com/token", body: _body} ->
         # Body is form-encoded; accept either map or iolist
         # Return a new access token
         %Tesla.Env{status: 200, body: %{"access_token" => "newtok", "expires_in" => 1800}}
