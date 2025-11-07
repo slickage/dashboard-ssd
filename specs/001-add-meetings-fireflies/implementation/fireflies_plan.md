@@ -11,7 +11,7 @@ Scope: specs/001-add-meetings-fireflies
 
 ## Current State Snapshot
 - Cache exists: `lib/dashboard_ssd/meetings/cache_store.ex` wraps ETS cache for meetings.
-- UI calls Fireflies: 
+- UI calls Fireflies:
   - List view builds agenda text using `DashboardSSD.Integrations.Fireflies.fetch_latest_for_series/2` when no manual agenda exists (`lib/dashboard_ssd_web/live/meetings_live/index.ex:62`, `:78`).
   - Detail modal shows last summary + action items using the same fetch (`lib/dashboard_ssd_web/live/meeting_live/detail_component.ex:24`, `:166`).
 - Fireflies boundary is stubbed: `lib/dashboard_ssd/integrations/fireflies.ex` has TODO; it returns empty artifacts (parser removed).
@@ -40,23 +40,17 @@ Scope: specs/001-add-meetings-fireflies
   - `get_summary_for_transcript(transcript_id) :: {:ok, %{notes: String.t() | nil, action_items: [String.t()]}} | {:error, term()}`
     - Use AI Apps Summary schema fields for notes/action_items when available; no local parsing.
 
-3) Implement minimal boundary fetch to support debugging
+3) Implement series-aware fetch in boundary
 - Expand `DashboardSSD.Integrations.Fireflies.fetch_latest_for_series(series_id, opts \\ [])`:
   - Accept hints: `:title` (string), `:lookback_days` (default 90), `:limit` (default 25), `:ttl` (forward to cache).
-  - For debug readiness, start without UI wiring and with a simple selection of latest bite (e.g., `mine: true`, `limit: N`).
-  - Later steps will refine matching and caching.
+  - Cache key: `{:series_artifacts, series_id}` via `Meetings.CacheStore.fetch/3`.
   - Resolution algorithm (in order):
     1. If cache has `{:series_map, series_id} => transcript_id`, use it directly.
     2. Query recent bites (mine: true, limit N). Prefer those with `created_from.id == series_id` when present.
     3. Fallback: fuzzy match by normalized title tokens within time window; pick latest `end_time`.
   - Once bite/transcript identified, fetch structured notes/action items (or fallback summary text minimally) and return without local parsing.
 
-4) IEx debug helpers (move earlier for backend verification)
-- Add in `DashboardSSD.Integrations.Fireflies`:
-  - `debug_list_bites(opts \\ [mine: true, limit: 10])`
-  - `debug_summary_for_transcript(transcript_id)` → returns notes text
-  - `debug_action_items_for_transcript(transcript_id)` → returns array of items
-- Purpose: verify backend functionality in IEx before any UI wiring.
+4) (Debugging step omitted)
 
 5) Pass title hints from UI
 - In `lib/dashboard_ssd_web/live/meetings_live/index.ex`: when deriving agenda text per meeting, call `Fireflies.fetch_latest_for_series(m.recurring_series_id, title: m.title)`.
