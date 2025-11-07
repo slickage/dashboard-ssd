@@ -86,6 +86,7 @@ defmodule DashboardSSD.Integrations.Fireflies do
       CacheStore.put({:series_map, series_id}, transcript_id, :timer.hours(24))
       fetch_summary_for_transcript(series_id, transcript_id)
     else
+      {:error, {:rate_limited, _} = rl} -> rl
       _ ->
         # Fallback to team bites
         case FirefliesClient.list_bites(my_team: true, limit: limit) do
@@ -101,6 +102,7 @@ defmodule DashboardSSD.Integrations.Fireflies do
                 fallback_by_title(series_id, title, limit)
             end
 
+          {:error, {:rate_limited, _} = rl} -> rl
           _ ->
             title = Keyword.get(opts, :title)
             fallback_by_title(series_id, title, limit)
@@ -146,6 +148,7 @@ defmodule DashboardSSD.Integrations.Fireflies do
             {:ok, %{accomplished: nil, action_items: []}}
         end
 
+      {:error, {:rate_limited, _} = rl} -> rl
       _ ->
         {:ok, %{accomplished: nil, action_items: []}}
     end
@@ -203,8 +206,8 @@ defmodule DashboardSSD.Integrations.Fireflies do
 
         {:ok, %{accomplished: notes, action_items: items || []}}
 
-      {:error, _} = err ->
-        err
+      {:error, {:rate_limited, _} = rl} -> rl
+      {:error, _} = err -> err
 
       _ ->
         {:ok, %{accomplished: nil, action_items: []}}
