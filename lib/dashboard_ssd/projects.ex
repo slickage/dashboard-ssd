@@ -3,6 +3,7 @@ defmodule DashboardSSD.Projects do
   Projects context: manage projects and queries per client.
   """
   import Ecto.Query
+  alias DashboardSSD.Accounts
   alias DashboardSSD.Clients
   alias DashboardSSD.Integrations
   alias DashboardSSD.Integrations.LinearUtils
@@ -930,6 +931,17 @@ defmodule DashboardSSD.Projects do
           where: m.linear_team_id == ^team_id and m.linear_user_id not in ^user_ids
         )
         |> Repo.delete_all()
+
+        Enum.each(normalized, fn member ->
+          Accounts.auto_link_linear_member(%LinearTeamMember{
+            linear_team_id: team_id,
+            linear_user_id: member.linear_user_id,
+            name: member.name,
+            display_name: member.display_name,
+            email: member.email,
+            avatar_url: member.avatar_url
+          })
+        end)
 
         :ok
     end

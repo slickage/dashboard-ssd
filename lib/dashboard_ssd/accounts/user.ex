@@ -19,6 +19,7 @@ defmodule DashboardSSD.Accounts.User do
     belongs_to :role, DashboardSSD.Accounts.Role, type: :id
     belongs_to :client, DashboardSSD.Clients.Client, type: :id
     has_many :external_identities, DashboardSSD.Accounts.ExternalIdentity
+    has_one :linear_user_link, DashboardSSD.Accounts.LinearUserLink
     timestamps(type: :utc_datetime)
   end
 
