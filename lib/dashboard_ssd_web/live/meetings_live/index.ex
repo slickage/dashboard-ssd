@@ -207,7 +207,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
               Upcoming
             </div>
             <!-- Removed manual range prev/next and date inputs; selection driven by calendar -->
-            <div class="flex items-start gap-2">
+            <div class="flex items-center gap-2">
               <button type="button" phx-click="cal_prev_month" class="px-2 py-1 rounded border border-white/10 text-xs hover:bg-white/5" aria-label="Previous months">‹</button>
               <div class="grid grid-cols-3 gap-4">
                 <div class="p-2 rounded-md">
