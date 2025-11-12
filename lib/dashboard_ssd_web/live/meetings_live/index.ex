@@ -135,7 +135,13 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
 
                   s ->
                     case Fireflies.fetch_latest_for_series(s, title: m.title) do
-                      {:ok, %{action_items: items}} -> Enum.join(items || [], "\n")
+                      {:ok, %{action_items: items}} ->
+                        cond do
+                          is_list(items) -> Enum.join(items, "\n")
+                          is_binary(items) -> items
+                          true -> ""
+                        end
+
                       _ -> ""
                     end
                 end

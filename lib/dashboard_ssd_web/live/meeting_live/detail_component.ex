@@ -47,7 +47,12 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
       |> Enum.map(&(&1.text || ""))
       |> Enum.join("\n")
       |> case do
-        "" -> Enum.join(post.action_items || [], "\n")
+        "" ->
+          cond do
+            is_list(post.action_items) -> Enum.join(post.action_items, "\n")
+            is_binary(post.action_items) -> post.action_items
+            true -> ""
+          end
         other -> other
       end
 
@@ -71,7 +76,7 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
        series_id: series_id,
        manual_agenda: manual,
        summary_text: post.accomplished,
-       action_items: post.action_items,
+       action_items: normalize_action_items(post.action_items),
        agenda_text: agenda_text,
        assoc: assoc,
        clients: clients,
@@ -81,6 +86,17 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
        auto_suggest_notice: auto_notice?,
        post_error: post_error
      )}
+  end
+
+  defp normalize_action_items(items) do
+    cond do
+      is_list(items) -> items
+      is_binary(items) ->
+        items
+        |> String.split(["\r\n", "\n"], trim: true)
+        |> Enum.reject(&(&1 == ""))
+      true -> []
+    end
   end
 
   @impl true
@@ -247,7 +263,12 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
       |> Enum.map(&(&1.text || ""))
       |> Enum.join("\n")
       |> case do
-        "" -> Enum.join(post.action_items || [], "\n")
+        "" ->
+          cond do
+            is_list(post.action_items) -> Enum.join(post.action_items, "\n")
+            is_binary(post.action_items) -> post.action_items
+            true -> ""
+          end
         other -> other
       end
 
@@ -255,7 +276,7 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
      assign(socket,
        manual_agenda: manual,
        summary_text: post.accomplished,
-       action_items: post.action_items,
+       action_items: normalize_action_items(post.action_items),
        agenda_text: agenda_text,
        post_error: post_error
      )}
