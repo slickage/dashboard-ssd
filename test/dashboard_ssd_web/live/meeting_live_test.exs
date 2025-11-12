@@ -3,6 +3,7 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
   import Phoenix.LiveViewTest
 
   alias DashboardSSD.Accounts
+  alias DashboardSSD.Meetings.CacheStore
 
   setup %{conn: conn} do
     {:ok, user} =
@@ -24,7 +25,7 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
     # Seed Fireflies cache so fetch_latest_for_series returns bitstring items
     key = {:series_artifacts, "series-alpha"}
     val = %{accomplished: "Summary here", action_items: "A\nB"}
-    :ok = DashboardSSD.Meetings.CacheStore.put(key, val, :timer.minutes(5))
+    :ok = CacheStore.put(key, val, :timer.minutes(5))
 
     {:ok, _view, html} = live(conn, ~p"/meetings/evt-1?series_id=series-alpha&title=Weekly")
     assert html =~ "Last meeting summary"

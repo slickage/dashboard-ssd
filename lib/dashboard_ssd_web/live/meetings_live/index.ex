@@ -2,12 +2,12 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
   @moduledoc "Meetings index listing upcoming meetings and agenda previews."
   use DashboardSSDWeb, :live_view
 
+  alias DashboardSSD.{Clients, Projects}
   alias DashboardSSD.Integrations
   alias DashboardSSD.Integrations.Fireflies
   alias DashboardSSD.Meetings.{Agenda, Associations}
-  alias DashboardSSD.{Clients, Projects}
-  alias DashboardSSDWeb.DateHelpers
   alias DashboardSSD.Meetings.CacheStore
+  alias DashboardSSDWeb.DateHelpers
   import DashboardSSDWeb.CalendarComponents, only: [month_calendar: 1]
   require Logger
 
@@ -26,181 +26,23 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
 
   @impl true
   def handle_params(params, _uri, socket) do
-    # Selected date drives a +/- 6 day window
-    selected_date =
-      case Map.get(params, "d") do
-        nil ->
-          Date.utc_today()
+    selected_date = parse_selected_date(params)
+    {start_date, end_date} = window_for_selected(selected_date)
+    {start_dt, end_dt} = dates_to_dt(start_date, end_date)
+    tz_offset = parse_tz_offset(params)
+    mock? = mock_param?(params)
 
-        s ->
-          case Date.from_iso8601(s) do
-            {:ok, d} -> d
-            _ -> Date.utc_today()
-          end
-      end
+    meetings = load_meetings(socket.assigns.current_user, start_dt, end_dt, mock?)
 
-    start_date = Date.add(selected_date, -6)
-    end_date = Date.add(selected_date, 6)
-
-    {:ok, start_dt} = DateTime.new(start_date, ~T[00:00:00], "Etc/UTC")
-    {:ok, end_dt} = DateTime.new(end_date, ~T[23:59:59], "Etc/UTC")
-
-    tz_offset =
-      case Map.get(params, "tz") || Map.get(params, "tz_offset") do
-        nil ->
-          0
-
-        s ->
-          case Integer.parse(to_string(s)) do
-            {v, _} -> v
-            _ -> 0
-          end
-      end
-
-    # Load upcoming meetings for the window. In dev without integration, pass :sample mock.
-    mock? = Map.get(params, "mock") in ["1", "true"]
-
-    gc_result =
-      if mock? do
-        Integrations.calendar_list_upcoming_for_user(
-          socket.assigns.current_user || %{},
-          start_dt,
-          end_dt,
-          mock: :sample
-        )
-      else
-        Integrations.calendar_list_upcoming_for_user(
-          socket.assigns.current_user || %{},
-          start_dt,
-          end_dt
-        )
-      end
-
-    meetings =
-      case gc_result do
-        {:ok, list} when is_list(list) -> list
-        {:error, :no_token} -> []
-        {:error, _} -> []
-        _ -> []
-      end
-
-    # Compute previous, current, next months for calendar strip (anchor on selected month)
     cal_anchor = %Date{year: selected_date.year, month: selected_date.month, day: 1}
     {month_prev, month_curr, month_next} = month_triplet(cal_anchor)
 
-    # Build a Date => has_meetings? map for all three months (cached 5 minutes)
-    month_prev_start = %Date{year: month_prev.year, month: month_prev.month, day: 1}
-    last_day_next = :calendar.last_day_of_the_month(month_next.year, month_next.month)
-    month_next_end = %Date{year: month_next.year, month: month_next.month, day: last_day_next}
+    has_meetings =
+      has_meeting_days(socket.assigns.current_user, month_prev, month_next, tz_offset, mock?)
 
-    {:ok, range3_start} = DateTime.new(month_prev_start, ~T[00:00:00], "Etc/UTC")
-    {:ok, range3_end} = DateTime.new(month_next_end, ~T[23:59:59], "Etc/UTC")
-
-    user_id = (socket.assigns.current_user && socket.assigns.current_user.id) || :anon
-    key = {:gcal_has_event_days, user_id, {month_prev_start, month_next_end}, tz_offset}
-    ttl = :timer.minutes(5)
-
-    {:ok, has_meetings} =
-      CacheStore.fetch(
-        key,
-        fn ->
-          opts = if mock?, do: [mock: :sample], else: []
-
-          case Integrations.calendar_list_upcoming_for_user(
-                 socket.assigns.current_user || %{},
-                 range3_start,
-                 range3_end,
-                 opts
-               ) do
-            {:ok, list} when is_list(list) ->
-              tz = tz_offset || 0
-
-              dates =
-                Enum.reduce(list, MapSet.new(), fn e, acc ->
-                  s = DateTime.add(e.start_at, tz * 60, :second) |> DateTime.to_date()
-                  en = DateTime.add(e.end_at, tz * 60, :second) |> DateTime.to_date()
-                  expand_dates(s, en, acc)
-                end)
-
-              {:ok, Map.new(dates, fn d -> {d, true} end)}
-
-            _ ->
-              {:ok, %{}}
-          end
-        end,
-        ttl: ttl
-      )
-
-    # Build read-only consolidated agenda text per meeting (manual items if present, otherwise latest Fireflies action items)
-    agenda_texts =
-      Enum.reduce(meetings, %{}, fn m, acc ->
-        manual =
-          m.id
-          |> Agenda.list_items()
-          |> Enum.sort_by(& &1.position)
-          |> Enum.map(&(&1.text || ""))
-          |> Enum.join("\n")
-
-        text =
-          case String.trim(manual) do
-            "" ->
-              # In mock mode, avoid Fireflies API calls entirely
-              if mock? do
-                ""
-              else
-                case m[:recurring_series_id] do
-                  nil ->
-                    ""
-
-                  s ->
-                    case Fireflies.fetch_latest_for_series(s, title: m.title) do
-                      {:ok, %{action_items: items}} ->
-                        cond do
-                          is_list(items) -> Enum.join(items, "\n")
-                          is_binary(items) -> items
-                          true -> ""
-                        end
-
-                      _ ->
-                        ""
-                    end
-                end
-              end
-
-            other ->
-              other
-          end
-
-        Map.put(acc, m.id, text)
-      end)
-
-    # Build association map (meeting_id => {:client, client} | {:project, project})
-    clients = Clients.list_clients()
-    projects = Projects.list_projects()
-    client_map = Map.new(clients, &{&1.id, &1})
-    project_map = Map.new(projects, &{&1.id, &1})
-
-    assoc_by_meeting =
-      Enum.reduce(meetings, %{}, fn m, acc ->
-        case Associations.get_for_event_or_series(m.id, m[:recurring_series_id]) do
-          %{client_id: id} when is_integer(id) ->
-            Map.put(acc, m.id, {:client, Map.get(client_map, id)})
-
-          %{project_id: id} when is_integer(id) ->
-            Map.put(acc, m.id, {:project, Map.get(project_map, id)})
-
-          _ ->
-            acc
-        end
-      end)
-
-    live_action =
-      cond do
-        params["id"] -> :show
-        params["client_id"] -> :client_show
-        params["project_id"] -> :project_show
-        true -> :index
-      end
+    agenda_texts = build_agenda_texts(meetings, mock?)
+    assoc_by_meeting = build_assoc_by_meeting(meetings)
+    live_action = live_action_from_params(params)
 
     {:noreply,
      assign(socket,
@@ -520,19 +362,21 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
 
   @impl true
   def handle_event("calendar_pick", %{"date" => iso}, socket) do
-    with {:ok, d} <- Date.from_iso8601(to_string(iso)) do
-      new_start = Date.add(d, -6)
-      new_end = Date.add(d, 6)
-      # Center the clicked date's month as the anchor
-      anchor = %Date{year: d.year, month: d.month, day: 1}
-      {m_prev, m_curr, m_next} = month_triplet(anchor)
+    case Date.from_iso8601(to_string(iso)) do
+      {:ok, d} ->
+        new_start = Date.add(d, -6)
+        new_end = Date.add(d, 6)
+        # Center the clicked date's month as the anchor
+        anchor = %Date{year: d.year, month: d.month, day: 1}
+        {m_prev, m_curr, m_next} = month_triplet(anchor)
 
-      {:noreply,
-       socket
-       |> assign(cal_anchor: anchor, month_prev: m_prev, month_curr: m_curr, month_next: m_next)
-       |> push_patch_to_range(new_start, new_end)}
-    else
-      _ -> {:noreply, socket}
+        {:noreply,
+         socket
+         |> assign(cal_anchor: anchor, month_prev: m_prev, month_curr: m_curr, month_next: m_next)
+         |> push_patch_to_range(new_start, new_end)}
+
+      _ ->
+        {:noreply, socket}
     end
   end
 
@@ -600,6 +444,175 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
 
   defp month_triplet(%Date{} = anchor) do
     {prev_month(anchor), anchor, next_month(anchor)}
+  end
+
+  # ======= helpers extracted to reduce complexity =======
+
+  defp parse_selected_date(params) do
+    case Map.get(params, "d") do
+      nil ->
+        Date.utc_today()
+
+      s ->
+        case Date.from_iso8601(s) do
+          {:ok, d} -> d
+          _ -> Date.utc_today()
+        end
+    end
+  end
+
+  defp window_for_selected(%Date{} = selected_date) do
+    {Date.add(selected_date, -6), Date.add(selected_date, 6)}
+  end
+
+  defp dates_to_dt(start_date, end_date) do
+    {:ok, start_dt} = DateTime.new(start_date, ~T[00:00:00], "Etc/UTC")
+    {:ok, end_dt} = DateTime.new(end_date, ~T[23:59:59], "Etc/UTC")
+    {start_dt, end_dt}
+  end
+
+  defp parse_tz_offset(params) do
+    case Map.get(params, "tz") || Map.get(params, "tz_offset") do
+      nil ->
+        0
+
+      s ->
+        case Integer.parse(to_string(s)) do
+          {v, _} -> v
+          _ -> 0
+        end
+    end
+  end
+
+  defp mock_param?(params), do: Map.get(params, "mock") in ["1", "true"]
+
+  defp load_meetings(current_user, start_dt, end_dt, mock?) do
+    base_user = current_user || %{}
+
+    case if mock?,
+           do:
+             Integrations.calendar_list_upcoming_for_user(base_user, start_dt, end_dt,
+               mock: :sample
+             ),
+           else: Integrations.calendar_list_upcoming_for_user(base_user, start_dt, end_dt) do
+      {:ok, list} when is_list(list) -> list
+      {:error, _} -> []
+      _ -> []
+    end
+  end
+
+  defp has_meeting_days(current_user, month_prev, month_next, tz_offset, mock?) do
+    month_prev_start = %Date{year: month_prev.year, month: month_prev.month, day: 1}
+    last_day_next = :calendar.last_day_of_the_month(month_next.year, month_next.month)
+    month_next_end = %Date{year: month_next.year, month: month_next.month, day: last_day_next}
+
+    {:ok, range3_start} = DateTime.new(month_prev_start, ~T[00:00:00], "Etc/UTC")
+    {:ok, range3_end} = DateTime.new(month_next_end, ~T[23:59:59], "Etc/UTC")
+
+    user_id = (current_user && current_user.id) || :anon
+    key = {:gcal_has_event_days, user_id, {month_prev_start, month_next_end}, tz_offset}
+    ttl = :timer.minutes(5)
+
+    {:ok, has_meetings} =
+      CacheStore.fetch(
+        key,
+        fn ->
+          has_meeting_days_fetch(current_user, range3_start, range3_end, tz_offset, mock?)
+        end,
+        ttl: ttl
+      )
+
+    has_meetings
+  end
+
+  defp has_meeting_days_fetch(current_user, range3_start, range3_end, tz_offset, mock?) do
+    opts = if mock?, do: [mock: :sample], else: []
+
+    current_user = current_user || %{}
+
+    result =
+      Integrations.calendar_list_upcoming_for_user(current_user, range3_start, range3_end, opts)
+
+    build_has_meetings_map(result, tz_offset)
+  end
+
+  defp build_has_meetings_map({:ok, list}, tz_offset) when is_list(list) do
+    tz = tz_offset || 0
+    dates = dates_set_for_events(list, tz)
+    {:ok, Map.new(dates, fn d -> {d, true} end)}
+  end
+
+  defp build_has_meetings_map(_other, _tz_offset), do: {:ok, %{}}
+
+  defp dates_set_for_events(list, tz) do
+    Enum.reduce(list, MapSet.new(), fn e, acc ->
+      s = DateTime.add(e.start_at, tz * 60, :second) |> DateTime.to_date()
+      en = DateTime.add(e.end_at, tz * 60, :second) |> DateTime.to_date()
+      expand_dates(s, en, acc)
+    end)
+  end
+
+  defp build_agenda_texts(meetings, mock?) do
+    Enum.reduce(meetings, %{}, fn m, acc ->
+      manual =
+        m.id
+        |> Agenda.list_items()
+        |> Enum.sort_by(& &1.position)
+        |> Enum.map_join("\n", &(&1.text || ""))
+
+      text =
+        case String.trim(manual) do
+          "" -> agenda_from_fireflies_or_empty(m, mock?)
+          other -> other
+        end
+
+      Map.put(acc, m.id, text)
+    end)
+  end
+
+  defp agenda_from_fireflies_or_empty(_m, true), do: ""
+  defp agenda_from_fireflies_or_empty(%{recurring_series_id: nil}, _mock?), do: ""
+
+  defp agenda_from_fireflies_or_empty(%{recurring_series_id: s} = m, _mock?) do
+    Fireflies.fetch_latest_for_series(s, title: m.title)
+    |> agenda_result()
+  end
+
+  defp agenda_from_fireflies_or_empty(_m, _mock?), do: ""
+
+  defp agenda_result({:ok, %{action_items: items}}) when is_list(items),
+    do: Enum.join(items, "\n")
+
+  defp agenda_result({:ok, %{action_items: items}}) when is_binary(items), do: items
+  defp agenda_result(_), do: ""
+
+  defp build_assoc_by_meeting(meetings) do
+    clients = Clients.list_clients()
+    projects = Projects.list_projects()
+    client_map = Map.new(clients, &{&1.id, &1})
+    project_map = Map.new(projects, &{&1.id, &1})
+
+    Enum.reduce(meetings, %{}, fn m, acc ->
+      case Associations.get_for_event_or_series(m.id, m[:recurring_series_id]) do
+        %{client_id: id} when is_integer(id) ->
+          Map.put(acc, m.id, {:client, Map.get(client_map, id)})
+
+        %{project_id: id} when is_integer(id) ->
+          Map.put(acc, m.id, {:project, Map.get(project_map, id)})
+
+        _ ->
+          acc
+      end
+    end)
+  end
+
+  defp live_action_from_params(params) do
+    cond do
+      params["id"] -> :show
+      params["client_id"] -> :client_show
+      params["project_id"] -> :project_show
+      true -> :index
+    end
   end
 
   defp prev_month(%Date{year: y, month: 1}), do: %Date{year: y - 1, month: 12, day: 1}

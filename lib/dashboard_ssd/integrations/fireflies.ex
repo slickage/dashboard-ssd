@@ -5,8 +5,8 @@ defmodule DashboardSSD.Integrations.Fireflies do
   """
 
   require Logger
-  alias DashboardSSD.Meetings.CacheStore
   alias DashboardSSD.Integrations.FirefliesClient
+  alias DashboardSSD.Meetings.CacheStore
   alias DashboardSSD.Meetings.FirefliesStore
 
   @type artifacts :: %{
@@ -122,26 +122,40 @@ defmodule DashboardSSD.Integrations.Fireflies do
   end
 
   defp pick_bite_transcript_by_series(bites, series_id) when is_list(bites) do
-    series_id = to_string(series_id)
+    series = to_string(series_id)
 
     bites
-    |> Enum.filter(fn b ->
+    |> filter_bites_by_series(series)
+    |> latest_bite()
+    |> transcript_id_of_bite()
+  end
+
+  defp filter_bites_by_series(bites, series) do
+    Enum.filter(bites, fn b ->
       case Map.get(b, "created_from") do
-        %{"id" => id} -> to_string(id) == series_id
-        %{id: id} -> to_string(id) == series_id
+        %{"id" => id} -> to_string(id) == series
+        %{id: id} -> to_string(id) == series
         _ -> false
       end
     end)
-    |> Enum.sort_by(fn b -> Map.get(b, "created_at") || Map.get(b, :created_at) || "" end, :desc)
-    |> List.first()
-    |> case do
-      nil ->
-        {:error, :not_found}
+  end
 
-      b ->
-        tid = Map.get(b, "transcript_id") || Map.get(b, :transcript_id)
-        if is_binary(tid) and tid != "", do: {:ok, tid}, else: {:error, :no_transcript}
-    end
+  defp latest_bite([]), do: nil
+
+  defp latest_bite(bites) do
+    Enum.sort_by(
+      bites,
+      fn b -> Map.get(b, "created_at") || Map.get(b, :created_at) || "" end,
+      :desc
+    )
+    |> List.first()
+  end
+
+  defp transcript_id_of_bite(nil), do: {:error, :not_found}
+
+  defp transcript_id_of_bite(b) do
+    tid = Map.get(b, "transcript_id") || Map.get(b, :transcript_id)
+    if is_binary(tid) and tid != "", do: {:ok, tid}, else: {:error, :no_transcript}
   end
 
   defp fallback_by_title(_series_id, nil, _limit),
@@ -205,18 +219,7 @@ defmodule DashboardSSD.Integrations.Fireflies do
   defp fetch_summary_for_transcript(series_id, transcript_id) do
     case FirefliesClient.get_transcript_summary(transcript_id) do
       {:ok, %{notes: notes, action_items: items, bullet_gist: bullet}} ->
-        # Only persist non-empty results
-        if (is_binary(notes) and String.trim(notes) != "") or (is_list(items) and items != []) or
-             (is_binary(bullet) and String.trim(bullet) != "") do
-          :ok =
-            FirefliesStore.upsert(series_id, %{
-              transcript_id: transcript_id,
-              accomplished: notes,
-              action_items: items,
-              bullet_gist: bullet
-            })
-        end
-
+        persist_artifacts_if_present(series_id, transcript_id, notes, items, bullet)
         {:ok, %{accomplished: notes, action_items: items || []}}
 
       {:error, {:rate_limited, _} = rl} ->
@@ -228,5 +231,23 @@ defmodule DashboardSSD.Integrations.Fireflies do
       _ ->
         {:ok, %{accomplished: nil, action_items: []}}
     end
+  end
+
+  defp persist_artifacts_if_present(series_id, transcript_id, notes, items, bullet) do
+    if should_persist?(notes, items, bullet) do
+      :ok =
+        FirefliesStore.upsert(series_id, %{
+          transcript_id: transcript_id,
+          accomplished: notes,
+          action_items: items,
+          bullet_gist: bullet
+        })
+    end
+  end
+
+  defp should_persist?(notes, items, bullet) do
+    (is_binary(notes) and String.trim(notes) != "") or
+      (is_list(items) and items != []) or
+      (is_binary(bullet) and String.trim(bullet) != "")
   end
 end

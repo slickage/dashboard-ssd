@@ -7,7 +7,8 @@ defmodule DashboardSSD.Integrations do
   """
 
   alias DashboardSSD.Accounts.ExternalIdentity
-  alias DashboardSSD.Integrations.{Drive, Linear, Notion, Slack, GoogleCalendar}
+  alias DashboardSSD.Integrations.{Drive, GoogleCalendar, Linear, Notion, Slack}
+  alias DashboardSSD.Integrations.GoogleToken
   alias DashboardSSD.Meetings.CacheStore, as: MeetingsCache
   alias DashboardSSD.Repo
 
@@ -181,17 +182,22 @@ defmodule DashboardSSD.Integrations do
 
       MeetingsCache.fetch(
         key,
-        fn ->
-          with {:ok, token} <-
-                 DashboardSSD.Integrations.GoogleToken.get_access_token_for_user(user_id) do
-            GoogleCalendar.list_upcoming(start_at, end_at, Keyword.put(opts, :token, token))
-          else
-            {:error, _} = err -> err
-            _ -> {:error, :no_token}
-          end
-        end,
+        fn -> fetch_calendar_list_for_user(user_id, start_at, end_at, opts) end,
         ttl: ttl
       )
+    end
+  end
+
+  defp fetch_calendar_list_for_user(user_id, start_at, end_at, opts) do
+    case GoogleToken.get_access_token_for_user(user_id) do
+      {:ok, token} ->
+        GoogleCalendar.list_upcoming(start_at, end_at, Keyword.put(opts, :token, token))
+
+      {:error, _} = err ->
+        err
+
+      _ ->
+        {:error, :no_token}
     end
   end
 

@@ -2,9 +2,9 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
   use DashboardSSD.DataCase, async: false
 
   import Ecto.Query
-  alias DashboardSSD.Repo
   alias DashboardSSD.Integrations.Fireflies
-  alias DashboardSSD.Meetings.{FirefliesArtifact, CacheStore}
+  alias DashboardSSD.Meetings.{CacheStore, FirefliesArtifact}
+  alias DashboardSSD.Repo
 
   setup do
     # Ensure token configured

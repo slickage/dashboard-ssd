@@ -44,57 +44,57 @@ defmodule DashboardSSD.Integrations.GoogleCalendar do
       |> Jason.encode!()
     end)
 
-    case Keyword.get(opts, :mock) do
-      :sample ->
-        # Return a couple of sample meetings for preview purposes
-        now = start_at
+    if Keyword.get(opts, :mock) == :sample do
+      now = start_at
 
-        {:ok,
-         [
-           %{
-             id: "evt-1",
-             title: "Weekly Sync – Project Alpha",
-             start_at: now,
-             end_at: DateTime.add(now, 60 * 60, :second),
-             recurring_series_id: "series-alpha"
-           },
-           %{
-             id: "evt-2",
-             title: "Client Review – Contoso",
-             start_at: DateTime.add(now, 2 * 60 * 60, :second),
-             end_at: DateTime.add(now, 3 * 60 * 60, :second),
-             recurring_series_id: "series-contoso"
-           }
-         ]}
+      {:ok,
+       [
+         %{
+           id: "evt-1",
+           title: "Weekly Sync – Project Alpha",
+           start_at: now,
+           end_at: DateTime.add(now, 60 * 60, :second),
+           recurring_series_id: "series-alpha"
+         },
+         %{
+           id: "evt-2",
+           title: "Client Review – Contoso",
+           start_at: DateTime.add(now, 2 * 60 * 60, :second),
+           end_at: DateTime.add(now, 3 * 60 * 60, :second),
+           recurring_series_id: "series-contoso"
+         }
+       ]}
+    else
+      token = Keyword.get(opts, :token)
 
-      _ ->
-        token = Keyword.get(opts, :token)
+      if is_nil(token) or token == "" do
+        {:ok, []}
+      else
+        fetch_events(start_at, end_at, token)
+      end
+    end
+  end
 
-        # If token is missing, return empty list (wrapper enforces token presence)
-        if is_nil(token) or token == "" do
-          {:ok, []}
-        else
-          headers = [{"authorization", "Bearer #{token}"}]
+  defp fetch_events(start_at, end_at, token) do
+    headers = [{"authorization", "Bearer #{token}"}]
 
-          params = [
-            timeMin: DateTime.to_iso8601(start_at),
-            timeMax: DateTime.to_iso8601(end_at),
-            singleEvents: true,
-            orderBy: "startTime"
-          ]
+    params = [
+      timeMin: DateTime.to_iso8601(start_at),
+      timeMax: DateTime.to_iso8601(end_at),
+      singleEvents: true,
+      orderBy: "startTime"
+    ]
 
-          case get("/calendars/primary/events", query: params, headers: headers) do
-            {:ok, %Tesla.Env{status: 200, body: body}} ->
-              items = Map.get(body, "items") || []
-              {:ok, Enum.map(items, &map_event/1)}
+    case get("/calendars/primary/events", query: params, headers: headers) do
+      {:ok, %Tesla.Env{status: 200, body: body}} ->
+        items = Map.get(body, "items") || []
+        {:ok, Enum.map(items, &map_event/1)}
 
-            {:ok, %Tesla.Env{status: status, body: body}} ->
-              {:error, {:http_error, status, body}}
+      {:ok, %Tesla.Env{status: status, body: body}} ->
+        {:error, {:http_error, status, body}}
 
-            {:error, reason} ->
-              {:error, reason}
-          end
-        end
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -126,11 +126,15 @@ defmodule DashboardSSD.Integrations.GoogleCalendar do
           _ -> nil
         end
 
-      with {:ok, token} <- GoogleToken.get_access_token_for_user(user_id) do
-        list_upcoming(start_at, end_at, Keyword.put(opts, :token, token))
-      else
-        {:error, _} = err -> err
-        _ -> {:error, :no_token}
+      case GoogleToken.get_access_token_for_user(user_id) do
+        {:ok, token} ->
+          list_upcoming(start_at, end_at, Keyword.put(opts, :token, token))
+
+        {:error, _} = err ->
+          err
+
+        _ ->
+          {:error, :no_token}
       end
     end
   end

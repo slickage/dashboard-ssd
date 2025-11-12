@@ -3,9 +3,9 @@ defmodule DashboardSSD.Meetings.Agenda do
   Context functions for managing pre-meeting agenda items.
   """
   import Ecto.Query
-  alias DashboardSSD.Repo
-  alias DashboardSSD.Meetings.AgendaItem
   alias DashboardSSD.Integrations.Fireflies
+  alias DashboardSSD.Meetings.AgendaItem
+  alias DashboardSSD.Repo
 
   @spec list_items(String.t()) :: [AgendaItem.t()]
   def list_items(calendar_event_id) when is_binary(calendar_event_id) do

@@ -2,9 +2,9 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
   @moduledoc "Meeting detail modal component: agenda text, summary, and association."
   use DashboardSSDWeb, :live_component
 
-  alias DashboardSSD.Meetings.{Agenda, Associations}
   alias DashboardSSD.{Clients, Projects}
   alias DashboardSSD.Integrations.Fireflies
+  alias DashboardSSD.Meetings.{Agenda, Associations}
 
   @impl true
   def update(assigns, socket) do
@@ -18,57 +18,16 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
     projects = Projects.list_projects()
 
     {post, post_error} =
-      case series_id do
-        nil ->
-          {%{accomplished: nil, action_items: []}, nil}
+      fetch_post(
+        series_id,
+        Map.get(assigns || %{}, :params) |> then(&(&1 && Map.get(&1, "mock"))),
+        title
+      )
 
-        s ->
-          # Skip Fireflies in mock mode
-          if Map.get(assigns || %{}, :params) |> then(&(&1 && Map.get(&1, "mock"))) do
-            {%{accomplished: nil, action_items: []}, nil}
-          else
-            case Fireflies.fetch_latest_for_series(s, title: title) do
-              {:ok, v} ->
-                {v, nil}
+    agenda_text = build_agenda_text(manual, post)
 
-              {:error, {:rate_limited, msg}} ->
-                {%{accomplished: nil, action_items: []}, %{type: :rate_limited, message: msg}}
-
-              {:error, _} ->
-                {%{accomplished: nil, action_items: []},
-                 %{type: :generic, message: "Fireflies data unavailable. Please try again later."}}
-            end
-          end
-      end
-
-    agenda_text =
-      manual
-      |> Enum.sort_by(& &1.position)
-      |> Enum.map(&(&1.text || ""))
-      |> Enum.join("\n")
-      |> case do
-        "" ->
-          cond do
-            is_list(post.action_items) -> Enum.join(post.action_items, "\n")
-            is_binary(post.action_items) -> post.action_items
-            true -> ""
-          end
-
-        other ->
-          other
-      end
-
-    guess =
-      if is_binary(title) and String.trim(title) != "",
-        do: Associations.guess_from_title(title),
-        else: :unknown
-
-    {auto_entity, auto_notice?} =
-      case {assoc, guess} do
-        {nil, {:client, c}} when not is_nil(c) -> {"client:" <> to_string(c.id), true}
-        {nil, {:project, p}} when not is_nil(p) -> {"project:" <> to_string(p.id), true}
-        _ -> {nil, false}
-      end
+    guess = guess_from_title(title)
+    {auto_entity, auto_notice?} = auto_association(assoc, guess)
 
     {:ok,
      socket
@@ -236,49 +195,14 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
     series_id = socket.assigns.series_id
     manual = Agenda.list_items(id)
 
-    post_result =
-      case series_id do
-        nil ->
-          {:ok, %{accomplished: nil, action_items: []}}
-
-        s ->
-          # Skip Fireflies in mock mode
-          if Map.get(socket.assigns[:params] || %{}, "mock") do
-            {:ok, %{accomplished: nil, action_items: []}}
-          else
-            Fireflies.fetch_latest_for_series(s, title: socket.assigns[:title])
-          end
-      end
-
     {post, post_error} =
-      case post_result do
-        {:ok, v} ->
-          {v, nil}
+      fetch_post(
+        series_id,
+        Map.get(socket.assigns[:params] || %{}, "mock"),
+        socket.assigns[:title]
+      )
 
-        {:error, {:rate_limited, msg}} ->
-          {%{accomplished: nil, action_items: []}, %{type: :rate_limited, message: msg}}
-
-        {:error, _} ->
-          {%{accomplished: nil, action_items: []},
-           %{type: :generic, message: "Fireflies data unavailable. Please try again later."}}
-      end
-
-    agenda_text =
-      manual
-      |> Enum.sort_by(& &1.position)
-      |> Enum.map(&(&1.text || ""))
-      |> Enum.join("\n")
-      |> case do
-        "" ->
-          cond do
-            is_list(post.action_items) -> Enum.join(post.action_items, "\n")
-            is_binary(post.action_items) -> post.action_items
-            true -> ""
-          end
-
-        other ->
-          other
-      end
+    agenda_text = build_agenda_text(manual, post)
 
     {:noreply,
      assign(socket,
@@ -288,6 +212,58 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
        agenda_text: agenda_text,
        post_error: post_error
      )}
+  end
+
+  # ======= helpers extracted to reduce complexity =======
+
+  defp fetch_post(nil, _mock, _title), do: {%{accomplished: nil, action_items: []}, nil}
+
+  defp fetch_post(_series_id, mock, _title) when mock in ["1", "true"],
+    do: {%{accomplished: nil, action_items: []}, nil}
+
+  defp fetch_post(series_id, _mock, title) do
+    case Fireflies.fetch_latest_for_series(series_id, title: title) do
+      {:ok, v} ->
+        {v, nil}
+
+      {:error, {:rate_limited, msg}} ->
+        {%{accomplished: nil, action_items: []}, %{type: :rate_limited, message: msg}}
+
+      {:error, _} ->
+        {%{accomplished: nil, action_items: []},
+         %{type: :generic, message: "Fireflies data unavailable. Please try again later."}}
+    end
+  end
+
+  defp build_agenda_text(manual, post) do
+    manual
+    |> Enum.sort_by(& &1.position)
+    |> Enum.map_join("\n", &(&1.text || ""))
+    |> case do
+      "" ->
+        cond do
+          is_list(post.action_items) -> Enum.join(post.action_items, "\n")
+          is_binary(post.action_items) -> post.action_items
+          true -> ""
+        end
+
+      other ->
+        other
+    end
+  end
+
+  defp guess_from_title(title) do
+    if is_binary(title) and String.trim(title) != "",
+      do: Associations.guess_from_title(title),
+      else: :unknown
+  end
+
+  defp auto_association(assoc, guess) do
+    case {assoc, guess} do
+      {nil, {:client, c}} when not is_nil(c) -> {"client:" <> to_string(c.id), true}
+      {nil, {:project, p}} when not is_nil(p) -> {"project:" <> to_string(p.id), true}
+      _ -> {nil, false}
+    end
   end
 
   @impl true
