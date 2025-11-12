@@ -25,4 +25,6 @@ defmodule DashboardSSDWeb.MeetingsLiveTest do
     assert html =~ "Weekly Sync – Project Alpha"
     assert html =~ "Client Review – Contoso"
   end
+
+  # Note: agenda preview in mock mode skips Fireflies calls by design.
 end
