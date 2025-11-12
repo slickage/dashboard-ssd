@@ -29,8 +29,14 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
     # Selected date drives a +/- 6 day window
     selected_date =
       case Map.get(params, "d") do
-        nil -> Date.utc_today()
-        s -> case Date.from_iso8601(s) do {:ok, d} -> d; _ -> Date.utc_today() end
+        nil ->
+          Date.utc_today()
+
+        s ->
+          case Date.from_iso8601(s) do
+            {:ok, d} -> d
+            _ -> Date.utc_today()
+          end
       end
 
     start_date = Date.add(selected_date, -6)
@@ -95,22 +101,35 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
     ttl = :timer.minutes(5)
 
     {:ok, has_meetings} =
-      CacheStore.fetch(key, fn ->
-        opts = if mock?, do: [mock: :sample], else: []
-        case Integrations.calendar_list_upcoming_for_user(socket.assigns.current_user || %{}, range3_start, range3_end, opts) do
-          {:ok, list} when is_list(list) ->
-            tz = tz_offset || 0
-            dates =
-              Enum.reduce(list, MapSet.new(), fn e, acc ->
-                s = DateTime.add(e.start_at, tz * 60, :second) |> DateTime.to_date()
-                en = DateTime.add(e.end_at, tz * 60, :second) |> DateTime.to_date()
-                expand_dates(s, en, acc)
-              end)
-            {:ok, Map.new(dates, fn d -> {d, true} end)}
+      CacheStore.fetch(
+        key,
+        fn ->
+          opts = if mock?, do: [mock: :sample], else: []
 
-          _ -> {:ok, %{}}
-        end
-      end, ttl: ttl)
+          case Integrations.calendar_list_upcoming_for_user(
+                 socket.assigns.current_user || %{},
+                 range3_start,
+                 range3_end,
+                 opts
+               ) do
+            {:ok, list} when is_list(list) ->
+              tz = tz_offset || 0
+
+              dates =
+                Enum.reduce(list, MapSet.new(), fn e, acc ->
+                  s = DateTime.add(e.start_at, tz * 60, :second) |> DateTime.to_date()
+                  en = DateTime.add(e.end_at, tz * 60, :second) |> DateTime.to_date()
+                  expand_dates(s, en, acc)
+                end)
+
+              {:ok, Map.new(dates, fn d -> {d, true} end)}
+
+            _ ->
+              {:ok, %{}}
+          end
+        end,
+        ttl: ttl
+      )
 
     # Build read-only consolidated agenda text per meeting (manual items if present, otherwise latest Fireflies action items)
     agenda_texts =
@@ -142,7 +161,8 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                           true -> ""
                         end
 
-                      _ -> ""
+                      _ ->
+                        ""
                     end
                 end
               end
@@ -214,7 +234,14 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
             </div>
             <!-- Removed manual range prev/next and date inputs; selection driven by calendar -->
             <div class="flex items-center gap-2">
-              <button type="button" phx-click="cal_prev_month" class="px-2 py-1 rounded border border-white/10 text-xs hover:bg-white/5" aria-label="Previous months">‹</button>
+              <button
+                type="button"
+                phx-click="cal_prev_month"
+                class="px-2 py-1 rounded border border-white/10 text-xs hover:bg-white/5"
+                aria-label="Previous months"
+              >
+                ‹
+              </button>
               <div class="grid grid-cols-3 gap-4">
                 <div class="p-2 rounded-md">
                   <.month_calendar
@@ -250,7 +277,14 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
                   />
                 </div>
               </div>
-              <button type="button" phx-click="cal_next_month" class="px-2 py-1 rounded border border-white/10 text-xs hover:bg-white/5" aria-label="Next months">›</button>
+              <button
+                type="button"
+                phx-click="cal_next_month"
+                class="px-2 py-1 rounded border border-white/10 text-xs hover:bg-white/5"
+                aria-label="Next months"
+              >
+                ›
+              </button>
             </div>
           </div>
         </div>
@@ -492,6 +526,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
       # Center the clicked date's month as the anchor
       anchor = %Date{year: d.year, month: d.month, day: 1}
       {m_prev, m_curr, m_next} = month_triplet(anchor)
+
       {:noreply,
        socket
        |> assign(cal_anchor: anchor, month_prev: m_prev, month_curr: m_curr, month_next: m_next)
@@ -521,7 +556,11 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
   def handle_event("cal_prev_month", _params, socket) do
     anchor =
       Map.get(socket.assigns, :cal_anchor) ||
-        %Date{year: socket.assigns.range_start.year, month: socket.assigns.range_start.month, day: 1}
+        %Date{
+          year: socket.assigns.range_start.year,
+          month: socket.assigns.range_start.month,
+          day: 1
+        }
 
     new_anchor = prev_month(anchor)
     {m_prev, m_curr, m_next} = month_triplet(new_anchor)
@@ -529,6 +568,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
     len = Date.diff(socket.assigns.range_end, socket.assigns.range_start) + 1
     new_start = new_anchor
     new_end = Date.add(new_start, max(len - 1, 0))
+
     {:noreply,
      socket
      |> assign(cal_anchor: new_anchor, month_prev: m_prev, month_curr: m_curr, month_next: m_next)
@@ -539,7 +579,11 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
   def handle_event("cal_next_month", _params, socket) do
     anchor =
       Map.get(socket.assigns, :cal_anchor) ||
-        %Date{year: socket.assigns.range_start.year, month: socket.assigns.range_start.month, day: 1}
+        %Date{
+          year: socket.assigns.range_start.year,
+          month: socket.assigns.range_start.month,
+          day: 1
+        }
 
     new_anchor = next_month(anchor)
     {m_prev, m_curr, m_next} = month_triplet(new_anchor)
@@ -547,6 +591,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
     len = Date.diff(socket.assigns.range_end, socket.assigns.range_start) + 1
     new_start = new_anchor
     new_end = Date.add(new_start, max(len - 1, 0))
+
     {:noreply,
      socket
      |> assign(cal_anchor: new_anchor, month_prev: m_prev, month_curr: m_curr, month_next: m_next)

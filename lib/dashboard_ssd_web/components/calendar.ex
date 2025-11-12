@@ -53,11 +53,15 @@ defmodule DashboardSSDWeb.CalendarComponents do
             <% is_today = date == @today %>
             <% in_range = in_range?(date, @start_date, @end_date) %>
             <% busy? = Map.get(@has_meetings || %{}, date, false) %>
-            <div phx-click={@on_day_click} phx-value-date={@on_day_click && Date.to_iso8601(date)} class={[
-              "h-6 rounded text-xs leading-none flex items-center justify-center",
-              (in_range and not is_today) && "bg-theme-primary text-white",
-              is_today && "ring-1 ring-theme-primary ring-offset-transparent bg-transparent"
-            ]}>
+            <div
+              phx-click={@on_day_click}
+              phx-value-date={@on_day_click && Date.to_iso8601(date)}
+              class={[
+                "h-6 rounded text-xs leading-none flex items-center justify-center",
+                (in_range and not is_today) && "bg-theme-primary text-white",
+                is_today && "ring-1 ring-theme-primary ring-offset-transparent bg-transparent"
+              ]}
+            >
               <span class={busy? && "font-bold"}>{day}</span>
             </div>
           <% end %>
@@ -86,11 +90,15 @@ defmodule DashboardSSDWeb.CalendarComponents do
             <% is_today = date == @today %>
             <% in_range = in_range?(date, @start_date, @end_date) %>
             <% busy? = Map.get(@has_meetings || %{}, date, false) %>
-            <div phx-click={@on_day_click} phx-value-date={@on_day_click && Date.to_iso8601(date)} class={[
-              "h-8 rounded text-xs flex items-center justify-center",
-              (in_range and not is_today) && "bg-theme-primary text-white",
-              is_today && "ring-1 ring-theme-primary ring-offset-transparent bg-transparent"
-            ]}>
+            <div
+              phx-click={@on_day_click}
+              phx-value-date={@on_day_click && Date.to_iso8601(date)}
+              class={[
+                "h-8 rounded text-xs flex items-center justify-center",
+                (in_range and not is_today) && "bg-theme-primary text-white",
+                is_today && "ring-1 ring-theme-primary ring-offset-transparent bg-transparent"
+              ]}
+            >
               <span class={busy? && "font-bold"}>{day}</span>
             </div>
           <% end %>

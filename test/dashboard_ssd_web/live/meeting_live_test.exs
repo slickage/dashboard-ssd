@@ -32,6 +32,7 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
     assert html =~ "A"
     assert html =~ "B"
   end
+
   test "shows inline rate limit message in meeting detail", %{conn: conn} do
     # Mock Fireflies to return rate-limited error for any query
     Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql"} ->

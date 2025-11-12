@@ -226,7 +226,12 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
 
   @impl true
   def handle_event("tz:set", %{"offset" => off}, socket) do
-    off_int = case Integer.parse(to_string(off)) do {v,_} -> v; _ -> 0 end
+    off_int =
+      case Integer.parse(to_string(off)) do
+        {v, _} -> v
+        _ -> 0
+      end
+
     {:noreply, assign(socket, tz_offset: off_int)}
   end
 
@@ -340,7 +345,9 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
             is_binary(post.action_items) -> post.action_items
             true -> ""
           end
-        other -> other
+
+        other ->
+          other
       end
 
     {:noreply,
@@ -356,12 +363,16 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
 
   defp normalize_action_items(items) do
     cond do
-      is_list(items) -> items
+      is_list(items) ->
+        items
+
       is_binary(items) ->
         items
         |> String.split(["\r\n", "\n"], trim: true)
         |> Enum.reject(&(&1 == ""))
-      true -> []
+
+      true ->
+        []
     end
   end
 
