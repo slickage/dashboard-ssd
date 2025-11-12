@@ -502,7 +502,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
   end
 
   @impl true
-  def handle_event("range_set", %{"start" => s, "end" => e}, socket) do
+  def handle_event("range_set", _params, socket) do
     {:noreply, socket}
   end
 
@@ -563,7 +563,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
   defp next_month(%Date{year: y, month: 12}), do: %Date{year: y + 1, month: 1, day: 1}
   defp next_month(%Date{year: y, month: m}), do: %Date{year: y, month: m + 1, day: 1}
 
-  defp push_patch_to_range(socket, start_date, end_date) do
+  defp push_patch_to_range(socket, start_date, _end_date) do
     qs =
       [
         (Map.get(socket.assigns[:params] || %{}, "mock") &&
