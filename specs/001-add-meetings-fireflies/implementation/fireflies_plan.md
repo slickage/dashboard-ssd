@@ -56,26 +56,21 @@ Scope: specs/001-add-meetings-fireflies
 - In `lib/dashboard_ssd_web/live/meetings_live/index.ex`: when deriving agenda text per meeting, call `Fireflies.fetch_latest_for_series(m.recurring_series_id, title: m.title)`.
 - In `lib/dashboard_ssd_web/live/meeting_live/detail_component.ex`: call `Fireflies.fetch_latest_for_series(series_id, title: title)`.
 
-6) Caching and refresh
-- Default TTL: 24h for series artifacts (configurable via opts).
-- `refresh_series(series_id, opts \\ [])` keeps interface (already present) → delete cache + refetch.
-- Persist successful Fireflies results in DB and do not persist empty results.
-  - Add a `fireflies_artifacts` table keyed by `recurring_series_id` with fields `{transcript_id, accomplished (notes), action_items (jsonb), bullet_gist, fetched_at}` and a unique index on `recurring_series_id`.
-  - On a successful fetch from Fireflies, upsert the row and populate ETS cache.
-  - Retrieval order: (1) ETS cache hit → return; (2) DB row → populate cache and return; (3) Query Fireflies API → on success, persist to DB + cache and return; on failure, return error.
-  - Never overwrite a non-empty DB row with an empty result; only update when new non-empty data is returned.
-- Rate limit handling and UI feedback
-  - Treat Fireflies GraphQL responses with `errors[0].code == "too_many_requests"` (or HTTP 429) as a rate-limit error. Surface `errors[0].message` (human-readable retry time) directly in the Meetings UI (inline on the page, not a disappearing toast).
-  - For other errors, display a concise generic error message (e.g., "Fireflies data unavailable. Please try again later.") and avoid replacing existing cached/DB data.
-  - Log details at debug (no tokens), including the `errors` array for diagnostics.
+6) Caching and refresh (Completed)
+- Series artifacts cache: 24h TTL (configurable). `refresh_series/2` deletes cache and refetches.
+- DB persistence: `fireflies_artifacts` keyed by `recurring_series_id` with `{transcript_id, accomplished, action_items (jsonb), bullet_gist, fetched_at}`. Persist only non-empty results.
+- Retrieval order: ETS → DB → API; on success, populate ETS and upsert DB; on failure, return error and do not overwrite data.
+- Rate-limit handling: Detect `too_many_requests` (or 429), surface human-readable retry time inline on the page (not a toast). Other errors show a generic inline message. Do not overwrite cache/DB on error; log details at debug (no tokens).
+- Calendar has-event caching: For the three months in view, cache a Date => has_event? map for 5 minutes to bold days with meetings without repeated API calls.
 
-7) Tests
-- Client: stub responses; map bites to internal shape; ensure token scrubbed from logs.
-- Boundary: with a stubbed client, verify hint-based selection and caching behavior.
+7) Tests (Completed)
+- Client: mapping (bites, transcript summary with notes/action_items/bullet_gist), token not logged, rate-limit mapping.
+- Boundary: selection + caching behavior (API→DB→cache), DB fallback without API, rate-limit propagation (no DB writes).
+- UI: inline rate-limit message on summary; robust handling when action_items is a string.
 
-8) Documentation
-- Update `specs/001-add-meetings-fireflies/quickstart.md` with a short section on Fireflies token and IEx helpers.
-- Confirm `example.env` already includes `FIREFLIES_API_TOKEN` (present) and add a brief note.
+8) Documentation (Completed)
+- Quickstart: document FIREFLIES_API_TOKEN and optional FIREFLIES_USER_ID; selected-date (±6 days) window; 3‑month calendar and bolding; rate-limit inline message; caching behavior.
+- example.env includes both FIREFLIES_API_TOKEN and FIREFLIES_USER_ID with guidance.
 
 ## Implementation Steps (Phase 2)
 - Prefill agenda from previous meeting action items of the same series.
