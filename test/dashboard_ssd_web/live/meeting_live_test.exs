@@ -20,6 +20,18 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
     assert html =~ "Meeting"
   end
 
+  test "meeting page renders bitstring action_items without crash", %{conn: conn} do
+    # Seed Fireflies cache so fetch_latest_for_series returns bitstring items
+    key = {:series_artifacts, "series-alpha"}
+    val = %{accomplished: "Summary here", action_items: "A\nB"}
+    :ok = DashboardSSD.Meetings.CacheStore.put(key, val, :timer.minutes(5))
+
+    {:ok, _view, html} = live(conn, ~p"/meetings/evt-1?series_id=series-alpha&title=Weekly")
+    assert html =~ "Last meeting summary"
+    assert html =~ "Summary here"
+    assert html =~ "A"
+    assert html =~ "B"
+  end
   test "shows inline rate limit message in meeting detail", %{conn: conn} do
     # Mock Fireflies to return rate-limited error for any query
     Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
