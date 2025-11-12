@@ -53,7 +53,9 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
             is_binary(post.action_items) -> post.action_items
             true -> ""
           end
-        other -> other
+
+        other ->
+          other
       end
 
     guess =
@@ -90,12 +92,16 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
 
   defp normalize_action_items(items) do
     cond do
-      is_list(items) -> items
+      is_list(items) ->
+        items
+
       is_binary(items) ->
         items
         |> String.split(["\r\n", "\n"], trim: true)
         |> Enum.reject(&(&1 == ""))
-      true -> []
+
+      true ->
+        []
     end
   end
 
@@ -269,7 +275,9 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
             is_binary(post.action_items) -> post.action_items
             true -> ""
           end
-        other -> other
+
+        other ->
+          other
       end
 
     {:noreply,
