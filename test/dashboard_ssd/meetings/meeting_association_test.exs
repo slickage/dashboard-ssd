@@ -1,9 +1,9 @@
 defmodule DashboardSSD.Meetings.MeetingAssociationTest do
   use DashboardSSD.DataCase, async: true
 
-  alias DashboardSSD.Meetings.MeetingAssociation
-  alias DashboardSSD.Meetings.Associations
   alias DashboardSSD.{Clients, Projects}
+  alias DashboardSSD.Meetings.Associations
+  alias DashboardSSD.Meetings.MeetingAssociation
 
   test "changeset enforces origin inclusion and required calendar_event_id" do
     cs = MeetingAssociation.changeset(%MeetingAssociation{}, %{})
@@ -52,8 +52,8 @@ end
 
 defmodule DashboardSSD.Meetings.AssociationsFallbackTest do
   use DashboardSSD.DataCase, async: true
-  alias DashboardSSD.Meetings.{MeetingAssociation, Associations}
   alias DashboardSSD.{Clients, Projects}
+  alias DashboardSSD.Meetings.{Associations, MeetingAssociation}
 
   test "get_for_event_or_series returns event-specific when present" do
     {:ok, client} = Clients.create_client(%{name: "CX"})

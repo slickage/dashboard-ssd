@@ -1,9 +1,9 @@
 defmodule DashboardSSD.Meetings.Associations do
   @moduledoc "Context functions for meeting-to-client/project association management."
   import Ecto.Query
-  alias DashboardSSD.Repo
-  alias DashboardSSD.Meetings.MeetingAssociation
   alias DashboardSSD.{Clients, Projects}
+  alias DashboardSSD.Meetings.MeetingAssociation
+  alias DashboardSSD.Repo
 
   @spec get_for_event(String.t()) :: MeetingAssociation.t() | nil
   def get_for_event(calendar_event_id) do
@@ -115,23 +115,23 @@ defmodule DashboardSSD.Meetings.Associations do
           | {:ambiguous, list()}
   def guess_from_title(title) when is_binary(title) do
     t = String.downcase(title)
-    clients = Clients.list_clients()
-
-    client_matches =
-      Enum.filter(clients, fn c -> c.name && String.contains?(t, String.downcase(c.name)) end)
-
-    projects = Projects.list_projects()
-
-    project_matches =
-      Enum.filter(projects, fn p -> p.name && String.contains?(t, String.downcase(p.name)) end)
-
-    cond do
-      length(client_matches) == 1 and project_matches == [] -> {:client, hd(client_matches)}
-      length(project_matches) == 1 and client_matches == [] -> {:project, hd(project_matches)}
-      client_matches == [] and project_matches == [] -> :unknown
-      true -> {:ambiguous, client_matches ++ project_matches}
-    end
+    client_matches = match_clients(t, Clients.list_clients())
+    project_matches = match_projects(t, Projects.list_projects())
+    evaluate_matches(client_matches, project_matches)
   end
+
+  defp match_clients(t, clients) do
+    Enum.filter(clients, fn c -> c.name && String.contains?(t, String.downcase(c.name)) end)
+  end
+
+  defp match_projects(t, projects) do
+    Enum.filter(projects, fn p -> p.name && String.contains?(t, String.downcase(p.name)) end)
+  end
+
+  defp evaluate_matches([c], []), do: {:client, c}
+  defp evaluate_matches([], [p]), do: {:project, p}
+  defp evaluate_matches([], []), do: :unknown
+  defp evaluate_matches(cs, ps), do: {:ambiguous, cs ++ ps}
 
   defp truthy?(v) do
     v in [true, "true", "1", 1, true, "on", :on]

@@ -4,10 +4,10 @@ defmodule DashboardSSD.Integrations.FirefliesTest do
   """
   use DashboardSSD.DataCase, async: false
 
-  alias DashboardSSD.Repo
+  alias DashboardSSD.Integrations.Fireflies
   alias DashboardSSD.Meetings.CacheStore
   alias DashboardSSD.Meetings.FirefliesArtifact
-  alias DashboardSSD.Integrations.Fireflies
+  alias DashboardSSD.Repo
 
   setup do
     CacheStore.reset()

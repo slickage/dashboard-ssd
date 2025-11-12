@@ -207,54 +207,58 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
       }
       """
 
-      # Respect Fireflies exclusivity: only one of mine, userId, hostEmail, organizerEmail, participantEmail may be set.
-      exclusives =
-        %{
-          "userId" => Keyword.get(opts, :user_id),
-          "hostEmail" => Keyword.get(opts, :host_email),
-          "organizerEmail" => Keyword.get(opts, :organizer_email),
-          "participantEmail" => Keyword.get(opts, :participant_email)
-        }
-        |> drop_nils()
+      variables = build_transcripts_variables(opts)
 
-      # Determine default exclusive: prefer configured user_id when none provided
-      # and :mine is not explicitly set; otherwise fallback to mine=true.
-      cfg_user = configured_user_id()
+      handle_transcripts_response(post_graphql(token, query, variables))
+    end
+  end
 
-      {mine_opt, user_opt} =
-        if map_size(exclusives) == 0 do
-          cond do
-            Keyword.has_key?(opts, :mine) -> {Keyword.get(opts, :mine), nil}
-            is_binary(cfg_user) and String.trim(cfg_user) != "" -> {nil, cfg_user}
-            true -> {true, nil}
-          end
-        else
-          {nil, nil}
+  defp build_transcripts_variables(opts) do
+    exclusives =
+      %{
+        "userId" => Keyword.get(opts, :user_id),
+        "hostEmail" => Keyword.get(opts, :host_email),
+        "organizerEmail" => Keyword.get(opts, :organizer_email),
+        "participantEmail" => Keyword.get(opts, :participant_email)
+      }
+      |> drop_nils()
+
+    cfg_user = configured_user_id()
+
+    {mine_opt, user_opt} =
+      if map_size(exclusives) == 0 do
+        cond do
+          Keyword.has_key?(opts, :mine) -> {Keyword.get(opts, :mine), nil}
+          is_binary(cfg_user) and String.trim(cfg_user) != "" -> {nil, cfg_user}
+          true -> {true, nil}
         end
-
-      variables =
-        %{
-          "mine" => mine_opt,
-          "userId" => Map.get(exclusives, "userId") || user_opt,
-          "hostEmail" => Map.get(exclusives, "hostEmail"),
-          "organizerEmail" => Map.get(exclusives, "organizerEmail"),
-          "participantEmail" => Map.get(exclusives, "participantEmail"),
-          "organizers" => sanitize_string_list(Keyword.get(opts, :organizers)),
-          "participants" => sanitize_string_list(Keyword.get(opts, :participants)),
-          "fromDate" => Keyword.get(opts, :from_date),
-          "toDate" => Keyword.get(opts, :to_date),
-          "limit" => clamp(Keyword.get(opts, :limit, 10)),
-          "skip" => Keyword.get(opts, :skip)
-        }
-        |> drop_nils()
-
-      case post_graphql(token, query, variables) do
-        {:ok, %{"data" => %{"transcripts" => list}}} when is_list(list) -> {:ok, list}
-        {:ok, %{"errors" => errs}} -> handle_graphql_errors(errs)
-        {:ok, _} -> {:ok, []}
-        {:error, {:http_error, status, body}} -> handle_http_error(status, body)
-        {:error, reason} -> {:error, reason}
+      else
+        {nil, nil}
       end
+
+    %{
+      "mine" => mine_opt,
+      "userId" => Map.get(exclusives, "userId") || user_opt,
+      "hostEmail" => Map.get(exclusives, "hostEmail"),
+      "organizerEmail" => Map.get(exclusives, "organizerEmail"),
+      "participantEmail" => Map.get(exclusives, "participantEmail"),
+      "organizers" => sanitize_string_list(Keyword.get(opts, :organizers)),
+      "participants" => sanitize_string_list(Keyword.get(opts, :participants)),
+      "fromDate" => Keyword.get(opts, :from_date),
+      "toDate" => Keyword.get(opts, :to_date),
+      "limit" => clamp(Keyword.get(opts, :limit, 10)),
+      "skip" => Keyword.get(opts, :skip)
+    }
+    |> drop_nils()
+  end
+
+  defp handle_transcripts_response(resp) do
+    case resp do
+      {:ok, %{"data" => %{"transcripts" => list}}} when is_list(list) -> {:ok, list}
+      {:ok, %{"errors" => errs}} -> handle_graphql_errors(errs)
+      {:ok, _} -> {:ok, []}
+      {:error, {:http_error, status, body}} -> handle_http_error(status, body)
+      {:error, reason} -> {:error, reason}
     end
   end
 

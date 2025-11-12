@@ -7,8 +7,8 @@ defmodule DashboardSSD.Meetings.FirefliesStore do
   """
 
   import Ecto.Query
-  alias DashboardSSD.Repo
   alias DashboardSSD.Meetings.FirefliesArtifact
+  alias DashboardSSD.Repo
 
   @type artifacts :: %{
           accomplished: String.t() | nil,

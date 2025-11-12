@@ -1,8 +1,8 @@
 defmodule DashboardSSD.Meetings.AssociationsTest do
   use DashboardSSD.DataCase, async: true
 
-  alias DashboardSSD.Meetings.Associations
   alias DashboardSSD.{Clients, Projects}
+  alias DashboardSSD.Meetings.Associations
 
   test "upsert and set_manual store associations" do
     {:ok, client} = Clients.create_client(%{name: "C"})
