@@ -60,13 +60,19 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
            %{type: :generic, message: "Fireflies data unavailable. Please try again later."}}
       end
 
+    items_for_text =
+      case post do
+        %{} -> normalize_action_items(Map.get(post, :action_items))
+        _ -> []
+      end
+
     agenda_text =
       manual
       |> Enum.sort_by(& &1.position)
       |> Enum.map(&(&1.text || ""))
       |> Enum.join("\n")
       |> case do
-        "" -> Enum.join(post.action_items || [], "\n")
+        "" -> Enum.join(items_for_text, "\n")
         other -> other
       end
 
@@ -89,7 +95,7 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
        agenda: [],
        manual_agenda: manual,
        summary_text: post.accomplished,
-       action_items: post.action_items,
+       action_items: normalize_action_items(post.action_items),
        agenda_text: agenda_text,
        assoc: assoc,
        guess: guess,
@@ -322,7 +328,12 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
       |> Enum.map(&(&1.text || ""))
       |> Enum.join("\n")
       |> case do
-        "" -> Enum.join(post.action_items || [], "\n")
+        "" ->
+          cond do
+            is_list(post.action_items) -> Enum.join(post.action_items, "\n")
+            is_binary(post.action_items) -> post.action_items
+            true -> ""
+          end
         other -> other
       end
 
@@ -331,10 +342,21 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
        manual_agenda: manual,
        agenda: [],
        summary_text: post.accomplished,
-       action_items: post.action_items,
+       action_items: normalize_action_items(post.action_items),
        agenda_text: agenda_text,
        post_error: post_error
      )}
+  end
+
+  defp normalize_action_items(items) do
+    cond do
+      is_list(items) -> items
+      is_binary(items) ->
+        items
+        |> String.split(["\r\n", "\n"], trim: true)
+        |> Enum.reject(&(&1 == ""))
+      true -> []
+    end
   end
 
   @impl true
