@@ -3,7 +3,13 @@ defmodule DashboardSSD.Accounts.ExternalIdentity do
   import Ecto.Changeset
   alias Ecto.Changeset
 
-  @moduledoc "Linked external identity credentials for a user (e.g., Google)."
+  @moduledoc """
+  Linked external identity credentials for a user (e.g., Google).
+
+    - Stores provider IDs/tokens and expiration metadata for OAuth providers.
+  - Encrypts sensitive tokens at rest via `DashboardSSD.Encrypted.Binary`.
+  - Provides a changeset for Accounts context helpers to validate persistence.
+  """
 
   @typedoc "External identity record"
   @type t :: %__MODULE__{

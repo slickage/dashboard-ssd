@@ -2,7 +2,9 @@ defmodule DashboardSSDWeb.CodeHighlighter do
   @moduledoc """
   Applies Monokai syntax highlighting to Notion code blocks using the Makeup library.
 
-  Falls back to escaped plain text when a lexer for the requested language is not available.
+    - Normalizes language aliases/extension names before asking Makeup for a lexer.
+  - Escapes and returns safe HTML when no lexer can be resolved for the given language.
+  - Provides helper utilities (`css_language/1`, `highlight/2`) tailored for Phoenix templates.
   """
 
   alias Phoenix.HTML

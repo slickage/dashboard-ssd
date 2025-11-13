@@ -1,5 +1,11 @@
 defmodule DashboardSSDWeb.HomeLive.Index do
-  @moduledoc "Home dashboard displaying projects, clients, workload summary, incidents, and CI status."
+  @moduledoc """
+  Home dashboard displaying projects, clients, workload summary, incidents, and CI status.
+
+    - Acts as the main landing page for authenticated users with dashboard access.
+  - Aggregates data from projects, clients, deployments, alerts, and analytics contexts.
+  - Provides refresh handling, header metadata, and conditional Linear integrations.
+  """
   use DashboardSSDWeb, :live_view
 
   require Logger

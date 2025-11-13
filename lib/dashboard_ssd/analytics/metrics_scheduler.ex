@@ -4,6 +4,10 @@ defmodule DashboardSSD.Analytics.MetricsScheduler do
 
   Runs metrics collection at configured intervals to populate
   the analytics dashboard with fresh data.
+
+    - Triggers `Collector.collect_all_metrics/0` on a configurable cadence.
+  - Uses Task.Supervisor to run collections asynchronously and monitor completion.
+  - Supports overridable intervals/initial delays for tests and configuration.
   """
   use GenServer
   require Logger

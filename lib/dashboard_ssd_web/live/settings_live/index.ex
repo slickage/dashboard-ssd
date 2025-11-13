@@ -1,5 +1,11 @@
 defmodule DashboardSSDWeb.SettingsLive.Index do
-  @moduledoc "Settings page for viewing and connecting external integrations."
+  @moduledoc """
+  Settings page for viewing and connecting external integrations.
+
+    - Surfaces personal settings, RBAC management, and integration connection status.
+  - Manages invites, user role/client assignments, and Linear linking workflows.
+  - Enforces capability gates so only authorized users see RBAC/user-management controls.
+  """
   use DashboardSSDWeb, :live_view
 
   alias DashboardSSD.Accounts

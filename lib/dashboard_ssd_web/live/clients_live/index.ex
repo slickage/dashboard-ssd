@@ -1,5 +1,11 @@
 defmodule DashboardSSDWeb.ClientsLive.Index do
-  @moduledoc "LiveView for listing and managing clients."
+  @moduledoc """
+  LiveView for listing and managing clients.
+
+    - Enforces capability-scoped client visibility and management actions.
+  - Subscribes to client PubSub updates to keep the table reactive.
+  - Coordinates form modals (new/edit/delete) and search interactions.
+  """
   use DashboardSSDWeb, :live_view
 
   alias DashboardSSD.Auth.Policy

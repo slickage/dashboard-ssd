@@ -1,6 +1,10 @@
 defmodule DashboardSSD.Projects do
   @moduledoc """
   Projects context: manage projects and queries per client.
+
+    - Handles project-level CRUD plus client-scoped listing/sharing helpers.
+  - Bridges Linear metadata (team members, workflow states) into cached structures.
+  - Offers entry points used by schedulers, cache warmers, and LiveViews for project data.
   """
   import Ecto.Query
   alias DashboardSSD.Accounts

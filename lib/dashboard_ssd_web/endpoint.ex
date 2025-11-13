@@ -1,5 +1,11 @@
 defmodule DashboardSSDWeb.Endpoint do
-  @moduledoc "Phoenix Endpoint for HTTP/WebSocket handling and plugs."
+  @moduledoc """
+  Phoenix Endpoint for HTTP/WebSocket handling and plugs.
+
+    - Configures sockets, static asset serving, and code reloading for the app.
+  - Chains common plugs (parsers, sessions, telemetry) before dispatching to the router.
+  - Exposes LiveDashboard request logging hooks for observability.
+  """
   use Phoenix.Endpoint, otp_app: :dashboard_ssd
 
   # The session will be stored in the cookie and signed,

@@ -3,6 +3,10 @@ defmodule Mix.Tasks.Coveralls.Ci do
   Runs `coveralls.multiple` with sane defaults that mimic GitHub Actions and
   provides GitHub-style environment defaults. Existing environment variables
   always win; we only set defaults when the variables are missing.
+
+    - Ensures local coverage runs mirror CI by populating GitHub env defaults.
+  - Chooses upload types (local/github) based on `COVERALLS_REPO_TOKEN` presence.
+  - Gracefully handles upload errors and cleans up temporary event files/env vars.
   """
   use Mix.Task
 

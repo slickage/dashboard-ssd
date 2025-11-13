@@ -2,6 +2,10 @@ defmodule DashboardSSDWeb.CoreComponents do
   @moduledoc """
   Provides core UI components.
 
+    - Hosts shared LiveView/Phoenix components (modals, buttons, tables, forms).
+  - Centralizes assigns validation and translations so downstream templates stay lean.
+  - Offers helper functions for JS interactions (focus traps, flash messages, etc.).
+
   At first glance, this module may seem daunting, but its goal is to provide
   core building blocks for your application, such as modals, tables, and
   forms. The components consist mostly of markup and are well-documented

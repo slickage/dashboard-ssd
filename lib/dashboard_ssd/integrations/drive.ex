@@ -1,5 +1,11 @@
 defmodule DashboardSSD.Integrations.Drive do
-  @moduledoc "Basic Google Drive API client (list files in folder)."
+  @moduledoc """
+  Basic Google Drive API client (list files in folder).
+
+    - Configures a Tesla client with Drive base URL, JSON handling, and auth headers.
+  - Exposes a minimal `list_files_in_folder/2` helper used by the Contracts/Kb flows.
+  - Normalizes success/error tuples for higher-level integrations.
+  """
   use Tesla
 
   @base "https://www.googleapis.com/drive/v3"

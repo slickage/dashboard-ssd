@@ -4,6 +4,10 @@ defmodule DashboardSSDWeb.AnalyticsLive.Index do
 
   Displays calculated averages for uptime, MTTR, and Linear throughput,
   along with a table of recent metric snapshots. Includes CSV export functionality.
+
+    - Enforces analytics read permissions before exposing metric snapshots.
+  - Aggregates uptime/MTTR/throughput data and supports per-project filtering.
+  - Streams CSV exports via LiveView push events for client-side download.
   """
   use DashboardSSDWeb, :live_view
 

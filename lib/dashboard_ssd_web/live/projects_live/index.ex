@@ -1,5 +1,11 @@
 defmodule DashboardSSDWeb.ProjectsLive.Index do
-  @moduledoc "Projects hub listing with Linear task summary and health status."
+  @moduledoc """
+  Projects hub listing with Linear task summary and health status.
+
+    - Filters projects/clients based on RBAC and allows scoped client selection.
+  - Displays deployment health metadata plus Linear team summaries per project.
+  - Manages background sync tasks and cached summary hydration for responsiveness.
+  """
   use DashboardSSDWeb, :live_view
 
   require Logger

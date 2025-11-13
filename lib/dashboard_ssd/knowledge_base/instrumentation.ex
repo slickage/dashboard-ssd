@@ -4,6 +4,10 @@ defmodule DashboardSSD.KnowledgeBase.Instrumentation do
 
   Currently focuses on Notion API interactions, emitting span events under
   `[:dashboard_ssd, :knowledge_base, :notion, :request]`.
+
+    - Provides a `with_request_span/3` helper to wrap Notion API calls with telemetry.
+  - Exposes attach/detach logging hooks so operators can observe Notion performance.
+  - Normalizes telemetry metadata (status, errors, operation) for downstream consumers.
   """
   require Logger
 

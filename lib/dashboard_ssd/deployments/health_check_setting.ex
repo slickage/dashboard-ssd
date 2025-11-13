@@ -1,5 +1,11 @@
 defmodule DashboardSSD.Deployments.HealthCheckSetting do
-  @moduledoc "Per-project configuration for production health checks (HTTP, AWS ELBv2, or Custom)."
+  @moduledoc """
+  Per-project configuration for production health checks (HTTP, AWS ELBv2, or Custom).
+
+    - Stores provider-specific configuration used by schedulers and collectors.
+  - Validates required fields when a provider is enabled to avoid incomplete setups.
+  - Guarantees one health-check configuration per project via unique constraints.
+  """
   use Ecto.Schema
   import Ecto.Changeset
   alias Ecto.Changeset

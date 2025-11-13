@@ -1,6 +1,10 @@
 defmodule DashboardSSDWeb.ProtectedController do
   @moduledoc """
   Simple endpoints behind authorization used by dev routes and smoke checks.
+
+    - Demonstrates plug-based capability checks for controller actions.
+  - Provides lightweight smoke-test endpoints for internal monitoring.
+  - Serves as scaffolding for future diagnostic routes if needed.
   """
   use DashboardSSDWeb, :controller
   alias Plug.Conn

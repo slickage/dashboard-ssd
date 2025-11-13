@@ -1,6 +1,10 @@
 defmodule DashboardSSDWeb.PageController do
   @moduledoc """
   Static pages controller. Renders the home page and other static content.
+
+    - Serves landing/marketing pages outside the authenticated app shell.
+  - Provides a simple hook for adding future static pages if needed.
+  - Demonstrates layout overrides (no app chrome) for the home page.
   """
   use DashboardSSDWeb, :controller
   alias Plug.Conn

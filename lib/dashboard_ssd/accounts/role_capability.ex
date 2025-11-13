@@ -1,5 +1,11 @@
 defmodule DashboardSSD.Accounts.RoleCapability do
-  @moduledoc "Associates a role with a granted capability and audit metadata."
+  @moduledoc """
+  Associates a role with a granted capability and audit metadata.
+
+    - Persists which capability codes are granted to each role.
+  - Captures the admin who last changed the grant for auditing.
+  - Enforces uniqueness and foreign-key integrity via the changeset.
+  """
   use Ecto.Schema
   import Ecto.Changeset
 

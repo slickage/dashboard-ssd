@@ -1,5 +1,11 @@
 defmodule DashboardSSDWeb.InviteController do
-  @moduledoc "Handles acceptance of invitation links."
+  @moduledoc """
+  Handles acceptance of invitation links.
+
+    - Validates invite tokens, persists them in the session, or applies them to signed-in users.
+  - Provides user-facing flash messaging for success, reuse, or invalid tokens.
+  - Redirects visitors to the proper flows (Google auth or dashboard) after processing.
+  """
   use DashboardSSDWeb, :controller
 
   alias DashboardSSD.Accounts

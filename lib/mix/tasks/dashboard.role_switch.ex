@@ -1,5 +1,11 @@
 defmodule Mix.Tasks.Dashboard.RoleSwitch do
-  @moduledoc "Mix task to change a user's role for local testing."
+  @moduledoc """
+  Mix task to change a user's role for local testing.
+
+    - Boots the application and switches a user’s role via `Accounts.switch_user_role/2`.
+  - Provides CLI options (`--role`, `--email`) with helpful errors/prompts.
+  - Guards against execution in production environments.
+  """
   use Mix.Task
   require Mix
 

@@ -1,6 +1,10 @@
 defmodule DashboardSSD.Accounts do
   @moduledoc """
-  Accounts context: users, roles, and external identities.
+  Accounts context for users, roles, invites, and external identities.
+
+    - Provides CRUD-style helpers for users, invites, roles, and Linear links.
+  - Wraps Ecto interactions so callers work with explicit contracts and return tuples.
+  - Coordinates capability assignment and domain-specific constraints (domain allow/deny lists, auto-linking, etc.).
 
   Exposes a small, well-documented API for working with the
   authentication data model. All functions are pure wrappers

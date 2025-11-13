@@ -1,5 +1,11 @@
 defmodule DashboardSSDWeb.Telemetry do
-  @moduledoc "Telemetry supervisor and metrics setup for Phoenix and Ecto."
+  @moduledoc """
+  Telemetry supervisor and metrics setup for Phoenix and Ecto.
+
+    - Boots a telemetry poller for periodic measurements (VM + DB).
+  - Defines metric summaries used by dashboards and exporters.
+  - Provides extension points for reporters (Console, StatsD, etc.).
+  """
   use Supervisor
   import Telemetry.Metrics
   alias Telemetry.Metrics

@@ -1,5 +1,11 @@
 defmodule DashboardSSD.Deployments.Deployment do
-  @moduledoc "Deployment record linking a project to a CI/commit status."
+  @moduledoc """
+  Deployment record linking a project to a CI/commit status.
+
+    - Stores deployment metadata used by dashboards and alerts.
+  - Enforces required fields (project, status) through its changeset.
+  - Serializes minimal fields for API/LiveView consumption.
+  """
   use Ecto.Schema
   import Ecto.Changeset
   alias Ecto.Changeset

@@ -1,6 +1,10 @@
 defmodule DashboardSSD.Analytics.Workload do
   @moduledoc """
   Analytics utilities for workload summarization.
+
+    - Aggregates Linear workload summaries across project lists.
+  - Provides helper math (percentages) for dashboard widgets.
+  - Guards behavior when Linear integration is disabled to avoid unnecessary calls.
   """
 
   alias DashboardSSD.Integrations.LinearUtils

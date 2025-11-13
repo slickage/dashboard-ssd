@@ -3,6 +3,10 @@ defmodule DashboardSSDWeb do
   The entrypoint for defining your web interface, such
   as controllers, components, channels, and so on.
 
+    - Provides quoted blocks (`router/0`, `controller/0`, `html/0`, etc.) that downstream modules `use`.
+  - Establishes shared imports/aliases so controllers, LiveViews, and components stay consistent.
+  - Centralizes helpers (verified routes, HTML helpers) to keep Phoenix boilerplate DRY.
+
   This can be used in your application as:
 
      use DashboardSSDWeb, :controller

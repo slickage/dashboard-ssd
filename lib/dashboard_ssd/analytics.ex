@@ -2,6 +2,10 @@ defmodule DashboardSSD.Analytics do
   @moduledoc """
   Analytics context for managing metric snapshots and calculations.
 
+    - Persists time-series metrics per project so historical trends stay queryable.
+  - Offers convenience calculators for uptime, MTTR, and throughput based on stored snapshots.
+  - Normalizes chart/insight payloads (trend entries) for LiveView dashboards and API clients.
+
   Provides functionality to store, retrieve, and calculate various metrics
   like uptime percentage, MTTR (Mean Time To Recovery), and Linear throughput.
   """

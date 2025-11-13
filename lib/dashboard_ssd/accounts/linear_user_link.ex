@@ -2,6 +2,10 @@ defmodule DashboardSSD.Accounts.LinearUserLink do
   @moduledoc """
   Associates a DashboardSSD user with a Linear user record so we can bridge
   project assignments, metrics, and permissions between systems.
+
+    - Stores Linear metadata (IDs, names, avatars) alongside the Dashboard user.
+  - Tracks whether a link was auto- or manually-created for conflict resolution.
+  - Provides a changeset enforcing uniqueness of both `user_id` and `linear_user_id`.
   """
   use Ecto.Schema
   import Ecto.Changeset
