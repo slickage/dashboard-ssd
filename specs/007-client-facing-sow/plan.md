@@ -7,7 +7,7 @@
 
 ## Summary
 
-Create a canonical `shared_documents` catalog plus automation so Drive-stored SOWs/contracts and Notion-based internal docs can be listed, downloaded, and (optionally) edited through DashboardSSD. Key pieces include schema migrations, Drive helper/ACL tooling, cache-aware sync jobs, RBAC-gated LiveViews for staff and clients, a download proxy with audit logging, and project assignment hooks that continuously align Drive permissions and ETS caches.
+Create a canonical `shared_documents` catalog plus automation so Drive-stored SOWs/contracts and Notion-based internal docs can be listed, downloaded, and (optionally) edited through DashboardSSD. Key pieces include schema migrations, Drive helper/ACL tooling, repo-managed workspace templates (for Drive + Notion) with selective bootstrap, cache-aware sync jobs, RBAC-gated LiveViews (with Notion previews rendered server-side), a download proxy with audit logging, project assignment hooks, and telemetry to track download latency and ACL propagation.
 
 ## Technical Context
 
@@ -97,29 +97,34 @@ test/
 - **Dependencies**: Phase 0 schemas; service account credentials; Projects context for folder mapping.
 - **Testing**: Unit tests using mocked HTTP responses or Bypass verifying helper outputs; cache tests confirming TTL + invalidation hooks register.
 
-### Phase 2 – Sync Jobs (Drive & Notion) with Cache Coordination
+### Phase 2 – Workspace Templates & Bootstrap
+- **Work**: Store template Markdown files under `priv/workspace_templates/` for Drive sections (Contracts, SOWs, Change Orders) and Notion KB pages; define a blueprint config that maps templates to folder/page hierarchies; implement `WorkspaceBootstrap` to create requested sections (Drive vs Notion) per client/project and expose admin-selectable options.
+- **Dependencies**: Drive helper APIs, Notion credentials, repo template files.
+- **Testing**: Unit tests mocking Drive/Notion APIs to ensure correct folder/page creation and selective generation; DataCase tests verifying metadata persistence.
+
+### Phase 3 – Sync Jobs (Drive & Notion) with Cache Coordination
 - **Work**: Implement Drive sync worker (Oban job or periodic GenServer) iterating project folders, transforming Drive metadata into `shared_documents` upserts with dedup via checksum, marking stale records, and invalidating caches. Update existing Notion sync to also populate `shared_documents`. Introduce telemetry/backoff for API quotas.
 - **Dependencies**: Phase 1 helpers + cache APIs; Notion pipelines.
 - **Testing**: DataCase tests for upsert/invalidation logic, Notion sync fixtures verifying filtering by doc tags, resilience tests for Drive quota errors (ensuring retries + warnings).
 
-### Phase 3 – Portal UI & RBAC Updates
+### Phase 4 – Portal UI, Notion Rendering & RBAC Updates
 - **Work**: 
   - Staff LiveView: list, filter, toggle visibility/edit flags, jump to Drive/Notion, show ACL state. 
-  - Client portal tab: show only `visibility=:client` docs tied to assignments, with Download/Open actions depending on Drive ACL. 
+  - Client portal tab: show only `visibility=:client` docs tied to assignments, with Download/Open actions depending on Drive ACL and server-rendered Notion previews/PDF exports. 
   - RBAC updates: define `contracts.view`/`contracts.manage` (or similar) capability constants, wire into `DashboardSSD.Auth.Policy`.
   - Cache integration: fetch listing via ETS, bust when toggles invoked.
 - **Dependencies**: Populated `shared_documents`; RBAC constants; cache API.
 - **Testing**: LiveView tests for staff/client roles, ensuring unauthorized access blocked; Policy tests verifying new capabilities; tests for cache misses/hits when toggling states.
 
-### Phase 4 – Download Proxy & Audit Logging
+### Phase 5 – Download Proxy & Audit Logging
 - **Work**: Build download endpoint (controller or LiveView handle_event) that validates RBAC, fetches metadata, proxies Drive download via service account, optionally caches signed URLs, and records `document_access_logs`. Provide Notion render/download fallback.
 - **Dependencies**: Drive download helper, DocumentAccessLog schema, ETS download namespace.
 - **Testing**: ConnCase tests covering success, unauthorized, missing ACL, large file fallback, audit entry creation, Notion rendering path.
 
-### Phase 5 – Automation Hooks, ACL Sync & Final Verification
-- **Work**: Wire project assignment changes to `share_folder/3` / `unshare_folder/3`, update caches, and emit audit log entries. Add retry/backoff job for failed ACL changes. Update documentation (README/INTEGRATIONS). Run final tooling gauntlet.
-- **Dependencies**: Completed helpers + download proxy; Accounts/Projects assignment flows.
-- **Testing**: DataCase + LiveView tests ensuring assignment/unassignment triggers ACL updates and caches clear; property test verifying repeated assignments remain idempotent; telemetry assertions covering retries.
+### Phase 6 – Automation Hooks, Workspace Actions & Telemetry Monitoring
+- **Work**: Wire project assignment changes to `share_folder/3` / `unshare_folder/3`, update caches, and emit audit log entries; expose admin trigger to regenerate Drive/Notion sections; add telemetry collectors for download latency, ACL propagation time, and UI toggle propagation; update documentation (README/INTEGRATIONS); run final tooling gauntlet.
+- **Dependencies**: Completed helpers + download proxy; workspace bootstrap module; Accounts/Projects assignment flows.
+- **Testing**: DataCase + LiveView tests ensuring assignment/unassignment triggers ACL updates and caches clear; tests verifying workspace generation action; telemetry assertions covering download/ACL metrics and alert thresholds.
 
 ## Testing Strategy Overview
 - **Schema/DataCase**: Validate migrations, enums, associations, and upsert logic.
