@@ -41,8 +41,9 @@ Parallel opportunities noted per task with `[P]`.
 - [ ] T021 [US1] Implement Notion render/export helper (`lib/dashboard_ssd/documents/notion_renderer.ex`) that converts tagged pages into HTML previews + PDF downloads stored in cache
 - [ ] T022 [US1] Record download events in `lib/dashboard_ssd/documents/document_access_log.ex` helper invoked from the proxy (Drive + Notion)
 - [ ] T023 [US1] Add LiveView/DataCase tests covering client listing filters, empty state, and download flow in `test/dashboard_ssd_web/live/clients_live/contracts_live_test.exs`
-- [ ] T024 [P] [US1] Add integration test for download proxy auditing + caching in `test/dashboard_ssd_web/controllers/shared_document_controller_test.exs`
-- [ ] T025 [US1] Add unit tests for Notion renderer (`test/dashboard_ssd/documents/notion_renderer_test.exs`) validating read-only output
+- [ ] T024 [US1] Handle oversized downloads (friendly LiveView message + “Open in Drive” deep link) in `lib/dashboard_ssd_web/controllers/shared_document_controller.ex` and test in `test/dashboard_ssd_web/controllers/shared_document_controller_test.exs`
+- [ ] T025 [US1] Add integration test for download proxy auditing + caching in `test/dashboard_ssd_web/controllers/shared_document_controller_test.exs`
+- [ ] T026 [US1] Add unit tests for Notion renderer (`test/dashboard_ssd/documents/notion_renderer_test.exs`) validating read-only output
 - [ ] T026 [US1] Implement Drive sync worker (`lib/dashboard_ssd/documents/drive_sync.ex`) that populates `shared_documents`, applies cache invalidation, and handles exponential backoff
 - [ ] T027 [US1] Update Notion sync pipeline (`lib/dashboard_ssd/knowledge_base/notion_sync.ex`) to emit `shared_documents` entries for tagged pages
 - [ ] T028 [US1] Add telemetry/logging for sync outcomes + stale cache detection in `lib/dashboard_ssd/documents/drive_sync.ex` and `lib/dashboard_ssd/telemetry.ex`

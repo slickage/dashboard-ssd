@@ -117,9 +117,9 @@ test/
 - **Testing**: LiveView tests for staff/client roles, ensuring unauthorized access blocked; Policy tests verifying new capabilities; tests for cache misses/hits when toggling states.
 
 ### Phase 5 – Download Proxy & Audit Logging
-- **Work**: Build download endpoint (controller or LiveView handle_event) that validates RBAC, fetches metadata, proxies Drive download via service account, optionally caches signed URLs, and records `document_access_logs`. Provide Notion render/download fallback.
+- **Work**: Build download endpoint (controller or LiveView handle_event) that validates RBAC, fetches metadata, proxies Drive download via service account, optionally caches signed URLs, handles oversized downloads gracefully, and records `document_access_logs`. Provide Notion render/download fallback via the renderer helper.
 - **Dependencies**: Drive download helper, DocumentAccessLog schema, ETS download namespace.
-- **Testing**: ConnCase tests covering success, unauthorized, missing ACL, large file fallback, audit entry creation, Notion rendering path.
+- **Testing**: ConnCase tests covering success, unauthorized, oversized files, missing ACL, Notion preview, audit entry creation.
 
 ### Phase 6 – Automation Hooks, Workspace Actions & Telemetry Monitoring
 - **Work**: Wire project assignment changes to `share_folder/3` / `unshare_folder/3`, update caches, and emit audit log entries; expose admin trigger to regenerate Drive/Notion sections; add telemetry collectors for download latency, ACL propagation time, and UI toggle propagation; update documentation (README/INTEGRATIONS); run final tooling gauntlet.

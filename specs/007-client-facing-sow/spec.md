@@ -70,7 +70,7 @@ When a client contact is added to or removed from a project, the system should a
 - **FR-007**: Cached document listings and download URLs MUST use the shared ETS cache namespaces with TTLs and be invalidated immediately after sync writes, ACL changes, or manual visibility edits to prevent stale visibility states.
 - **FR-008**: The system MUST provide an audit surface (log or table) that tracks each download/open action and each automatic permission change so compliance teams can trace document distribution.
 - **FR-009**: Notion-sourced docs MUST remain view-only for clients; the platform must render them server-side (HTML and downloadable PDF) via the Notion API so clients never receive direct Notion links.
-- **FR-010**: Workspace scaffolding MUST be generated from repository-managed Markdown templates for Drive sections (Contracts, SOWs, Change Orders, etc.) and Notion KB pages, allowing admins to choose which sections to provision per client/project.
+- **FR-010**: Workspace scaffolding MUST be generated from repository-managed Markdown templates for Drive sections (Contracts, SOWs, Change Orders) and Notion KB pages (Project Kickoff Guide, Runbook), allowing admins to choose which sections to provision per client/project.
 - **FR-011**: The system MUST emit telemetry for download latency, Drive ACL propagation time, and visibility toggle propagation so Success Criteria SC-001 to SC-003 are measurable in staging/production.
 
 ### Key Entities *(include if feature involves data)*
