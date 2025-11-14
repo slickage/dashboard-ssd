@@ -128,6 +128,54 @@ config :dashboard_ssd, DashboardSSD.KnowledgeBase,
   auto_page_collection_name: "Wiki Pages",
   auto_page_collection_description: "Top-level pages from the company wiki"
 
+workspace_template_path = fn relative ->
+  Path.expand(Path.join("../priv/workspace_templates", relative), __DIR__)
+end
+
+config :dashboard_ssd, DashboardSSD.Documents.WorkspaceBlueprint,
+  sections: [
+    %{
+      id: :drive_contracts,
+      label: "Drive · Contracts",
+      type: :drive,
+      folder_path: "Contracts",
+      template_path: workspace_template_path.("drive/contracts.md"),
+      enabled?: true
+    },
+    %{
+      id: :drive_sow,
+      label: "Drive · Statements of Work",
+      type: :drive,
+      folder_path: "SOW",
+      template_path: workspace_template_path.("drive/sow.md"),
+      enabled?: true
+    },
+    %{
+      id: :drive_change_orders,
+      label: "Drive · Change Orders",
+      type: :drive,
+      folder_path: "Change Orders",
+      template_path: workspace_template_path.("drive/change_orders.md"),
+      enabled?: true
+    },
+    %{
+      id: :notion_project_kb,
+      label: "Notion · Project KB",
+      type: :notion,
+      template_path: workspace_template_path.("notion/project_kb.md"),
+      enabled?: true
+    },
+    %{
+      id: :notion_runbook,
+      label: "Notion · Runbook",
+      type: :notion,
+      template_path: workspace_template_path.("notion/runbook.md"),
+      enabled?: true
+    }
+  ],
+  default_sections: [:drive_contracts, :drive_sow, :drive_change_orders, :notion_project_kb],
+  allow_section_overrides?: true
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

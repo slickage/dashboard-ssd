@@ -25,10 +25,10 @@ Parallel opportunities noted per task with `[P]`.
 - [X] T008 Add Drive folder metadata fields/helpers in `lib/dashboard_ssd/projects/project.ex` + context functions
 - [X] T009 Implement ETS namespace helper `lib/dashboard_ssd/cache/shared_documents_cache.ex` (listing/download TTLs, invalidation API)
 - [X] T010 Extend `lib/dashboard_ssd/integrations/drive.ex` with `ensure_project_folder/2`, `list_documents/1`, `share_folder/3`, `unshare_folder/3`, `download_file/2` helpers plus unit tests/mocks
-- [ ] T011 Create workspace template Markdown files in `priv/workspace_templates/drive/` (Contracts, SOW, Change Orders) and `priv/workspace_templates/notion/` (Project KB starter docs)
-- [ ] T012 Define workspace blueprint config in `config/*.exs` listing available sections (Drive vs Notion) and mapping them to template files and folder paths; allow per-section toggles
-- [ ] T013 Implement `lib/dashboard_ssd/documents/workspace_bootstrap.ex` that reads the blueprint + Markdown templates, programmatically creates Drive folders/files for selected sections, and pushes Notion page content for KB templates
-- [ ] T014 Add tests for workspace bootstrap (mock Drive/Notion APIs, ensure selective section creation) in `test/dashboard_ssd/documents/workspace_bootstrap_test.exs`
+- [X] T011 Create workspace template Markdown files in `priv/workspace_templates/drive/` (Contracts, SOW, Change Orders) and `priv/workspace_templates/notion/` (Project KB starter docs)
+- [X] T012 Define workspace blueprint config in `config/*.exs` listing available sections (Drive vs Notion) and mapping them to template files and folder paths; allow per-section toggles
+- [X] T013 Implement `lib/dashboard_ssd/documents/workspace_bootstrap.ex` that reads the blueprint + Markdown templates, programmatically creates Drive folders/files for selected sections, and pushes Notion page content for KB templates
+- [X] T014 Add tests for workspace bootstrap (mock Drive/Notion APIs, ensure selective section creation) in `test/dashboard_ssd/documents/workspace_bootstrap_test.exs`
 - [ ] T015 Add DataCase tests for `SharedDocument` and `DocumentAccessLog` changesets in `test/dashboard_ssd/documents/shared_document_test.exs`
 - [ ] T016 Add unit tests for shared documents cache helper + Drive integration helpers (`test/dashboard_ssd/cache/shared_documents_cache_test.exs`, `test/dashboard_ssd/integrations/drive_test.exs`)
 
