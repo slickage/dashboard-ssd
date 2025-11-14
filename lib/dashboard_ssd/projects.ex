@@ -89,6 +89,55 @@ defmodule DashboardSSD.Projects do
   end
 
   @doc """
+  Returns `true` when Drive folder metadata has been stored for the project.
+  """
+  @spec drive_folder_configured?(Project.t()) :: boolean()
+  def drive_folder_configured?(%Project{drive_folder_id: folder_id}) do
+    is_binary(folder_id) and folder_id != ""
+  end
+
+  @doc """
+  Upserts Drive folder metadata for a project or project id.
+
+  Accepts any subset of:
+    * `:drive_folder_id`
+    * `:drive_folder_sharing_inherited`
+    * `:drive_folder_last_permission_sync_at`
+  """
+  @spec upsert_drive_folder_metadata(Project.t() | pos_integer(), map()) ::
+          {:ok, Project.t()} | {:error, Ecto.Changeset.t()}
+  def upsert_drive_folder_metadata(project_or_id, attrs) when is_map(attrs) do
+    project_or_id
+    |> fetch_project!()
+    |> Project.drive_metadata_changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Marks the Drive permission sync timestamp for a project.
+  """
+  @spec mark_drive_permission_sync(Project.t() | pos_integer(), DateTime.t()) ::
+          {:ok, Project.t()} | {:error, Ecto.Changeset.t()}
+  def mark_drive_permission_sync(project_or_id, synced_at \\ DateTime.utc_now()) do
+    upsert_drive_folder_metadata(project_or_id, %{
+      drive_folder_last_permission_sync_at: synced_at
+    })
+  end
+
+  @doc """
+  Clears Drive folder metadata, typically used when re-bootstrapping a project.
+  """
+  @spec clear_drive_folder_metadata(Project.t() | pos_integer()) ::
+          {:ok, Project.t()} | {:error, Ecto.Changeset.t()}
+  def clear_drive_folder_metadata(project_or_id) do
+    upsert_drive_folder_metadata(project_or_id, %{
+      drive_folder_id: nil,
+      drive_folder_sharing_inherited: true,
+      drive_folder_last_permission_sync_at: nil
+    })
+  end
+
+  @doc """
   Deletes a project from the database.
 
   Returns {:ok, project} on success or {:error, changeset} on constraint violation.
@@ -1088,5 +1137,11 @@ defmodule DashboardSSD.Projects do
       nil -> nil
       c -> c.id
     end
+  end
+
+  defp fetch_project!(%Project{} = project), do: project
+
+  defp fetch_project!(project_id) when is_integer(project_id) do
+    Repo.get!(Project, project_id)
   end
 end
