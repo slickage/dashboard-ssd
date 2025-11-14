@@ -5,10 +5,12 @@ defmodule DashboardSSD.Projects.DrivePermissionWorkerTest do
 
   setup do
     Application.put_env(:dashboard_ssd, :drive_permission_worker_inline, true)
+    Application.put_env(:dashboard_ssd, :drive_permission_worker_backoff_ms, 5)
     Application.put_env(:dashboard_ssd, :integrations, drive_token: "drive-token")
 
     on_exit(fn ->
       Application.delete_env(:dashboard_ssd, :drive_permission_worker_inline)
+      Application.delete_env(:dashboard_ssd, :drive_permission_worker_backoff_ms)
       Application.delete_env(:dashboard_ssd, :integrations)
     end)
 
@@ -62,5 +64,35 @@ defmodule DashboardSSD.Projects.DrivePermissionWorkerTest do
     end)
 
     assert :ok = DrivePermissionWorker.revoke_email("folder-abc", "client@example.com")
+  end
+
+  test "share retries when Drive API errors" do
+    parent = self()
+
+    Tesla.Mock.mock(fn %Tesla.Env{method: :post} = env ->
+      send(parent, {:share_attempt, env})
+      {:error, :boom}
+    end)
+
+    assert :ok =
+             DrivePermissionWorker.share("folder-error", %{
+               role: "reader",
+               type: "user",
+               email: "client@example.com"
+             })
+
+    assert_receive {:share_attempt, _}
+  end
+
+  test "revoke_email handles permission lookup failures" do
+    parent = self()
+
+    Tesla.Mock.mock(fn %Tesla.Env{method: :get} = env ->
+      send(parent, {:permission_lookup, env})
+      {:error, :boom}
+    end)
+
+    assert :ok = DrivePermissionWorker.revoke_email("folder-error", "client@example.com")
+    assert_receive {:permission_lookup, _}
   end
 end

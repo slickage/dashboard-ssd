@@ -90,7 +90,7 @@ defmodule DashboardSSD.Projects.DrivePermissionWorker do
   defp retry(op, reason, attempt, fun) do
     Logger.warning("Drive permission #{op} failed on attempt #{attempt}: #{inspect(reason)}")
 
-    Process.sleep(@base_backoff * attempt)
+    Process.sleep(backoff_ms() * attempt)
     fun.()
   end
 
@@ -156,6 +156,14 @@ defmodule DashboardSSD.Projects.DrivePermissionWorker do
   defp disabled? do
     Application.get_env(:dashboard_ssd, :drive_permission_worker_disabled, false) ||
       Application.get_env(:dashboard_ssd, :env, :dev) == :test
+  end
+
+  defp backoff_ms do
+    Application.get_env(
+      :dashboard_ssd,
+      :drive_permission_worker_backoff_ms,
+      @base_backoff
+    )
   end
 
   defp emit_drive_acl_event(start_time, operation, status, attempt, extra) do

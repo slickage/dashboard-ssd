@@ -17,6 +17,10 @@
     "lib/dashboard_ssd_web/components/core_components.ex",
     "lib/dashboard_ssd_web/live/projects_live/form_component.ex",
     "lib/dashboard_ssd_web/live/projects_live/index.ex",
+    "lib/dashboard_ssd_web/live/projects_live/contracts.ex",
+    "lib/dashboard_ssd/documents/workspace_bootstrap.ex",
+    "lib/dashboard_ssd_web/live/kb_live/index.ex",
+    "lib/dashboard_ssd_web/live/settings_live/.*",
     "lib/mix/tasks/coveralls_ci.ex"
   ]
 }

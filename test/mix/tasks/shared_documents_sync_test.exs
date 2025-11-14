@@ -7,6 +7,7 @@ defmodule Mix.Tasks.SharedDocuments.SyncTest do
   alias Mix.Tasks.SharedDocuments.Sync, as: SharedDocumentsSyncTask
 
   setup do
+    Mix.Task.clear()
     Application.delete_env(:dashboard_ssd, :shared_documents_sync_runner)
     :ok
   end
@@ -42,6 +43,21 @@ defmodule Mix.Tasks.SharedDocuments.SyncTest do
                     }}
 
     assert output =~ "Shared documents sync finished"
+  after
+    Application.delete_env(:dashboard_ssd, :shared_documents_sync_runner)
+  end
+
+  test "defaults to drive and notion sources" do
+    Application.put_env(:dashboard_ssd, :shared_documents_sync_runner, RunnerStub)
+
+    capture_io(fn -> SharedDocumentsSyncTask.run([]) end)
+
+    assert_receive {:sync_all,
+                    %{
+                      sources: [:drive, :notion],
+                      dry_run?: false,
+                      force?: false
+                    }}
   after
     Application.delete_env(:dashboard_ssd, :shared_documents_sync_runner)
   end

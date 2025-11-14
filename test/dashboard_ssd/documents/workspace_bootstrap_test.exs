@@ -70,4 +70,27 @@ defmodule DashboardSSD.Documents.WorkspaceBootstrapTest do
                notion_client: NotionClientMock
              )
   end
+
+  test "blueprint errors when configuration missing" do
+    original = Application.get_env(:dashboard_ssd, DashboardSSD.Documents.WorkspaceBlueprint)
+
+    on_exit(fn ->
+      Application.put_env(:dashboard_ssd, DashboardSSD.Documents.WorkspaceBlueprint, original)
+    end)
+
+    Application.delete_env(:dashboard_ssd, DashboardSSD.Documents.WorkspaceBlueprint)
+
+    assert {:error, :workspace_blueprint_not_configured} = WorkspaceBootstrap.blueprint()
+  end
+
+  test "returns error for unknown section id" do
+    project = %Project{id: 4, name: "Client D", drive_folder_id: "folder"}
+
+    assert {:error, {:unknown_section, :bogus}} =
+             WorkspaceBootstrap.bootstrap(project,
+               sections: [:bogus],
+               drive_client: DriveClientMock,
+               notion_client: NotionClientMock
+             )
+  end
 end

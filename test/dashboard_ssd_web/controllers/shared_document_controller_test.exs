@@ -43,6 +43,62 @@ defmodule DashboardSSDWeb.SharedDocumentControllerTest do
     assert Repo.aggregate(DocumentAccessLog, :count, :id) == 1
   end
 
+  test "client without assignment is redirected", %{conn: conn} do
+    {:ok, client} = Clients.create_client(%{name: "Acme"})
+    {:ok, project} = Repo.insert(%Project{name: "Proj", client_id: client.id})
+    doc = insert_document(client.id, project.id)
+
+    {:ok, user} =
+      Accounts.create_user(%{
+        email: "client-unlinked@example.com",
+        role_id: Accounts.ensure_role!("client").id
+      })
+
+    conn = init_test_session(conn, %{user_id: user.id})
+    conn = post(conn, ~p"/shared_documents/#{doc.id}/download")
+
+    assert redirected_to(conn) == "/clients"
+    conn = Phoenix.Controller.fetch_flash(conn)
+    assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "not linked to a client"
+  end
+
+  test "missing document returns 404", %{conn: conn} do
+    {:ok, client} = Clients.create_client(%{name: "Acme"})
+
+    {:ok, user} =
+      Accounts.create_user(%{
+        email: "client-missing@example.com",
+        role_id: Accounts.ensure_role!("client").id,
+        client_id: client.id
+      })
+
+    conn = init_test_session(conn, %{user_id: user.id})
+    conn = post(conn, ~p"/shared_documents/#{Ecto.UUID.generate()}/download")
+    assert conn.status == 404
+  end
+
+  test "drive download failure shows friendly message", %{conn: conn} do
+    {:ok, client} = Clients.create_client(%{name: "Acme"})
+    {:ok, project} = Repo.insert(%Project{name: "Proj", client_id: client.id})
+    doc = insert_document(client.id, project.id)
+
+    {:ok, user} =
+      Accounts.create_user(%{
+        email: "client-failure@example.com",
+        role_id: Accounts.ensure_role!("client").id,
+        client_id: client.id
+      })
+
+    Tesla.Mock.mock(fn _ -> {:error, :boom} end)
+
+    conn = init_test_session(conn, %{user_id: user.id})
+    conn = post(conn, ~p"/shared_documents/#{doc.id}/download")
+
+    assert redirected_to(conn) == "/clients/contracts"
+    conn = Phoenix.Controller.fetch_flash(conn)
+    assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "couldn't download"
+  end
+
   test "employee is redirected", %{conn: conn} do
     Accounts.ensure_role!("employee")
 

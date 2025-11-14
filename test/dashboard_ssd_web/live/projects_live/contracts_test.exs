@@ -133,7 +133,54 @@ defmodule DashboardSSDWeb.ProjectsLive.ContractsTest do
     refute_received {:workspace_bootstrap, ^project_id, _}
   end
 
+  test "admin can filter documents by client", %{conn: conn} do
+    {:ok, client_a} = Clients.create_client(%{name: "Acme"})
+    {:ok, client_b} = Clients.create_client(%{name: "Beta"})
+
+    {:ok, project_a} = Repo.insert(%Project{name: "A", client_id: client_a.id})
+    {:ok, project_b} = Repo.insert(%Project{name: "B", client_id: client_b.id})
+
+    insert_document(client_a.id, project_a.id, title: "Doc A")
+    insert_document(client_b.id, project_b.id, title: "Doc B")
+
+    {:ok, admin} =
+      Accounts.create_user(%{
+        email: "admin-filter@example.com",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    conn = init_test_session(conn, %{user_id: admin.id})
+    {:ok, _view, html} = live(conn, ~p"/projects/contracts?client_id=#{client_a.id}")
+
+    assert html =~ "Doc A"
+    refute html =~ "Doc B"
+  end
+
+  test "admin toggles visibility via staff console", %{conn: conn} do
+    {:ok, client} = Clients.create_client(%{name: "Toggle Co"})
+    {:ok, project} = Repo.insert(%Project{name: "Proj", client_id: client.id})
+    doc = insert_document(client.id, project.id, title: "Doc", visibility: :client)
+
+    {:ok, admin} =
+      Accounts.create_user(%{
+        email: "admin-toggle@example.com",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    conn = init_test_session(conn, %{user_id: admin.id})
+    {:ok, view, _html} = live(conn, ~p"/projects/contracts")
+
+    view
+    |> element("form[phx-change=toggle_visibility]")
+    |> render_change(%{"doc_id" => doc.id, "visibility" => "internal"})
+
+    updated = Repo.get!(SharedDocument, doc.id)
+    assert updated.visibility == :internal
+  end
+
   defp insert_document(client_id, project_id, attrs) do
+    attrs = Map.new(attrs)
+
     params = %{
       client_id: client_id,
       project_id: project_id,
@@ -141,7 +188,7 @@ defmodule DashboardSSDWeb.ProjectsLive.ContractsTest do
       source_id: Ecto.UUID.generate(),
       doc_type: "sow",
       title: attrs[:title] || "Doc",
-      visibility: :client
+      visibility: Map.get(attrs, :visibility, :client)
     }
 
     %SharedDocument{}
