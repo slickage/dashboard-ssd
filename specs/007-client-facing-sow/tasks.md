@@ -44,42 +44,44 @@ Parallel opportunities noted per task with `[P]`.
 - [ ] T024 [US1] Handle oversized downloads (friendly LiveView message + “Open in Drive” deep link) in `lib/dashboard_ssd_web/controllers/shared_document_controller.ex` and test in `test/dashboard_ssd_web/controllers/shared_document_controller_test.exs`
 - [ ] T025 [US1] Add integration test for download proxy auditing + caching in `test/dashboard_ssd_web/controllers/shared_document_controller_test.exs`
 - [ ] T026 [US1] Add unit tests for Notion renderer (`test/dashboard_ssd/documents/notion_renderer_test.exs`) validating read-only output
-- [ ] T026 [US1] Implement Drive sync worker (`lib/dashboard_ssd/documents/drive_sync.ex`) that populates `shared_documents`, applies cache invalidation, and handles exponential backoff
-- [ ] T027 [US1] Update Notion sync pipeline (`lib/dashboard_ssd/knowledge_base/notion_sync.ex`) to emit `shared_documents` entries for tagged pages
-- [ ] T028 [US1] Add telemetry/logging for sync outcomes + stale cache detection in `lib/dashboard_ssd/documents/drive_sync.ex` and `lib/dashboard_ssd/telemetry.ex`
-- [ ] T029 [US1] Add DataCase tests for Drive + Notion sync upserts/deduplication (`test/dashboard_ssd/documents/drive_sync_test.exs`, `test/dashboard_ssd/documents/notion_sync_test.exs`)
+- [ ] T027 [US1] Implement Drive sync worker (`lib/dashboard_ssd/documents/drive_sync.ex`) that populates `shared_documents`, applies cache invalidation, and handles exponential backoff
+- [ ] T028 [US1] Update Notion sync pipeline (`lib/dashboard_ssd/knowledge_base/notion_sync.ex`) to emit `shared_documents` entries for tagged pages
+- [ ] T029 [US1] Add telemetry/logging for sync outcomes + stale cache detection in `lib/dashboard_ssd/documents/drive_sync.ex` and `lib/dashboard_ssd/telemetry.ex`
+- [ ] T030 [US1] Add DataCase tests for Drive + Notion sync upserts/deduplication (`test/dashboard_ssd/documents/drive_sync_test.exs`, `test/dashboard_ssd/documents/notion_sync_test.exs`)
 
-- [ ] T030 [US2] Build staff Contracts LiveView (`lib/dashboard_ssd_web/live/projects_live/contracts.ex`) listing all docs with visibility/edit toggles and source jump links
-- [ ] T031 [US2] Implement toggle handlers calling Drive ACL update helpers in `lib/dashboard_ssd/integrations/drive.ex` and cache invalidation helpers in `lib/dashboard_ssd/cache/shared_documents_cache.ex`
-- [ ] T032 [US2] Surface audit data + warnings (e.g., ACL mismatch) in staff UI components (`lib/dashboard_ssd_web/components/contracts_components.ex`)
-- [ ] T033 [US2] Update capability catalog (`lib/dashboard_ssd/auth/capabilities.ex`) and `DashboardSSD.Auth.Policy` (`lib/dashboard_ssd/auth/policy.ex`) to include `projects.contracts.view/manage`
-- [ ] T034 [US2] Add LiveView tests for staff actions & RBAC gating in `test/dashboard_ssd_web/live/projects_live/contracts_live_test.exs`
-- [ ] T035 [US2] Add DataCase tests for visibility toggle helper & ACL mismatch flagging in `test/dashboard_ssd/documents_test.exs`
+## Phase 4 – User Story 2 (Staff curates & audits shared documents)
+
+- [ ] T031 [US2] Build staff Contracts LiveView (`lib/dashboard_ssd_web/live/projects_live/contracts.ex`) listing all docs with visibility/edit toggles and source jump links
+- [ ] T032 [US2] Implement toggle handlers calling Drive ACL update helpers in `lib/dashboard_ssd/integrations/drive.ex` and cache invalidation helpers in `lib/dashboard_ssd/cache/shared_documents_cache.ex`
+- [ ] T033 [US2] Surface audit data + warnings (e.g., ACL mismatch) in staff UI components (`lib/dashboard_ssd_web/components/contracts_components.ex`)
+- [ ] T034 [US2] Update capability catalog (`lib/dashboard_ssd/auth/capabilities.ex`) and `DashboardSSD.Auth.Policy` (`lib/dashboard_ssd/auth/policy.ex`) to include `projects.contracts.view/manage`
+- [ ] T035 [US2] Add LiveView tests for staff actions & RBAC gating in `test/dashboard_ssd_web/live/projects_live/contracts_live_test.exs`
+- [ ] T036 [US2] Add DataCase tests for visibility toggle helper & ACL mismatch flagging in `test/dashboard_ssd/documents_test.exs`
 
 ## Phase 5 – User Story 3 (Workspaces & automatic permission alignment)
 
-- [ ] T036 [US3] Invoke workspace bootstrap when creating clients/projects (`lib/dashboard_ssd/clients.ex`, `lib/dashboard_ssd/projects.ex`), specifying which sections (Drive contracts vs Notion KB) to generate
-- [ ] T037 [US3] Add admin action (e.g., button in Projects/Settings LiveView) to generate/re-generate Drive or Notion sections selectively for existing clients/projects using `WorkspaceBootstrap`
-- [ ] T038 [US3] Add tests for automatic + manual workspace generation (DataCase for creation hooks, LiveView/feature test for admin action)
-- [ ] T039 [US3] Extend project assignment workflows (`lib/dashboard_ssd/projects.ex` and associates) to call Drive `share_folder/3` / `unshare_folder/3`
-- [ ] T040 [US3] Implement retry/backoff job for Drive ACL sync failures (`lib/dashboard_ssd/projects/drive_permission_worker.ex`)
-- [ ] T041 [US3] Hook ACL updates into cache invalidation + DocumentAccessLog entries
-- [ ] T042 [US3] Add DataCase tests covering assignment-driven ACL sync + audit logs (`test/dashboard_ssd/projects/drive_permission_worker_test.exs`)
-- [ ] T043 [US3] Add integration test verifying removing a client revokes portal download access (`test/dashboard_ssd_web/live/clients_live/contracts_live_test.exs`)
+- [ ] T037 [US3] Invoke workspace bootstrap when creating clients/projects (`lib/dashboard_ssd/clients.ex`, `lib/dashboard_ssd/projects.ex`), specifying which sections (Drive contracts vs Notion KB) to generate
+- [ ] T038 [US3] Add admin action (e.g., button in Projects/Settings LiveView) to generate/re-generate Drive or Notion sections selectively for existing clients/projects using `WorkspaceBootstrap`
+- [ ] T039 [US3] Add tests for automatic + manual workspace generation (DataCase for creation hooks, LiveView/feature test for admin action)
+- [ ] T040 [US3] Extend project assignment workflows (`lib/dashboard_ssd/projects.ex` and associates) to call Drive `share_folder/3` / `unshare_folder/3`
+- [ ] T041 [US3] Implement retry/backoff job for Drive ACL sync failures (`lib/dashboard_ssd/projects/drive_permission_worker.ex`)
+- [ ] T042 [US3] Hook ACL updates into cache invalidation + DocumentAccessLog entries
+- [ ] T043 [US3] Add DataCase tests covering assignment-driven ACL sync + audit logs (`test/dashboard_ssd/projects/drive_permission_worker_test.exs`)
+- [ ] T044 [US3] Add integration test verifying removing a client revokes portal download access (`test/dashboard_ssd_web/live/clients_live/contracts_live_test.exs`)
 
 ## Phase 6 – Telemetry, Docs & Cross-Cutting
 
-- [ ] T044 Instrument download latency metrics (SC-001) and expose dashboards/alerts in `lib/dashboard_ssd/telemetry.ex`
-- [ ] T045 Instrument Drive ACL propagation + staff toggle latency metrics (SC-002, SC-003) and add alert thresholds/Telemetry events
-- [ ] T046 Document new settings/flows (including open questions around approvals/uploads/notifications) in `docs/contracts-and-docs.md` and update `README.md` integrations section
-- [ ] T047 Add monitoring/alerts for Drive ACL failures + cache staleness counters in `lib/dashboard_ssd/telemetry.ex` (and related Observer configs)
-- [ ] T048 Run repo-wide quality gates (`mix format`, `mix credo`, `mix dialyzer`, `mix coveralls.ci`, `mix doctor`, `mix check`) from repository root
+- [ ] T045 Instrument download latency metrics (SC-001) and expose dashboards/alerts in `lib/dashboard_ssd/telemetry.ex`
+- [ ] T046 Instrument Drive ACL propagation + staff toggle latency metrics (SC-002, SC-003) and add alert thresholds/Telemetry events
+- [ ] T047 Document new settings/flows (including open questions around approvals/uploads/notifications) in `docs/contracts-and-docs.md` and update `README.md` integrations section
+- [ ] T048 Add monitoring/alerts for Drive ACL failures + cache staleness counters in `lib/dashboard_ssd/telemetry.ex` (and related Observer configs)
+- [ ] T049 Run repo-wide quality gates (`mix format`, `mix credo`, `mix dialyzer`, `mix coveralls.ci`, `mix doctor`, `mix check`) from repository root
 
 ## Parallel Execution Examples
 
-- Within Phase 3, tasks T017–T022 (RBAC, queries, UI, proxy, Notion render) can run in parallel with T026–T029 (Drive/Notion sync + telemetry) after query helpers exist.
-- Phase 4 UI work (T028–T033) can proceed alongside Phase 5 automation (T036–T043) once Drive/Notion workspace helpers are available.
-- Testing tasks (T023, T024, T034, T035, T038, T042, T043) can run concurrently with related implementation tasks.
+- Within Phase 3, tasks T017–T022 (RBAC, queries, UI, proxy, Notion render) can run in parallel with T027–T030 (Drive/Notion sync + telemetry) after query helpers exist.
+- Phase 4 UI work (T031–T036) can proceed alongside Phase 5 automation (T037–T044) once Drive/Notion workspace helpers are available.
+- Testing tasks (T023–T026, T035, T036, T039, T043, T044) can run concurrently with related implementation tasks.
 
 ## MVP Recommendation
 
