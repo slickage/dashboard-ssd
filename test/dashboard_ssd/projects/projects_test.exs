@@ -1,7 +1,10 @@
 defmodule DashboardSSD.ProjectsTest do
   use DashboardSSD.DataCase, async: false
 
+  alias DashboardSSD.Cache.SharedDocumentsCache
   alias DashboardSSD.Clients
+  alias DashboardSSD.Documents.DocumentAccessLog
+  alias DashboardSSD.Documents.SharedDocument
   alias DashboardSSD.Projects
   alias DashboardSSD.Projects.Project
 
@@ -68,5 +71,88 @@ defmodule DashboardSSD.ProjectsTest do
   after
     :persistent_term.erase({:workspace_test_pid})
     Application.delete_env(:dashboard_ssd, :workspace_bootstrap_module)
+  end
+
+  describe "client assignment drive permissions" do
+    setup do
+      Application.put_env(
+        :dashboard_ssd,
+        :drive_permission_worker,
+        DashboardSSD.DrivePermissionWorkerStub
+      )
+
+      SharedDocumentsCache.invalidate_listing(:all)
+      SharedDocumentsCache.invalidate_download(:all)
+      Repo.delete_all(DocumentAccessLog)
+
+      on_exit(fn ->
+        Application.delete_env(:dashboard_ssd, :drive_permission_worker)
+      end)
+
+      {:ok, client} = Clients.create_client(%{name: "Drive Client"})
+
+      project =
+        Repo.insert!(%Project{
+          name: "Drive Proj",
+          client_id: client.id,
+          drive_folder_id: "drive-folder"
+        })
+
+      doc = insert_drive_document(client.id, project.id)
+
+      %{client: client, project: project, document: doc}
+    end
+
+    test "granting client assignment invalidates caches and logs permissions", %{
+      client: client,
+      project: project,
+      document: document
+    } do
+      user = %{id: 501, email: "client-share@example.com", client_id: client.id}
+
+      SharedDocumentsCache.put_listing({user.id, nil}, %{documents: []})
+      SharedDocumentsCache.put_listing({user.id, project.id}, %{documents: []})
+      SharedDocumentsCache.put_download_descriptor(document.id, %{token: "cached"})
+
+      Projects.handle_client_assignment_change(user, nil)
+
+      assert_receive {:drive_share, "drive-folder", params}
+      assert params[:email] == "client-share@example.com"
+      assert params[:role] == "reader"
+
+      assert Repo.aggregate(DocumentAccessLog, :count, :id) == 1
+      assert SharedDocumentsCache.get_listing({user.id, nil}) == :miss
+      assert SharedDocumentsCache.get_listing({user.id, project.id}) == :miss
+      assert SharedDocumentsCache.get_download_descriptor(document.id) == :miss
+    end
+
+    test "revoking client assignment removes permissions", %{
+      client: client
+    } do
+      user = %{id: 777, email: "client-revoke@example.com", client_id: client.id}
+
+      Projects.handle_client_assignment_change(user, nil)
+      Projects.handle_client_assignment_change(%{user | client_id: nil}, client.id)
+
+      assert_receive {:drive_revoke, "drive-folder", "client-revoke@example.com"}
+      assert Repo.aggregate(DocumentAccessLog, :count, :id) == 2
+    end
+  end
+
+  defp insert_drive_document(client_id, project_id) do
+    params = %{
+      client_id: client_id,
+      project_id: project_id,
+      source: :drive,
+      source_id: Ecto.UUID.generate(),
+      doc_type: "sow",
+      title: "Drive Doc",
+      visibility: :client,
+      client_edit_allowed: false
+    }
+
+    %SharedDocument{}
+    |> SharedDocument.changeset(params)
+    |> Repo.insert!()
   end
 end

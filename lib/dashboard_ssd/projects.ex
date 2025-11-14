@@ -10,11 +10,14 @@ defmodule DashboardSSD.Projects do
   alias DashboardSSD.Accounts
   alias DashboardSSD.Clients
   alias DashboardSSD.Documents
+  alias DashboardSSD.Documents.SharedDocument
   alias DashboardSSD.Integrations
   alias DashboardSSD.Integrations.LinearUtils
+  alias DashboardSSD.Cache.SharedDocumentsCache
 
   alias DashboardSSD.Projects.{
     CacheStore,
+    DrivePermissionWorker,
     LinearTeamMember,
     LinearWorkflowState,
     Project,
@@ -153,6 +156,145 @@ defmodule DashboardSSD.Projects do
       drive_folder_sharing_inherited: true,
       drive_folder_last_permission_sync_at: nil
     })
+  end
+
+  @doc """
+  Handles Drive ACL updates when a user's client assignment changes.
+  """
+  @spec handle_client_assignment_change(map() | nil, pos_integer() | nil) :: :ok
+  def handle_client_assignment_change(user, previous_client_id \\ nil)
+  def handle_client_assignment_change(nil, _previous_client_id), do: :ok
+
+  def handle_client_assignment_change(%{client_id: client_id} = user, previous_client_id) do
+    cond do
+      is_nil(client_id) and is_nil(previous_client_id) ->
+        :ok
+
+      client_id == previous_client_id ->
+        :ok
+
+      is_nil(previous_client_id) ->
+        sync_drive_permissions_for_user(user)
+
+      is_nil(client_id) ->
+        revoke_drive_permissions_for_user(user, previous_client_id)
+
+      true ->
+        revoke_drive_permissions_for_user(user, previous_client_id)
+        sync_drive_permissions_for_user(user)
+    end
+  end
+
+  @doc """
+  Shares Drive folders for all projects associated with the user's assigned client.
+  """
+  @spec sync_drive_permissions_for_user(map()) :: :ok
+  def sync_drive_permissions_for_user(%{client_id: client_id} = user) when is_integer(client_id) do
+    list_projects_by_client(client_id)
+    |> Enum.each(&maybe_grant_project_access(&1, user))
+
+    :ok
+  end
+
+  def sync_drive_permissions_for_user(_), do: :ok
+
+  @doc """
+  Revokes Drive folder access for the user's previous client assignment.
+  """
+  @spec revoke_drive_permissions_for_user(map(), pos_integer() | nil) :: :ok
+  def revoke_drive_permissions_for_user(user, client_id \\ nil)
+
+  def revoke_drive_permissions_for_user(%{} = user, client_id) do
+    target_client_id = client_id || Map.get(user, :client_id)
+
+    if is_integer(target_client_id) do
+      list_projects_by_client(target_client_id)
+      |> Enum.each(&maybe_revoke_project_access(&1, user))
+    end
+
+    :ok
+  end
+
+  defp maybe_grant_project_access(%{drive_folder_id: folder_id} = project, %{email: email} = user)
+       when is_binary(folder_id) and folder_id != "" and is_binary(email) and email != "" do
+    docs = drive_documents_for_project(project.id)
+    role = permission_role_for_docs(docs)
+
+    params = %{
+      role: role,
+      type: "user",
+      email: email,
+      allow_file_discovery: false,
+      send_notification_email?: false
+    }
+
+    drive_permission_worker().share(folder_id, params)
+    log_permission_events(docs, user, :permissions_granted, role, project.id)
+    invalidate_user_cache(user, project.id, docs)
+    mark_drive_permission_sync(project)
+  end
+
+  defp maybe_grant_project_access(_, _), do: :ok
+
+  defp maybe_revoke_project_access(%{drive_folder_id: folder_id} = project, %{email: email} = user)
+       when is_binary(folder_id) and folder_id != "" and is_binary(email) and email != "" do
+    docs = drive_documents_for_project(project.id)
+    role = permission_role_for_docs(docs)
+
+    drive_permission_worker().revoke_email(folder_id, email)
+    log_permission_events(docs, user, :permissions_revoked, role, project.id)
+    invalidate_user_cache(user, project.id, docs)
+    mark_drive_permission_sync(project)
+  end
+
+  defp maybe_revoke_project_access(_, _), do: :ok
+
+  defp drive_documents_for_project(nil), do: []
+
+  defp drive_documents_for_project(project_id) do
+    from(sd in SharedDocument,
+      where:
+        sd.project_id == ^project_id and sd.visibility == :client and sd.source == :drive
+    )
+    |> Repo.all()
+  end
+
+  defp permission_role_for_docs(docs) do
+    if Enum.any?(docs, &(&1.client_edit_allowed == true)) do
+      "writer"
+    else
+      "reader"
+    end
+  end
+
+  defp invalidate_user_cache(user, project_id, docs) do
+    user_id = Map.get(user, :id)
+
+    if user_id do
+      SharedDocumentsCache.invalidate_listing({user_id, nil})
+      SharedDocumentsCache.invalidate_listing({user_id, project_id})
+    end
+
+    Enum.each(docs, fn doc ->
+      SharedDocumentsCache.invalidate_download(doc.id)
+    end)
+  end
+
+  defp log_permission_events(docs, user, action, role, project_id) do
+    Enum.each(docs, fn doc ->
+      context = %{
+        project_id: project_id,
+        user_id: Map.get(user, :id),
+        user_email: Map.get(user, :email),
+        role: role
+      }
+
+      Documents.log_access(doc, nil, action, context)
+    end)
+  end
+
+  defp drive_permission_worker do
+    Application.get_env(:dashboard_ssd, :drive_permission_worker, DrivePermissionWorker)
   end
 
   @doc """

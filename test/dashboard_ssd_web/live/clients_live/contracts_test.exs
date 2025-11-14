@@ -5,6 +5,7 @@ defmodule DashboardSSDWeb.ClientsLive.ContractsTest do
 
   alias DashboardSSD.Accounts
   alias DashboardSSD.Clients
+  alias DashboardSSD.Documents
   alias DashboardSSD.Documents.SharedDocument
   alias DashboardSSD.Projects.Project
   alias DashboardSSD.Cache.SharedDocumentsCache
@@ -80,6 +81,56 @@ defmodule DashboardSSDWeb.ClientsLive.ContractsTest do
 
     conn = init_test_session(conn, %{user_id: emp.id})
     assert {:error, {:redirect, %{to: "/"}}} = live(conn, ~p"/clients/contracts")
+  end
+
+  test "client loses access when document visibility changes", %{conn: conn} do
+    {:ok, client} = Clients.create_client(%{name: "Acme"})
+    {:ok, project} = Repo.insert(%Project{name: "Proj", client_id: client.id})
+    doc = insert_document(client.id, project.id, title: "Doc")
+
+    {:ok, user} =
+      Accounts.create_user(%{
+        email: "client-visibility@example.com",
+        role_id: Accounts.ensure_role!("client").id,
+        client_id: client.id
+      })
+
+    conn = init_test_session(conn, %{user_id: user.id})
+    {:ok, _view, html} = live(conn, ~p"/clients/contracts")
+    assert html =~ "Doc"
+
+    {:ok, _} = Documents.update_document_settings(doc, %{visibility: :internal}, nil)
+
+    conn2 = Phoenix.ConnTest.build_conn() |> init_test_session(%{user_id: user.id})
+    conn2 = post(conn2, ~p"/shared_documents/#{doc.id}/download")
+    assert conn2.status == 404
+  end
+
+  test "removing client assignment revokes portal access", %{conn: conn} do
+    {:ok, client} = Clients.create_client(%{name: "Acme"})
+    {:ok, project} = Repo.insert(%Project{name: "Proj", client_id: client.id})
+    doc = insert_document(client.id, project.id, title: "Doc")
+
+    {:ok, user} =
+      Accounts.create_user(%{
+        email: "client-revoke@example.com",
+        role_id: Accounts.ensure_role!("client").id,
+        client_id: client.id
+      })
+
+    conn = init_test_session(conn, %{user_id: user.id})
+    {:ok, _view, html} = live(conn, ~p"/clients/contracts")
+    assert html =~ "Doc"
+
+    {:ok, _} = Accounts.update_user_role_and_client(user.id, "client", nil)
+
+    conn2 = Phoenix.ConnTest.build_conn() |> init_test_session(%{user_id: user.id})
+    {:ok, _view, html2} = live(conn2, ~p"/clients/contracts")
+    assert html2 =~ "not linked to a client"
+
+    conn3 = Phoenix.ConnTest.build_conn() |> init_test_session(%{user_id: user.id})
+    conn3 = post(conn3, ~p"/shared_documents/#{doc.id}/download")
+    assert redirected_to(conn3) == "/clients"
   end
 
   defp insert_document(client_id, project_id, attrs) do

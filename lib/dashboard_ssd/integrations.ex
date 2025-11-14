@@ -138,6 +138,17 @@ defmodule DashboardSSD.Integrations do
     end
   end
 
+  @doc """
+  Lists Drive permissions for the given folder using the service account.
+  """
+  @spec drive_list_permissions(String.t()) :: {:ok, [map()]} | error()
+  def drive_list_permissions(folder_id) do
+    with {:ok, token} <- drive_service_token(),
+         {:ok, %{"permissions" => permissions}} <- Drive.list_permissions(token, folder_id) do
+      {:ok, permissions}
+    end
+  end
+
   defp drive_service_token do
     token =
       Keyword.get(cfg(), :drive_token) || System.get_env("GOOGLE_DRIVE_TOKEN") ||

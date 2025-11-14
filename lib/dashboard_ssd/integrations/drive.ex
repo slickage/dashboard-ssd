@@ -115,6 +115,20 @@ defmodule DashboardSSD.Integrations.Drive do
   end
 
   @doc """
+  Lists permission entries for the folder/file to help identify granted emails.
+  """
+  @spec list_permissions(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  def list_permissions(token, folder_id) do
+    query =
+      support_all_drives()
+      |> Keyword.merge(fields: "permissions(id,emailAddress,role,type)")
+
+    "/files/#{folder_id}/permissions"
+    |> get(query: query, headers: auth_headers(token))
+    |> handle_response()
+  end
+
+  @doc """
   Downloads the file content via Drive's media endpoint.
   """
   @spec download_file(String.t(), String.t()) :: {:ok, Tesla.Env.t()} | {:error, term()}

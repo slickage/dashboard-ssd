@@ -25,6 +25,7 @@ defmodule DashboardSSD.Accounts do
 
   alias DashboardSSD.Auth.Capabilities
   alias DashboardSSD.Mailer
+  alias DashboardSSD.Projects
   alias DashboardSSD.Projects.LinearTeamMember
   alias DashboardSSD.Repo
 
@@ -110,7 +111,10 @@ defmodule DashboardSSD.Accounts do
   """
   @spec create_user(map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def create_user(attrs) do
-    %User{} |> User.changeset(attrs) |> Repo.insert()
+    %User{}
+    |> User.changeset(attrs)
+    |> Repo.insert()
+    |> sync_client_assignment(nil)
   end
 
   @doc """
@@ -120,7 +124,12 @@ defmodule DashboardSSD.Accounts do
   """
   @spec update_user(User.t(), map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def update_user(%User{} = user, attrs) do
-    user |> User.changeset(attrs) |> Repo.update()
+    previous_client_id = user.client_id
+
+    user
+    |> User.changeset(attrs)
+    |> Repo.update()
+    |> sync_client_assignment(previous_client_id)
   end
 
   @doc """
@@ -549,11 +558,16 @@ defmodule DashboardSSD.Accounts do
         client_id: client_id
       }
 
+    previous_client_id = user.client_id
+
     user
     |> User.changeset(attrs)
     |> Repo.update()
     |> case do
-      {:ok, updated} -> {:ok, Repo.preload(updated, [:role, :client])}
+      {:ok, updated} ->
+        Projects.handle_client_assignment_change(updated, previous_client_id)
+        {:ok, Repo.preload(updated, [:role, :client])}
+
       other -> other
     end
   end
@@ -798,6 +812,7 @@ defmodule DashboardSSD.Accounts do
           })
           |> Repo.update!()
 
+          Projects.handle_client_assignment_change(updated_user, user.client_id)
           {:ok, updated_user}
         else
           {:ok, Repo.preload(user, [:role, :client])}
@@ -812,6 +827,13 @@ defmodule DashboardSSD.Accounts do
     {:ok, updated} = apply_invite(user, invite_token)
     updated
   end
+
+  defp sync_client_assignment({:ok, %User{} = user} = result, previous_client_id) do
+    Projects.handle_client_assignment_change(user, previous_client_id)
+    result
+  end
+
+  defp sync_client_assignment(other, _previous_client_id), do: other
 
   defp deliver_invite_email(invite) do
     invite

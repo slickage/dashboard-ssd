@@ -63,11 +63,11 @@ Parallel opportunities noted per task with `[P]`.
 - [X] T037 [US3] Invoke workspace bootstrap when creating clients/projects (`lib/dashboard_ssd/clients.ex`, `lib/dashboard_ssd/projects.ex`), specifying which sections (Drive contracts vs Notion KB) to generate
 - [X] T038 [US3] Add admin action (e.g., button in Projects/Settings LiveView) to generate/re-generate Drive or Notion sections selectively for existing clients/projects using `WorkspaceBootstrap`
 - [X] T039 [US3] Add tests for automatic + manual workspace generation (DataCase for creation hooks, LiveView/feature test for admin action)
-- [ ] T040 [US3] Extend project assignment workflows (`lib/dashboard_ssd/projects.ex` and associates) to call Drive `share_folder/3` / `unshare_folder/3`
-- [ ] T041 [US3] Implement retry/backoff job for Drive ACL sync failures (`lib/dashboard_ssd/projects/drive_permission_worker.ex`)
-- [ ] T042 [US3] Hook ACL updates into cache invalidation + DocumentAccessLog entries
-- [ ] T043 [US3] Add DataCase tests covering assignment-driven ACL sync + audit logs (`test/dashboard_ssd/projects/drive_permission_worker_test.exs`)
-- [ ] T044 [US3] Add integration test verifying removing a client revokes portal download access (`test/dashboard_ssd_web/live/clients_live/contracts_live_test.exs`)
+- [X] T040 [US3] Extend project assignment workflows (`lib/dashboard_ssd/projects.ex` and associates) to call Drive `share_folder/3` / `unshare_folder/3`
+- [X] T041 [US3] Implement retry/backoff job for Drive ACL sync failures (`lib/dashboard_ssd/projects/drive_permission_worker.ex`)
+- [X] T042 [US3] Hook ACL updates into cache invalidation + DocumentAccessLog entries
+- [X] T043 [US3] Add DataCase tests covering assignment-driven ACL sync + audit logs (`test/dashboard_ssd/projects/drive_permission_worker_test.exs`)
+- [X] T044 [US3] Add integration test verifying removing a client revokes portal download access (`test/dashboard_ssd_web/live/clients_live/contracts_live_test.exs`)
 
 ## Phase 6 – Telemetry, Docs & Cross-Cutting
 
