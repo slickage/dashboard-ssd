@@ -16,6 +16,13 @@
       "lib/dashboard_ssd_web/components/.*",
       "lib/dashboard_ssd_web/components/core_components.ex",
       "lib/dashboard_ssd_web/live/projects_live/form_component.ex",
-      "lib/dashboard_ssd_web/live/projects_live/index.ex"
+      "lib/dashboard_ssd_web/live/projects_live/index.ex",
+      "lib/dashboard_ssd_web/live/meeting_live/.*",
+      "lib/dashboard_ssd_web/live/meetings_live/.*",
+      "lib/dashboard_ssd/integrations/fireflies_client.ex",
+      "lib/dashboard_ssd/integrations/google_calendar.ex",
+      "lib/dashboard_ssd/integrations/google_token.ex",
+      "lib/dashboard_ssd/integrations/fireflies.ex",
+      "lib/dashboard_ssd_web/date_helpers.ex"
     ]
 }

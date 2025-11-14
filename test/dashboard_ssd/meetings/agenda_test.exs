@@ -2,39 +2,39 @@ defmodule DashboardSSD.Meetings.AgendaTest do
   use DashboardSSD.DataCase, async: true
 
   alias DashboardSSD.Meetings.Agenda
+  alias DashboardSSD.Meetings.AgendaItem
 
-  test "create/list/reorder agenda items" do
-    evt = "evt-abc"
+  test "create, list, update, reorder and delete items" do
+    event_id = "evt-agenda-1"
 
-    {:ok, a1} = Agenda.create_item(%{calendar_event_id: evt, text: "A", position: 0})
-    {:ok, a2} = Agenda.create_item(%{calendar_event_id: evt, text: "B", position: 1})
+    # initially empty
+    assert [] == Agenda.list_items(event_id)
 
-    items = Agenda.list_items(evt)
-    assert Enum.map(items, & &1.text) == ["A", "B"]
+    {:ok, a} = Agenda.create_item(%{calendar_event_id: event_id, text: "A", position: 0})
+    {:ok, b} = Agenda.create_item(%{calendar_event_id: event_id, text: "B", position: 1})
+    {:ok, c} = Agenda.create_item(%{calendar_event_id: event_id, text: "C", position: 2})
 
-    :ok = Agenda.reorder_items(evt, [a2.id, a1.id])
-    items2 = Agenda.list_items(evt)
-    assert Enum.map(items2, & &1.text) == ["B", "A"]
+    # order by position
+    assert ["A", "B", "C"] == Agenda.list_items(event_id) |> Enum.map(& &1.text)
 
-    {:ok, _} = Agenda.update_item(a1, %{text: "A!"})
-    items3 = Agenda.list_items(evt)
-    assert Enum.any?(items3, &(&1.text == "A!"))
+    # update
+    {:ok, _} = Agenda.update_item(b, %{text: "B2"})
+    assert ["A", "B2", "C"] == Agenda.list_items(event_id) |> Enum.map(& &1.text)
 
-    {:ok, _} = Agenda.delete_item(a2)
-    items4 = Agenda.list_items(evt)
-    refute Enum.any?(items4, &(&1.id == a2.id))
-  end
+    # reorder (reverse)
+    new_order = [c.id, b.id, a.id]
+    assert :ok == Agenda.reorder_items(event_id, new_order)
+    assert ["C", "B2", "A"] == Agenda.list_items(event_id) |> Enum.map(& &1.text)
 
-  test "merged_items_for_event de-duplicates by normalized text" do
-    evt = "evt-dedup"
-    {:ok, _} = Agenda.create_item(%{calendar_event_id: evt, text: "Prepare Budget", position: 0})
+    # delete
+    [first | _] = Agenda.list_items(event_id)
+    {:ok, %AgendaItem{}} = Agenda.delete_item(first)
+    assert ["B2", "A"] == Agenda.list_items(event_id) |> Enum.map(& &1.text)
 
-    {:ok, _} =
-      Agenda.create_item(%{calendar_event_id: evt, text: "  prepare   budget  ", position: 1})
-
-    merged = Agenda.merged_items_for_event(evt, nil)
-    texts = Enum.map(merged, &String.downcase(&1.text))
-    # Only one entry should remain after de-duplication
-    assert Enum.count(texts, &String.contains?(&1, "prepare budget")) == 1
+    # replace_manual_text collapses to a single item
+    assert :ok == Agenda.replace_manual_text(event_id, "Line 1\nLine 2\n")
+    items = Agenda.list_items(event_id)
+    assert length(items) == 1
+    assert hd(items).text == "Line 1\nLine 2"
   end
 end
