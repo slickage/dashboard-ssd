@@ -8,6 +8,7 @@ defmodule DashboardSSDWeb.SharedDocumentController do
   alias DashboardSSD.Integrations
 
   require Logger
+  @max_download_bytes 25 * 1024 * 1024
 
   def download(conn, %{"id" => id}) do
     user = conn.assigns.current_user
@@ -67,22 +68,39 @@ defmodule DashboardSSDWeb.SharedDocumentController do
   end
 
   defp deliver_download(conn, document, %{body: body, headers: headers}) do
-    mime_type =
-      document.mime_type || header_lookup(headers, "content-type") || "application/octet-stream"
+    case maybe_block_for_size(document, headers, byte_size(body)) do
+      :ok ->
+        mime_type =
+          document.mime_type || header_lookup(headers, "content-type") ||
+            "application/octet-stream"
 
-    filename = build_filename(document, mime_type)
+        filename = build_filename(document, mime_type)
 
-    conn
-    |> put_resp_content_type(mime_type)
-    |> put_resp_header("content-disposition", ~s[attachment; filename="#{filename}"])
-    |> send_resp(200, body)
+        conn
+        |> put_resp_content_type(mime_type)
+        |> put_resp_header("content-disposition", ~s[attachment; filename="#{filename}"])
+        |> send_resp(200, body)
+
+      {:oversized, message} ->
+        conn
+        |> put_flash(:error, message)
+        |> redirect(to: ~p"/clients/contracts")
+    end
   end
 
-  defp deliver_download(conn, _document, %{body: body, mime_type: mime_type, filename: filename}) do
-    conn
-    |> put_resp_content_type(mime_type || "application/octet-stream")
-    |> put_resp_header("content-disposition", ~s[attachment; filename="#{filename}"])
-    |> send_resp(200, body)
+  defp deliver_download(conn, document, %{body: body, mime_type: mime_type, filename: filename}) do
+    case maybe_block_for_size(document, [], byte_size(body)) do
+      :ok ->
+        conn
+        |> put_resp_content_type(mime_type || "application/octet-stream")
+        |> put_resp_header("content-disposition", ~s[attachment; filename="#{filename}"])
+        |> send_resp(200, body)
+
+      {:oversized, message} ->
+        conn
+        |> put_flash(:error, message)
+        |> redirect(to: ~p"/clients/contracts")
+    end
   end
 
   defp header_lookup(headers, key) do
@@ -96,6 +114,47 @@ defmodule DashboardSSDWeb.SharedDocumentController do
         nil
     end)
   end
+
+  defp maybe_block_for_size(document, headers, body_size) do
+    size =
+      header_lookup(headers, "content-length")
+      |> parse_int()
+      |> case do
+        nil -> body_size
+        value -> value
+      end
+
+    if size && size > @max_download_bytes do
+      {:oversized, oversize_message(document)}
+    else
+      :ok
+    end
+  end
+
+  defp parse_int(nil), do: nil
+
+  defp parse_int(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {int, ""} -> int
+      _ -> nil
+    end
+  end
+
+  defp oversize_message(%{source: :drive, source_id: source_id}) do
+    "This file is larger than #{human_size(@max_download_bytes)}. Open it directly in Drive: #{drive_link(source_id)}"
+  end
+
+  defp oversize_message(%{source: :notion, source_id: page_id}) do
+    "This document is too large to proxy. View it in Notion instead: #{notion_link(page_id)}"
+  end
+
+  defp human_size(bytes) do
+    mb = Float.round(bytes / 1_048_576, 1)
+    "#{mb} MB"
+  end
+
+  defp drive_link(source_id), do: "https://drive.google.com/file/d/#{source_id}/view"
+  defp notion_link(page_id), do: "https://www.notion.so/#{page_id}"
 
   defp unwrap_payload({:ok, %{payload: payload}}), do: {:ok, payload}
   defp unwrap_payload(other), do: other

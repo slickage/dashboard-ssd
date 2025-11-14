@@ -57,6 +57,37 @@ defmodule DashboardSSDWeb.SharedDocumentControllerTest do
     assert redirected_to(conn) == "/clients/contracts"
   end
 
+  test "oversized drive download shows friendly message", %{conn: conn} do
+    Tesla.Mock.mock(fn _ ->
+      %Tesla.Env{
+        status: 200,
+        body: :binary.copy("a", 100),
+        headers: [
+          {"content-type", "application/pdf"},
+          {"content-length", "30000000"}
+        ]
+      }
+    end)
+
+    {:ok, client} = Clients.create_client(%{name: "Acme"})
+    {:ok, project} = Repo.insert(%Project{name: "Proj", client_id: client.id})
+    doc = insert_document(client.id, project.id)
+
+    {:ok, user} =
+      Accounts.create_user(%{
+        email: "client-large@example.com",
+        role_id: Accounts.ensure_role!("client").id,
+        client_id: client.id
+      })
+
+    conn = init_test_session(conn, %{user_id: user.id})
+    conn = post(conn, ~p"/shared_documents/#{doc.id}/download")
+
+    assert redirected_to(conn) == "/clients/contracts"
+    conn = Phoenix.Controller.fetch_flash(conn)
+    assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "Open it directly in Drive"
+  end
+
   test "client cannot download docs from other clients", %{conn: conn} do
     {:ok, client_a} = Clients.create_client(%{name: "A"})
     {:ok, client_b} = Clients.create_client(%{name: "B"})
