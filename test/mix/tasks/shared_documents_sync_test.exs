@@ -18,6 +18,12 @@ defmodule Mix.Tasks.SharedDocuments.SyncTest do
     end
   end
 
+  test "raises on unsupported options" do
+    assert_raise Mix.Error, ~r/Invalid option/, fn ->
+      SharedDocumentsSyncTask.run(["--source"])
+    end
+  end
+
   test "skips when runner module is missing" do
     output =
       capture_io(fn ->

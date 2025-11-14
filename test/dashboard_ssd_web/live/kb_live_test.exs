@@ -69,7 +69,9 @@ defmodule DashboardSSDWeb.KbLiveTest do
       Notion.reset_circuits()
     end)
 
-    :ok
+    configured_integrations = Application.get_env(:dashboard_ssd, :integrations)
+
+    {:ok, %{integrations_config: configured_integrations}}
   end
 
   describe "knowledge base access" do
@@ -103,6 +105,321 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       assert {:error, {:redirect, %{to: "/", flash: %{"error" => message}}}} = live(conn, ~p"/kb")
       assert message == "You don't have permission to access this page"
+    end
+  end
+
+  describe "inline event handlers" do
+    test "clear_search resets assignments" do
+      socket =
+        base_socket(%{
+          query: "Docs",
+          results: [%{id: "doc"}],
+          search_performed: true,
+          search_dropdown_open: true,
+          search_feedback: "feedback",
+          flash: %{error: "oops"}
+        })
+
+      {:noreply, updated} = Index.handle_event("clear_search", %{}, socket)
+      assigns = updated.assigns
+
+      assert assigns.query == ""
+      assert assigns.results == []
+      refute assigns.search_performed
+      refute assigns.search_dropdown_open
+      assert assigns.search_feedback == nil
+    end
+
+    test "clear_search_key only fires for Enter/Escape/Space", %{integrations_config: cfg} do
+      socket = base_socket(%{query: "Docs"})
+
+      {:noreply, _} = Index.handle_event("clear_search_key", %{"key" => "Enter"}, socket)
+
+      assert {:noreply, ^socket} =
+               Index.handle_event("clear_search_key", %{"key" => "Tab"}, socket)
+
+      Application.put_env(:dashboard_ssd, :integrations, cfg)
+    end
+
+    test "close_search_dropdown hides dropdown" do
+      socket = base_socket(%{search_dropdown_open: true})
+      {:noreply, updated} = Index.handle_event("close_search_dropdown", %{}, socket)
+      refute updated.assigns.search_dropdown_open
+    end
+
+    test "toggle_mobile_menu flips the state" do
+      socket = base_socket(%{mobile_menu_open: false})
+      {:noreply, updated} = Index.handle_event("toggle_mobile_menu", %{}, socket)
+      assert updated.assigns.mobile_menu_open
+
+      {:noreply, updated2} = Index.handle_event("toggle_mobile_menu", %{}, updated)
+      refute updated2.assigns.mobile_menu_open
+    end
+
+    test "toggle_collection removes expanded collection" do
+      id = "collection-1"
+
+      socket =
+        base_socket(%{
+          expanded_collections: MapSet.new([id]),
+          document_errors: %{},
+          collections: []
+        })
+
+      {:noreply, updated} = Index.handle_event("toggle_collection", %{"id" => id}, socket)
+      refute MapSet.member?(updated.assigns.expanded_collections, id)
+    end
+
+    test "toggle_collection ignores blank id" do
+      socket = base_socket(%{})
+      assert {:noreply, ^socket} = Index.handle_event("toggle_collection", %{"id" => ""}, socket)
+    end
+
+    test "typeahead search with blank query clears state" do
+      socket = base_socket(%{query: "Docs", results: [%{}], search_performed: true})
+      {:noreply, updated} = Index.handle_event("typeahead_search", %{"query" => "   "}, socket)
+
+      assert updated.assigns.query == ""
+      assert updated.assigns.results == []
+      refute updated.assigns.search_performed
+      refute updated.assigns.search_dropdown_open
+    end
+
+    test "typeahead search shows error when Notion token missing", %{integrations_config: cfg} do
+      Application.put_env(:dashboard_ssd, :integrations, Keyword.delete(cfg, :notion_token))
+      socket = base_socket(%{})
+
+      {:noreply, updated} = Index.handle_event("typeahead_search", %{"query" => "Doc"}, socket)
+
+      assert updated.assigns.query == "Doc"
+      assert updated.assigns.search_performed
+      assert updated.assigns.search_dropdown_open
+
+      Application.put_env(:dashboard_ssd, :integrations, cfg)
+    end
+
+    test "select_collection collapses expanded entry" do
+      id = "collection-1"
+      socket = base_socket(%{expanded_collections: MapSet.new([id])})
+
+      {:noreply, updated} = Index.handle_event("select_collection", %{"id" => id}, socket)
+      refute MapSet.member?(updated.assigns.expanded_collections, id)
+    end
+
+    test "toggle_collection_key ignores unsupported keys" do
+      socket = base_socket(%{})
+
+      assert {:noreply, ^socket} =
+               Index.handle_event(
+                 "toggle_collection_key",
+                 %{"id" => "col", "key" => "Tab"},
+                 socket
+               )
+    end
+
+    test "select_document triggers load" do
+      socket =
+        base_socket(%{
+          selected_collection_id: "db-handbook",
+          current_user: %{id: 1}
+        })
+
+      {:noreply, updated} =
+        Index.handle_event("select_document", %{"id" => "page-10"}, socket)
+
+      assert updated.assigns.pending_document_id == "page-10"
+      assert updated.assigns.reader_loading
+      assert_receive {:load_document, "page-10", opts}
+      assert opts[:source] == :collection
+      assert opts[:collection_id] == "db-handbook"
+    end
+
+    test "select_document_key ignores other keys" do
+      socket = base_socket(%{})
+
+      assert {:noreply, ^socket} =
+               Index.handle_event(
+                 "select_document_key",
+                 %{"id" => "page", "key" => "Tab"},
+                 socket
+               )
+    end
+
+    test "open_search_result triggers search load" do
+      socket = base_socket(%{})
+
+      {:noreply, updated} =
+        Index.handle_event(
+          "open_search_result",
+          %{"id" => "page-22", "collection" => "db-auto"},
+          socket
+        )
+
+      assert updated.assigns.pending_document_id == "page-22"
+      assert_receive {:load_document, "page-22", opts}
+      assert opts[:source] == :search
+      assert opts[:collection_id] == "db-auto"
+    end
+
+    test "open_search_result_key ignores unsupported keys" do
+      socket = base_socket(%{})
+
+      assert {:noreply, ^socket} =
+               Index.handle_event(
+                 "open_search_result_key",
+                 %{"id" => "page", "collection" => "db", "key" => "Tab"},
+                 socket
+               )
+    end
+
+    test "toggle_collection_key toggles when key matches" do
+      socket = base_socket(%{expanded_collections: MapSet.new(["col-1"])})
+
+      {:noreply, updated} =
+        Index.handle_event(
+          "toggle_collection_key",
+          %{"id" => "col-1", "key" => "Enter"},
+          socket
+        )
+
+      refute MapSet.member?(updated.assigns.expanded_collections, "col-1")
+    end
+
+    test "select_document_key triggers load on Enter" do
+      socket = base_socket(%{selected_collection_id: "db", current_user: %{id: 1}})
+
+      {:noreply, updated} =
+        Index.handle_event(
+          "select_document_key",
+          %{"id" => "page-30", "key" => "Enter"},
+          socket
+        )
+
+      assert updated.assigns.pending_document_id == "page-30"
+      assert_receive {:load_document, "page-30", _opts}
+    end
+
+    test "open_search_result_key triggers load on Enter" do
+      socket = base_socket(%{})
+
+      {:noreply, updated} =
+        Index.handle_event(
+          "open_search_result_key",
+          %{"id" => "page-40", "collection" => "db", "key" => "Enter"},
+          socket
+        )
+
+      assert updated.assigns.pending_document_id == "page-40"
+      assert_receive {:load_document, "page-40", _opts}
+    end
+  end
+
+  describe "handle_info callbacks" do
+    test "search_result success updates state" do
+      socket =
+        base_socket(%{
+          query: "",
+          results: [%{id: "old"}],
+          search_performed: false,
+          search_loading: true,
+          search_dropdown_open: false
+        })
+
+      {:noreply, updated} =
+        Index.handle_info({:search_result, "Docs", {:ok, %{"results" => []}}}, socket)
+
+      assert updated.assigns.query == "Docs"
+      assert updated.assigns.search_dropdown_open
+      refute updated.assigns.search_loading
+      assert updated.assigns.results == []
+    end
+
+    test "search_result error displays flash" do
+      socket =
+        base_socket(%{
+          query: "",
+          results: [],
+          search_performed: false,
+          search_loading: true,
+          search_dropdown_open: true
+        })
+
+      {:noreply, updated} =
+        Index.handle_info({:search_result, "Docs", {:error, :timeout}}, socket)
+
+      assert updated.assigns.query == "Docs"
+      assert updated.assigns.flash["error"] =~ "Unable to reach Notion"
+      refute updated.assigns.search_loading
+    end
+
+    test "documents_refreshed updates documents and errors" do
+      summary = %Types.DocumentSummary{id: "doc", collection_id: "db", title: "Doc"}
+
+      socket =
+        base_socket(%{
+          documents_by_collection: %{},
+          document_errors: %{},
+          selected_collection_id: "db",
+          documents: []
+        })
+
+      {:noreply, updated} =
+        Index.handle_info({:documents_refreshed, "db", [summary], []}, socket)
+
+      assert updated.assigns.documents == [summary]
+      assert updated.assigns.documents_by_collection["db"] == [summary]
+      assert updated.assigns.document_errors == %{}
+    end
+
+    test "documents_refresh_failed is a no-op" do
+      socket =
+        base_socket(%{
+          documents_by_collection: %{},
+          document_errors: %{}
+        })
+
+      assert {:noreply, ^socket} =
+               Index.handle_info({:documents_refresh_failed, "db", :timeout}, socket)
+    end
+
+    test "load_document consumes cached document detail" do
+      now = DateTime.utc_now()
+
+      detail = %Types.DocumentDetail{
+        id: "page-cached",
+        collection_id: "db-handbook",
+        title: "Cached Doc",
+        rendered_blocks: [],
+        last_updated_at: now,
+        synced_at: now
+      }
+
+      summary = %Types.DocumentSummary{
+        id: "page-cached",
+        collection_id: "db-handbook",
+        title: "Cached Doc"
+      }
+
+      CacheStore.put({:document_detail, detail.id}, detail)
+
+      socket =
+        base_socket(%{
+          pending_document_id: detail.id,
+          selected_collection_id: "db-handbook",
+          documents_by_collection: %{"db-handbook" => [summary]},
+          documents: [summary],
+          current_user: %{id: 1}
+        })
+
+      {:noreply, updated} =
+        Index.handle_info(
+          {:load_document, detail.id, [source: :initial, collection_id: "db-handbook"]},
+          socket
+        )
+
+      assert %Types.DocumentDetail{id: "page-cached"} = updated.assigns.selected_document
+      refute updated.assigns.reader_loading
+      assert updated.assigns.pending_document_id == nil
     end
   end
 

@@ -10,6 +10,7 @@ defmodule DashboardSSDWeb.ClientsLive.ContractsTest do
   alias DashboardSSD.Documents.SharedDocument
   alias DashboardSSD.Projects.Project
   alias DashboardSSD.Repo
+  alias DashboardSSDWeb.ClientsLive.Contracts, as: ClientsContractsLive
 
   setup do
     Accounts.ensure_role!("client")
@@ -133,6 +134,41 @@ defmodule DashboardSSDWeb.ClientsLive.ContractsTest do
     assert redirected_to(conn3) == "/clients"
   end
 
+  describe "clients liveview inline events" do
+    test "filter event normalizes project id" do
+      socket = base_socket(%{project_id: nil, client_assignment_missing?: true})
+
+      {:noreply, updated} =
+        ClientsContractsLive.handle_event("filter", %{"project_id" => "42"}, socket)
+
+      assert updated.assigns.project_id == 42
+      assert updated.assigns.documents == []
+    end
+
+    test "handle_params clears invalid project id" do
+      socket = base_socket(%{project_id: 10, client_assignment_missing?: false})
+
+      {:noreply, updated} =
+        ClientsContractsLive.handle_params(%{"project_id" => "abc"}, "", socket)
+
+      assert updated.assigns.project_id == nil
+    end
+
+    test "toggle_mobile_menu flips state" do
+      socket = base_socket(%{mobile_menu_open: false})
+
+      {:noreply, updated} = ClientsContractsLive.handle_event("toggle_mobile_menu", %{}, socket)
+      assert updated.assigns.mobile_menu_open
+    end
+
+    test "close_mobile_menu sets state to false" do
+      socket = base_socket(%{mobile_menu_open: true})
+
+      {:noreply, updated} = ClientsContractsLive.handle_event("close_mobile_menu", %{}, socket)
+      refute updated.assigns.mobile_menu_open
+    end
+  end
+
   defp insert_document(client_id, project_id, attrs) do
     params = %{
       client_id: client_id,
@@ -146,5 +182,27 @@ defmodule DashboardSSDWeb.ClientsLive.ContractsTest do
 
     {:ok, doc} = %SharedDocument{} |> SharedDocument.changeset(params) |> Repo.insert()
     doc
+  end
+
+  defp base_socket(assigns) do
+    %Phoenix.LiveView.Socket{
+      endpoint: DashboardSSDWeb.Endpoint,
+      view: ClientsContractsLive,
+      root_pid: self(),
+      transport_pid: self(),
+      private: %{live_action: :index},
+      assigns:
+        %{
+          __changed__: %{},
+          flash: %{},
+          current_user: %{id: 1, client_id: 1},
+          client_assignment_missing?: false,
+          project_id: nil,
+          mobile_menu_open: false,
+          documents: [],
+          projects: []
+        }
+        |> Map.merge(assigns)
+    }
   end
 end
