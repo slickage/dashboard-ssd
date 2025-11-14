@@ -568,7 +568,8 @@ defmodule DashboardSSD.Accounts do
         Projects.handle_client_assignment_change(updated, previous_client_id)
         {:ok, Repo.preload(updated, [:role, :client])}
 
-      other -> other
+      other ->
+        other
     end
   end
 

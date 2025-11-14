@@ -2,11 +2,11 @@ defmodule DashboardSSDWeb.SharedDocumentControllerTest do
   use DashboardSSDWeb.ConnCase, async: true
 
   alias DashboardSSD.Accounts
+  alias DashboardSSD.Cache.SharedDocumentsCache
   alias DashboardSSD.Clients
   alias DashboardSSD.Documents.DocumentAccessLog
   alias DashboardSSD.Documents.SharedDocument
   alias DashboardSSD.Projects.Project
-  alias DashboardSSD.Cache.SharedDocumentsCache
   alias DashboardSSD.Repo
 
   setup do

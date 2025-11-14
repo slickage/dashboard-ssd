@@ -1,43 +1,72 @@
 defmodule DashboardSSDWeb.SharedDocumentController do
+  @moduledoc """
+  Handles proxied downloads for client-facing shared documents.
+  """
   use DashboardSSDWeb, :controller
 
   alias DashboardSSD.Auth.Policy
+  alias DashboardSSD.Cache.SharedDocumentsCache
   alias DashboardSSD.Documents
   alias DashboardSSD.Documents.NotionRenderer
-  alias DashboardSSD.Cache.SharedDocumentsCache
   alias DashboardSSD.Integrations
 
   require Logger
   @max_download_bytes 25 * 1024 * 1024
 
+  @doc """
+  Streams the requested shared document to the current client user.
+  """
+  @spec download(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def download(conn, %{"id" => id}) do
     user = conn.assigns.current_user
+    start_time = System.monotonic_time()
 
-    with true <- Policy.can?(user, :read, :client_contracts) || {:error, :forbidden},
-         {:ok, document} <- Documents.fetch_client_document(user, id),
-         {:ok, payload} <- fetch_source(document) do
-      _ = Documents.log_access(document, user, :download, %{source: document.source})
-      deliver_download(conn, document, payload)
-    else
+    case build_download_request(user, id) do
+      {:ok, document, payload} ->
+        case deliver_download(conn, document, payload) do
+          {:ok, conn} ->
+            emit_download_telemetry(start_time, :ok, document, user)
+            conn
+
+          {:oversized, conn} ->
+            emit_download_telemetry(start_time, :oversized, document, user, %{error: :oversized})
+            conn
+        end
+
       {:error, :forbidden} ->
+        emit_download_telemetry(start_time, :forbidden, nil, user)
+
         conn
         |> put_flash(:error, "You don't have permission to download that document.")
         |> redirect(to: ~p"/clients/contracts")
 
       {:error, :client_scope_missing} ->
+        emit_download_telemetry(start_time, :client_scope_missing, nil, user)
+
         conn
         |> put_flash(:error, "Your account is not linked to a client.")
         |> redirect(to: ~p"/clients")
 
       {:error, :not_found} ->
-        conn |> send_resp(:not_found, "Document not found")
+        emit_download_telemetry(start_time, :not_found, nil, user)
+        send_resp(conn, :not_found, "Document not found")
 
       {:error, reason} ->
-        Logger.warning("Shared document download failed", reason: inspect(reason), id: id)
+        Logger.warning("Shared document download failed (reason=#{inspect(reason)}, id=#{id})")
+        emit_download_telemetry(start_time, :error, nil, user, %{error: inspect(reason)})
 
         conn
         |> put_flash(:error, "We couldn't download that document. Please try again later.")
         |> redirect(to: ~p"/clients/contracts")
+    end
+  end
+
+  defp build_download_request(user, id) do
+    with true <- Policy.can?(user, :read, :client_contracts) || {:error, :forbidden},
+         {:ok, document} <- Documents.fetch_client_document(user, id),
+         {:ok, payload} <- fetch_source(document) do
+      _ = Documents.log_access(document, user, :download, %{source: document.source})
+      {:ok, document, payload}
     end
   end
 
@@ -67,6 +96,7 @@ defmodule DashboardSSDWeb.SharedDocumentController do
     end
   end
 
+  # sobelow_skip ["XSS.ContentType", "XSS.SendResp"]
   defp deliver_download(conn, document, %{body: body, headers: headers}) do
     case maybe_block_for_size(document, headers, byte_size(body)) do
       :ok ->
@@ -76,30 +106,43 @@ defmodule DashboardSSDWeb.SharedDocumentController do
 
         filename = build_filename(document, mime_type)
 
-        conn
-        |> put_resp_content_type(mime_type)
-        |> put_resp_header("content-disposition", ~s[attachment; filename="#{filename}"])
-        |> send_resp(200, body)
+        conn =
+          conn
+          |> put_resp_content_type(mime_type)
+          |> put_resp_header("content-disposition", ~s[attachment; filename="#{filename}"])
+          |> send_resp(200, body)
+
+        {:ok, conn}
 
       {:oversized, message} ->
-        conn
-        |> put_flash(:error, message)
-        |> redirect(to: ~p"/clients/contracts")
+        conn =
+          conn
+          |> put_flash(:error, message)
+          |> redirect(to: ~p"/clients/contracts")
+
+        {:oversized, conn}
     end
   end
 
+  # sobelow_skip ["XSS.ContentType", "XSS.SendResp"]
   defp deliver_download(conn, document, %{body: body, mime_type: mime_type, filename: filename}) do
     case maybe_block_for_size(document, [], byte_size(body)) do
       :ok ->
-        conn
-        |> put_resp_content_type(mime_type || "application/octet-stream")
-        |> put_resp_header("content-disposition", ~s[attachment; filename="#{filename}"])
-        |> send_resp(200, body)
+        conn =
+          conn
+          |> put_resp_content_type(mime_type || "application/octet-stream")
+          |> put_resp_header("content-disposition", ~s[attachment; filename="#{filename}"])
+          |> send_resp(200, body)
+
+        {:ok, conn}
 
       {:oversized, message} ->
-        conn
-        |> put_flash(:error, message)
-        |> redirect(to: ~p"/clients/contracts")
+        conn =
+          conn
+          |> put_flash(:error, message)
+          |> redirect(to: ~p"/clients/contracts")
+
+        {:oversized, conn}
     end
   end
 
@@ -124,7 +167,7 @@ defmodule DashboardSSDWeb.SharedDocumentController do
         value -> value
       end
 
-    if size && size > @max_download_bytes do
+    if size > @max_download_bytes do
       {:oversized, oversize_message(document)}
     else
       :ok
@@ -181,4 +224,40 @@ defmodule DashboardSSDWeb.SharedDocumentController do
       base
     end
   end
+
+  defp emit_download_telemetry(start_time, status, document, user, extra \\ %{}) do
+    duration = System.monotonic_time() - start_time
+
+    metadata =
+      download_metadata(document, user)
+      |> Map.put(:status, status)
+      |> Map.merge(extra)
+
+    :telemetry.execute([:dashboard_ssd, :documents, :download], %{duration: duration}, metadata)
+  end
+
+  defp download_metadata(nil, user) do
+    %{
+      document_id: nil,
+      client_id: nil,
+      project_id: nil,
+      source: nil,
+      user_id: user && user.id,
+      user_role: user_role(user)
+    }
+  end
+
+  defp download_metadata(document, user) do
+    %{
+      document_id: document.id,
+      client_id: document.client_id,
+      project_id: document.project_id,
+      source: document.source,
+      user_id: user && user.id,
+      user_role: user_role(user)
+    }
+  end
+
+  defp user_role(%{role: %{name: name}}), do: name
+  defp user_role(_), do: nil
 end

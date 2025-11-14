@@ -13,10 +13,10 @@ A modern, dark-themed dashboard for managing software development projects, clie
 
 - **User Authentication**: Google OAuth integration with role-based access control (Admin, Employee, Client)
 - **Project Management**: Track projects, clients, deployments, and health checks
-- **Integrations**: Connect with Linear (issues), Slack (notifications), Notion (knowledge base), Google Drive (documents)
+- **Integrations**: Connect with Linear (issues), Slack (notifications), Notion (knowledge base), Google Drive (documents) and emit telemetry for each integration so alerts can be configured
 - **Real-time Dashboard**: Live updates for project status, workload, and metrics
 - **Dark Theme**: Modern, responsive UI with dark mode
-- **Contracts**: Manage Statements of Work (SOWs) and Change Requests (CRs)
+- **Contracts & Docs**: Repository-managed workspace templates, client portal downloads, Drive ACL automation, and telemetry (see `docs/contracts-and-docs.md`)
 
 ## Prerequisites
 
@@ -46,6 +46,17 @@ A modern, dark-themed dashboard for managing software development projects, clie
    ```
 
 4. **Visit** [`localhost:4000`](http://localhost:4000)
+
+### Contracts & Docs
+
+- Workspace templates are defined in `priv/workspace_templates/**` and wired through the
+  blueprint config in `config/*.exs`. See `docs/contracts-and-docs.md` for the full playbook.
+- Drive/Notion artifacts are bootstrapped automatically during project/client creation and
+  can be regenerated from Projects → Contracts with per-section toggles.
+- Drive ACL automation runs whenever client assignments change and emits telemetry events
+  (`[:dashboard_ssd, :drive_acl, :sync]`, `[:dashboard_ssd, :documents, :download]`,
+  `[:dashboard_ssd, :documents, :visibility_toggle]`) so alerting rules can enforce
+  SC-001–SC-003.
 
 ## Development
 
@@ -134,3 +145,4 @@ MIT License - see [LICENSE](LICENSE) file.
 - [Phoenix Framework](https://www.phoenixframework.org/)
 - [Elixir Documentation](https://hexdocs.pm/elixir/)
 - [LiveView Guides](https://hexdocs.pm/phoenix_live_view/)
+- [Contracts & Docs Playbook](docs/contracts-and-docs.md)

@@ -2,12 +2,12 @@ defmodule DashboardSSD.DocumentsTest do
   use DashboardSSD.DataCase, async: true
 
   alias DashboardSSD.Accounts.User
+  alias DashboardSSD.Cache.SharedDocumentsCache
   alias DashboardSSD.Clients.Client
   alias DashboardSSD.Documents
   alias DashboardSSD.Documents.DocumentAccessLog
   alias DashboardSSD.Documents.SharedDocument
   alias DashboardSSD.Projects.Project
-  alias DashboardSSD.Cache.SharedDocumentsCache
 
   setup do
     SharedDocumentsCache.invalidate_listing(:all)

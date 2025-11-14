@@ -93,41 +93,16 @@ defmodule DashboardSSDWeb.ProjectsLive.Contracts do
     {:noreply, reset_bootstrap_form(socket)}
   end
 
-  def handle_event("submit_bootstrap_form", %{"project_id" => project_id} = params, socket) do
-    if socket.assigns.can_manage? do
-      project = Projects.get_project!(String.to_integer(project_id))
-
-      if Projects.drive_folder_configured?(project) do
-        sections = sanitize_sections(params["sections"], socket.assigns.available_sections)
-
-        if sections == [] do
-          {:noreply,
-           assign_bootstrap_error(socket, project, sections, "Select at least one section.")}
-        else
-          Documents.bootstrap_workspace(project, sections: sections)
-
-          {:noreply,
-           socket
-           |> put_flash(
-             :info,
-             bootstrap_flash(project, sections, socket.assigns.available_sections)
-           )
-           |> reset_bootstrap_form()}
-        end
-      else
-        {:noreply,
-         socket
-         |> put_flash(:error, "Project is missing a Drive folder.")
-         |> reset_bootstrap_form()}
-      end
-    else
-      {:noreply, socket}
-    end
+  def handle_event(
+        "submit_bootstrap_form",
+        %{"project_id" => project_id} = params,
+        %{assigns: %{can_manage?: true}} = socket
+      ) do
+    project = Projects.get_project!(String.to_integer(project_id))
+    {:noreply, process_bootstrap_form(socket, project, params)}
   end
 
-  def handle_event("submit_bootstrap_form", _params, socket) do
-    {:noreply, socket}
-  end
+  def handle_event("submit_bootstrap_form", _params, socket), do: {:noreply, socket}
 
   def handle_event("toggle_mobile_menu", _params, socket) do
     {:noreply, assign(socket, :mobile_menu_open, !socket.assigns.mobile_menu_open)}
@@ -414,6 +389,31 @@ defmodule DashboardSSDWeb.ProjectsLive.Contracts do
     |> Enum.filter(&MapSet.member?(allowed_ids, &1))
   end
 
+  defp process_bootstrap_form(socket, project, params) do
+    if Projects.drive_folder_configured?(project) do
+      sections = sanitize_sections(Map.get(params, "sections"), socket.assigns.available_sections)
+
+      case sections do
+        [] ->
+          assign_bootstrap_error(socket, project, sections, "Select at least one section.")
+
+        _ ->
+          Documents.bootstrap_workspace(project, sections: sections)
+
+          socket
+          |> put_flash(
+            :info,
+            bootstrap_flash(project, sections, socket.assigns.available_sections)
+          )
+          |> reset_bootstrap_form()
+      end
+    else
+      socket
+      |> put_flash(:error, "Project is missing a Drive folder.")
+      |> reset_bootstrap_form()
+    end
+  end
+
   defp sanitize_sections(values, sections) do
     allowed =
       sections
@@ -458,9 +458,8 @@ defmodule DashboardSSDWeb.ProjectsLive.Contracts do
     atom
     |> Atom.to_string()
     |> String.replace("_", " ")
-    |> String.split(" ")
-    |> Enum.map(&String.capitalize/1)
-    |> Enum.join(" ")
+    |> String.split(" ", trim: true)
+    |> Enum.map_join(" ", &String.capitalize/1)
   end
 
   defp bootstrap_flash(project, sections, available_sections) do

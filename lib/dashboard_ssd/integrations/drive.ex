@@ -220,9 +220,10 @@ defmodule DashboardSSD.Integrations.Drive do
     do: Map.put(body, :appProperties, props)
 
   defp maybe_put_email(body, type, email) when type in ["user", "group"] do
-    cond do
-      is_binary(email) and email != "" -> Map.put(body, :emailAddress, email)
-      true -> raise ArgumentError, "share_folder/3 requires email for type=#{type}"
+    if is_binary(email) and email != "" do
+      Map.put(body, :emailAddress, email)
+    else
+      raise ArgumentError, "share_folder/3 requires email for type=#{type}"
     end
   end
 

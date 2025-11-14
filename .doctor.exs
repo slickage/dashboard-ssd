@@ -1,6 +1,6 @@
 %Doctor.Config{
   ignore_modules: [],
-  ignore_paths: ["priv/", "assets/"],
+  ignore_paths: ["priv", "assets", "test"],
   min_module_doc_coverage: 80,
   min_module_spec_coverage: 80,
   min_overall_doc_coverage: 60,

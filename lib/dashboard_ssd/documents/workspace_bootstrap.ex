@@ -23,6 +23,11 @@ defmodule DashboardSSD.Documents.WorkspaceBootstrap do
     fetch_blueprint()
   end
 
+  @doc """
+  Bootstraps workspace sections for the given project using the configured blueprint.
+
+  The optional keyword list lets callers restrict the sections or swap Drive/Notion clients.
+  """
   @spec bootstrap(Project.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def bootstrap(%Project{} = project, opts \\ []) do
     with {:ok, blueprint} <- fetch_blueprint(),
@@ -119,6 +124,7 @@ defmodule DashboardSSD.Documents.WorkspaceBootstrap do
 
   defp resolve_sections(_, other), do: {:error, {:invalid_sections, other}}
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp load_template(%{template_path: path}) do
     case File.read(path) do
       {:ok, content} -> {:ok, content}
@@ -210,6 +216,7 @@ defmodule DashboardSSD.Documents.WorkspaceBootstrap.NotionClient do
 end
 
 defmodule DashboardSSD.Documents.WorkspaceBootstrap.NoopDriveClient do
+  @moduledoc false
   @behaviour DashboardSSD.Documents.WorkspaceBootstrap.DriveClient
 
   @impl true
@@ -221,6 +228,7 @@ defmodule DashboardSSD.Documents.WorkspaceBootstrap.NoopDriveClient do
 end
 
 defmodule DashboardSSD.Documents.WorkspaceBootstrap.NoopNotionClient do
+  @moduledoc false
   @behaviour DashboardSSD.Documents.WorkspaceBootstrap.NotionClient
 
   @impl true

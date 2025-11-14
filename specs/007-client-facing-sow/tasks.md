@@ -71,11 +71,11 @@ Parallel opportunities noted per task with `[P]`.
 
 ## Phase 6 – Telemetry, Docs & Cross-Cutting
 
-- [ ] T045 Instrument download latency metrics (SC-001) and expose dashboards/alerts in `lib/dashboard_ssd/telemetry.ex`
-- [ ] T046 Instrument Drive ACL propagation + staff toggle latency metrics (SC-002, SC-003) and add alert thresholds/Telemetry events
-- [ ] T047 Document new settings/flows (including open questions around approvals/uploads/notifications) in `docs/contracts-and-docs.md` and update `README.md` integrations section
-- [ ] T048 Add monitoring/alerts for Drive ACL failures + cache staleness counters in `lib/dashboard_ssd/telemetry.ex` (and related Observer configs)
-- [ ] T049 Run repo-wide quality gates (`mix format`, `mix credo`, `mix dialyzer`, `mix coveralls.ci`, `mix doctor`, `mix check`) from repository root
+- [X] T045 Instrument download latency metrics (SC-001) and expose dashboards/alerts in `lib/dashboard_ssd/telemetry.ex`
+- [X] T046 Instrument Drive ACL propagation + staff toggle latency metrics (SC-002, SC-003) and add alert thresholds/Telemetry events
+- [X] T047 Document new settings/flows (including open questions around approvals/uploads/notifications) in `docs/contracts-and-docs.md` and update `README.md` integrations section
+- [X] T048 Add monitoring/alerts for Drive ACL failures + cache staleness counters in `lib/dashboard_ssd/telemetry.ex` (and related Observer configs)
+- [X] T049 Run repo-wide quality gates (`mix format`, `mix credo`, `mix dialyzer`, `mix coveralls.ci`, `mix doctor`, `mix check`) from repository root
 
 ## Parallel Execution Examples
 

@@ -35,11 +35,7 @@ defmodule Mix.Tasks.SharedDocuments.Sync do
     {opts, _argv, invalid} = OptionParser.parse(args, switches: @switches, aliases: @aliases)
 
     if invalid != [] do
-      invalid_opts =
-        invalid
-        |> Enum.map(fn {opt, _} -> to_string(opt) end)
-        |> Enum.join(", ")
-
+      invalid_opts = Enum.map_join(invalid, ", ", fn {opt, _} -> to_string(opt) end)
       Mix.raise("Invalid option(s): #{invalid_opts}")
     end
 

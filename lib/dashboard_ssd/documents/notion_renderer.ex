@@ -5,6 +5,7 @@ defmodule DashboardSSD.Documents.NotionRenderer do
   alias DashboardSSD.Cache.SharedDocumentsCache
 
   defmodule RendererBehaviour do
+    @moduledoc false
     @callback render_html(String.t(), keyword()) :: {:ok, String.t()} | {:error, term()}
     @callback render_download(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   end
@@ -48,6 +49,7 @@ defmodule DashboardSSD.Documents.NotionRenderer do
   defp unwrap_payload(other), do: other
 
   defmodule NoopRenderer do
+    @moduledoc false
     @behaviour RendererBehaviour
 
     @impl true

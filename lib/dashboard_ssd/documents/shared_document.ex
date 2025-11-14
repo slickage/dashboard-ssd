@@ -9,8 +9,8 @@ defmodule DashboardSSD.Documents.SharedDocument do
   import Ecto.Changeset
 
   alias DashboardSSD.Clients.Client
-  alias DashboardSSD.Projects.Project
   alias DashboardSSD.Documents.DocumentAccessLog
+  alias DashboardSSD.Projects.Project
 
   @primary_key {:id, :binary_id, autogenerate: true}
 

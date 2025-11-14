@@ -12,6 +12,7 @@ defmodule DashboardSSD.Documents do
   alias DashboardSSD.Projects.DrivePermissionWorker
   alias DashboardSSD.Repo
   require Logger
+  @dialyzer {:nowarn_function, log_access: 4}
 
   @doc """
   Lists client-visible shared documents for the user's client scope.
@@ -74,31 +75,37 @@ defmodule DashboardSSD.Documents do
   @spec update_document_settings(SharedDocument.t() | Ecto.UUID.t(), map(), User.t() | nil) ::
           {:ok, SharedDocument.t()} | {:error, term()}
   def update_document_settings(document_or_id, attrs, actor \\ nil) do
-    Repo.transaction(fn ->
-      doc =
-        case document_or_id do
-          %SharedDocument{} = doc -> Repo.preload(doc, :project)
-          id -> Repo.get!(SharedDocument, id) |> Repo.preload(:project)
+    start_time = System.monotonic_time()
+
+    result =
+      Repo.transaction(fn ->
+        doc =
+          case document_or_id do
+            %SharedDocument{} = doc -> Repo.preload(doc, :project)
+            id -> Repo.get!(SharedDocument, id) |> Repo.preload(:project)
+          end
+
+        case Repo.update(SharedDocument.changeset(doc, attrs)) do
+          {:ok, updated} ->
+            SharedDocumentsCache.invalidate_listing(:all)
+            SharedDocumentsCache.invalidate_download(updated.id)
+
+            _ =
+              log_access(updated, actor, :visibility_changed, %{
+                visibility: updated.visibility,
+                client_edit_allowed: updated.client_edit_allowed
+              })
+
+            maybe_update_drive_acl(updated)
+            updated
+
+          {:error, reason} ->
+            Repo.rollback(reason)
         end
+      end)
 
-      case Repo.update(SharedDocument.changeset(doc, attrs)) do
-        {:ok, updated} ->
-          SharedDocumentsCache.invalidate_listing(:all)
-          SharedDocumentsCache.invalidate_download(updated.id)
-
-          _ =
-            log_access(updated, actor, :visibility_changed, %{
-              visibility: updated.visibility,
-              client_edit_allowed: updated.client_edit_allowed
-            })
-
-          maybe_update_drive_acl(updated)
-          updated
-
-        {:error, reason} ->
-          Repo.rollback(reason)
-      end
-    end)
+    emit_visibility_toggle_telemetry(start_time, actor, result)
+    result
   end
 
   @doc """
@@ -119,16 +126,20 @@ defmodule DashboardSSD.Documents do
   Records an access log entry for the given document/user/action.
   """
   @spec log_access(SharedDocument.t(), User.t() | nil, atom(), map()) ::
-          {:ok, DocumentAccessLog.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, DocumentAccessLog.t()}
+          | {:error, Ecto.Changeset.t()}
+          | {:error, :invalid_document}
   def log_access(document, user, action, context \\ %{})
 
-  def log_access(%SharedDocument{} = document, user, action, context) do
-    attrs = %{
-      shared_document_id: document.id,
-      actor_id: user && user.id,
-      action: action,
-      context: context
-    }
+  def log_access(%SharedDocument{} = document, user, action, context) when is_map(context) do
+    attrs =
+      %{
+        shared_document_id: document.id,
+        actor_id: user && user.id,
+        action: action,
+        context: context
+      }
+      |> Map.new()
 
     %DocumentAccessLog{}
     |> DocumentAccessLog.changeset(attrs)
@@ -155,9 +166,8 @@ defmodule DashboardSSD.Documents do
           :ok
 
         {:error, reason} ->
-          Logger.warning("Workspace bootstrap failed",
-            reason: inspect(reason),
-            project_id: Map.get(project, :id)
+          Logger.warning(
+            "Workspace bootstrap failed for project #{Map.get(project, :id)}: #{inspect(reason)}"
           )
       end
     end)
@@ -213,4 +223,39 @@ defmodule DashboardSSD.Documents do
   end
 
   defp maybe_update_drive_acl(_), do: :ok
+
+  defp emit_visibility_toggle_telemetry(start_time, actor, {:ok, %SharedDocument{} = doc}) do
+    duration = System.monotonic_time() - start_time
+
+    metadata = %{
+      status: :ok,
+      document_id: doc.id,
+      client_id: doc.client_id,
+      project_id: doc.project_id,
+      visibility: doc.visibility,
+      actor_id: actor && actor.id
+    }
+
+    :telemetry.execute(
+      [:dashboard_ssd, :documents, :visibility_toggle],
+      %{duration: duration},
+      metadata
+    )
+  end
+
+  defp emit_visibility_toggle_telemetry(start_time, actor, {:error, reason}) do
+    duration = System.monotonic_time() - start_time
+
+    metadata = %{
+      status: :error,
+      actor_id: actor && actor.id,
+      error: inspect(reason)
+    }
+
+    :telemetry.execute(
+      [:dashboard_ssd, :documents, :visibility_toggle],
+      %{duration: duration},
+      metadata
+    )
+  end
 end

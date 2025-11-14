@@ -4,11 +4,11 @@ defmodule DashboardSSDWeb.ClientsLive.ContractsTest do
   import Phoenix.LiveViewTest
 
   alias DashboardSSD.Accounts
+  alias DashboardSSD.Cache.SharedDocumentsCache
   alias DashboardSSD.Clients
   alias DashboardSSD.Documents
   alias DashboardSSD.Documents.SharedDocument
   alias DashboardSSD.Projects.Project
-  alias DashboardSSD.Cache.SharedDocumentsCache
   alias DashboardSSD.Repo
 
   setup do

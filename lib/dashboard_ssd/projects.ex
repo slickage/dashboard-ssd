@@ -8,12 +8,12 @@ defmodule DashboardSSD.Projects do
   """
   import Ecto.Query
   alias DashboardSSD.Accounts
+  alias DashboardSSD.Cache.SharedDocumentsCache
   alias DashboardSSD.Clients
   alias DashboardSSD.Documents
   alias DashboardSSD.Documents.SharedDocument
   alias DashboardSSD.Integrations
   alias DashboardSSD.Integrations.LinearUtils
-  alias DashboardSSD.Cache.SharedDocumentsCache
 
   alias DashboardSSD.Projects.{
     CacheStore,
@@ -189,7 +189,8 @@ defmodule DashboardSSD.Projects do
   Shares Drive folders for all projects associated with the user's assigned client.
   """
   @spec sync_drive_permissions_for_user(map()) :: :ok
-  def sync_drive_permissions_for_user(%{client_id: client_id} = user) when is_integer(client_id) do
+  def sync_drive_permissions_for_user(%{client_id: client_id} = user)
+      when is_integer(client_id) do
     list_projects_by_client(client_id)
     |> Enum.each(&maybe_grant_project_access(&1, user))
 
@@ -236,7 +237,10 @@ defmodule DashboardSSD.Projects do
 
   defp maybe_grant_project_access(_, _), do: :ok
 
-  defp maybe_revoke_project_access(%{drive_folder_id: folder_id} = project, %{email: email} = user)
+  defp maybe_revoke_project_access(
+         %{drive_folder_id: folder_id} = project,
+         %{email: email} = user
+       )
        when is_binary(folder_id) and folder_id != "" and is_binary(email) and email != "" do
     docs = drive_documents_for_project(project.id)
     role = permission_role_for_docs(docs)
@@ -253,8 +257,7 @@ defmodule DashboardSSD.Projects do
 
   defp drive_documents_for_project(project_id) do
     from(sd in SharedDocument,
-      where:
-        sd.project_id == ^project_id and sd.visibility == :client and sd.source == :drive
+      where: sd.project_id == ^project_id and sd.visibility == :client and sd.source == :drive
     )
     |> Repo.all()
   end

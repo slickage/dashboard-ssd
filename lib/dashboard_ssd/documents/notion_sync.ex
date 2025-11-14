@@ -9,6 +9,9 @@ defmodule DashboardSSD.Documents.NotionSync do
 
   @event [:dashboard_ssd, :documents, :notion_sync, :result]
 
+  @doc """
+  Upserts Notion-backed documents into `shared_documents`.
+  """
   @spec sync([map()]) ::
           {:ok, %{inserted: non_neg_integer(), updated: non_neg_integer()}} | {:error, term()}
   def sync(remote_pages) when is_list(remote_pages) do
@@ -32,8 +35,12 @@ defmodule DashboardSSD.Documents.NotionSync do
         {:ok, counts}
 
       {:error, reason} ->
-        emit(:error, %{inserted: 0, updated: 0}, remote_pages, start_time,
-          reason: inspect(reason)
+        emit(
+          :error,
+          %{inserted: 0, updated: 0},
+          remote_pages,
+          start_time,
+          %{reason: inspect(reason)}
         )
 
         {:error, reason}
@@ -74,7 +81,9 @@ defmodule DashboardSSD.Documents.NotionSync do
     stale_pct = stale_percentage(remote_pages)
 
     if stale_pct > 0.02 do
-      Logger.warning("Notion sync stale percentage above threshold", stale_pct: stale_pct)
+      Logger.warning(
+        "Notion sync stale percentage above threshold (#{Float.round(stale_pct * 100, 2)}%)"
+      )
     end
 
     measurements = %{duration: duration, stale_pct: stale_pct}

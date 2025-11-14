@@ -41,7 +41,14 @@ defmodule DashboardSSD.Documents.DriveSync do
         {:ok, counts}
 
       {:error, reason} ->
-        emit(:error, %{inserted: 0, updated: 0}, remote_docs, start_time, reason: inspect(reason))
+        emit(
+          :error,
+          %{inserted: 0, updated: 0},
+          remote_docs,
+          start_time,
+          %{reason: inspect(reason)}
+        )
+
         {:error, reason}
     end
   end
@@ -80,7 +87,9 @@ defmodule DashboardSSD.Documents.DriveSync do
     stale_pct = stale_percentage(remote_docs)
 
     if stale_pct > 0.02 do
-      Logger.warning("Drive sync stale percentage above threshold", stale_pct: stale_pct)
+      Logger.warning(
+        "Drive sync stale percentage above threshold (#{Float.round(stale_pct * 100, 2)}%)"
+      )
     end
 
     measurements = %{duration: duration, stale_pct: stale_pct}

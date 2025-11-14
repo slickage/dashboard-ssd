@@ -48,7 +48,13 @@ defmodule DashboardSSD.Projects.DrivePermissionWorkerTest do
       %Tesla.Env{method: :get, url: url} = env ->
         assert String.contains?(url, "/files/folder-abc/permissions")
 
-        %{env | status: 200, body: %{"permissions" => [%{"id" => "perm-9", "emailAddress" => "client@example.com"}]}}
+        %{
+          env
+          | status: 200,
+            body: %{
+              "permissions" => [%{"id" => "perm-9", "emailAddress" => "client@example.com"}]
+            }
+        }
 
       %Tesla.Env{method: :delete, url: url} = env ->
         assert String.contains?(url, "/files/folder-abc/permissions/perm-9")
