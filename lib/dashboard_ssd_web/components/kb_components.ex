@@ -1,6 +1,10 @@
 defmodule DashboardSSDWeb.KbComponents do
   @moduledoc """
   Function components used by the Knowledge Base experience.
+
+    - Renders collection/document navigation lists and action menus for the KB.
+  - Provides icon helpers that gracefully handle SVGs, remote images, and emoji fallbacks.
+  - Wraps CodeHighlighter to display Notion code blocks inside LiveView templates.
   """
 
   use DashboardSSDWeb, :html

@@ -1,6 +1,10 @@
 defmodule DashboardSSD.KnowledgeBase.Activity do
   @moduledoc """
   Persists and retrieves knowledge base activity (e.g., recently viewed documents).
+
+    - Records KB view events into the audits table with normalized metadata.
+  - Provides recent-document lookup utilities for user dashboards.
+  - Handles metadata normalization and guards against DB connection errors.
   """
 
   import Ecto.Query

@@ -4,6 +4,10 @@ defmodule DashboardSSD.KnowledgeBase.CacheStore do
 
   Keeps the namespace and TTL defaults in one place so call sites remain
   focused on domain logic.
+
+    - Namespaces KB cache entries to avoid collisions with other contexts.
+  - Provides convenience wrappers for `fetch/get/put/delete` with sensible TTLs.
+  - Exposes `flush/reset` helpers used by cache warmers and tests.
   """
 
   alias DashboardSSD.Cache

@@ -1,6 +1,10 @@
 defmodule DashboardSSD.Auth.Policy do
   @moduledoc """
   Simple RBAC policy checks.
+
+    - Maps action/subject pairs to capability codes required for access.
+  - Provides `can?/3` helper used across controllers, LiveViews, and components.
+  - Grants admins a fallback allow for unmapped actions to avoid self-lockout.
   """
   alias DashboardSSD.Accounts
   alias DashboardSSD.Accounts.User

@@ -1,6 +1,10 @@
 defmodule DashboardSSD.Auth.Capabilities do
   @moduledoc """
   Canonical capability catalog used for RBAC decisions and admin configuration.
+
+    - Defines the list of capability codes, labels, and descriptions shown in settings.
+  - Provides default role assignments used for seeding and reset actions.
+  - Exposes helper functions (`valid?/1`, `default_assignments/0`, etc.) for guards.
   """
 
   @capabilities [

@@ -1,5 +1,11 @@
 defmodule DashboardSSD.Deployments.HealthCheck do
-  @moduledoc "Historical production health check status for a project."
+  @moduledoc """
+  Historical production health check status for a project.
+
+    - Records uptime/health outcomes that analytics and dashboards consume.
+  - Validates association to a project and required status via the changeset.
+  - Keeps timestamps for chronological analysis of health events.
+  """
   use Ecto.Schema
   import Ecto.Changeset
   alias Ecto.Changeset

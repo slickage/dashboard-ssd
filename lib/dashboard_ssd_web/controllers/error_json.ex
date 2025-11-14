@@ -2,6 +2,10 @@ defmodule DashboardSSDWeb.ErrorJSON do
   @moduledoc """
   This module is invoked by your endpoint in case of errors on JSON requests.
 
+    - Produces consistent JSON error payloads for API/LiveView endpoints.
+  - Allows per-status overrides should we author custom JSON templates later.
+  - Uses Phoenix status messages to keep responses aligned with HTTP semantics.
+
   See config/config.exs.
   """
 

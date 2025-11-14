@@ -1,5 +1,11 @@
 defmodule DashboardSSDWeb.Plugs.Authorize do
-  @moduledoc "Authorization plug enforcing Policy.can?/3 on a route."
+  @moduledoc """
+  Authorization plug enforcing `Policy.can?/3` on a route.
+
+    - Initializes action/subject pairs for capability checks in controllers.
+  - Halts the connection with a 403 when the current user lacks access.
+  - Keeps RBAC enforcement close to router/controller pipelines.
+  """
   import Plug.Conn
   alias DashboardSSD.Auth.Policy
 

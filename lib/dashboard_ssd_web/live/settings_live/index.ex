@@ -1,5 +1,11 @@
 defmodule DashboardSSDWeb.SettingsLive.Index do
-  @moduledoc "Settings page for viewing and connecting external integrations."
+  @moduledoc """
+  Settings page for viewing and connecting external integrations.
+
+    - Surfaces personal settings, RBAC management, and integration connection status.
+  - Manages invites, user role/client assignments, and Linear linking workflows.
+  - Enforces capability gates so only authorized users see RBAC/user-management controls.
+  """
   use DashboardSSDWeb, :live_view
 
   alias DashboardSSD.Accounts
@@ -260,6 +266,7 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
                   <th>{gettext("Email")}</th>
                   <th>{gettext("Role")}</th>
                   <th>{gettext("Client")}</th>
+                  <th>{gettext("Linear user")}</th>
                   <th class="w-32 text-right">{gettext("Action")}</th>
                 </tr>
               </thead>
@@ -306,6 +313,33 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
                           </option>
                         <% end %>
                       </select>
+                    </td>
+                    <td>
+                      <select
+                        name="linear_user_id"
+                        form={form_id}
+                        class="w-full rounded-lg border border-theme-border bg-theme-surface px-3 py-2 text-sm text-theme-text focus:border-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-opacity-25"
+                        disabled={@linear_roster == []}
+                      >
+                        <option value="">
+                          {blank_linear_option_label(user, @linear_roster)}
+                        </option>
+                        <%= for {label, linear_id} <- linear_user_options(@linear_roster, user) do %>
+                          <option
+                            value={linear_id}
+                            selected={
+                              user.linear_user_link &&
+                                user.linear_user_link.linear_user_id == linear_id
+                            }
+                          >
+                            {label}
+                          </option>
+                        <% end %>
+                      </select>
+
+                      <%= if info = linear_link_badge(user) do %>
+                        <p class="mt-1 text-xs text-theme-text-muted">{info}</p>
+                      <% end %>
                     </td>
                     <td class="text-right">
                       <button
@@ -517,6 +551,8 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
     |> assign(:users, [])
     |> assign(:roles, Accounts.list_roles())
     |> assign(:user_clients, Clients.list_clients())
+    |> assign(:linear_roster, [])
+    |> assign(:linear_member_lookup, %{})
     |> assign(:pending_invites, [])
     |> assign(:used_invites, [])
     |> assign(:invite_form, invite_form())
@@ -525,11 +561,14 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
   defp assign_user_management(socket) do
     invites = Accounts.list_user_invites()
     {pending, used} = Enum.split_with(invites, &is_nil(&1.used_at))
+    linear_roster = Accounts.linear_roster_with_links()
 
     socket
     |> assign(:users, Accounts.list_users_with_details())
     |> assign(:roles, Accounts.list_roles())
     |> assign(:user_clients, Clients.list_clients())
+    |> assign(:linear_roster, linear_roster)
+    |> assign(:linear_member_lookup, build_linear_member_lookup(linear_roster))
     |> assign(:pending_invites, pending)
     |> assign(:used_invites, used)
     |> assign(:invite_form, invite_form())
@@ -623,15 +662,17 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
   @impl true
   def handle_event(
         "update_user",
-        %{"user_id" => user_id, "role" => role, "client_id" => client_id},
+        %{"user_id" => user_id, "role" => role, "client_id" => client_id} = params,
         %{assigns: %{rbac_enabled?: true}} = socket
       ) do
     client_id = normalize_form_client_id(client_id)
+    linear_user_id = normalize_linear_user_id(Map.get(params, "linear_user_id"))
 
     case Accounts.update_user_role_and_client(user_id, role, client_id) do
       {:ok, _user} ->
         {:noreply,
          socket
+         |> maybe_update_linear_link(user_id, linear_user_id)
          |> assign_user_management()
          |> put_flash(:info, gettext("User updated."))}
 
@@ -727,6 +768,18 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
   defp normalize_form_client_id(value) when is_integer(value), do: value
   defp normalize_form_client_id(_), do: nil
 
+  defp normalize_linear_user_id(nil), do: nil
+  defp normalize_linear_user_id(""), do: nil
+
+  defp normalize_linear_user_id(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp normalize_linear_user_id(value), do: normalize_linear_user_id(to_string(value))
+
   defp role_options(roles) do
     Enum.map(roles, &{&1.name, &1.name})
   end
@@ -734,6 +787,42 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
   defp client_options(clients) do
     Enum.map(clients, &{&1.name, &1.id})
   end
+
+  defp linear_user_options(roster, user) do
+    roster
+    |> Enum.filter(fn
+      %{member: %{linear_user_id: nil}} -> false
+      %{link: nil} -> true
+      %{link: %{user_id: user_id}} -> user.id == user_id
+    end)
+    |> Enum.map(fn %{member: member} -> {linear_member_label(member), member.linear_user_id} end)
+    |> Enum.sort_by(&elem(&1, 0))
+  end
+
+  defp linear_member_label(member) do
+    cond do
+      member.display_name && member.email ->
+        "#{member.display_name} (#{member.email})"
+
+      member.display_name ->
+        member.display_name
+
+      member.name ->
+        member.name
+
+      true ->
+        member.linear_user_id
+    end
+  end
+
+  defp blank_linear_option_label(_user, []), do: gettext("Sync Linear to link users")
+
+  defp blank_linear_option_label(%{linear_user_link: %{}}, _roster),
+    do: gettext("Unlink Linear user")
+
+  defp blank_linear_option_label(_user, _roster), do: gettext("Not linked")
+
+  defp linear_link_badge(_), do: nil
 
   defp invite_form(attrs \\ %{}, opts \\ []) do
     validate? = Keyword.get(opts, :validate, false)
@@ -792,4 +881,85 @@ defmodule DashboardSSDWeb.SettingsLive.Index do
     do: gettext("Please provide a valid email address.")
 
   defp invite_error_message(other), do: inspect(other)
+
+  defp maybe_update_linear_link(socket, user_id_param, nil) do
+    case coerce_user_id_param(user_id_param) do
+      {:ok, user_id} -> Accounts.unlink_linear_user(user_id)
+      :error -> :ok
+    end
+
+    socket
+  end
+
+  defp maybe_update_linear_link(socket, user_id_param, linear_user_id) do
+    case coerce_user_id_param(user_id_param) do
+      {:ok, user_id} ->
+        if socket.assigns.linear_roster == [] do
+          put_flash(
+            socket,
+            :error,
+            gettext("Linear isn't synced yet. Connect Linear to link users.")
+          )
+        else
+          update_linear_link(socket, user_id, linear_user_id)
+        end
+
+      :error ->
+        socket
+    end
+  end
+
+  defp update_linear_link(socket, user_id, linear_user_id) do
+    lookup = socket.assigns[:linear_member_lookup] || %{}
+
+    case Map.get(lookup, linear_user_id) do
+      nil ->
+        put_flash(
+          socket,
+          :error,
+          gettext("Selected Linear user is no longer available. Refresh and try again.")
+        )
+
+      member ->
+        attrs = %{
+          linear_user_id: linear_user_id,
+          linear_email: member.email,
+          linear_name: member.name,
+          linear_display_name: member.display_name || member.name,
+          linear_avatar_url: member.avatar_url,
+          auto_linked: false
+        }
+
+        case Accounts.upsert_linear_user_link(user_id, attrs) do
+          {:ok, _} ->
+            socket
+
+          {:error, changeset} ->
+            put_flash(socket, :error, changeset_errors_to_string(changeset))
+        end
+    end
+  end
+
+  defp coerce_user_id_param(value) when is_integer(value) and value >= 0,
+    do: {:ok, value}
+
+  defp coerce_user_id_param(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {int, ""} when int >= 0 -> {:ok, int}
+      _ -> :error
+    end
+  end
+
+  defp coerce_user_id_param(_), do: :error
+
+  defp build_linear_member_lookup(roster) do
+    roster
+    |> Enum.reduce(%{}, fn %{member: member}, acc ->
+      case member.linear_user_id do
+        nil -> acc
+        "" -> acc
+        id -> Map.put(acc, id, member)
+      end
+    end)
+  end
 end

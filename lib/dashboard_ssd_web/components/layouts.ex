@@ -2,6 +2,10 @@ defmodule DashboardSSDWeb.Layouts do
   @moduledoc """
   This module holds different layouts used by your application.
 
+    - Embeds Phoenix HEEx layout templates and exposes helpers shared across them.
+  - Provides dynamic header/action helpers used in marketing and authenticated shells.
+  - Surfaces utility functions (version info, user initials) for layout rendering.
+
   See the `layouts` directory for all templates available.
   The "root" layout is a skeleton rendered as part of the
   application router. The "app" layout is set as the default

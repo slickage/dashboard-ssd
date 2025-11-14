@@ -5,6 +5,10 @@ defmodule DashboardSSD.Integrations.Notion do
   Provides convenience wrappers around Notion's search, database query, and block
   retrieval endpoints with retry and rudimentary circuit-breaker support to
   respect upstream rate limits.
+
+    - Implements the `Notion.Behaviour` callbacks used by the Knowledge Base.
+  - Wraps Tesla with retries, backoff, and circuit-breaker protection.
+  - Supplies helper functions for searching, retrieving pages, and fetching blocks/databases.
   """
 
   @behaviour DashboardSSD.Integrations.Notion.Behaviour

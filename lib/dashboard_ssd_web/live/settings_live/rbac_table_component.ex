@@ -1,5 +1,11 @@
 defmodule DashboardSSDWeb.SettingsLive.RbacTableComponent do
-  @moduledoc "LiveComponent for displaying and editing role capability assignments."
+  @moduledoc """
+  LiveComponent for displaying and editing role capability assignments.
+
+    - Renders the RBAC matrix showing which capabilities are granted per role.
+  - Emits form events so the parent LiveView can persist capability changes/reset defaults.
+  - Locks immutable capabilities (like required admin permissions) to prevent misuse.
+  """
   use DashboardSSDWeb, :live_component
 
   attr :roles, :list, required: true

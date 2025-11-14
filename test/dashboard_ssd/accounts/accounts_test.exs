@@ -295,7 +295,7 @@ end
 defmodule DashboardSSD.AccountsGetUserTest do
   use DashboardSSD.DataCase, async: false
 
-  alias DashboardSSD.Accounts
+  alias DashboardSSD.{Accounts, Clients}
 
   test "get_user!/1 returns the user" do
     role = Accounts.ensure_role!("employee")
@@ -362,6 +362,36 @@ defmodule DashboardSSD.AccountsGetUserTest do
     assert {:error, :user_not_found} = Accounts.switch_user_role("missing@example.com", "client")
   end
 
+  test "switch_user_role updates role when struct provided" do
+    employee_role = Accounts.ensure_role!("employee")
+    Accounts.ensure_role!("client")
+
+    {:ok, user} =
+      Accounts.create_user(%{
+        email: "switch-struct@example.com",
+        name: "Switch Struct",
+        role_id: employee_role.id
+      })
+
+    {:ok, updated} = Accounts.switch_user_role(user, "client")
+    assert updated.role.name == "client"
+  end
+
+  test "switch_user_role accepts integer id" do
+    employee_role = Accounts.ensure_role!("employee")
+    Accounts.ensure_role!("client")
+
+    {:ok, user} =
+      Accounts.create_user(%{
+        email: "switch-id@example.com",
+        name: "Switch ID",
+        role_id: employee_role.id
+      })
+
+    {:ok, updated} = Accounts.switch_user_role(user.id, "client")
+    assert updated.role.name == "client"
+  end
+
   test "upsert_user_with_identity assigns admin role to first user" do
     # Clear all users and roles to test first user logic
     DashboardSSD.Repo.delete_all(DashboardSSD.Accounts.User)
@@ -381,5 +411,41 @@ defmodule DashboardSSD.AccountsGetUserTest do
     # Preload the role association
     user = DashboardSSD.Repo.preload(user, :role)
     assert user.role.name == "admin"
+  end
+
+  describe "update_user_role_and_client/3" do
+    test "updates by numeric id and assigns client" do
+      admin_role = Accounts.ensure_role!("admin")
+      client_role = Accounts.ensure_role!("client")
+      client = Clients.ensure_client!("Coverage Corp")
+
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "numeric-user@example.com",
+          name: "Numeric User",
+          role_id: admin_role.id
+        })
+
+      {:ok, updated} = Accounts.update_user_role_and_client(user.id, "client", client.id)
+      assert updated.role.name == client_role.name
+      assert updated.client_id == client.id
+    end
+
+    test "accepts email identifier when parsing fails" do
+      employee_role = Accounts.ensure_role!("employee")
+
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "email-identifier@example.com",
+          name: "Email Identifier",
+          role_id: employee_role.id
+        })
+
+      {:ok, updated} =
+        Accounts.update_user_role_and_client(user.email, "employee", nil)
+
+      assert updated.role.name == "employee"
+      assert updated.client_id == nil
+    end
   end
 end

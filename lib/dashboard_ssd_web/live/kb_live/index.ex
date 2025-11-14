@@ -1,5 +1,11 @@
 defmodule DashboardSSDWeb.KbLive.Index do
-  @moduledoc "Knowledge base search powered by Notion."
+  @moduledoc """
+  Knowledge base search powered by Notion.
+
+    - Enforces KB read permissions and bootstraps cached collection metadata.
+  - Integrates with Notion search APIs plus local cache stores for fast browsing.
+  - Tracks recent views, document reading state, and activity logging for audit trails.
+  """
   use DashboardSSDWeb, :live_view
 
   require Logger

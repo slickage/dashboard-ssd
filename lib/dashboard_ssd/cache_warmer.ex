@@ -7,6 +7,10 @@ defmodule DashboardSSD.CacheWarmer do
   `DashboardSSD.KnowledgeBase.CacheStore` and primes Linear summaries via the
   projects context. It runs on a configurable interval and skips work in the
   test environment.
+
+    - Boots a GenServer responsible for recurring warm-up passes.
+  - Sequentially hydrates knowledge-base collections, workflow states, and Linear summaries.
+  - Emits lightweight timing logs so operators can monitor warm-up performance.
   """
   use GenServer
 

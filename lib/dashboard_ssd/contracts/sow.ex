@@ -1,5 +1,11 @@
 defmodule DashboardSSD.Contracts.SOW do
-  @moduledoc "Statement of Work (SOW) metadata and association to a project."
+  @moduledoc """
+  Statement of Work (SOW) metadata and association to a project.
+
+    - Tracks Drive documents representing Statements of Work per project.
+  - Validates required attributes before persistence via its changeset.
+  - Supports Contracts context queries when listing or updating SOWs.
+  """
   use Ecto.Schema
   import Ecto.Changeset
   alias Ecto.Changeset

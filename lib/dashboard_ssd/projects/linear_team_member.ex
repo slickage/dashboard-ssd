@@ -1,5 +1,11 @@
 defmodule DashboardSSD.Projects.LinearTeamMember do
-  @moduledoc "Ecto schema storing Linear team member metadata captured during sync."
+  @moduledoc """
+  Ecto schema storing Linear team member metadata captured during sync.
+
+    - Persists Linear user metadata used for linking and workload summaries.
+  - Provides JSON serialization for downstream UI components.
+  - Simplifies associations to projects when rendering team information.
+  """
   use Ecto.Schema
 
   @primary_key {:id, :binary_id, autogenerate: true}

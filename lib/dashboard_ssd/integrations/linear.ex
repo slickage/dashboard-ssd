@@ -1,5 +1,11 @@
 defmodule DashboardSSD.Integrations.Linear do
-  @moduledoc "Basic Linear API client (GraphQL)."
+  @moduledoc """
+  Basic Linear API client (GraphQL).
+
+    - Configures a Tesla client for Linear’s GraphQL endpoint.
+  - Handles authorization headers (API key without `Bearer`) automatically.
+  - Normalizes HTTP responses into `{:ok, body}` or `{:error, reason}` tuples.
+  """
   use Tesla
 
   @base "https://api.linear.app"

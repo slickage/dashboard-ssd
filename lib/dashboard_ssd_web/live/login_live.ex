@@ -1,5 +1,11 @@
 defmodule DashboardSSDWeb.LoginLive do
-  @moduledoc "Login page with Google OAuth authentication."
+  @moduledoc """
+  Login page with Google OAuth authentication.
+
+    - Redirects authenticated users away from the login page.
+  - Captures desired post-auth redirects and feeds them into the OAuth request.
+  - Triggers the OAuth popup via LiveView events for a smooth UX.
+  """
   use DashboardSSDWeb, :live_view
 
   @impl true

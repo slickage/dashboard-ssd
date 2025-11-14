@@ -2,6 +2,10 @@ defmodule DashboardSSDWeb.ErrorHTML do
   @moduledoc """
   This module is invoked by your endpoint in case of errors on HTML requests.
 
+    - Serves fallback HTML error pages when Phoenix encounters exceptions or 404s.
+  - Provides hooks for embedding HEEx templates if customized views are desired.
+  - Delegates to Phoenix status helpers to keep error responses terse and accurate.
+
   See config/config.exs.
   """
   use DashboardSSDWeb, :html

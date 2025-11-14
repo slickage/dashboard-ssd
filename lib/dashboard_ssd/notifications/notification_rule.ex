@@ -1,5 +1,11 @@
 defmodule DashboardSSD.Notifications.NotificationRule do
-  @moduledoc "Notification rule defining when and where to send alerts."
+  @moduledoc """
+  Notification rule defining when and where to send alerts.
+
+    - Stores per-project routing rules (event type + channel).
+  - Validates required fields and maintains project foreign keys.
+  - Supplies JSON serialization for UI/API surfaces.
+  """
   use Ecto.Schema
   import Ecto.Changeset
   alias Ecto.Changeset

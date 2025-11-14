@@ -1,6 +1,10 @@
 defmodule DashboardSSD.Clients do
   @moduledoc """
   Clients context: manage client records.
+
+    - Publishes CRUD operations for client entities (list, search, create, update, delete).
+  - Provides scoped helpers (`list_clients_for_user/1`, `search_clients_for_user/2`) that respect RBAC.
+  - Broadcasts PubSub events so LiveViews and background jobs can react to client changes.
   """
   import Ecto.Query, warn: false
   alias DashboardSSD.Clients.Client

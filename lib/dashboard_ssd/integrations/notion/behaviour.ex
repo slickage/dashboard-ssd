@@ -1,6 +1,10 @@
 defmodule DashboardSSD.Integrations.Notion.Behaviour do
   @moduledoc """
   Behaviour definition for the Notion integration client to enable test stubbing.
+
+    - Declares callback signatures consumed by `DashboardSSD.Integrations.Notion`.
+  - Allows Mox/Test stubs to implement the behaviour in tests.
+  - Documents the expected shape for tokens/options/responses.
   """
 
   @type token :: String.t()

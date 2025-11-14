@@ -1,5 +1,11 @@
 defmodule DashboardSSDWeb.Router do
-  @moduledoc "Application router defining pipelines, live_sessions and routes."
+  @moduledoc """
+  Application router defining pipelines, live_sessions and routes.
+
+    - Configures browser/API pipelines with security headers, session, and auth plugs.
+  - Defines public and authenticated LiveView sessions plus controller routes.
+  - Exposes RBAC-protected API endpoints and opt-in dev/protected scopes.
+  """
   use DashboardSSDWeb, :router
   alias Plug.Conn
 

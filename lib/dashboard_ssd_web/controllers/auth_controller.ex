@@ -1,6 +1,10 @@
 defmodule DashboardSSDWeb.AuthController do
   @moduledoc """
   Handles Google OAuth sign-in/sign-out via Ueberauth and session management.
+
+    - Initiates the Ueberauth request phase and processes callbacks (success/failure).
+  - Enforces domain restrictions, invite application, and role bootstrapping on login.
+  - Manages user sessions (renewals, redirects) and logout flows.
   """
   use DashboardSSDWeb, :controller
   alias DashboardSSD.Accounts

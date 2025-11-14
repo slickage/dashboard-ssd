@@ -1,8 +1,11 @@
 defmodule DashboardSSD.Application do
-  # See https://hexdocs.pm/elixir/Application.html
-  # for more information on OTP Applications
-  @moduledoc false
+  @moduledoc """
+  OTP application callback responsible for bootstrapping the supervision tree.
 
+    - Starts shared infrastructure such as Repo, PubSub, Vault, Finch, and background schedulers.
+  - Guards optional workers (health checks, analytics, knowledge-base warmers) behind env/config toggles.
+  - Propagates configuration changes to `DashboardSSDWeb.Endpoint` on hot upgrades.
+  """
   use Application
 
   @impl true

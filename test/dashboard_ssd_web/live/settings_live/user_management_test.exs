@@ -6,6 +6,7 @@ defmodule DashboardSSDWeb.SettingsLive.UserManagementTest do
   alias DashboardSSD.Accounts
   alias DashboardSSD.Auth.Capabilities
   alias DashboardSSD.Clients
+  alias DashboardSSD.Projects.LinearTeamMember
   alias DashboardSSD.Repo
 
   setup do
@@ -174,5 +175,20 @@ defmodule DashboardSSDWeb.SettingsLive.UserManagementTest do
 
     assert html =~ "No settings available"
     refute html =~ "Invite people"
+  end
+
+  test "linear roster options render when members are available", %{conn: conn} do
+    Repo.insert!(%LinearTeamMember{
+      linear_team_id: "team-1",
+      linear_user_id: "lin_ui",
+      name: "Linear User",
+      display_name: "Linear User",
+      email: "linear@example.com"
+    })
+
+    {:ok, _view, html} = live(conn, ~p"/settings")
+
+    assert html =~ "Linear User (linear@example.com)"
+    assert html =~ ~s(value="lin_ui")
   end
 end

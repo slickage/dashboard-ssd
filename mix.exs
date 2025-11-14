@@ -68,7 +68,8 @@ defmodule DashboardSSD.MixProject do
           "specs/001-dashboard-init/tasks.md": [title: "001 MVP Tasks"],
           "specs/002-theme/tasks.md": [title: "002 Theme Tasks"],
           "specs/003-prepare-this-repo/tasks.md": [title: "003 Prepare Repo Tasks"],
-          "specs/004-enhance-the-existing/tasks.md": [title: "004 Enhance Existing Tasks"]
+          "specs/004-enhance-the-existing/tasks.md": [title: "004 Enhance Existing Tasks"],
+          "specs/006-simplify-rbac/tasks.md": [title: "006 Simplify RBAC"]
         ],
         groups_for_extras: [
           "Getting Started": ["README.md"],
@@ -77,7 +78,8 @@ defmodule DashboardSSD.MixProject do
             "specs/001-dashboard-init/tasks.md",
             "specs/002-theme/tasks.md",
             "specs/003-prepare-this-repo/tasks.md",
-            "specs/004-enhance-the-existing/tasks.md"
+            "specs/004-enhance-the-existing/tasks.md",
+            "specs/006-simplify-rbac/tasks.md"
           ]
         ],
         nest_modules_by_prefix: [

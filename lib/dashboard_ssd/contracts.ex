@@ -1,6 +1,10 @@
 defmodule DashboardSSD.Contracts do
   @moduledoc """
   Contracts context: manage SOWs and Change Requests.
+
+    - Wraps CRUD operations for Statements of Work (SOW) and Change Requests.
+  - Ensures project-scoped queries stay centralized for LiveViews and APIs.
+  - Keeps schema-specific validations close to their persistence helpers for clarity.
   """
   import Ecto.Query, warn: false
   alias DashboardSSD.Contracts.{ChangeRequest, SOW}

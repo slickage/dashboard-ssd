@@ -50,4 +50,30 @@ defmodule DashboardSSD.ClientsTest do
     assert Enum.map(Clients.search_clients_for_user(scoped, "Ac"), & &1.id) == [c2.id]
     assert Clients.search_clients_for_user(scoped, "Globex") == []
   end
+
+  test "create/update/delete client broadcasts to subscribers" do
+    Clients.subscribe()
+
+    {:ok, client} = Clients.create_client(%{name: "Broadcast Corp"})
+    assert_receive {:client, :created, %{id: created_id}}
+    assert created_id == client.id
+
+    {:ok, updated} = Clients.update_client(client, %{name: "Broadcast Corp v2"})
+    assert_receive {:client, :updated, %{id: updated_id, name: "Broadcast Corp v2"}}
+    assert updated_id == client.id
+
+    {:ok, _deleted} = Clients.delete_client(updated)
+    assert_receive {:client, :deleted, %{id: deleted_id}}
+    assert deleted_id == client.id
+  end
+
+  test "list_clients_by_ids returns requested clients" do
+    {:ok, c1} = Clients.create_client(%{name: "List Alpha"})
+    {:ok, c2} = Clients.create_client(%{name: "List Beta"})
+
+    assert Clients.list_clients_by_ids([]) == []
+
+    ids = Clients.list_clients_by_ids([c1.id, c2.id]) |> Enum.map(& &1.id) |> Enum.sort()
+    assert ids == Enum.sort([c1.id, c2.id])
+  end
 end

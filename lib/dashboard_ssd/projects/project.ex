@@ -1,5 +1,11 @@
 defmodule DashboardSSD.Projects.Project do
-  @moduledoc "Ecto schema for projects tracked in the dashboard."
+  @moduledoc """
+  Ecto schema for projects tracked in the dashboard.
+
+    - Stores project metadata plus optional Linear identifiers.
+  - Validates uniqueness of Linear IDs and presence of project names.
+  - Serves as the anchor for associations (clients, deployments, metrics).
+  """
   use Ecto.Schema
   import Ecto.Changeset
   alias Ecto.Changeset

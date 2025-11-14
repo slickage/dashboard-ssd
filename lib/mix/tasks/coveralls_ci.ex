@@ -3,13 +3,15 @@ defmodule Mix.Tasks.Coveralls.Ci do
   Runs `coveralls.multiple` with sane defaults that mimic GitHub Actions and
   provides GitHub-style environment defaults. Existing environment variables
   always win; we only set defaults when the variables are missing.
+
+    - Ensures local coverage runs mirror CI by populating GitHub env defaults.
+  - Chooses upload types (local/github) based on `COVERALLS_REPO_TOKEN` presence.
+  - Gracefully handles upload errors and cleans up temporary event files/env vars.
   """
   use Mix.Task
 
   @shortdoc "Run coveralls.multiple with GitHub-like defaults"
   @preferred_cli_env :test
-
-  alias ExCoveralls.ReportUploadError
 
   @doc """
   Executes `coveralls.multiple`, populating any missing GitHub environment
@@ -27,13 +29,18 @@ defmodule Mix.Tasks.Coveralls.Ci do
     try do
       Mix.Task.run("coveralls.multiple", coveralls_args)
     rescue
-      e in ReportUploadError ->
-        if token_present? do
-          reraise e, __STACKTRACE__
-        else
-          Mix.shell().info(
-            "Skipping Coveralls upload (#{e.message}). Set COVERALLS_REPO_TOKEN to test full pipeline locally."
-          )
+      e ->
+        cond do
+          coveralls_report_error?(e) and token_present? ->
+            reraise e, __STACKTRACE__
+
+          coveralls_report_error?(e) ->
+            Mix.shell().info(
+              "Skipping Coveralls upload (#{Exception.message(e)}). Set COVERALLS_REPO_TOKEN to test full pipeline locally."
+            )
+
+          true ->
+            reraise e, __STACKTRACE__
         end
     after
       cleanup_env.()
@@ -90,4 +97,19 @@ defmodule Mix.Tasks.Coveralls.Ci do
   end
 
   defp blank?(value), do: value in [nil, ""]
+
+  @spec coveralls_report_error?(Exception.t()) :: boolean()
+  defp coveralls_report_error?(%{__struct__: module}) when is_atom(module) do
+    module == excoveralls_report_upload_error_module()
+  end
+
+  defp excoveralls_report_upload_error_module do
+    module = Module.concat(ExCoveralls, ReportUploadError)
+
+    if Code.ensure_loaded?(module) do
+      module
+    else
+      nil
+    end
+  end
 end

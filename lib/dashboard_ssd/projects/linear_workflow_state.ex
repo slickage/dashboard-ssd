@@ -1,5 +1,11 @@
 defmodule DashboardSSD.Projects.LinearWorkflowState do
-  @moduledoc "Stores Linear workflow state metadata per team."
+  @moduledoc """
+  Stores Linear workflow state metadata per team.
+
+    - Captures state names/types/colors for downstream workload summaries.
+  - Enforces uniqueness per Linear state ID to prevent duplicates.
+  - Provides a changeset used during Linear sync operations.
+  """
   use Ecto.Schema
   import Ecto.Changeset
 

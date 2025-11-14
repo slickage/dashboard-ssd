@@ -4,6 +4,10 @@ defmodule DashboardSSD.Integrations do
 
   Tokens are read from `Application.get_env(:dashboard_ssd, :integrations)` which is
   populated in `config/runtime.exs` from environment variables (see `.env.example`).
+
+    - Normalizes interaction with Linear (GraphQL), Slack, Notion, and Google Drive.
+  - Pulls credentials from config/env with helpful error tuples when missing.
+  - Provides helper routines for per-user OAuth tokens (Drive) and rate-limit aware calls (Linear).
   """
 
   alias DashboardSSD.Accounts.ExternalIdentity

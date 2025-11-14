@@ -1,5 +1,11 @@
 defmodule DashboardSSD.Accounts.Role do
-  @moduledoc "Role schema (admin, employee, client)."
+  @moduledoc """
+  Role schema (admin, employee, client).
+
+    - Defines the persisted fields for RBAC roles.
+  - Validates uniqueness of role names to avoid duplicates.
+  - Provides a changeset used by the Accounts context for role management.
+  """
   use Ecto.Schema
   import Ecto.Changeset
   alias Ecto.Changeset

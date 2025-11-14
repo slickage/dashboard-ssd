@@ -1,5 +1,11 @@
 defmodule DashboardSSD.Clients.Client do
-  @moduledoc "Ecto schema for clients (customers) associated with projects."
+  @moduledoc """
+  Ecto schema for clients (customers) associated with projects.
+
+    - Stores client metadata (name, slug) linked to projects/users.
+  - Validates uniqueness of client names through its changeset.
+  - Serves as the primary association for scoping client data in contexts.
+  """
   use Ecto.Schema
   import Ecto.Changeset
   alias Ecto.Changeset
