@@ -12,9 +12,9 @@ Parallel opportunities noted per task with `[P]`.
 
 ## Phase 1 – Setup & Tooling
 
-- [ ] T001 Verify branch `007-client-facing-sow` is checked out and `/specs/007-client-facing-sow/` artifacts (spec, plan, tasks) match the latest prompts
-- [ ] T002 Ensure Drive + Notion configuration keys are present in `config/dev.exs` and `config/test.exs` (service account JSON path, `DRIVE_ROOT_FOLDER_ID`, Notion integration token, contracts DB/page IDs) with sandbox-safe overrides
-- [ ] T003 Update `mix.exs` aliases/scripts (adding `lib/mix/tasks/shared_documents_sync.ex` if needed) so engineers/CI can trigger shared document sync jobs via `mix shared_documents.sync`
+- [X] T001 Verify branch `007-client-facing-sow` is checked out and `/specs/007-client-facing-sow/` artifacts (spec, plan, tasks) match the latest prompts
+- [X] T002 Ensure Drive + Notion configuration keys are present in `config/dev.exs` and `config/test.exs` (service account JSON path, `DRIVE_ROOT_FOLDER_ID`, Notion integration token, contracts DB/page IDs) with sandbox-safe overrides
+- [X] T003 Update `mix.exs` aliases/scripts (adding `lib/mix/tasks/shared_documents_sync.ex` if needed) so engineers/CI can trigger shared document sync jobs via `mix shared_documents.sync`
 
 ## Phase 2 – Foundational Data, Cache & Workspace Templates
 
