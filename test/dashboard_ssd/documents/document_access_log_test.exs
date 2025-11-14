@@ -21,6 +21,25 @@ defmodule DashboardSSD.Documents.DocumentAccessLogTest do
       assert get_field(changeset, :context) == %{}
     end
 
+    test "keeps provided map context" do
+      attrs = %{
+        shared_document_id: Ecto.UUID.autogenerate(),
+        action: :download,
+        context: %{role: "viewer"}
+      }
+
+      changeset = DocumentAccessLog.changeset(%DocumentAccessLog{}, attrs)
+      assert changeset.valid?
+      assert get_field(changeset, :context) == %{role: "viewer"}
+    end
+
+    test "defaults context when missing" do
+      attrs = %{shared_document_id: Ecto.UUID.autogenerate(), action: :download}
+      changeset = DocumentAccessLog.changeset(%DocumentAccessLog{}, attrs)
+      assert changeset.valid?
+      assert get_field(changeset, :context) == %{}
+    end
+
     test "rejects invalid context" do
       attrs = %{shared_document_id: Ecto.UUID.autogenerate(), action: :download, context: 123}
       changeset = DocumentAccessLog.changeset(%DocumentAccessLog{}, attrs)

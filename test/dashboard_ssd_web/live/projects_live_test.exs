@@ -400,4 +400,52 @@ defmodule DashboardSSDWeb.ProjectsLiveTest do
     html2 = render(view)
     assert html2 =~ "Legacy"
   end
+
+  test "project_updated message refreshes project list when changes detected", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "adm-refresh@example.com",
+        name: "Manager",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    {:ok, client} = Clients.create_client(%{name: "Acme"})
+    {:ok, project} = Projects.create_project(%{name: "Legacy", client_id: client.id})
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, view, html} = live(conn, ~p"/projects")
+    assert html =~ "Legacy"
+
+    {:ok, _updated} = Projects.update_project(project, %{name: "Rebuilt"})
+
+    send(view.pid, {:project_updated, project, "Project saved", true})
+    assert_patch(view, ~p"/projects")
+    html_after = render(view)
+
+    assert html_after =~ "Rebuilt"
+    assert html_after =~ "Project saved"
+  end
+
+  test "project_updated message without changes keeps existing list", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "adm-nochange@example.com",
+        name: "Manager",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    {:ok, client} = Clients.create_client(%{name: "Acme"})
+    {:ok, project} = Projects.create_project(%{name: "Stable", client_id: client.id})
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, view, html} = live(conn, ~p"/projects")
+    assert html =~ "Stable"
+
+    send(view.pid, {:project_updated, project, "No changes", false})
+    assert_patch(view, ~p"/projects")
+    html_after = render(view)
+
+    assert html_after =~ "Stable"
+    assert html_after =~ "No changes"
+  end
 end

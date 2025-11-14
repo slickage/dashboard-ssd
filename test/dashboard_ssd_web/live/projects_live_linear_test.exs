@@ -185,6 +185,83 @@ defmodule DashboardSSDWeb.ProjectsLiveLinearTest do
     assert html_cached =~ ~s/data-finished="1"/
   end
 
+  test "handle_info(:sync_from_linear) refreshes summaries in test env", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "adm-linear-handle-info@example.com",
+        name: "Sync",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    {:ok, c} = Clients.create_client(%{name: "Acme"})
+
+    {:ok, _p} =
+      Projects.create_project(%{
+        name: "Acme Workspace",
+        client_id: c.id,
+        linear_project_id: "proj-handle",
+        linear_team_id: "team-handle"
+      })
+
+    mock_linear_summary_success()
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, view, _html} = live(conn, ~p"/projects")
+
+    send(view.pid, :sync_from_linear)
+
+    eventually(fn ->
+      render(view)
+      view_assign(view, :summaries) != %{}
+    end)
+
+    assert view_assign(view, :last_linear_sync_reason) == :fresh
+  end
+
+  test "async task lifecycle handles result, DOWN, and stray messages", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "adm-linear-task@example.com",
+        name: "Task",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    {:ok, c} = Clients.create_client(%{name: "Globex"})
+    {:ok, _p} = Projects.create_project(%{name: "Globex Ops", client_id: c.id})
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, view, _html} = live(conn, ~p"/projects")
+
+    ref = make_ref()
+    assign_task_ref(view, ref, context: :manual, loading: true)
+
+    info = %{
+      inserted: 0,
+      updated: 0,
+      summaries: %{},
+      cached?: true,
+      cached_reason: :fresh,
+      synced_at: DateTime.utc_now(),
+      message: nil
+    }
+
+    send(view.pid, {ref, {:ok, info}})
+    render(view)
+    assert view_assign(view, :summaries_task_ref) == nil
+    assert view_assign(view, :summaries_loading) == false
+
+    ref2 = make_ref()
+    assign_task_ref(view, ref2, loading: true)
+    send(view.pid, {:DOWN, ref2, :process, self(), :shutdown})
+    render(view)
+    assert view_assign(view, :summaries_task_ref) == nil
+    assert view_assign(view, :summaries_loading) == false
+
+    send(view.pid, {make_ref(), :ignored})
+    send(view.pid, {:DOWN, make_ref(), :process, self(), :normal})
+    render(view)
+  end
+
   test "sync button flashes error on failure", %{conn: conn} do
     {:ok, adm} =
       Accounts.create_user(%{
@@ -365,5 +442,44 @@ defmodule DashboardSSDWeb.ProjectsLiveLinearTest do
 
   defp decode_graphql(%{body: body}) do
     if is_binary(body), do: Jason.decode!(body), else: body
+  end
+
+  defp assign_task_ref(view, ref, opts) do
+    loading = Keyword.get(opts, :loading, false)
+    context = Keyword.get(opts, :context, :auto)
+
+    :sys.replace_state(view.pid, fn state ->
+      socket = Map.fetch!(state, :socket)
+
+      assigns =
+        socket.assigns
+        |> Map.put(:summaries_task_ref, ref)
+        |> Map.put(:summaries_task_context, context)
+        |> Map.put(:summaries_loading, loading)
+
+      %{state | socket: %{socket | assigns: assigns}}
+    end)
+  end
+
+  defp eventually(fun, attempts \\ 20)
+
+  defp eventually(_fun, 0) do
+    flunk("condition never met")
+  end
+
+  defp eventually(fun, attempts) do
+    case fun.() do
+      true ->
+        :ok
+
+      _ ->
+        Process.sleep(50)
+        eventually(fun, attempts - 1)
+    end
+  end
+
+  defp view_assign(view, key) do
+    %{socket: socket} = :sys.get_state(view.pid)
+    Map.fetch!(socket.assigns, key)
   end
 end

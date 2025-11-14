@@ -726,6 +726,53 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
 
   defp summary_assigned(_), do: []
 
+  if Mix.env() == :test do
+    @doc false
+    def test_handle_sync_result(socket, result, opts \\ []) do
+      handle_sync_result(socket, result, opts)
+    end
+
+    @doc false
+    def test_fetch_projects(client_id, scope) do
+      fetch_projects(client_id, scope)
+    end
+
+    @doc false
+    def test_clients_for_scope(scope) do
+      clients_for_scope(scope)
+    end
+
+    @doc false
+    def test_client_filter_enabled?(scope) do
+      client_filter_enabled?(scope)
+    end
+
+    @doc false
+    def test_normalize_client_id_for_scope(scope, client_id) do
+      normalize_client_id_for_scope(scope, client_id)
+    end
+
+    @doc false
+    def test_parse_client_id(client_id) do
+      parse_client_id(client_id)
+    end
+
+    @doc false
+    def test_sanitized_team_name(name) do
+      sanitized_team_name(name)
+    end
+
+    @doc false
+    def test_format_member_name(member) do
+      format_member_name(member)
+    end
+
+    @doc false
+    def test_presence(value) do
+      presence(value)
+    end
+  end
+
   @impl true
   def render(assigns) do
     ~H"""

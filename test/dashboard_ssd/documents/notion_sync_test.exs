@@ -1,5 +1,6 @@
 defmodule DashboardSSD.Documents.NotionSyncTest do
   use DashboardSSD.DataCase, async: true
+  import ExUnit.CaptureLog
 
   alias DashboardSSD.Cache.SharedDocumentsCache
   alias DashboardSSD.Clients.Client
@@ -40,5 +41,42 @@ defmodule DashboardSSD.Documents.NotionSyncTest do
 
     assert {:ok, %{inserted: 0, updated: 1}} = NotionSync.sync(update)
     assert Repo.get_by!(SharedDocument, source_id: "page-1").title == "Runbook V2"
+  end
+
+  test "returns error when insert fails" do
+    pages = [
+      %{
+        client_id: nil,
+        project_id: nil,
+        source_id: "page-invalid",
+        title: "No Client",
+        doc_type: "kb"
+      }
+    ]
+
+    assert {:error, %Ecto.Changeset{}} = NotionSync.sync(pages)
+  end
+
+  test "logs warning when stale percentage exceeds threshold" do
+    client = Repo.insert!(%Client{name: "Core"})
+
+    pages =
+      for idx <- 1..5 do
+        %{
+          client_id: client.id,
+          project_id: nil,
+          source_id: "page-stale-#{idx}",
+          title: "Doc #{idx}",
+          doc_type: "kb",
+          stale?: rem(idx, 2) == 0
+        }
+      end
+
+    log =
+      capture_log(fn ->
+        assert {:ok, %{inserted: 5, updated: 0}} = NotionSync.sync(pages)
+      end)
+
+    assert log =~ "Notion sync stale percentage above threshold"
   end
 end

@@ -93,6 +93,10 @@ defmodule DashboardSSD.Integrations.DriveTest do
     end
   end
 
+  test "list_documents validates presence of folder_id" do
+    assert {:error, :invalid_arguments} = Drive.list_documents(%{token: "tok"})
+  end
+
   describe "share_folder/3" do
     test "posts permission payload" do
       Tesla.Mock.mock(fn
@@ -115,6 +119,12 @@ defmodule DashboardSSD.Integrations.DriveTest do
     end
   end
 
+  test "share_folder raises when role missing" do
+    assert_raise ArgumentError, fn ->
+      Drive.share_folder("tok", "folder", %{email: "user@example.com"})
+    end
+  end
+
   describe "unshare_folder/3" do
     test "removes permission entry" do
       Tesla.Mock.mock(fn
@@ -125,6 +135,15 @@ defmodule DashboardSSD.Integrations.DriveTest do
 
       assert :ok = Drive.unshare_folder("tok", "folder123", "perm-1")
     end
+  end
+
+  test "unshare_folder returns error on non-2xx response" do
+    Tesla.Mock.mock(fn
+      %{method: :delete} ->
+        %Tesla.Env{status: 403, body: %{"error" => "denied"}}
+    end)
+
+    assert {:error, {:http_error, 403, _}} = Drive.unshare_folder("tok", "folder", "perm")
   end
 
   describe "download_file/2" do
@@ -138,5 +157,23 @@ defmodule DashboardSSD.Integrations.DriveTest do
 
       assert {:ok, %Tesla.Env{body: "data"}} = Drive.download_file("tok", "file-1")
     end
+  end
+
+  test "download_file bubbles http errors" do
+    Tesla.Mock.mock(fn
+      %{method: :get} ->
+        %Tesla.Env{status: 404, body: %{"error" => "missing"}}
+    end)
+
+    assert {:error, {:http_error, 404, _}} = Drive.download_file("tok", "file-404")
+  end
+
+  test "list_permissions handles http errors" do
+    Tesla.Mock.mock(fn _ -> %Tesla.Env{status: 500, body: %{"error" => "oops"}} end)
+    assert {:error, {:http_error, 500, _}} = Drive.list_permissions("tok", "folder")
+  end
+
+  test "ensure_project_folder returns error when arguments invalid" do
+    assert {:error, :invalid_folder_arguments} = Drive.ensure_project_folder("tok", %{})
   end
 end
