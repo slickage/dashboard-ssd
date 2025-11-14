@@ -34,8 +34,8 @@ Parallel opportunities noted per task with `[P]`.
 
 ## Phase 3 – User Story 1 (Client views & downloads contracts)
 
-- [ ] T017 [US1] Introduce `contracts.client.view` capability in `lib/dashboard_ssd/auth/capabilities.ex` and enforce it in `DashboardSSD.Auth.Policy` for client portal access
-- [ ] T018 [US1] Wire query functions in `lib/dashboard_ssd/documents.ex` to fetch client-visible docs scoped by assignments + cache lookup
+- [X] T017 [US1] Introduce `contracts.client.view` capability in `lib/dashboard_ssd/auth/capabilities.ex` and enforce it in `DashboardSSD.Auth.Policy` for client portal access
+- [X] T018 [US1] Wire query functions in `lib/dashboard_ssd/documents.ex` to fetch client-visible docs scoped by assignments + cache lookup
 - [ ] T019 [US1] Implement client Contracts LiveView (`lib/dashboard_ssd_web/live/clients_live/contracts.ex`) with listing, empty state, download/edit call-to-action (Notion rendered read-only)
 - [ ] T020 [US1] Implement download proxy endpoint/handler (`lib/dashboard_ssd_web/controllers/shared_document_controller.ex` or LiveView handle_event) that streams Drive files via service account, leverages ETS download cache, and enforces RBAC
 - [ ] T021 [US1] Implement Notion render/export helper (`lib/dashboard_ssd/documents/notion_renderer.ex`) that converts tagged pages into HTML previews + PDF downloads stored in cache

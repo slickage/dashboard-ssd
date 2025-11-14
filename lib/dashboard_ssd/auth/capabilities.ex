@@ -39,6 +39,12 @@ defmodule DashboardSSD.Auth.Capabilities do
       description: "Create, edit, and delete client records."
     },
     %{
+      code: "contracts.client.view",
+      label: "Client Contracts",
+      group: :contracts,
+      description: "View the Contracts tab in the client portal."
+    },
+    %{
       code: "knowledge_base.view",
       label: "Knowledge Base (View)",
       group: :knowledge_base,
@@ -76,7 +82,8 @@ defmodule DashboardSSD.Auth.Capabilities do
     "client" => [
       "projects.view",
       "clients.view",
-      "settings.personal"
+      "settings.personal",
+      "contracts.client.view"
     ]
   }
 

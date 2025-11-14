@@ -51,6 +51,7 @@ defmodule DashboardSSD.Auth.PolicyTest do
     assert Policy.can?(client, :read, :projects)
     assert Policy.can?(client, :read, :clients)
     assert Policy.can?(client, :read, :settings)
+    assert Policy.can?(client, :read, :client_contracts)
     refute Policy.can?(client, :read, :knowledge_base)
   end
 
