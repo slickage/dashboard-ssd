@@ -49,6 +49,32 @@ defmodule DashboardSSD.DocumentsTest do
     assert Repo.aggregate(DocumentAccessLog, :count, :id) == 1
   end
 
+  test "list_staff_documents returns documents with preloads" do
+    client = Repo.insert!(%Client{name: "Acme"})
+    project = Repo.insert!(%Project{name: "Proj", client_id: client.id})
+    insert_document(%{client_id: client.id, project_id: project.id, title: "Doc"})
+
+    docs = Documents.list_staff_documents()
+    assert length(docs) == 1
+    assert hd(docs).client.name == "Acme"
+  end
+
+  test "update_document_settings toggles visibility" do
+    client = Repo.insert!(%Client{name: "Acme"})
+
+    project =
+      Repo.insert!(%Project{name: "Proj", client_id: client.id, drive_folder_id: "folder"})
+
+    doc = insert_document(%{client_id: client.id, project_id: project.id, visibility: :internal})
+    user = Repo.insert!(%User{email: "staff@example.com"})
+
+    assert {:ok, updated} =
+             Documents.update_document_settings(doc, %{visibility: :client}, user)
+
+    assert updated.visibility == :client
+    assert Repo.aggregate(DocumentAccessLog, :count, :id) == 1
+  end
+
   defp insert_document(attrs) do
     base = %{
       client_id: attrs[:client_id] || Repo.insert!(%Client{name: "Default"}).id,

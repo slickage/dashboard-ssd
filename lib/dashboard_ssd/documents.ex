@@ -8,6 +8,7 @@ defmodule DashboardSSD.Documents do
   alias DashboardSSD.Cache.SharedDocumentsCache
   alias DashboardSSD.Documents.DocumentAccessLog
   alias DashboardSSD.Documents.SharedDocument
+  alias DashboardSSD.Integrations
   alias DashboardSSD.Repo
 
   @doc """
@@ -26,6 +27,25 @@ defmodule DashboardSSD.Documents do
   end
 
   def list_client_documents(_user, _opts), do: {:error, :client_scope_missing}
+
+  @doc """
+  Lists all shared documents for staff-facing surfaces.
+  """
+  @spec list_staff_documents(keyword()) :: [SharedDocument.t()]
+  def list_staff_documents(opts \\ []) do
+    query =
+      from sd in SharedDocument,
+        preload: [:client, :project],
+        order_by: [desc: sd.updated_at]
+
+    query =
+      case Keyword.get(opts, :client_id) do
+        nil -> query
+        client_id -> from sd in query, where: sd.client_id == ^client_id
+      end
+
+    Repo.all(query)
+  end
 
   @doc """
   Fetches a client-visible shared document by ID for the given user scope.
@@ -47,6 +67,39 @@ defmodule DashboardSSD.Documents do
   def fetch_client_document(_user, _id), do: {:error, :client_scope_missing}
 
   @doc """
+  Updates document visibility/edit settings and logs the change.
+  """
+  @spec update_document_settings(SharedDocument.t() | Ecto.UUID.t(), map(), User.t() | nil) ::
+          {:ok, SharedDocument.t()} | {:error, term()}
+  def update_document_settings(document_or_id, attrs, actor \\ nil) do
+    Repo.transaction(fn ->
+      doc =
+        case document_or_id do
+          %SharedDocument{} = doc -> Repo.preload(doc, :project)
+          id -> Repo.get!(SharedDocument, id) |> Repo.preload(:project)
+        end
+
+      case Repo.update(SharedDocument.changeset(doc, attrs)) do
+        {:ok, updated} ->
+          SharedDocumentsCache.invalidate_listing(:all)
+          SharedDocumentsCache.invalidate_download(updated.id)
+
+          _ =
+            log_access(updated, actor, :visibility_changed, %{
+              visibility: updated.visibility,
+              client_edit_allowed: updated.client_edit_allowed
+            })
+
+          maybe_update_drive_acl(updated)
+          updated
+
+        {:error, reason} ->
+          Repo.rollback(reason)
+      end
+    end)
+  end
+
+  @doc """
   Returns basic metadata required to decide how to download the document.
   """
   @spec download_descriptor(SharedDocument.t()) :: map()
@@ -65,7 +118,9 @@ defmodule DashboardSSD.Documents do
   """
   @spec log_access(SharedDocument.t(), User.t() | nil, atom(), map()) ::
           {:ok, DocumentAccessLog.t()} | {:error, Ecto.Changeset.t()}
-  def log_access(%SharedDocument{} = document, user, action, context \\ %{}) do
+  def log_access(document, user, action, context \\ %{})
+
+  def log_access(%SharedDocument{} = document, user, action, context) do
     attrs = %{
       shared_document_id: document.id,
       actor_id: user && user.id,
@@ -77,6 +132,8 @@ defmodule DashboardSSD.Documents do
     |> DocumentAccessLog.changeset(attrs)
     |> Repo.insert()
   end
+
+  def log_access(_, _, _, _), do: {:error, :invalid_document}
 
   defp client_documents_query(client_id, project_id) do
     base =
@@ -93,4 +150,18 @@ defmodule DashboardSSD.Documents do
     from sd in query,
       where: sd.project_id == ^project_id or is_nil(sd.project_id)
   end
+
+  defp maybe_update_drive_acl(
+         %SharedDocument{source: :drive, project: %{drive_folder_id: folder_id}} = document
+       )
+       when is_binary(folder_id) do
+    params = %{role: "reader", type: "anyone", allow_file_discovery: false}
+
+    case document.visibility do
+      :client -> Integrations.drive_share_folder(folder_id, params)
+      :internal -> :ok
+    end
+  end
+
+  defp maybe_update_drive_acl(_), do: :ok
 end

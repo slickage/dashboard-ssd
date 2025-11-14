@@ -59,6 +59,7 @@ defmodule DashboardSSDWeb.Router do
       live "/clients/contracts", ClientsLive.Contracts, :index
       live "/projects", ProjectsLive.Index, :index
       live "/projects/:id/edit", ProjectsLive.Index, :edit
+      live "/projects/contracts", ProjectsLive.Contracts, :index
       live "/analytics", AnalyticsLive.Index, :index
       live "/kb", KbLive.Index, :index
     end

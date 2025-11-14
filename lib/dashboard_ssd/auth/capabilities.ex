@@ -39,6 +39,18 @@ defmodule DashboardSSD.Auth.Capabilities do
       description: "Create, edit, and delete client records."
     },
     %{
+      code: "projects.contracts.view",
+      label: "Contracts (View)",
+      group: :contracts,
+      description: "View shared documents across all projects."
+    },
+    %{
+      code: "projects.contracts.manage",
+      label: "Contracts (Manage)",
+      group: :contracts,
+      description: "Toggle client visibility/edit access and manage Drive ACLs."
+    },
+    %{
       code: "contracts.client.view",
       label: "Client Contracts",
       group: :contracts,
@@ -77,7 +89,8 @@ defmodule DashboardSSD.Auth.Capabilities do
       "projects.view",
       "clients.view",
       "knowledge_base.view",
-      "settings.personal"
+      "settings.personal",
+      "projects.contracts.view"
     ],
     "client" => [
       "projects.view",

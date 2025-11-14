@@ -51,12 +51,12 @@ Parallel opportunities noted per task with `[P]`.
 
 ## Phase 4 – User Story 2 (Staff curates & audits shared documents)
 
-- [ ] T031 [US2] Build staff Contracts LiveView (`lib/dashboard_ssd_web/live/projects_live/contracts.ex`) listing all docs with visibility/edit toggles and source jump links
-- [ ] T032 [US2] Implement toggle handlers calling Drive ACL update helpers in `lib/dashboard_ssd/integrations/drive.ex` and cache invalidation helpers in `lib/dashboard_ssd/cache/shared_documents_cache.ex`
-- [ ] T033 [US2] Surface audit data + warnings (e.g., ACL mismatch) in staff UI components (`lib/dashboard_ssd_web/components/contracts_components.ex`)
-- [ ] T034 [US2] Update capability catalog (`lib/dashboard_ssd/auth/capabilities.ex`) and `DashboardSSD.Auth.Policy` (`lib/dashboard_ssd/auth/policy.ex`) to include `projects.contracts.view/manage`
-- [ ] T035 [US2] Add LiveView tests for staff actions & RBAC gating in `test/dashboard_ssd_web/live/projects_live/contracts_live_test.exs`
-- [ ] T036 [US2] Add DataCase tests for visibility toggle helper & ACL mismatch flagging in `test/dashboard_ssd/documents_test.exs`
+- [X] T031 [US2] Build staff Contracts LiveView (`lib/dashboard_ssd_web/live/projects_live/contracts.ex`) listing all docs with visibility/edit toggles and source jump links
+- [X] T032 [US2] Implement toggle handlers calling Drive ACL update helpers in `lib/dashboard_ssd/integrations/drive.ex` and cache invalidation helpers in `lib/dashboard_ssd/cache/shared_documents_cache.ex`
+- [X] T033 [US2] Surface audit data + warnings (e.g., ACL mismatch) in staff UI components (`lib/dashboard_ssd_web/components/contracts_components.ex`)
+- [X] T034 [US2] Update capability catalog (`lib/dashboard_ssd/auth/capabilities.ex`) and `DashboardSSD.Auth.Policy` (`lib/dashboard_ssd/auth/policy.ex`) to include `projects.contracts.view/manage`
+- [X] T035 [US2] Add LiveView tests for staff actions & RBAC gating in `test/dashboard_ssd_web/live/projects_live/contracts_live_test.exs`
+- [X] T036 [US2] Add DataCase tests for visibility toggle helper & ACL mismatch flagging in `test/dashboard_ssd/documents_test.exs`
 
 ## Phase 5 – User Story 3 (Workspaces & automatic permission alignment)
 

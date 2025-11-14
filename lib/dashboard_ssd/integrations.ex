@@ -119,6 +119,38 @@ defmodule DashboardSSD.Integrations do
   end
 
   @doc """
+  Shares a Drive folder using the configured service account.
+  """
+  @spec drive_share_folder(String.t(), map()) :: {:ok, map()} | error()
+  def drive_share_folder(folder_id, params) do
+    with {:ok, token} <- drive_service_token() do
+      Drive.share_folder(token, folder_id, params)
+    end
+  end
+
+  @doc """
+  Removes a Drive permission entry from the folder using the service account.
+  """
+  @spec drive_unshare_folder(String.t(), String.t()) :: :ok | error()
+  def drive_unshare_folder(folder_id, permission_id) do
+    with {:ok, token} <- drive_service_token() do
+      Drive.unshare_folder(token, folder_id, permission_id)
+    end
+  end
+
+  defp drive_service_token do
+    token =
+      Keyword.get(cfg(), :drive_token) || System.get_env("GOOGLE_DRIVE_TOKEN") ||
+        System.get_env("GOOGLE_OAUTH_TOKEN")
+
+    if is_nil(token) or token == "" do
+      {:error, {:missing_env, "GOOGLE_DRIVE_TOKEN/GOOGLE_OAUTH_TOKEN"}}
+    else
+      {:ok, token}
+    end
+  end
+
+  @doc """
   List Google Drive files in `folder_id` using the stored OAuth token for the given user.
 
   Accepts either a user ID (integer) or a user struct/map with an `:id` key.
