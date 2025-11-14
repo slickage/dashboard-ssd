@@ -56,11 +56,14 @@ defmodule DashboardSSDWeb.Router do
       live "/clients/new", ClientsLive.Index, :new
       live "/clients/:id/edit", ClientsLive.Index, :edit
       live "/clients/:id/delete", ClientsLive.Index, :delete
+      live "/clients/contracts", ClientsLive.Contracts, :index
       live "/projects", ProjectsLive.Index, :index
       live "/projects/:id/edit", ProjectsLive.Index, :edit
       live "/analytics", AnalyticsLive.Index, :index
       live "/kb", KbLive.Index, :index
     end
+
+    post "/shared_documents/:id/download", SharedDocumentController, :download
 
     get "/auth/:provider", AuthController, :request
     # Use distinct actions to avoid CSRF action reuse warnings

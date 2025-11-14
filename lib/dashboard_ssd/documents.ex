@@ -26,6 +26,43 @@ defmodule DashboardSSD.Documents do
 
   def list_client_documents(_user, _opts), do: {:error, :client_scope_missing}
 
+  @doc """
+  Fetches a client-visible shared document by ID for the given user scope.
+  """
+  @spec fetch_client_document(User.t(), Ecto.UUID.t()) ::
+          {:ok, SharedDocument.t()} | {:error, term()}
+  def fetch_client_document(%User{client_id: client_id} = _user, id)
+      when is_integer(client_id) and is_binary(id) do
+    query =
+      from sd in SharedDocument,
+        where: sd.id == ^id and sd.client_id == ^client_id and sd.visibility == :client
+
+    case Repo.one(query) do
+      %SharedDocument{} = doc -> {:ok, doc}
+      nil -> {:error, :not_found}
+    end
+  end
+
+  def fetch_client_document(_user, _id), do: {:error, :client_scope_missing}
+
+  @doc """
+  Fetches (and caches) download descriptor metadata for the given document.
+  """
+  @spec fetch_download_descriptor(SharedDocument.t()) :: {:ok, map()} | {:error, term()}
+  def fetch_download_descriptor(%SharedDocument{} = document) do
+    SharedDocumentsCache.fetch_download_descriptor(document.id, fn ->
+      descriptor = %{
+        document_id: document.id,
+        source: document.source,
+        source_id: document.source_id,
+        mime_type: document.mime_type,
+        title: document.title
+      }
+
+      {:ok, descriptor}
+    end)
+  end
+
   defp client_documents_query(client_id, project_id) do
     base =
       from sd in SharedDocument,

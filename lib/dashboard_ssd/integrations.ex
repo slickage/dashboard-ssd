@@ -103,6 +103,22 @@ defmodule DashboardSSD.Integrations do
   end
 
   @doc """
+  Download a Drive file using the configured service account token.
+  """
+  @spec drive_download_file(String.t()) :: {:ok, Tesla.Env.t()} | error()
+  def drive_download_file(file_id) do
+    token =
+      Keyword.get(cfg(), :drive_token) || System.get_env("GOOGLE_DRIVE_TOKEN") ||
+        System.get_env("GOOGLE_OAUTH_TOKEN")
+
+    if is_nil(token) or token == "" do
+      {:error, {:missing_env, "GOOGLE_DRIVE_TOKEN/GOOGLE_OAUTH_TOKEN"}}
+    else
+      Drive.download_file(token, file_id)
+    end
+  end
+
+  @doc """
   List Google Drive files in `folder_id` using the stored OAuth token for the given user.
 
   Accepts either a user ID (integer) or a user struct/map with an `:id` key.
