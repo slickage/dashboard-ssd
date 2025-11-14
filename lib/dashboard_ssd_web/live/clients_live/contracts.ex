@@ -109,10 +109,11 @@ defmodule DashboardSSDWeb.ClientsLive.Contracts do
         </div>
 
         <%= if not Enum.empty?(@projects) do %>
-          <.form for={%{project_id: @project_id}} phx-change="filter" class="w-full sm:w-auto">
+          <form phx-change="filter" class="w-full sm:w-auto">
             <label class="sr-only">Project filter</label>
             <select
               name="project_id"
+              value={@project_id}
               class="w-full rounded-md border border-theme-200 bg-white py-2 pl-3 pr-10 text-sm shadow-sm focus:border-theme-primary focus:outline-none"
             >
               <option value="">All projects</option>
@@ -122,7 +123,7 @@ defmodule DashboardSSDWeb.ClientsLive.Contracts do
                 </option>
               <% end %>
             </select>
-          </.form>
+          </form>
         <% end %>
       </div>
 
@@ -174,9 +175,7 @@ defmodule DashboardSSDWeb.ClientsLive.Contracts do
 
   defp format_timestamp(nil), do: "n/a"
 
-  defp format_timestamp(%DateTime{} = dt) do
-    Calendar.strftime(dt, "%b %e, %Y")
-  end
+  defp format_timestamp(%DateTime{} = dt), do: Calendar.strftime(dt, "%b %d, %Y")
 
   defp format_timestamp(%NaiveDateTime{} = ndt) do
     ndt |> DateTime.from_naive!("Etc/UTC") |> format_timestamp()

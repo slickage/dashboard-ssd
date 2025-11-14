@@ -36,11 +36,11 @@ Parallel opportunities noted per task with `[P]`.
 
 - [X] T017 [US1] Introduce `contracts.client.view` capability in `lib/dashboard_ssd/auth/capabilities.ex` and enforce it in `DashboardSSD.Auth.Policy` for client portal access
 - [X] T018 [US1] Wire query functions in `lib/dashboard_ssd/documents.ex` to fetch client-visible docs scoped by assignments + cache lookup
-- [ ] T019 [US1] Implement client Contracts LiveView (`lib/dashboard_ssd_web/live/clients_live/contracts.ex`) with listing, empty state, download/edit call-to-action (Notion rendered read-only)
-- [ ] T020 [US1] Implement download proxy endpoint/handler (`lib/dashboard_ssd_web/controllers/shared_document_controller.ex` or LiveView handle_event) that streams Drive files via service account, leverages ETS download cache, and enforces RBAC
-- [ ] T021 [US1] Implement Notion render/export helper (`lib/dashboard_ssd/documents/notion_renderer.ex`) that converts tagged pages into HTML previews + PDF downloads stored in cache
-- [ ] T022 [US1] Record download events in `lib/dashboard_ssd/documents/document_access_log.ex` helper invoked from the proxy (Drive + Notion)
-- [ ] T023 [US1] Add LiveView/DataCase tests covering client listing filters, empty state, and download flow in `test/dashboard_ssd_web/live/clients_live/contracts_live_test.exs`
+- [X] T019 [US1] Implement client Contracts LiveView (`lib/dashboard_ssd_web/live/clients_live/contracts.ex`) with listing, empty state, download/edit call-to-action (Notion rendered read-only)
+- [X] T020 [US1] Implement download proxy endpoint/handler (`lib/dashboard_ssd_web/controllers/shared_document_controller.ex` or LiveView handle_event) that streams Drive files via service account, leverages ETS download cache, and enforces RBAC
+- [X] T021 [US1] Implement Notion render/export helper (`lib/dashboard_ssd/documents/notion_renderer.ex`) that converts tagged pages into HTML previews + PDF downloads stored in cache
+- [X] T022 [US1] Record download events in `lib/dashboard_ssd/documents/document_access_log.ex` helper invoked from the proxy (Drive + Notion)
+- [X] T023 [US1] Add LiveView/DataCase tests covering client listing filters, empty state, and download flow in `test/dashboard_ssd_web/live/clients_live/contracts_live_test.exs`
 - [ ] T024 [US1] Handle oversized downloads (friendly LiveView message + “Open in Drive” deep link) in `lib/dashboard_ssd_web/controllers/shared_document_controller.ex` and test in `test/dashboard_ssd_web/controllers/shared_document_controller_test.exs`
 - [ ] T025 [US1] Add integration test for download proxy auditing + caching in `test/dashboard_ssd_web/controllers/shared_document_controller_test.exs`
 - [ ] T026 [US1] Add unit tests for Notion renderer (`test/dashboard_ssd/documents/notion_renderer_test.exs`) validating read-only output

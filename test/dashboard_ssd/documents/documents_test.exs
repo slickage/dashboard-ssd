@@ -4,6 +4,7 @@ defmodule DashboardSSD.DocumentsTest do
   alias DashboardSSD.Accounts.User
   alias DashboardSSD.Clients.Client
   alias DashboardSSD.Documents
+  alias DashboardSSD.Documents.DocumentAccessLog
   alias DashboardSSD.Documents.SharedDocument
   alias DashboardSSD.Projects.Project
   alias DashboardSSD.Cache.SharedDocumentsCache
@@ -31,6 +32,21 @@ defmodule DashboardSSD.DocumentsTest do
   test "returns error when client scope missing" do
     user = %User{id: 10, client_id: nil}
     assert {:error, :client_scope_missing} = Documents.list_client_documents(user, [])
+  end
+
+  test "download descriptor returns basic metadata" do
+    doc = insert_document(%{})
+    descriptor = Documents.download_descriptor(doc)
+    assert descriptor.source == :drive
+    assert descriptor.source_id == doc.source_id
+  end
+
+  test "log_access inserts DocumentAccessLog entry" do
+    doc = insert_document(%{})
+    user = Repo.insert!(%User{email: "logger@example.com"})
+    assert {:ok, _} = Documents.log_access(doc, user, :download, %{source: "drive"})
+
+    assert Repo.aggregate(DocumentAccessLog, :count, :id) == 1
   end
 
   defp insert_document(attrs) do

@@ -3,6 +3,8 @@ defmodule DashboardSSDWeb.SharedDocumentController do
 
   alias DashboardSSD.Auth.Policy
   alias DashboardSSD.Documents
+  alias DashboardSSD.Documents.NotionRenderer
+  alias DashboardSSD.Cache.SharedDocumentsCache
   alias DashboardSSD.Integrations
 
   require Logger
@@ -12,9 +14,9 @@ defmodule DashboardSSDWeb.SharedDocumentController do
 
     with true <- Policy.can?(user, :read, :client_contracts) || {:error, :forbidden},
          {:ok, document} <- Documents.fetch_client_document(user, id),
-         {:ok, descriptor} <- Documents.fetch_download_descriptor(document),
-         {:ok, env} <- fetch_source(descriptor) do
-      send_drive_response(conn, document, env)
+         {:ok, payload} <- fetch_source(document) do
+      _ = Documents.log_access(document, user, :download, %{source: document.source})
+      deliver_download(conn, document, payload)
     else
       {:error, :forbidden} ->
         conn
@@ -38,17 +40,33 @@ defmodule DashboardSSDWeb.SharedDocumentController do
     end
   end
 
-  defp fetch_source(%{source: :drive, source_id: file_id}) do
-    case Integrations.drive_download_file(file_id) do
-      {:ok, %Tesla.Env{status: status} = env} when status in 200..299 -> {:ok, env}
-      {:ok, %Tesla.Env{status: status, body: body}} -> {:error, {:http_error, status, body}}
-      {:error, reason} -> {:error, reason}
+  defp fetch_source(%{source: :drive} = document) do
+    SharedDocumentsCache.fetch_download_descriptor(document.id, fn ->
+      case Integrations.drive_download_file(document.source_id) do
+        {:ok, %Tesla.Env{status: status, body: body, headers: headers}} when status in 200..299 ->
+          {:ok, %{payload: %{body: body, headers: headers}}}
+
+        {:ok, %Tesla.Env{status: status, body: body}} ->
+          {:error, {:http_error, status, body}}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end)
+    |> unwrap_payload()
+  end
+
+  defp fetch_source(%{source: :notion} = document) do
+    case NotionRenderer.render_download(document.source_id) do
+      {:ok, payload} ->
+        {:ok, %{body: payload.data, mime_type: payload.mime_type, filename: payload.filename}}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
-  defp fetch_source(%{source: :notion}), do: {:error, :notion_not_supported}
-
-  defp send_drive_response(conn, document, %Tesla.Env{body: body, headers: headers}) do
+  defp deliver_download(conn, document, %{body: body, headers: headers}) do
     mime_type =
       document.mime_type || header_lookup(headers, "content-type") || "application/octet-stream"
 
@@ -60,11 +78,17 @@ defmodule DashboardSSDWeb.SharedDocumentController do
     |> send_resp(200, body)
   end
 
+  defp deliver_download(conn, _document, %{body: body, mime_type: mime_type, filename: filename}) do
+    conn
+    |> put_resp_content_type(mime_type || "application/octet-stream")
+    |> put_resp_header("content-disposition", ~s[attachment; filename="#{filename}"])
+    |> send_resp(200, body)
+  end
+
   defp header_lookup(headers, key) do
     target = String.downcase(key)
 
-    headers
-    |> Enum.find_value(fn
+    Enum.find_value(headers, fn
       {k, v} when is_binary(k) ->
         if String.downcase(k) == target, do: v, else: nil
 
@@ -72,6 +96,9 @@ defmodule DashboardSSDWeb.SharedDocumentController do
         nil
     end)
   end
+
+  defp unwrap_payload({:ok, %{payload: payload}}), do: {:ok, payload}
+  defp unwrap_payload(other), do: other
 
   defp build_filename(document, mime_type) do
     base =

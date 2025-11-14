@@ -45,19 +45,19 @@ defmodule DashboardSSD.Cache.SharedDocumentsCache do
   end
 
   @doc "Stores download metadata for a shared document."
-  @spec put_download_descriptor(Ecto.UUID.t(), term()) :: :ok
+  @spec put_download_descriptor(term(), term()) :: :ok
   def put_download_descriptor(document_id, data) do
     Cache.put(@download_namespace, document_id, data, @download_ttl_ms)
   end
 
   @doc "Retrieves download metadata if the TTL has not expired."
-  @spec get_download_descriptor(Ecto.UUID.t()) :: {:ok, term()} | :miss
+  @spec get_download_descriptor(term()) :: {:ok, term()} | :miss
   def get_download_descriptor(document_id) do
     Cache.get(@download_namespace, document_id)
   end
 
   @doc "Fetches or computes download metadata for a shared document."
-  @spec fetch_download_descriptor(Ecto.UUID.t(), (-> term())) :: {:ok, term()} | {:error, term()}
+  @spec fetch_download_descriptor(term(), (-> term())) :: {:ok, term()} | {:error, term()}
   def fetch_download_descriptor(document_id, fun) when is_function(fun, 0) do
     Cache.fetch(@download_namespace, document_id, fun, ttl: @download_ttl_ms)
   end
