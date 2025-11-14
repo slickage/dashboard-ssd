@@ -119,25 +119,25 @@ defmodule DashboardSSD.Integrations.GoogleCalendar do
     if Keyword.get(opts, :mock) == :sample do
       list_upcoming(start_at, end_at, opts)
     else
-      user_id =
-        case user_or_id do
-          %{id: id} -> id
-          id when is_integer(id) -> id
-          _ -> nil
-        end
-
-      case GoogleToken.get_access_token_for_user(user_id) do
-        {:ok, token} ->
-          list_upcoming(start_at, end_at, Keyword.put(opts, :token, token))
-
-        {:error, _} = err ->
-          err
-
-        _ ->
-          {:error, :no_token}
-      end
+      list_upcoming_for_user_real(user_or_id, start_at, end_at, opts)
     end
   end
+
+  defp list_upcoming_for_user_real(%{id: id}, start_at, end_at, opts),
+    do: list_upcoming_for_user_real(id, start_at, end_at, opts)
+
+  defp list_upcoming_for_user_real(id, start_at, end_at, opts) when is_integer(id) do
+    case GoogleToken.get_access_token_for_user(id) do
+      {:ok, token} ->
+        list_upcoming(start_at, end_at, Keyword.put(opts, :token, token))
+
+      {:error, _} = err ->
+        err
+    end
+  end
+
+  defp list_upcoming_for_user_real(_other, _start_at, _end_at, _opts),
+    do: {:error, :no_token}
 
   @doc """
   Extracts or estimates a recurrence identifier for grouping occurrences.

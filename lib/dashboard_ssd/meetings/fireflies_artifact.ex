@@ -11,7 +11,7 @@ defmodule DashboardSSD.Meetings.FirefliesArtifact do
 
   @type t :: %__MODULE__{
           id: integer() | nil,
-          recurring_series_id: String.t(),
+          recurring_series_id: String.t() | nil,
           transcript_id: String.t() | nil,
           accomplished: String.t() | nil,
           bullet_gist: String.t() | nil,
