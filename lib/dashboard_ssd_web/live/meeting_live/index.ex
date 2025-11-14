@@ -302,7 +302,6 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
   end
 
   defp items_for_display(%{} = post), do: normalize_action_items(Map.get(post, :action_items))
-  defp items_for_display(_), do: []
 
   defp build_agenda_text(manual, items_for_text) do
     manual
@@ -328,20 +327,15 @@ defmodule DashboardSSDWeb.MeetingLive.Index do
     end
   end
 
-  defp normalize_action_items(items) do
-    cond do
-      is_list(items) ->
-        items
+  defp normalize_action_items(items) when is_list(items), do: items
 
-      is_binary(items) ->
-        items
-        |> String.split(["\r\n", "\n"], trim: true)
-        |> Enum.reject(&(&1 == ""))
-
-      true ->
-        []
-    end
+  defp normalize_action_items(items) when is_binary(items) do
+    items
+    |> String.split(["\r\n", "\n"], trim: true)
+    |> Enum.reject(&(&1 == ""))
   end
+
+  defp normalize_action_items(_), do: []
 
   @impl true
   def render(assigns) do

@@ -64,7 +64,6 @@ defmodule DashboardSSD.Integrations.GoogleToken do
       {:ok, token}
     else
       {:error, _} = err -> err
-      _ -> {:error, :refresh_failed}
     end
   end
 

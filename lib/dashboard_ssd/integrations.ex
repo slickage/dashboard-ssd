@@ -188,18 +188,17 @@ defmodule DashboardSSD.Integrations do
     end
   end
 
-  defp fetch_calendar_list_for_user(user_id, start_at, end_at, opts) do
+  defp fetch_calendar_list_for_user(user_id, start_at, end_at, opts) when is_integer(user_id) do
     case GoogleToken.get_access_token_for_user(user_id) do
       {:ok, token} ->
         GoogleCalendar.list_upcoming(start_at, end_at, Keyword.put(opts, :token, token))
 
       {:error, _} = err ->
         err
-
-      _ ->
-        {:error, :no_token}
     end
   end
+
+  defp fetch_calendar_list_for_user(_user_id, _start_at, _end_at, _opts), do: {:error, :no_token}
 
   # Deprecated: fetching tokens without refresh moved to GoogleToken helper.
 end

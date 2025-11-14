@@ -17,12 +17,11 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
     clients = Clients.list_clients()
     projects = Projects.list_projects()
 
-    {post, post_error} =
-      fetch_post(
-        series_id,
-        Map.get(assigns || %{}, :params) |> then(&(&1 && Map.get(&1, "mock"))),
-        title
-      )
+    mock? =
+      (Map.get(assigns || %{}, :params)
+       |> then(&(&1 && Map.get(&1, "mock")))) in ["1", "true"]
+
+    {post, post_error} = fetch_post(series_id, mock?, title)
 
     agenda_text = build_agenda_text(manual, post)
 
@@ -49,20 +48,17 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
      )}
   end
 
-  defp normalize_action_items(items) do
-    cond do
-      is_list(items) ->
-        items
+  defp normalize_action_items(items) when is_list(items), do: items
 
-      is_binary(items) ->
-        items
-        |> String.split(["\r\n", "\n"], trim: true)
-        |> Enum.reject(&(&1 == ""))
-
-      true ->
-        []
-    end
+  defp normalize_action_items(items) when is_binary(items) do
+    items
+    |> String.split(["\r\n", "\n"], trim: true)
+    |> Enum.reject(&(&1 == ""))
   end
+
+  # Given how we construct `post`, values should be list or binary.
+  # Keep a conservative default, but Dialyzer may mark it unreachable.
+  # No third clause: action_items are list or binary only in our flow
 
   @impl true
   def handle_event("save_agenda_text", %{"agenda_text" => text}, socket) do
@@ -195,10 +191,12 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
     series_id = socket.assigns.series_id
     manual = Agenda.list_items(id)
 
+    mock? = Map.get(socket.assigns[:params] || %{}, "mock") in ["1", "true"]
+
     {post, post_error} =
       fetch_post(
         series_id,
-        Map.get(socket.assigns[:params] || %{}, "mock"),
+        mock?,
         socket.assigns[:title]
       )
 
@@ -216,12 +214,12 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
 
   # ======= helpers extracted to reduce complexity =======
 
-  defp fetch_post(nil, _mock, _title), do: {%{accomplished: nil, action_items: []}, nil}
+  defp fetch_post(nil, _mock?, _title), do: {%{accomplished: nil, action_items: []}, nil}
 
-  defp fetch_post(_series_id, mock, _title) when mock in ["1", "true"],
+  defp fetch_post(_series_id, true, _title),
     do: {%{accomplished: nil, action_items: []}, nil}
 
-  defp fetch_post(series_id, _mock, title) do
+  defp fetch_post(series_id, false, title) do
     case Fireflies.fetch_latest_for_series(series_id, title: title) do
       {:ok, v} ->
         {v, nil}
@@ -236,19 +234,18 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
   end
 
   defp build_agenda_text(manual, post) do
-    manual
-    |> Enum.sort_by(& &1.position)
-    |> Enum.map_join("\n", &(&1.text || ""))
-    |> case do
-      "" ->
-        cond do
-          is_list(post.action_items) -> Enum.join(post.action_items, "\n")
-          is_binary(post.action_items) -> post.action_items
-          true -> ""
-        end
+    base =
+      manual
+      |> Enum.sort_by(& &1.position)
+      |> Enum.map_join("\n", &(&1.text || ""))
 
-      other ->
-        other
+    if base == "" do
+      case post.action_items do
+        items when is_list(items) -> Enum.join(items, "\n")
+        items when is_binary(items) -> items
+      end
+    else
+      base
     end
   end
 

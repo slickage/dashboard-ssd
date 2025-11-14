@@ -11,7 +11,7 @@ defmodule DashboardSSD.Integrations.Fireflies do
 
   @type artifacts :: %{
           accomplished: String.t() | nil,
-          action_items: [String.t()]
+          action_items: [String.t()] | String.t()
         }
 
   @doc """
@@ -132,11 +132,14 @@ defmodule DashboardSSD.Integrations.Fireflies do
 
   defp filter_bites_by_series(bites, series) do
     Enum.filter(bites, fn b ->
-      case Map.get(b, "created_from") do
-        %{"id" => id} -> to_string(id) == series
-        %{id: id} -> to_string(id) == series
-        _ -> false
-      end
+      id =
+        case Map.get(b, "created_from") || Map.get(b, :created_from) do
+          %{"id" => v} -> v
+          %{id: v} -> v
+          _ -> nil
+        end
+
+      to_string(id) == series
     end)
   end
 
@@ -155,7 +158,11 @@ defmodule DashboardSSD.Integrations.Fireflies do
 
   defp transcript_id_of_bite(b) do
     tid = Map.get(b, "transcript_id") || Map.get(b, :transcript_id)
-    if is_binary(tid) and tid != "", do: {:ok, tid}, else: {:error, :no_transcript}
+
+    case tid do
+      t when is_binary(t) and t != "" -> {:ok, t}
+      _ -> {:error, :no_transcript}
+    end
   end
 
   defp fallback_by_title(_series_id, nil, _limit),
@@ -213,41 +220,56 @@ defmodule DashboardSSD.Integrations.Fireflies do
     |> Enum.into(MapSet.new())
   end
 
-  defp normalize(nil), do: ""
   defp normalize(s), do: s |> String.downcase() |> String.trim()
 
   defp fetch_summary_for_transcript(series_id, transcript_id) do
     case FirefliesClient.get_transcript_summary(transcript_id) do
       {:ok, %{notes: notes, action_items: items, bullet_gist: bullet}} ->
-        persist_artifacts_if_present(series_id, transcript_id, notes, items, bullet)
-        {:ok, %{accomplished: notes, action_items: items || []}}
+        norm_items = normalize_items_to_list(items)
+        persist_artifacts_if_present(series_id, transcript_id, notes, norm_items, bullet)
+        {:ok, %{accomplished: notes, action_items: norm_items}}
 
       {:error, {:rate_limited, _} = rl} ->
         rl
 
       {:error, _} = err ->
         err
-
-      _ ->
-        {:ok, %{accomplished: nil, action_items: []}}
     end
   end
+
+  defp normalize_items_to_list(items) when is_list(items), do: items
 
   defp persist_artifacts_if_present(series_id, transcript_id, notes, items, bullet) do
-    if should_persist?(notes, items, bullet) do
-      :ok =
-        FirefliesStore.upsert(series_id, %{
-          transcript_id: transcript_id,
-          accomplished: notes,
-          action_items: items,
-          bullet_gist: bullet
-        })
-    end
-  end
+    case {notes, items, bullet} do
+      {_, l, _} when is_list(l) and l != [] ->
+        :ok =
+          FirefliesStore.upsert(series_id, %{
+            transcript_id: transcript_id,
+            accomplished: notes,
+            action_items: items,
+            bullet_gist: bullet
+          })
 
-  defp should_persist?(notes, items, bullet) do
-    (is_binary(notes) and String.trim(notes) != "") or
-      (is_list(items) and items != []) or
-      (is_binary(bullet) and String.trim(bullet) != "")
+      {n, _, _} when is_binary(n) and n != "" ->
+        :ok =
+          FirefliesStore.upsert(series_id, %{
+            transcript_id: transcript_id,
+            accomplished: notes,
+            action_items: items,
+            bullet_gist: bullet
+          })
+
+      {_, _, b} when is_binary(b) and b != "" ->
+        :ok =
+          FirefliesStore.upsert(series_id, %{
+            transcript_id: transcript_id,
+            accomplished: notes,
+            action_items: items,
+            bullet_gist: bullet
+          })
+
+      _ ->
+        :ok
+    end
   end
 end

@@ -497,7 +497,6 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
            else: Integrations.calendar_list_upcoming_for_user(base_user, start_dt, end_dt) do
       {:ok, list} when is_list(list) -> list
       {:error, _} -> []
-      _ -> []
     end
   end
 
@@ -536,8 +535,8 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
     build_has_meetings_map(result, tz_offset)
   end
 
-  defp build_has_meetings_map({:ok, list}, tz_offset) when is_list(list) do
-    tz = tz_offset || 0
+  defp build_has_meetings_map({:ok, list}, tz_offset) do
+    tz = tz_offset
     dates = dates_set_for_events(list, tz)
     {:ok, Map.new(dates, fn d -> {d, true} end)}
   end
@@ -574,17 +573,12 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
   defp agenda_from_fireflies_or_empty(%{recurring_series_id: nil}, _mock?), do: ""
 
   defp agenda_from_fireflies_or_empty(%{recurring_series_id: s} = m, _mock?) do
-    Fireflies.fetch_latest_for_series(s, title: m.title)
-    |> agenda_result()
+    case Fireflies.fetch_latest_for_series(s, title: m.title) do
+      {:ok, %{action_items: items}} when is_list(items) -> Enum.join(items, "\n")
+      {:ok, %{action_items: items}} when is_binary(items) -> items
+      _ -> ""
+    end
   end
-
-  defp agenda_from_fireflies_or_empty(_m, _mock?), do: ""
-
-  defp agenda_result({:ok, %{action_items: items}}) when is_list(items),
-    do: Enum.join(items, "\n")
-
-  defp agenda_result({:ok, %{action_items: items}}) when is_binary(items), do: items
-  defp agenda_result(_), do: ""
 
   defp build_assoc_by_meeting(meetings) do
     clients = Clients.list_clients()
