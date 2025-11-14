@@ -95,6 +95,24 @@ defmodule DashboardSSDWeb.Telemetry do
         unit: {:native, :millisecond},
         description: "Duration of Notion API requests triggered by the Knowledge Base context"
       ),
+      summary("dashboard_ssd.documents.drive_sync.duration",
+        tags: [:status],
+        unit: {:native, :millisecond},
+        description: "Duration of Drive sync batches"
+      ),
+      summary("dashboard_ssd.documents.drive_sync.stale_pct",
+        tags: [:status],
+        description: "Percentage of stale Drive entries detected during sync"
+      ),
+      summary("dashboard_ssd.documents.notion_sync.duration",
+        tags: [:status],
+        unit: {:native, :millisecond},
+        description: "Duration of Notion sync batches"
+      ),
+      summary("dashboard_ssd.documents.notion_sync.stale_pct",
+        tags: [:status],
+        description: "Percentage of stale Notion entries detected during sync"
+      ),
 
       # VM Metrics
       summary("vm.memory.total", unit: {:byte, :kilobyte}),

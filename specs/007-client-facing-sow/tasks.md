@@ -44,10 +44,10 @@ Parallel opportunities noted per task with `[P]`.
 - [X] T024 [US1] Handle oversized downloads (friendly LiveView message + “Open in Drive” deep link) in `lib/dashboard_ssd_web/controllers/shared_document_controller.ex` and test in `test/dashboard_ssd_web/controllers/shared_document_controller_test.exs`
 - [X] T025 [US1] Add integration test for download proxy auditing + caching in `test/dashboard_ssd_web/controllers/shared_document_controller_test.exs`
 - [X] T026 [US1] Add unit tests for Notion renderer (`test/dashboard_ssd/documents/notion_renderer_test.exs`) validating read-only output
-- [ ] T027 [US1] Implement Drive sync worker (`lib/dashboard_ssd/documents/drive_sync.ex`) that populates `shared_documents`, applies cache invalidation, and handles exponential backoff
-- [ ] T028 [US1] Update Notion sync pipeline (`lib/dashboard_ssd/knowledge_base/notion_sync.ex`) to emit `shared_documents` entries for tagged pages
-- [ ] T029 [US1] Add telemetry/logging for sync outcomes and compute stale cache percentage in `lib/dashboard_ssd/documents/drive_sync.ex` / `lib/dashboard_ssd/telemetry.ex`, raising alerts when more than 2% of recent sync runs report stale entries (SC-004)
-- [ ] T030 [US1] Add DataCase tests for Drive + Notion sync upserts/deduplication (`test/dashboard_ssd/documents/drive_sync_test.exs`, `test/dashboard_ssd/documents/notion_sync_test.exs`)
+- [X] T027 [US1] Implement Drive sync worker (`lib/dashboard_ssd/documents/drive_sync.ex`) that populates `shared_documents`, applies cache invalidation, and handles exponential backoff
+- [X] T028 [US1] Update Notion sync pipeline (`lib/dashboard_ssd/knowledge_base/notion_sync.ex`) to emit `shared_documents` entries for tagged pages
+- [X] T029 [US1] Add telemetry/logging for sync outcomes and compute stale cache percentage in `lib/dashboard_ssd/documents/drive_sync.ex` / `lib/dashboard_ssd/telemetry.ex`, raising alerts when more than 2% of recent sync runs report stale entries (SC-004)
+- [X] T030 [US1] Add DataCase tests for Drive + Notion sync upserts/deduplication (`test/dashboard_ssd/documents/drive_sync_test.exs`, `test/dashboard_ssd/documents/notion_sync_test.exs`)
 
 ## Phase 4 – User Story 2 (Staff curates & audits shared documents)
 
