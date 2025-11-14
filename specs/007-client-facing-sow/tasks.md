@@ -29,8 +29,8 @@ Parallel opportunities noted per task with `[P]`.
 - [X] T012 Define workspace blueprint config in `config/*.exs` listing available sections (Drive vs Notion) and mapping them to template files and folder paths; allow per-section toggles
 - [X] T013 Implement `lib/dashboard_ssd/documents/workspace_bootstrap.ex` that reads the blueprint + Markdown templates, programmatically creates Drive folders/files for selected sections, and pushes Notion page content for KB templates
 - [X] T014 Add tests for workspace bootstrap (mock Drive/Notion APIs, ensure selective section creation) in `test/dashboard_ssd/documents/workspace_bootstrap_test.exs`
-- [ ] T015 Add DataCase tests for `SharedDocument` and `DocumentAccessLog` changesets in `test/dashboard_ssd/documents/shared_document_test.exs`
-- [ ] T016 Add unit tests for shared documents cache helper + Drive integration helpers (`test/dashboard_ssd/cache/shared_documents_cache_test.exs`, `test/dashboard_ssd/integrations/drive_test.exs`)
+- [X] T015 Add DataCase tests for `SharedDocument` and `DocumentAccessLog` changesets in `test/dashboard_ssd/documents/shared_document_test.exs`
+- [X] T016 Add unit tests for shared documents cache helper + Drive integration helpers (`test/dashboard_ssd/cache/shared_documents_cache_test.exs`, `test/dashboard_ssd/integrations/drive_test.exs`)
 
 ## Phase 3 – User Story 1 (Client views & downloads contracts)
 
