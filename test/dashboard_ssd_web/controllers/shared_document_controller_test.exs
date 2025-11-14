@@ -17,6 +17,7 @@ defmodule DashboardSSDWeb.SharedDocumentControllerTest do
     end)
 
     Application.put_env(:dashboard_ssd, :integrations, drive_token: "drive-token")
+    on_exit(fn -> Application.delete_env(:dashboard_ssd, :integrations) end)
     SharedDocumentsCache.invalidate_download(:all)
     :ok
   end
