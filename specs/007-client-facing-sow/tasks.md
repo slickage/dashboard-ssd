@@ -22,9 +22,9 @@ Parallel opportunities noted per task with `[P]`.
 - [X] T005 Build `priv/repo/migrations/*_create_document_access_logs.exs`
 - [X] T006 Implement `DashboardSSD.Documents.SharedDocument` schema + changeset in `lib/dashboard_ssd/documents/shared_document.ex`
 - [X] T007 Implement `DashboardSSD.Documents.DocumentAccessLog` schema + changeset in `lib/dashboard_ssd/documents/document_access_log.ex`
-- [ ] T008 Add Drive folder metadata fields/helpers in `lib/dashboard_ssd/projects/project.ex` + context functions
-- [ ] T009 Implement ETS namespace helper `lib/dashboard_ssd/cache/shared_documents_cache.ex` (listing/download TTLs, invalidation API)
-- [ ] T010 Extend `lib/dashboard_ssd/integrations/drive.ex` with `ensure_project_folder/2`, `list_documents/1`, `share_folder/3`, `unshare_folder/3`, `download_file/2` helpers plus unit tests/mocks
+- [X] T008 Add Drive folder metadata fields/helpers in `lib/dashboard_ssd/projects/project.ex` + context functions
+- [X] T009 Implement ETS namespace helper `lib/dashboard_ssd/cache/shared_documents_cache.ex` (listing/download TTLs, invalidation API)
+- [X] T010 Extend `lib/dashboard_ssd/integrations/drive.ex` with `ensure_project_folder/2`, `list_documents/1`, `share_folder/3`, `unshare_folder/3`, `download_file/2` helpers plus unit tests/mocks
 - [ ] T011 Create workspace template Markdown files in `priv/workspace_templates/drive/` (Contracts, SOW, Change Orders) and `priv/workspace_templates/notion/` (Project KB starter docs)
 - [ ] T012 Define workspace blueprint config in `config/*.exs` listing available sections (Drive vs Notion) and mapping them to template files and folder paths; allow per-section toggles
 - [ ] T013 Implement `lib/dashboard_ssd/documents/workspace_bootstrap.ex` that reads the blueprint + Markdown templates, programmatically creates Drive folders/files for selected sections, and pushes Notion page content for KB templates
