@@ -40,6 +40,7 @@ npm-debug.log
 
 # Local environment variables
 .env
+.env.*
 
 # Editor/tool caches
 .elixir_ls/

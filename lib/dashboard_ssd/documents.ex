@@ -8,8 +8,10 @@ defmodule DashboardSSD.Documents do
   alias DashboardSSD.Cache.SharedDocumentsCache
   alias DashboardSSD.Documents.DocumentAccessLog
   alias DashboardSSD.Documents.SharedDocument
-  alias DashboardSSD.Integrations
+  alias DashboardSSD.Documents.WorkspaceBootstrap
+  alias DashboardSSD.Projects.DrivePermissionWorker
   alias DashboardSSD.Repo
+  require Logger
 
   @doc """
   Lists client-visible shared documents for the user's client scope.
@@ -135,6 +137,53 @@ defmodule DashboardSSD.Documents do
 
   def log_access(_, _, _, _), do: {:error, :invalid_document}
 
+  @doc """
+  Asynchronously bootstraps workspace sections for the given project.
+  """
+  @spec bootstrap_workspace(struct(), keyword()) :: :ok
+  def bootstrap_workspace(project, opts \\ []) do
+    module =
+      Application.get_env(
+        :dashboard_ssd,
+        :workspace_bootstrap_module,
+        WorkspaceBootstrap
+      )
+
+    Task.Supervisor.start_child(DashboardSSD.TaskSupervisor, fn ->
+      case module.bootstrap(project, opts) do
+        {:ok, _} ->
+          :ok
+
+        {:error, reason} ->
+          Logger.warning("Workspace bootstrap failed",
+            reason: inspect(reason),
+            project_id: Map.get(project, :id)
+          )
+      end
+    end)
+
+    :ok
+  end
+
+  @doc """
+  Returns enabled workspace sections from the configured blueprint.
+  """
+  @spec workspace_section_options() :: [map()]
+  def workspace_section_options do
+    case WorkspaceBootstrap.blueprint() do
+      {:ok, %{sections: sections}} when is_list(sections) ->
+        Enum.filter(sections, fn section -> Map.get(section, :enabled?, true) end)
+
+      {:ok, blueprint} when is_map(blueprint) ->
+        blueprint
+        |> Map.get(:sections, [])
+        |> Enum.filter(fn section -> Map.get(section, :enabled?, true) end)
+
+      {:error, _reason} ->
+        []
+    end
+  end
+
   defp client_documents_query(client_id, project_id) do
     base =
       from sd in SharedDocument,
@@ -158,7 +207,7 @@ defmodule DashboardSSD.Documents do
     params = %{role: "reader", type: "anyone", allow_file_discovery: false}
 
     case document.visibility do
-      :client -> Integrations.drive_share_folder(folder_id, params)
+      :client -> DrivePermissionWorker.share(folder_id, params)
       :internal -> :ok
     end
   end

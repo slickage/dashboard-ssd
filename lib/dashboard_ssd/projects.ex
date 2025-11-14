@@ -9,6 +9,7 @@ defmodule DashboardSSD.Projects do
   import Ecto.Query
   alias DashboardSSD.Accounts
   alias DashboardSSD.Clients
+  alias DashboardSSD.Documents
   alias DashboardSSD.Integrations
   alias DashboardSSD.Integrations.LinearUtils
 
@@ -68,6 +69,20 @@ defmodule DashboardSSD.Projects do
   @spec change_project(Project.t(), map()) :: Ecto.Changeset.t()
   def change_project(%Project{} = project, attrs \\ %{}), do: Project.changeset(project, attrs)
 
+  @workspace_sections [
+    :drive_contracts,
+    :drive_sow,
+    :drive_change_orders,
+    :notion_project_kb,
+    :notion_runbook
+  ]
+
+  @doc """
+  Returns the default workspace sections used during automatic bootstrap.
+  """
+  @spec workspace_sections() :: [atom()]
+  def workspace_sections, do: @workspace_sections
+
   @doc """
   Creates a new project with the given attributes.
 
@@ -75,7 +90,10 @@ defmodule DashboardSSD.Projects do
   """
   @spec create_project(map()) :: {:ok, Project.t()} | {:error, Ecto.Changeset.t()}
   def create_project(attrs) do
-    %Project{} |> Project.changeset(attrs) |> Repo.insert()
+    %Project{}
+    |> Project.changeset(attrs)
+    |> Repo.insert()
+    |> after_project_create()
   end
 
   @doc """
@@ -1144,4 +1162,12 @@ defmodule DashboardSSD.Projects do
   defp fetch_project!(project_id) when is_integer(project_id) do
     Repo.get!(Project, project_id)
   end
+
+  defp after_project_create({:ok, %Project{drive_folder_id: folder_id} = project} = result)
+       when is_binary(folder_id) and folder_id != "" do
+    Documents.bootstrap_workspace(project, sections: workspace_sections())
+    result
+  end
+
+  defp after_project_create(other), do: other
 end

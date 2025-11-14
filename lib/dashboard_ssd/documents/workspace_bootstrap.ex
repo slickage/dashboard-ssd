@@ -15,6 +15,14 @@ defmodule DashboardSSD.Documents.WorkspaceBootstrap do
   @drive_behaviour DashboardSSD.Documents.WorkspaceBootstrap.DriveClient
   @notion_behaviour DashboardSSD.Documents.WorkspaceBootstrap.NotionClient
 
+  @doc """
+  Returns the configured workspace blueprint map (sections, defaults, flags).
+  """
+  @spec blueprint() :: {:ok, map()} | {:error, term()}
+  def blueprint do
+    fetch_blueprint()
+  end
+
   @spec bootstrap(Project.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def bootstrap(%Project{} = project, opts \\ []) do
     with {:ok, blueprint} <- fetch_blueprint(),

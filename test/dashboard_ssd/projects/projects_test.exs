@@ -1,5 +1,5 @@
 defmodule DashboardSSD.ProjectsTest do
-  use DashboardSSD.DataCase, async: true
+  use DashboardSSD.DataCase, async: false
 
   alias DashboardSSD.Clients
   alias DashboardSSD.Projects
@@ -44,5 +44,29 @@ defmodule DashboardSSD.ProjectsTest do
 
     ids = Projects.list_projects_by_client(client.id) |> Enum.map(& &1.id)
     assert ids == [p1.id]
+  end
+
+  test "create_project triggers workspace bootstrap", %{client: client} do
+    Application.put_env(
+      :dashboard_ssd,
+      :workspace_bootstrap_module,
+      DashboardSSD.WorkspaceBootstrapStub
+    )
+
+    :persistent_term.put({:workspace_test_pid}, self())
+
+    {:ok, project} =
+      Projects.create_project(%{
+        name: "Workspace",
+        client_id: client.id,
+        drive_folder_id: "folder"
+      })
+
+    project_id = project.id
+    assert_receive {:workspace_bootstrap, ^project_id, sections}
+    assert sections == Projects.workspace_sections()
+  after
+    :persistent_term.erase({:workspace_test_pid})
+    Application.delete_env(:dashboard_ssd, :workspace_bootstrap_module)
   end
 end
