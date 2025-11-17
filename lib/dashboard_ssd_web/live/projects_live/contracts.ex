@@ -151,23 +151,32 @@ defmodule DashboardSSDWeb.ProjectsLive.Contracts do
           <p class="text-sm text-theme-500">Review and adjust visibility for client documents.</p>
         </div>
 
-        <%= if not Enum.empty?(@clients) do %>
-          <form phx-change="filter" class="w-full sm:w-auto">
-            <label class="sr-only">Client filter</label>
-            <select
-              name="client_id"
-              value={@filter_client_id}
-              class="w-full rounded-md border border-theme-200 bg-white py-2 pl-3 pr-10 text-sm shadow-sm focus:border-theme-primary focus:outline-none"
-            >
-              <option value="">All clients</option>
-              <%= for client <- @clients do %>
-                <option value={client.id} selected={@filter_client_id == client.id}>
-                  {client.name}
-                </option>
-              <% end %>
-            </select>
-          </form>
-        <% end %>
+        <div class="flex flex-wrap items-center gap-3">
+          <.link
+            navigate={~p"/projects"}
+            class="inline-flex items-center gap-2 rounded-md border border-theme-200 bg-white px-3 py-2 text-sm font-medium text-theme-700 shadow-sm transition hover:border-theme-300 hover:text-theme-900"
+          >
+            <span aria-hidden="true">←</span> Back to Projects
+          </.link>
+
+          <%= if not Enum.empty?(@clients) do %>
+            <form phx-change="filter" class="w-full sm:w-auto">
+              <label class="sr-only">Client filter</label>
+              <select
+                name="client_id"
+                value={@filter_client_id}
+                class="w-full rounded-md border border-theme-200 bg-white py-2 pl-3 pr-10 text-sm shadow-sm focus:border-theme-primary focus:outline-none"
+              >
+                <option value="">All clients</option>
+                <%= for client <- @clients do %>
+                  <option value={client.id} selected={@filter_client_id == client.id}>
+                    {client.name}
+                  </option>
+                <% end %>
+              </select>
+            </form>
+          <% end %>
+        </div>
       </div>
 
       <div class="overflow-x-auto rounded-lg border border-theme-200 bg-white shadow-sm">

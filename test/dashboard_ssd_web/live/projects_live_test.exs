@@ -234,6 +234,7 @@ defmodule DashboardSSDWeb.ProjectsLiveTest do
 
     assert html =~ "Actions"
     assert html =~ ~p"/projects/#{project.id}/edit"
+    assert html =~ ~p"/projects/contracts?client_id=#{client.id}"
   end
 
   test "employee without manage capability cannot see edit actions", %{conn: conn} do
@@ -261,7 +262,7 @@ defmodule DashboardSSDWeb.ProjectsLiveTest do
     {:ok, _view, html} = live(conn, ~p"/projects")
 
     assert html =~ "Website"
-    refute html =~ "Actions"
+    assert html =~ "Contracts"
     refute html =~ ~p"/projects/#{project.id}/edit"
   end
 

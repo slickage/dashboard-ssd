@@ -48,6 +48,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         |> assign(:summaries_task_ref, nil)
         |> assign(:summaries_task_context, nil)
         |> assign(:summaries_loading, false)
+        |> assign(:can_view_contracts?, Policy.can?(user, :read, :projects_contracts))
         |> hydrate_from_cached_sync()
         |> assign(:can_manage_projects?, Policy.can?(user, :manage, :projects))
 
@@ -313,6 +314,11 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
       _ -> :error
     end
   end
+
+  defp contracts_path(%{client_id: nil}), do: ~p"/projects/contracts"
+
+  defp contracts_path(%{client_id: client_id}) when is_integer(client_id),
+    do: ~p"/projects/contracts?client_id=#{client_id}"
 
   defp auto_linear_sync_enabled? do
     not Application.get_env(:dashboard_ssd, :test_env?, false)
@@ -832,6 +838,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         </div>
       <% else %>
         <div class="theme-card overflow-x-auto">
+          <% action_col? = @can_manage_projects? or @can_view_contracts? %>
           <% groups = group_projects_by_team(@projects, @team_members || %{}) %>
           <table class="theme-table">
             <thead>
@@ -847,7 +854,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                 </th>
                 <th class="hidden lg:table-cell">Assigned</th>
                 <th>Prod</th>
-                <th :if={@can_manage_projects?}>Actions</th>
+                <th :if={action_col?}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -855,7 +862,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                 <% collapsed = MapSet.member?(@collapsed_teams, group.key) %>
                 <% count = length(group.projects) %>
                 <tr class="border-b border-white/5 bg-white/5">
-                  <td colspan={if @can_manage_projects?, do: 6, else: 5}>
+                  <td colspan={if action_col?, do: 6, else: 5}>
                     <button
                       type="button"
                       phx-click="toggle_team"
@@ -956,13 +963,24 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                             <.health_dot status={status} />
                         <% end %>
                       </td>
-                      <td :if={@can_manage_projects?}>
-                        <.link
-                          navigate={~p"/projects/#{p.id}/edit"}
-                          class="text-white/80 transition hover:text-white"
-                        >
-                          Edit
-                        </.link>
+                      <td :if={action_col?}>
+                        <div class="flex flex-wrap items-center gap-2">
+                          <.link
+                            :if={@can_view_contracts?}
+                            navigate={contracts_path(p)}
+                            class="text-white/80 underline decoration-white/30 decoration-dotted transition hover:decoration-white"
+                          >
+                            Contracts <span class="sr-only">for {p.name}</span>
+                          </.link>
+
+                          <.link
+                            :if={@can_manage_projects?}
+                            navigate={~p"/projects/#{p.id}/edit"}
+                            class="text-white/80 transition hover:text-white"
+                          >
+                            Edit
+                          </.link>
+                        </div>
                       </td>
                     </tr>
                   <% end %>

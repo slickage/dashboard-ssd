@@ -699,9 +699,21 @@ defmodule DashboardSSDWeb.HomeLive.Index do
   defp header_actions_for(nil), do: Layouts.default_header_actions(nil)
 
   defp header_actions_for(current_user) do
+    contracts_actions =
+      cond do
+        Policy.can?(current_user, :read, :projects_contracts) ->
+          [%{label: "Contracts (Staff)", href: ~p"/projects/contracts"}]
+
+        Policy.can?(current_user, :read, :client_contracts) ->
+          [%{label: "Contracts", href: ~p"/clients/contracts"}]
+
+        true ->
+          []
+      end
+
     [
       %{label: "Refresh Data", phx_click: "refresh", variant: :primary}
-      | Layouts.default_header_actions(current_user)
+      | contracts_actions ++ Layouts.default_header_actions(current_user)
     ]
   end
 
