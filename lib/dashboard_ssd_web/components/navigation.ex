@@ -314,20 +314,6 @@ defmodule DashboardSSDWeb.Navigation do
           capability: "projects.view"
         },
         %{
-          label: "Contracts (Staff)",
-          path: ~p"/projects/contracts",
-          icon: :projects,
-          group: :main,
-          capability: "projects.contracts.view"
-        },
-        %{
-          label: "Contracts",
-          path: ~p"/clients/contracts",
-          icon: :projects,
-          group: :main,
-          capability: "contracts.client.view"
-        },
-        %{
           label: "Clients",
           path: ~p"/clients",
           icon: :clients,
