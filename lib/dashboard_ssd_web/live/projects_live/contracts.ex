@@ -144,17 +144,19 @@ defmodule DashboardSSDWeb.ProjectsLive.Contracts do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="flex flex-col gap-6">
+    <div class="flex flex-col gap-6 text-theme-900 dark:text-white">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 class="text-2xl font-semibold text-theme-900">Contracts (Staff)</h1>
-          <p class="text-sm text-theme-500">Review and adjust visibility for client documents.</p>
+          <h1 class="text-2xl font-semibold">Contracts (Staff)</h1>
+          <p class="text-sm text-theme-700 dark:text-white/70">
+            Review and adjust visibility for client documents.
+          </p>
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
           <.link
             navigate={~p"/projects"}
-            class="inline-flex items-center gap-2 rounded-md border border-theme-200 bg-white px-3 py-2 text-sm font-medium text-theme-700 shadow-sm transition hover:border-theme-300 hover:text-theme-900"
+            class="inline-flex items-center gap-2 rounded-md border border-theme-300 bg-white px-3 py-2 text-sm font-medium text-theme-900 shadow-sm transition hover:border-theme-500 hover:text-theme-900 dark:border-white/20 dark:bg-white/5 dark:text-white hover:dark:border-white/40"
           >
             <span aria-hidden="true">←</span> Back to Projects
           </.link>
@@ -165,7 +167,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Contracts do
               <select
                 name="client_id"
                 value={@filter_client_id}
-                class="w-full rounded-md border border-theme-200 bg-white py-2 pl-3 pr-10 text-sm shadow-sm focus:border-theme-primary focus:outline-none"
+                class="w-full rounded-md border border-theme-300 bg-white py-2 pl-3 pr-10 text-sm font-medium text-theme-900 shadow-sm transition focus:border-theme-primary focus:outline-none dark:border-white/20 dark:bg-white/10 dark:text-white"
               >
                 <option value="">All clients</option>
                 <%= for client <- @clients do %>
@@ -179,10 +181,10 @@ defmodule DashboardSSDWeb.ProjectsLive.Contracts do
         </div>
       </div>
 
-      <div class="overflow-x-auto rounded-lg border border-theme-200 bg-white shadow-sm">
-        <table class="min-w-full divide-y divide-theme-100 text-sm">
+      <div class="overflow-x-auto rounded-lg border border-theme-300 bg-white shadow-sm dark:border-white/10 dark:bg-white/5">
+        <table class="min-w-full divide-y divide-theme-200 text-sm dark:divide-white/10">
           <thead>
-            <tr class="bg-theme-50 text-left text-xs font-semibold uppercase tracking-wide text-theme-500">
+            <tr class="bg-theme-100 text-left text-xs font-semibold uppercase tracking-wide text-theme-700 dark:bg-white/10 dark:text-white/80">
               <th class="px-4 py-3">Title</th>
               <th class="px-4 py-3">Client</th>
               <th class="px-4 py-3">Project</th>
@@ -192,21 +194,23 @@ defmodule DashboardSSDWeb.ProjectsLive.Contracts do
               <th class="px-4 py-3">Edit?</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-theme-100">
+          <tbody class="divide-y divide-theme-200 dark:divide-white/10">
             <%= for doc <- @documents do %>
-              <tr>
-                <td class="px-4 py-3 font-medium text-theme-900">
+              <tr class="bg-white transition hover:bg-theme-50 dark:bg-white/5 dark:hover:bg-white/10">
+                <td class="px-4 py-3 font-semibold text-theme-900 dark:text-white">
                   <div>{doc.title}</div>
-                  <div class="text-xs text-theme-500">Type: {doc.doc_type}</div>
+                  <div class="text-xs text-theme-700 dark:text-white/70">Type: {doc.doc_type}</div>
                 </td>
-                <td class="px-4 py-3 text-theme-700">{doc.client && doc.client.name}</td>
-                <td class="px-4 py-3 text-theme-700">
+                <td class="px-4 py-3 text-theme-800 dark:text-white/80">
+                  {doc.client && doc.client.name}
+                </td>
+                <td class="px-4 py-3 text-theme-800 dark:text-white/80">
                   <div class="flex items-center gap-2">
                     <span>{(doc.project && doc.project.name) || "—"}</span>
                     <%= if @can_manage? and doc.project do %>
                       <button
                         type="button"
-                        class="text-xs font-medium text-theme-primary underline"
+                        class="text-xs font-semibold text-theme-primary underline underline-offset-2 transition hover:text-theme-primary/80 dark:text-sky-200"
                         phx-click="show_bootstrap_form"
                         phx-value-id={doc.project.id}
                       >
@@ -215,14 +219,14 @@ defmodule DashboardSSDWeb.ProjectsLive.Contracts do
                     <% end %>
                   </div>
                 </td>
-                <td class="px-4 py-3 text-theme-700">{doc.source}</td>
+                <td class="px-4 py-3 text-theme-800 dark:text-white/80">{doc.source}</td>
                 <td class="px-4 py-3">
                   <%= if @can_manage? do %>
                     <form phx-change="toggle_visibility" class="inline">
                       <input type="hidden" name="doc_id" value={doc.id} />
                       <select
                         name="visibility"
-                        class="rounded-md border border-theme-200 bg-white px-2 py-1 text-xs shadow-sm"
+                        class="rounded-md border border-theme-300 bg-white px-2 py-1 text-xs font-semibold text-theme-900 shadow-sm focus:border-theme-primary focus:outline-none dark:border-white/20 dark:bg-white/10 dark:text-white"
                       >
                         <option value="client" selected={doc.visibility == :client}>Client</option>
                         <option value="internal" selected={doc.visibility == :internal}>
@@ -231,17 +235,27 @@ defmodule DashboardSSDWeb.ProjectsLive.Contracts do
                       </select>
                     </form>
                   <% else %>
-                    <span class="text-theme-700">{doc.visibility}</span>
+                    <span class="rounded-full bg-theme-100 px-2 py-1 text-xs font-semibold text-theme-800 dark:bg-white/10 dark:text-white">
+                      {doc.visibility}
+                    </span>
                   <% end %>
                 </td>
-                <td class="px-4 py-3 text-xs text-yellow-600">
-                  {warning_badge(doc)}
+                <td class="px-4 py-3">
+                  <span
+                    :if={warning_badge(doc) != "—"}
+                    class="rounded-full bg-orange-100 px-2 py-1 text-xs font-semibold text-orange-900 dark:bg-orange-500/20 dark:text-orange-50"
+                  >
+                    {warning_badge(doc)}
+                  </span>
+                  <span :if={warning_badge(doc) == "—"} class="text-theme-600 dark:text-white/70">
+                    —
+                  </span>
                 </td>
                 <td class="px-4 py-3">
                   <%= if @can_manage? do %>
                     <form
                       phx-change="toggle_edit"
-                      class="inline-flex items-center gap-2 text-xs text-theme-700"
+                      class="inline-flex items-center gap-2 text-xs font-semibold text-theme-800 dark:text-white"
                     >
                       <input type="hidden" name="doc_id" value={doc.id} />
                       <input
@@ -249,11 +263,14 @@ defmodule DashboardSSDWeb.ProjectsLive.Contracts do
                         name="value"
                         value="true"
                         checked={doc.client_edit_allowed}
+                        class="rounded border-theme-300 text-theme-primary focus:ring-theme-primary dark:border-white/30 dark:bg-white/10 dark:checked:bg-theme-primary"
                       />
                       <span>Client can edit</span>
                     </form>
                   <% else %>
-                    {if doc.client_edit_allowed, do: "Allowed", else: "Read-only"}
+                    <span class="text-theme-700 dark:text-white/70">
+                      {if doc.client_edit_allowed, do: "Allowed", else: "Read-only"}
+                    </span>
                   <% end %>
                 </td>
               </tr>
