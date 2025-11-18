@@ -92,10 +92,12 @@ drive_service_account_path =
     System.get_env("GOOGLE_APPLICATION_CREDENTIALS") ||
     Path.expand("../priv/service_accounts/dev-drive-service-account.json", __DIR__)
 
+drive_root_id = System.get_env("DRIVE_ROOT_FOLDER_ID")
+
 config :dashboard_ssd, :shared_documents_integrations,
   drive: [
     service_account_json_path: drive_service_account_path,
-    root_folder_id: System.get_env("DRIVE_ROOT_FOLDER_ID") || "drive-root-folder-dev"
+    root_folder_id: drive_root_id
   ],
   notion: [
     token: System.get_env("NOTION_TOKEN") || "notion-dev-token",

@@ -13,6 +13,7 @@ defmodule DashboardSSD.Integrations do
   alias DashboardSSD.Accounts.ExternalIdentity
   alias DashboardSSD.Integrations.{Drive, Linear, Notion, Slack}
   alias DashboardSSD.Repo
+  require Logger
 
   @type error :: {:error, term()}
 
@@ -149,7 +150,27 @@ defmodule DashboardSSD.Integrations do
     end
   end
 
-  defp drive_service_token do
+  @doc """
+  Returns a Drive service token, preferring `GOOGLE_DRIVE_TOKEN/GOOGLE_OAUTH_TOKEN`.
+  If missing, attempts to mint a token from a service account JSON pointed to by
+  `DRIVE_SERVICE_ACCOUNT_JSON` (or `GOOGLE_APPLICATION_CREDENTIALS`).
+
+  In test mode, falls back to a fixed token when no credentials are provided to
+  avoid external network calls.
+  """
+  def drive_service_token do
+    case env_drive_token() do
+      {:ok, token} ->
+        Logger.debug("Drive token: using provided env token")
+        {:ok, token}
+
+      {:error, _} ->
+        mint_drive_token()
+    end
+  end
+
+  @doc false
+  def env_drive_token do
     token =
       Keyword.get(cfg(), :drive_token) || System.get_env("GOOGLE_DRIVE_TOKEN") ||
         System.get_env("GOOGLE_OAUTH_TOKEN")
@@ -158,6 +179,111 @@ defmodule DashboardSSD.Integrations do
       {:error, {:missing_env, "GOOGLE_DRIVE_TOKEN/GOOGLE_OAUTH_TOKEN"}}
     else
       {:ok, token}
+    end
+  end
+
+  defp mint_drive_token do
+    if Application.get_env(:dashboard_ssd, :test_env?, false) do
+      # Avoid real HTTP calls in test; token value is irrelevant in mocks.
+      {:ok, "drive-test-token"}
+    else
+      with {:ok, %{client_email: email, private_key: key, path: path}} <-
+             service_account_credentials(),
+           {:ok, jwt} <- sign_jwt(email, key),
+           {:ok, token} <- exchange_jwt_for_token(jwt) do
+        Logger.debug("Drive token: minted from service account JSON at #{path}")
+        {:ok, token}
+      else
+        {:error, reason} ->
+          Logger.error("Drive service token mint failed: #{inspect(reason)}")
+          {:error, reason}
+
+        other ->
+          Logger.error("Drive service token mint failed: #{inspect(other)}")
+          {:error, other}
+      end
+    end
+  end
+
+  defp service_account_credentials do
+    path =
+      System.get_env("DRIVE_SERVICE_ACCOUNT_JSON") ||
+        System.get_env("GOOGLE_APPLICATION_CREDENTIALS")
+
+    cond do
+      is_nil(path) or path == "" ->
+        {:error, :missing_service_account_json}
+
+      true ->
+        case File.read(path) do
+          {:ok, raw} ->
+            case Jason.decode(raw) do
+              {:ok, %{"client_email" => email, "private_key" => key}}
+              when is_binary(email) and is_binary(key) and email != "" and key != "" ->
+                {:ok, %{client_email: email, private_key: key, path: path}}
+
+              {:ok, _} ->
+                {:error, :invalid_service_account_json}
+
+              {:error, reason} ->
+                {:error, {:invalid_json, reason}}
+            end
+
+          {:error, reason} ->
+            {:error, {:unreadable_service_account, reason}}
+        end
+    end
+  end
+
+  defp sign_jwt(email, private_key) do
+    iat = System.system_time(:second)
+    exp = iat + 3600
+
+    claims = %{
+      "iss" => email,
+      "scope" => "https://www.googleapis.com/auth/drive",
+      "aud" => "https://oauth2.googleapis.com/token",
+      "exp" => exp,
+      "iat" => iat
+    }
+
+    jwk = JOSE.JWK.from_pem(private_key)
+    jws = %{"alg" => "RS256", "typ" => "JWT"}
+
+    case JOSE.JWT.sign(jwk, jws, claims) |> JOSE.JWS.compact() do
+      {_, jwt} -> {:ok, jwt}
+      error -> {:error, {:jwt_sign_failed, error}}
+    end
+  rescue
+    e -> {:error, {:jwt_sign_exception, e}}
+  end
+
+  defp exchange_jwt_for_token(jwt) do
+    body =
+      URI.encode_query(%{
+        "grant_type" => "urn:ietf:params:oauth:grant-type:jwt-bearer",
+        "assertion" => jwt
+      })
+
+    headers = [{"content-type", "application/x-www-form-urlencoded"}]
+
+    case Tesla.post("https://oauth2.googleapis.com/token", body, headers: headers) do
+      {:ok, %Tesla.Env{status: 200, body: %{"access_token" => token}}} ->
+        {:ok, token}
+
+      {:ok, %Tesla.Env{status: 200, body: body}} when is_binary(body) ->
+        case Jason.decode(body) do
+          {:ok, %{"access_token" => token}} -> {:ok, token}
+          {:ok, other} -> {:error, {:token_exchange_failed, 200, other}}
+          {:error, reason} -> {:error, {:token_exchange_failed, 200, {:invalid_json, reason}}}
+        end
+
+      {:ok, %Tesla.Env{status: status, body: body}} ->
+        {:error, {:token_exchange_failed, status, body}}
+
+      {:error, reason} ->
+        Logger.error("Drive token exchange error: #{inspect(reason)}")
+        {:error, {:token_exchange_error, reason}}
     end
   end
 

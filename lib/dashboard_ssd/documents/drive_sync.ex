@@ -2,6 +2,7 @@ defmodule DashboardSSD.Documents.DriveSync do
   @moduledoc """
   Upserts Drive-sourced shared documents and emits telemetry for sync health.
   """
+  import Ecto.Query
   alias DashboardSSD.Cache.SharedDocumentsCache
   alias DashboardSSD.Documents.SharedDocument
   alias DashboardSSD.Repo
@@ -10,40 +11,74 @@ defmodule DashboardSSD.Documents.DriveSync do
   @event [:dashboard_ssd, :documents, :drive_sync, :result]
 
   @doc """
-  Syncs the provided Drive documents into `shared_documents`.
+  Syncs the provided Drive documents into `shared_documents`. Removes any prior
+  Drive docs for the same project that are no longer present in `remote_docs`
+  when `:prune_missing?` is true (default: false).
 
   Each entry should be a map containing at minimum `:client_id`, `:project_id`,
   `:source_id`, `:title`, and `:doc_type`. Optional keys (visibility, metadata,
   mime_type, etc.) are forwarded to the schema changeset. When a document with the
   same `{source, source_id}` exists it is updated instead of inserted.
   """
-  @spec sync([map()]) ::
-          {:ok, %{inserted: non_neg_integer(), updated: non_neg_integer()}} | {:error, term()}
-  def sync(remote_docs) when is_list(remote_docs) do
+  @spec sync([map()], keyword()) ::
+          {:ok,
+           %{inserted: non_neg_integer(), updated: non_neg_integer(), deleted: non_neg_integer()}}
+          | {:error, term()}
+  def sync(remote_docs, opts \\ []) when is_list(remote_docs) do
+    prune_missing? = Keyword.get(opts, :prune_missing?, false)
+    project_ids_opt = Keyword.get(opts, :project_ids)
     start_time = System.monotonic_time()
 
     result =
-      Enum.reduce_while(remote_docs, {:ok, %{inserted: 0, updated: 0}}, fn attrs, {:ok, acc} ->
-        attrs = Map.merge(%{source: :drive, visibility: :client, metadata: %{}}, attrs)
+      Enum.reduce_while(
+        remote_docs,
+        {:ok, %{inserted: 0, updated: 0, seen_ids: MapSet.new()}},
+        fn attrs, {:ok, acc} ->
+          attrs = Map.merge(%{source: :drive, visibility: :client, metadata: %{}}, attrs)
 
-        case upsert(attrs) do
-          {:ok, :inserted} -> {:cont, {:ok, %{acc | inserted: acc.inserted + 1}}}
-          {:ok, :updated} -> {:cont, {:ok, %{acc | updated: acc.updated + 1}}}
-          {:error, reason} -> {:halt, {:error, reason}}
+          case upsert(attrs) do
+            {:ok, :inserted} ->
+              {:cont,
+               {:ok,
+                %{
+                  acc
+                  | inserted: acc.inserted + 1,
+                    seen_ids: MapSet.put(acc.seen_ids, attrs.source_id)
+                }}}
+
+            {:ok, :updated} ->
+              {:cont,
+               {:ok,
+                %{
+                  acc
+                  | updated: acc.updated + 1,
+                    seen_ids: MapSet.put(acc.seen_ids, attrs.source_id)
+                }}}
+
+            {:error, reason} ->
+              {:halt, {:error, reason}}
+          end
         end
-      end)
+      )
 
     case result do
       {:ok, counts} ->
+        deleted =
+          if prune_missing? do
+            prune_missing_drive_docs(project_ids_opt || remote_docs, counts.seen_ids)
+          else
+            0
+          end
+
         SharedDocumentsCache.invalidate_listing(:all)
         SharedDocumentsCache.invalidate_download(:all)
-        emit(:ok, counts, remote_docs, start_time)
-        {:ok, counts}
+        emit(:ok, counts, remote_docs, start_time, %{deleted: deleted})
+        {:ok, Map.put(counts, :deleted, deleted)}
 
       {:error, reason} ->
         emit(
           :error,
-          %{inserted: 0, updated: 0},
+          %{inserted: 0, updated: 0, deleted: 0},
           remote_docs,
           start_time,
           %{reason: inspect(reason)}
@@ -51,6 +86,43 @@ defmodule DashboardSSD.Documents.DriveSync do
 
         {:error, reason}
     end
+  end
+
+  defp prune_missing_drive_docs(remote_docs_or_ids, seen_ids) do
+    project_ids =
+      case remote_docs_or_ids do
+        ids when is_list(ids) ->
+          if Enum.all?(ids, &is_integer/1) do
+            ids
+          else
+            ids
+            |> Enum.map(&Map.get(&1, :project_id))
+            |> Enum.reject(&is_nil/1)
+            |> Enum.uniq()
+          end
+
+        _ ->
+          []
+      end
+
+    Enum.reduce(project_ids, 0, fn project_id, acc ->
+      deleted_count =
+        Repo.all(
+          from(sd in SharedDocument,
+            where: sd.source == :drive and sd.project_id == ^project_id
+          )
+        )
+        |> Enum.reduce(0, fn doc, count ->
+          if MapSet.member?(seen_ids, doc.source_id) do
+            count
+          else
+            Repo.delete!(doc)
+            count + 1
+          end
+        end)
+
+      acc + deleted_count
+    end)
   end
 
   defp upsert(attrs) do
@@ -82,7 +154,7 @@ defmodule DashboardSSD.Documents.DriveSync do
     end)
   end
 
-  defp emit(status, counts, remote_docs, start_time, extra \\ %{}) do
+  defp emit(status, counts, remote_docs, start_time, extra) do
     duration = System.monotonic_time() - start_time
     stale_pct = stale_percentage(remote_docs)
 

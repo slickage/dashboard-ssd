@@ -185,7 +185,8 @@ defmodule DashboardSSD.MixProject do
       {:ueberauth, "~> 0.10"},
       {:ueberauth_google, "~> 0.10"},
       {:doctor, "~> 0.22", only: :dev, runtime: false},
-      {:mix_audit, "~> 2.1", only: :dev, runtime: false}
+      {:mix_audit, "~> 2.1", only: :dev, runtime: false},
+      {:jose, "~> 1.11"}
     ]
   end
 

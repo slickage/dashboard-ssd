@@ -13,6 +13,7 @@ defmodule DashboardSSD.Projects do
   alias DashboardSSD.Documents
   alias DashboardSSD.Documents.SharedDocument
   alias DashboardSSD.Integrations
+  alias DashboardSSD.Integrations.Drive
   alias DashboardSSD.Integrations.LinearUtils
 
   alias DashboardSSD.Projects.{
@@ -24,7 +25,9 @@ defmodule DashboardSSD.Projects do
     WorkflowStateCache
   }
 
+  alias DashboardSSD.Accounts.User
   alias DashboardSSD.Repo
+  require Logger
 
   @doc """
   Lists all projects with their associated clients preloaded.
@@ -118,6 +121,58 @@ defmodule DashboardSSD.Projects do
   end
 
   @doc """
+  Ensures a Drive folder exists for the project (and its client container) using the service account.
+
+  Creates `Clients/<client>/<project>` under the configured Drive root and persists `drive_folder_id`
+  if it was missing.
+  """
+  @spec ensure_drive_folder(Project.t()) :: {:ok, Project.t()} | {:error, term()}
+  def ensure_drive_folder(%Project{} = project) do
+    project = Repo.preload(project, :client)
+
+    with {:ok, token} <- Integrations.drive_service_token(),
+         {:ok, root_id} <- drive_root_folder_id(),
+         {:ok, client_name} <- client_folder_name(project),
+         _ <-
+           Logger.debug(
+             "Drive folder ensure start project_id=#{project.id} client=#{client_name} root_id=#{root_id}"
+           ),
+         {:ok, client_folder} <-
+           Drive.ensure_project_folder(token, %{parent_id: root_id, name: client_name}),
+         {:ok, project_name} <- project_folder_name(project),
+         {:ok, project_folder} <-
+           Drive.ensure_project_folder(token, %{
+             parent_id: client_folder["id"],
+             name: project_name
+           }),
+         {:ok, updated} <-
+           upsert_drive_folder_metadata(project, %{
+             drive_folder_id: project_folder["id"],
+             drive_folder_sharing_inherited: true
+           }) do
+      Logger.debug(
+        "Drive folder ensured project_id=#{project.id} client=#{client_name} drive_root=#{root_id} folder_id=#{project_folder["id"]}"
+      )
+
+      {:ok, updated}
+    else
+      {:error, reason} ->
+        Logger.error(
+          "Drive folder ensure returned error project_id=#{project.id} client=#{project.client && project.client.name} reason=#{inspect(reason)}"
+        )
+
+        {:error, reason}
+
+      other ->
+        Logger.error(
+          "Drive folder ensure failed project_id=#{project.id} reason=#{inspect(other)}"
+        )
+
+        {:error, other}
+    end
+  end
+
+  @doc """
   Upserts Drive folder metadata for a project or project id.
 
   Accepts any subset of:
@@ -198,6 +253,19 @@ defmodule DashboardSSD.Projects do
   end
 
   def sync_drive_permissions_for_user(_), do: :ok
+
+  @doc """
+  Shares Drive folders for all projects associated with the given client across all client users.
+  """
+  @spec sync_drive_permissions_for_client(pos_integer()) :: :ok
+  def sync_drive_permissions_for_client(client_id) when is_integer(client_id) do
+    Repo.all(from u in User, where: u.client_id == ^client_id and not is_nil(u.email))
+    |> Enum.each(&sync_drive_permissions_for_user/1)
+
+    :ok
+  end
+
+  def sync_drive_permissions_for_client(_), do: :ok
 
   @doc """
   Revokes Drive folder access for the user's previous client assignment.
@@ -1306,6 +1374,37 @@ defmodule DashboardSSD.Projects do
 
   defp fetch_project!(project_id) when is_integer(project_id) do
     Repo.get!(Project, project_id)
+  end
+
+  defp drive_root_folder_id do
+    case Application.get_env(:dashboard_ssd, :shared_documents_integrations, []) do
+      list when is_list(list) ->
+        drive_cfg = Keyword.get(list, :drive, [])
+
+        case Keyword.get(drive_cfg, :root_folder_id) do
+          id when is_binary(id) and id != "" -> {:ok, id}
+          _ -> {:error, :missing_drive_root_folder_id}
+        end
+
+      _ ->
+        {:error, :missing_drive_root_folder_id}
+    end
+  end
+
+  defp client_folder_name(%Project{client: %{name: name}}) when is_binary(name) and name != "" do
+    {:ok, name}
+  end
+
+  defp client_folder_name(%Project{client_id: client_id}) do
+    {:ok, "Client #{client_id}"}
+  end
+
+  defp project_folder_name(%Project{name: name}) when is_binary(name) and name != "" do
+    {:ok, name}
+  end
+
+  defp project_folder_name(%Project{id: id}) do
+    {:ok, "Project #{id}"}
   end
 
   defp after_project_create({:ok, %Project{drive_folder_id: folder_id} = project} = result)

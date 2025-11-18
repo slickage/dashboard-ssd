@@ -176,6 +176,10 @@ config :dashboard_ssd, DashboardSSD.Documents.WorkspaceBlueprint,
   default_sections: [:drive_contracts, :drive_sow, :drive_change_orders, :notion_project_kb],
   allow_section_overrides?: true
 
+config :dashboard_ssd,
+       :workspace_bootstrap_drive_client,
+       DashboardSSD.Documents.WorkspaceBootstrap.GoogleDriveClient
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

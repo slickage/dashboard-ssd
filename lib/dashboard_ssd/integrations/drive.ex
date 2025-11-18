@@ -5,10 +5,13 @@ defmodule DashboardSSD.Integrations.Drive do
   sharing/unsharing folders, and proxying downloads).
   """
   use Tesla
+  require Logger
 
   @base "https://www.googleapis.com/drive/v3"
   @folder_mime "application/vnd.google-apps.folder"
   @default_listing_fields "nextPageToken, files(id,name,mimeType,size,modifiedTime,webViewLink,permissions,appProperties)"
+  @doc_mime "application/vnd.google-apps.document"
+  @docs_api "https://docs.googleapis.com/v1"
 
   plug Tesla.Middleware.BaseUrl, @base
   plug Tesla.Middleware.Query
@@ -22,6 +25,34 @@ defmodule DashboardSSD.Integrations.Drive do
   @spec list_files_in_folder(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
   def list_files_in_folder(token, folder_id) do
     list_documents(%{token: token, folder_id: folder_id})
+  end
+
+  @doc """
+  Creates a Google Doc and uploads content (markdown -> HTML) via multipart.
+  """
+  @spec create_doc_with_content(String.t(), String.t(), String.t(), binary(), map()) ::
+          {:ok, map()} | {:error, term()}
+  def create_doc_with_content(token, parent_id, name, content, opts \\ %{}) do
+    case create_doc(token, parent_id, name, opts) do
+      {:ok, %{"id" => file_id} = doc} ->
+        case update_file_with_content(token, file_id, content, opts) do
+          {:ok, _} -> {:ok, doc}
+          other -> other
+        end
+
+      other ->
+        other
+    end
+  end
+
+  @doc """
+  Updates an existing file's content (markdown -> HTML) via multipart upload.
+  """
+  @spec update_file_with_content(String.t(), String.t(), binary(), map()) ::
+          {:ok, map()} | {:error, term()}
+  def update_file_with_content(token, file_id, content, opts \\ %{}) do
+    content_props = Map.get(opts, :properties)
+    replace_doc_with_markdown(token, file_id, content, content_props)
   end
 
   @doc """
@@ -46,6 +77,20 @@ defmodule DashboardSSD.Integrations.Drive do
   end
 
   def ensure_project_folder(_, _), do: {:error, :invalid_folder_arguments}
+
+  @doc """
+  Fetches file metadata (id, name, parents, driveId) with supportsAllDrives enabled.
+  """
+  @spec get_file(String.t(), String.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  def get_file(token, file_id, fields \\ "id,name,parents,driveId") do
+    query =
+      support_all_drives()
+      |> Keyword.merge(fields: fields)
+
+    "/files/#{file_id}"
+    |> get(query: query, headers: auth_headers(token))
+    |> handle_response()
+  end
 
   @doc """
   Lists all documents inside a Drive folder, traversing pagination until
@@ -97,6 +142,45 @@ defmodule DashboardSSD.Integrations.Drive do
 
     "/files/#{folder_id}/permissions"
     |> post(body, query: query, headers: auth_headers(token))
+    |> handle_response()
+  end
+
+  @doc """
+  Finds a file (any mime) by name under the given parent folder.
+  Returns {:ok, map()} or {:ok, nil} if not found.
+  """
+  @spec find_file(String.t(), String.t(), String.t()) :: {:ok, map() | nil} | {:error, term()}
+  def find_file(token, parent_id, name) do
+    query =
+      [
+        q: "name = '#{escape_query(name)}' and '#{parent_id}' in parents and trashed = false",
+        fields: "files(id,name,parents,webViewLink,mimeType)",
+        pageSize: 1
+      ]
+      |> Keyword.merge(support_all_drives())
+
+    case get("/files", query: query, headers: auth_headers(token)) do
+      {:ok, %Tesla.Env{status: 200, body: %{"files" => [file | _]}}} -> {:ok, file}
+      {:ok, %Tesla.Env{status: 200, body: %{"files" => []}}} -> {:ok, nil}
+      other -> handle_response(other)
+    end
+  end
+
+  @doc """
+  Creates a new Google Doc under the parent folder. Does not upload content (blank doc).
+  """
+  @spec create_doc(String.t(), String.t(), String.t(), map()) :: {:ok, map()} | {:error, term()}
+  def create_doc(token, parent_id, name, opts \\ %{}) do
+    body =
+      %{
+        name: name,
+        parents: [parent_id],
+        mimeType: Map.get(opts, :mime_type, @doc_mime)
+      }
+      |> maybe_put_properties(Map.get(opts, :properties))
+
+    "/files"
+    |> post(body, query: support_all_drives(), headers: auth_headers(token))
     |> handle_response()
   end
 
@@ -238,6 +322,128 @@ defmodule DashboardSSD.Integrations.Drive do
     do: {:error, {:http_error, status, body}}
 
   defp handle_response({:error, reason}), do: {:error, reason}
+
+  defp replace_doc_with_markdown(token, file_id, content, _properties) do
+    {text, styles} = markdown_to_text_and_styles(content)
+
+    with {:ok, end_index} <- document_end_index(token, file_id),
+         {:ok, _} <- docs_batch_update(token, file_id, end_index, text, styles) do
+      {:ok, %{"id" => file_id}}
+    end
+  end
+
+  defp docs_batch_update(token, file_id, end_index, text, styles) do
+    delete_requests =
+      if is_integer(end_index) and end_index > 2 do
+        [
+          %{
+            deleteContentRange: %{
+              # Docs API cannot delete the trailing newline at endIndex,
+              # so cap at end_index - 1.
+              range: %{startIndex: 1, endIndex: end_index - 1}
+            }
+          }
+        ]
+      else
+        []
+      end
+
+    requests =
+      delete_requests ++
+        [
+          %{
+            insertText: %{
+              location: %{index: 1},
+              text: text
+            }
+          }
+        ] ++ build_style_requests(styles)
+
+    "#{@docs_api}/documents/#{file_id}:batchUpdate"
+    |> post(%{requests: requests}, headers: auth_headers(token))
+    |> handle_response()
+  end
+
+  defp document_end_index(token, file_id) do
+    "#{@docs_api}/documents/#{file_id}"
+    |> get(headers: auth_headers(token))
+    |> case do
+      {:ok, %Tesla.Env{status: 200, body: %{"body" => %{"content" => content}}}} ->
+        last_end_index =
+          content
+          |> List.last()
+          |> case do
+            %{"endIndex" => idx} -> idx
+            _ -> 1
+          end
+
+        {:ok, last_end_index}
+
+      other ->
+        handle_response(other)
+    end
+  end
+
+  defp markdown_to_text_and_styles(content) when is_list(content),
+    do: markdown_to_text_and_styles(List.to_string(content))
+
+  defp markdown_to_text_and_styles(content) when is_binary(content) do
+    lines =
+      content
+      |> String.replace("\r\n", "\n")
+      |> String.split("\n", trim: false)
+
+    Enum.reduce(lines, {"", [], 1}, fn line, {acc_text, acc_styles, idx} ->
+      trimmed = String.trim_trailing(line)
+
+      cond do
+        trimmed == "" ->
+          new_text = "\n"
+          {acc_text <> new_text, acc_styles, idx + String.length(new_text)}
+
+        Regex.match?(~r/^(#+)\s+/, trimmed) ->
+          [_, hashes, rest] = Regex.run(~r/^(#+)\s+(.*)$/, trimmed)
+          level = min(String.length(hashes), 6)
+          plain = String.trim(rest)
+          new_text = plain <> "\n"
+          start_idx = idx
+          end_idx = idx + String.length(new_text)
+          style = {"HEADING_#{level}", start_idx, end_idx}
+          {acc_text <> new_text, [style | acc_styles], end_idx}
+
+        Regex.match?(~r/^[-*]\s+/, trimmed) ->
+          [_, rest] = Regex.run(~r/^[-*]\s+(.*)$/, trimmed)
+          plain = String.trim(rest)
+          new_text = "• " <> plain <> "\n"
+          {acc_text <> new_text, acc_styles, idx + String.length(new_text)}
+
+        Regex.match?(~r/^\d+\.\s+/, trimmed) ->
+          [_, rest] = Regex.run(~r/^\d+\.\s+(.*)$/, trimmed)
+          plain = String.trim(rest)
+          new_text = "• " <> plain <> "\n"
+          {acc_text <> new_text, acc_styles, idx + String.length(new_text)}
+
+        true ->
+          new_text = trimmed <> "\n"
+          {acc_text <> new_text, acc_styles, idx + String.length(new_text)}
+      end
+    end)
+    |> then(fn {text, styles, _idx} -> {text, Enum.reverse(styles)} end)
+  end
+
+  defp markdown_to_text_and_styles(_), do: {"", []}
+
+  defp build_style_requests(styles) do
+    Enum.map(styles, fn {named_style, start_idx, end_idx} ->
+      %{
+        updateParagraphStyle: %{
+          range: %{startIndex: start_idx, endIndex: end_idx},
+          paragraphStyle: %{namedStyleType: named_style},
+          fields: "namedStyleType"
+        }
+      }
+    end)
+  end
 
   defp escape_query(value) do
     value
