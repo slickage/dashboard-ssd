@@ -63,7 +63,7 @@ defmodule DashboardSSD.Documents.WorkspaceBootstrapTest do
     end)
     |> expect(:upsert_document, fn ^project, section, template, _opts ->
       assert section.id == :drive_contracts
-      assert template =~ "Contracts Workspace"
+      assert template =~ "Service Agreement"
       {:ok, %{id: "doc-contracts"}}
     end)
 

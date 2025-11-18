@@ -49,6 +49,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         |> assign(:summaries_task_context, nil)
         |> assign(:summaries_loading, false)
         |> assign(:can_view_contracts?, Policy.can?(user, :read, :projects_contracts))
+        |> assign(:can_view_client_contracts?, Policy.can?(user, :read, :client_contracts))
         |> hydrate_from_cached_sync()
         |> assign(:can_manage_projects?, Policy.can?(user, :manage, :projects))
 
@@ -315,10 +316,10 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
     end
   end
 
-  defp contracts_path(%{client_id: nil}), do: ~p"/projects/contracts"
+  defp client_contracts_path(%{id: id}) when is_integer(id),
+    do: ~p"/clients/contracts?project_id=#{id}"
 
-  defp contracts_path(%{client_id: client_id}) when is_integer(client_id),
-    do: ~p"/projects/contracts?client_id=#{client_id}"
+  defp client_contracts_path(_), do: ~p"/clients/contracts"
 
   defp auto_linear_sync_enabled? do
     not Application.get_env(:dashboard_ssd, :test_env?, false)
@@ -838,7 +839,8 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         </div>
       <% else %>
         <div class="theme-card overflow-x-auto">
-          <% action_col? = @can_manage_projects? or @can_view_contracts? %>
+          <% action_col? =
+            @can_manage_projects? or @can_view_contracts? or @can_view_client_contracts? %>
           <% groups = group_projects_by_team(@projects, @team_members || %{}) %>
           <table class="theme-table">
             <thead>
@@ -966,11 +968,26 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                       <td :if={action_col?}>
                         <div class="flex flex-wrap items-center gap-2">
                           <.link
-                            :if={@can_view_contracts?}
-                            navigate={contracts_path(p)}
+                            :if={@can_view_client_contracts?}
+                            navigate={client_contracts_path(p)}
                             class="text-white/80 underline decoration-white/30 decoration-dotted transition hover:decoration-white"
                           >
                             Contracts <span class="sr-only">for {p.name}</span>
+                          </.link>
+
+                          <span
+                            :if={@can_view_client_contracts? and @can_view_contracts?}
+                            class="text-white/40"
+                          >
+                            |
+                          </span>
+
+                          <.link
+                            :if={@can_view_contracts?}
+                            navigate={~p"/projects/contracts?client_id=#{p.client_id}"}
+                            class="text-white/80 underline decoration-white/30 decoration-dotted transition hover:decoration-white"
+                          >
+                            Edit Contracts <span class="sr-only">for {p.name}</span>
                           </.link>
 
                           <.link

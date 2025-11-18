@@ -1,15 +1,49 @@
-# Contracts Workspace
+# Service Agreement
 
-## Purpose
-- Centralize executed contracts, MSAs, and SOW addenda for the project.
-- Provide client-friendly descriptions plus internal owner notes.
+**Client:**
+**Service Provider:**
+**Effective Date:**
+**Term:**
 
-## Recommended Sections
-1. **Summary** – elevate the agreement title, effective date, and renewal window.
-2. **Signature Package** – link to primary PDF + native Google Doc if editing is planned.
-3. **Change Tracking** – list open change orders, redlines, or addenda in progress.
+---
 
-## Operational Notes
-- Store scanned signatures in `/Signatures` with YYYY-MM-DD prefixes.
-- Keep a copy of the countersigned contract in `/Archive` once superseded.
-- Toggle `Client can edit` sparingly; default to read-only for compliance.
+## 1. Services
+Brief summary of services being provided.
+Reference SOW if applicable.
+
+---
+
+## 2. Payment
+Describe agreed-upon payment terms and invoicing structure.
+
+---
+
+## 3. Term & Termination
+State duration of agreement and termination rights for either party.
+
+---
+
+## 4. Confidentiality
+Outline basic confidentiality expectations.
+
+---
+
+## 5. Intellectual Property
+State who owns work product, code, designs, etc.
+
+---
+
+## 6. Liability & Warranty
+Basic limitations of liability and no-warranty/disclaimer statements.
+
+---
+
+## 7. Governing Law
+State location/jurisdiction governing this agreement.
+
+---
+
+## 8. Signatures
+**Client Signature:** ____________________
+**Service Provider:** ____________________
+**Date:** ____________________

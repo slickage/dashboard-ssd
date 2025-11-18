@@ -1,24 +1,39 @@
-# Change Order Log
+# Change Order (CO)
 
-Use this template to track scope changes after the base SOW is signed.
+**Project Name:**
+**Client:**
+**Service Provider:**
+**CO Number:**
+**Date:**
 
-## Header
-- **Related SOW**: <SOW title + version>
-- **Requested By**: <Client contact>
-- **Request Date**: <YYYY-MM-DD>
-- **Status**: Draft | In Review | Approved | Rejected
+---
 
-## Details
-### Summary
-Describe the requested change, rationale, and impacted teams.
+## 1. Summary of Change
+Brief description of what is being changed from the original SOW.
 
-### Impact Analysis
-- **Scope** – what modules/APIs/assets change?
-- **Timeline** – does the due date move?
-- **Budget** – incremental hours or fees?
+---
 
-### Approval Trail
-| Role | Name | Decision | Date |
-|------|------|----------|------|
+## 2. Reason for Change
+Explain why the change is needed.
 
-Once approved, reference the Drive file ID in DashboardSSD so shared documents stay in sync.
+---
+
+## 3. Scope Impact
+Describe new tasks, modified tasks, or removed tasks.
+
+---
+
+## 4. Timeline Impact
+State any changes to deadlines or milestones.
+
+---
+
+## 5. Cost Impact
+Describe any cost increases, decreases, or new payment terms.
+
+---
+
+## 6. Approvals
+**Client Approval:** ____________________
+**Service Provider Approval:** ____________________
+**Date:** ____________________
