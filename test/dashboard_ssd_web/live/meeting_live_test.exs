@@ -6,12 +6,29 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
   alias DashboardSSD.Meetings.CacheStore
 
   setup %{conn: conn} do
+    prev_integrations = Application.get_env(:dashboard_ssd, :integrations)
+    prev_tesla = Application.get_env(:tesla, :adapter)
+    # Ensure Fireflies client authenticates and uses mock adapter in tests
+    Application.put_env(:dashboard_ssd, :integrations, Keyword.merge(prev_integrations || [], fireflies_api_token: "test-token"))
+    Application.put_env(:tesla, :adapter, Tesla.Mock)
     {:ok, user} =
       Accounts.create_user(%{
         email: "meeting_tester@example.com",
         name: "Mtg Test",
         role_id: Accounts.ensure_role!("admin").id
       })
+
+    on_exit(fn ->
+      case prev_integrations do
+        nil -> Application.delete_env(:dashboard_ssd, :integrations)
+        v -> Application.put_env(:dashboard_ssd, :integrations, v)
+      end
+
+      case prev_tesla do
+        nil -> Application.delete_env(:tesla, :adapter)
+        v -> Application.put_env(:tesla, :adapter, v)
+      end
+    end)
 
     {:ok, conn: init_test_session(conn, %{user_id: user.id})}
   end
