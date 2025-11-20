@@ -9,8 +9,14 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
     prev_integrations = Application.get_env(:dashboard_ssd, :integrations)
     prev_tesla = Application.get_env(:tesla, :adapter)
     # Ensure Fireflies client authenticates and uses mock adapter in tests
-    Application.put_env(:dashboard_ssd, :integrations, Keyword.merge(prev_integrations || [], fireflies_api_token: "test-token"))
+    Application.put_env(
+      :dashboard_ssd,
+      :integrations,
+      Keyword.merge(prev_integrations || [], fireflies_api_token: "test-token")
+    )
+
     Application.put_env(:tesla, :adapter, Tesla.Mock)
+
     {:ok, user} =
       Accounts.create_user(%{
         email: "meeting_tester@example.com",
