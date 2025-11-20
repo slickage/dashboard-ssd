@@ -12,6 +12,7 @@ defmodule DashboardSSDWeb.CalendarComponents do
     - `end_date`: Range end to highlight (optional)
     - `compact`: Render without outer card and tighter spacing (default: true)
   """
+  @spec month_calendar(map()) :: Phoenix.LiveView.Rendered.t()
   attr :month, :any, required: true
   attr :today, :any, default: nil
   attr :start_date, :any, default: nil
