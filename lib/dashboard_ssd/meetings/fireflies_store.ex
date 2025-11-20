@@ -16,6 +16,9 @@ defmodule DashboardSSD.Meetings.FirefliesStore do
           bullet_gist: String.t() | nil
         }
 
+  @doc """
+  Retrieves persisted artifacts for a recurring series id or `:not_found`.
+  """
   @spec get(String.t()) :: {:ok, artifacts()} | :not_found
   def get(series_id) when is_binary(series_id) do
     case Repo.one(
@@ -34,6 +37,9 @@ defmodule DashboardSSD.Meetings.FirefliesStore do
     end
   end
 
+  @doc """
+  Inserts or updates artifacts for a recurring series id.
+  """
   @spec upsert(String.t(), map()) :: :ok
   def upsert(series_id, attrs) when is_binary(series_id) and is_map(attrs) do
     now = DateTime.utc_now()

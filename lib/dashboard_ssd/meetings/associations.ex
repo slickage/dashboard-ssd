@@ -5,6 +5,9 @@ defmodule DashboardSSD.Meetings.Associations do
   alias DashboardSSD.Meetings.MeetingAssociation
   alias DashboardSSD.Repo
 
+  @doc """
+  Fetches the association for a specific calendar event id, if present.
+  """
   @spec get_for_event(String.t()) :: MeetingAssociation.t() | nil
   def get_for_event(calendar_event_id) do
     from(a in MeetingAssociation,
@@ -41,6 +44,9 @@ defmodule DashboardSSD.Meetings.Associations do
     end
   end
 
+  @doc """
+  Inserts or updates an association for a calendar event.
+  """
   @spec upsert_for_event(String.t(), map()) ::
           {:ok, MeetingAssociation.t()} | {:error, Ecto.Changeset.t()}
   def upsert_for_event(calendar_event_id, attrs) do
@@ -57,6 +63,9 @@ defmodule DashboardSSD.Meetings.Associations do
     end
   end
 
+  @doc """
+  Sets a manual association for an event (client or project).
+  """
   @spec set_manual(String.t(), map()) ::
           {:ok, MeetingAssociation.t()} | {:error, Ecto.Changeset.t()}
   def set_manual(calendar_event_id, %{client_id: _} = attrs),

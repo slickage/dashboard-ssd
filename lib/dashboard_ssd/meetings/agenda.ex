@@ -7,6 +7,9 @@ defmodule DashboardSSD.Meetings.Agenda do
   alias DashboardSSD.Meetings.AgendaItem
   alias DashboardSSD.Repo
 
+  @doc """
+  Lists agenda items for a calendar event ordered by `position`.
+  """
   @spec list_items(String.t()) :: [AgendaItem.t()]
   def list_items(calendar_event_id) when is_binary(calendar_event_id) do
     from(ai in AgendaItem,
@@ -16,6 +19,9 @@ defmodule DashboardSSD.Meetings.Agenda do
     |> Repo.all()
   end
 
+  @doc """
+  Creates a manual agenda item for the given attributes.
+  """
   @spec create_item(map()) :: {:ok, AgendaItem.t()} | {:error, Ecto.Changeset.t()}
   def create_item(attrs) when is_map(attrs) do
     %AgendaItem{}
@@ -23,6 +29,9 @@ defmodule DashboardSSD.Meetings.Agenda do
     |> Repo.insert()
   end
 
+  @doc """
+  Updates an agenda item with the provided changes.
+  """
   @spec update_item(AgendaItem.t(), map()) :: {:ok, AgendaItem.t()} | {:error, Ecto.Changeset.t()}
   def update_item(%AgendaItem{} = item, attrs) do
     item
@@ -30,9 +39,15 @@ defmodule DashboardSSD.Meetings.Agenda do
     |> Repo.update()
   end
 
+  @doc """
+  Deletes the given agenda item.
+  """
   @spec delete_item(AgendaItem.t()) :: {:ok, AgendaItem.t()} | {:error, Ecto.Changeset.t()}
   def delete_item(%AgendaItem{} = item), do: Repo.delete(item)
 
+  @doc """
+  Reorders agenda items for the event according to the list of item ids.
+  """
   @spec reorder_items(String.t(), [integer()]) :: :ok | {:error, term()}
   def reorder_items(calendar_event_id, ordered_ids) when is_binary(calendar_event_id) do
     items = list_items(calendar_event_id)
