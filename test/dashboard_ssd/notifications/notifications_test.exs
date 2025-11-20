@@ -9,6 +9,8 @@ defmodule DashboardSSD.NotificationsTest do
 
     # Alerts
     {:ok, a} = Notifications.create_alert(%{project_id: p.id, message: "Down", status: "open"})
+    # list all alerts covers list_alerts/0
+    assert Enum.any?(Notifications.list_alerts(), &(&1.id == a.id))
     assert Notifications.get_alert!(a.id).message == "Down"
     {:ok, a2} = Notifications.update_alert(a, %{status: "closed"})
     assert a2.status == "closed"
@@ -23,6 +25,8 @@ defmodule DashboardSSD.NotificationsTest do
         event_type: "deploy.failed",
         channel: "slack"
       })
+    # list all rules covers list_notification_rules/0
+    assert Enum.any?(Notifications.list_notification_rules(), &(&1.id == r.id))
 
     assert Notifications.get_notification_rule!(r.id).event_type == "deploy.failed"
     {:ok, r2} = Notifications.update_notification_rule(r, %{channel: "email"})
