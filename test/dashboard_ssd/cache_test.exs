@@ -1,34 +1,39 @@
 defmodule DashboardSSD.CacheTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias DashboardSSD.Cache
 
-  setup do
-    # Cache is supervised by the application; ensure clean state
-    _ = Cache.reset()
-    on_exit(fn -> Cache.reset() end)
-    :ok
+  @ns :cache_test_namespace
+
+  # The cache server is started by the application supervisor in tests.
+
+  test "put/get with ttl and expiry" do
+    assert :ok == Cache.put(@ns, :k1, 123, 50)
+    assert {:ok, 123} == Cache.get(@ns, :k1)
+
+    # Wait for expiry
+    Process.sleep(60)
+    assert :miss == Cache.get(@ns, :k1)
   end
 
-  test "put/get/delete/flush/reset" do
-    ns = :cov
-    key1 = :a
-    key2 = :b
+  test "delete and flush work" do
+    assert :ok == Cache.put(@ns, :a, 1, 5_000)
+    assert :ok == Cache.put(@ns, :b, 2, 5_000)
 
-    assert :miss == Cache.get(ns, key1)
-    :ok = Cache.put(ns, key1, 123, 10_000)
-    assert {:ok, 123} == Cache.get(ns, key1)
+    assert :ok == Cache.delete(@ns, :a)
+    assert :miss == Cache.get(@ns, :a)
 
-    :ok = Cache.put(ns, key2, :x, 10_000)
-    :ok = Cache.delete(ns, key2)
-    assert :miss == Cache.get(ns, key2)
+    assert :ok == Cache.flush(@ns)
+    assert :miss == Cache.get(@ns, :b)
+  end
 
-    :ok = Cache.flush(ns)
-    assert :miss == Cache.get(ns, key1)
+  test "child_spec and force_cleanup do not crash" do
+    spec = Cache.child_spec([])
+    assert is_map(spec)
+    assert spec.id == DashboardSSD.Cache
+    assert match?({DashboardSSD.KnowledgeBase.Cache, :start_link, _}, spec.start)
 
-    :ok = Cache.put(ns, key1, :y, 10_000)
-    assert {:ok, :y} == Cache.get(ns, key1)
-    :ok = Cache.reset()
-    assert :miss == Cache.get(ns, key1)
+    # Just ensure it can be called without crashing
+    assert :ok == Cache.force_cleanup()
   end
 end

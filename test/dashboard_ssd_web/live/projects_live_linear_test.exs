@@ -149,4 +149,29 @@ defmodule DashboardSSDWeb.ProjectsLiveLinearTest do
     # Should show error flash
     assert render(view) =~ "Linear sync failed"
   end
+
+  test "reload tasks button triggers info flash", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "adm-reload@example.com",
+        name: "A",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    {:ok, c} = Clients.create_client(%{name: "Acme"})
+    {:ok, _p} = Projects.create_project(%{name: "Acme Web", client_id: c.id})
+
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.linear.app/graphql"} ->
+        %Tesla.Env{status: 200, body: %{"data" => %{"issueSearch" => %{"nodes" => []}}}}
+    end)
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, view, html} = live(conn, ~p"/projects")
+    assert html =~ "Reload Tasks"
+
+    view |> element("button", "Reload Tasks") |> render_click()
+
+    assert render(view) =~ "Tasks reloaded successfully"
+  end
 end

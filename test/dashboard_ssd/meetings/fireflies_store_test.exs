@@ -1,35 +1,38 @@
 defmodule DashboardSSD.Meetings.FirefliesStoreTest do
   use DashboardSSD.DataCase, async: true
 
-  alias DashboardSSD.Meetings.FirefliesArtifact
   alias DashboardSSD.Meetings.FirefliesStore
-  alias DashboardSSD.Repo
 
-  test "upsert inserts and get returns normalized items" do
-    series = "series-store-1"
-
-    assert :not_found == FirefliesStore.get(series)
-
-    :ok =
-      FirefliesStore.upsert(series, %{
-        transcript_id: "t-1",
-        accomplished: "Notes",
-        action_items: ["A", "B"],
-        bullet_gist: "• A\n• B"
-      })
-
-    assert {:ok, %{accomplished: "Notes", action_items: ["A", "B"]}} = FirefliesStore.get(series)
+  test "get returns :not_found when missing" do
+    assert :not_found == FirefliesStore.get("series-x")
   end
 
-  test "upsert updates existing artifact" do
-    series = "series-store-2"
+  test "upsert inserts then updates and normalizes items" do
+    s = "series-1"
 
-    :ok = FirefliesStore.upsert(series, %{accomplished: "Old", action_items: ["X"]})
-    :ok = FirefliesStore.upsert(series, %{accomplished: "New", action_items: ["Y"]})
+    :ok =
+      FirefliesStore.upsert(s, %{
+        transcript_id: "t1",
+        accomplished: "Done",
+        action_items: ["A", "B"],
+        bullet_gist: nil
+      })
 
-    rec = Repo.get_by(FirefliesArtifact, recurring_series_id: series)
-    assert rec.accomplished == "New"
-    # Stored as map in DB
-    assert rec.action_items == %{"items" => ["Y"]}
+    assert {:ok, art1} = FirefliesStore.get(s)
+    assert art1.accomplished == "Done"
+    assert art1.action_items == ["A", "B"]
+
+    # Update with map form for items to hit normalize_items/1 map branch
+    :ok =
+      FirefliesStore.upsert(s, %{
+        accomplished: "Updated",
+        action_items: %{"items" => ["C"]},
+        bullet_gist: "gist"
+      })
+
+    assert {:ok, art2} = FirefliesStore.get(s)
+    assert art2.accomplished == "Updated"
+    assert art2.action_items == ["C"]
+    assert art2.bullet_gist == "gist"
   end
 end
