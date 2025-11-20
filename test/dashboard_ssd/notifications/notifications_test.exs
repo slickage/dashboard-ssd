@@ -15,6 +15,8 @@ defmodule DashboardSSD.NotificationsTest do
     {:ok, a2} = Notifications.update_alert(a, %{status: "closed"})
     assert a2.status == "closed"
     assert Enum.any?(Notifications.list_alerts_by_project(p.id), &(&1.id == a.id))
+    # change_alert/2 returns a changeset
+    assert %Ecto.Changeset{} = Notifications.change_alert(a)
     {:ok, _} = Notifications.delete_alert(a2)
     refute Enum.any?(Notifications.list_alerts_by_project(p.id), &(&1.id == a.id))
 
@@ -25,10 +27,13 @@ defmodule DashboardSSD.NotificationsTest do
         event_type: "deploy.failed",
         channel: "slack"
       })
+
     # list all rules covers list_notification_rules/0
     assert Enum.any?(Notifications.list_notification_rules(), &(&1.id == r.id))
 
     assert Notifications.get_notification_rule!(r.id).event_type == "deploy.failed"
+    # change_notification_rule/2 returns a changeset
+    assert %Ecto.Changeset{} = Notifications.change_notification_rule(r)
     {:ok, r2} = Notifications.update_notification_rule(r, %{channel: "email"})
     assert r2.channel == "email"
     assert Enum.any?(Notifications.list_notification_rules_by_project(p.id), &(&1.id == r.id))

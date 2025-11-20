@@ -56,4 +56,8 @@ defmodule DashboardSSD.Meetings.AgendaTest do
     assert Enum.map(merged, & &1.text) == ["Discuss Plan"]
     assert Enum.all?(merged, &(&1.source == "manual"))
   end
+
+  test "derive_items_for_event returns [] when series id is nil" do
+    assert Agenda.derive_items_for_event("evt-x", nil) == []
+  end
 end

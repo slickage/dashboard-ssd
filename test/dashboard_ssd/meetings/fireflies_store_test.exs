@@ -34,5 +34,10 @@ defmodule DashboardSSD.Meetings.FirefliesStoreTest do
     assert art2.accomplished == "Updated"
     assert art2.action_items == ["C"]
     assert art2.bullet_gist == "gist"
+
+    # Update with unrelated map for items -> normalizes to []
+    :ok = FirefliesStore.upsert(s, %{action_items: %{}})
+    assert {:ok, art3} = FirefliesStore.get(s)
+    assert art3.action_items == []
   end
 end
