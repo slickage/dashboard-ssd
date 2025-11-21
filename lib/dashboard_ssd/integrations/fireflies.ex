@@ -169,7 +169,7 @@ defmodule DashboardSSD.Integrations.Fireflies do
     do: {:ok, %{accomplished: nil, action_items: []}}
 
   defp fallback_by_title(series_id, title, limit) when is_binary(title) do
-    case FirefliesClient.list_transcripts(limit: limit) do
+    case FirefliesClient.list_transcripts(keyword: title, limit: limit) do
       {:ok, transcripts} when is_list(transcripts) and transcripts != [] ->
         case pick_best_title_match(transcripts, title) do
           {:ok, %{"id" => tid}} ->
@@ -186,6 +186,23 @@ defmodule DashboardSSD.Integrations.Fireflies do
       _ ->
         {:ok, %{accomplished: nil, action_items: []}}
     end
+  end
+
+  @doc """
+  Search transcripts by meeting title using Fireflies' keyword search.
+
+  Options:
+    * `:scope` - one of "TITLE" | "SENTENCES" | "ALL" (defaults to "TITLE")
+    * `:from_date`, `:to_date` - ISO8601 datetimes to narrow time window
+    * `:participants`, `:organizers` - lists of emails to filter attendees
+    * `:limit` - max results (server max 50)
+    * `:skip` - pagination offset
+  """
+  @spec search_transcripts_by_title(String.t(), keyword()) :: {:ok, [map()]} | {:error, term()}
+  def search_transcripts_by_title(title, opts \\ []) when is_binary(title) do
+    FirefliesClient.list_transcripts(
+      Keyword.merge(opts, keyword: title)
+    )
   end
 
   defp pick_best_title_match(list, title) do

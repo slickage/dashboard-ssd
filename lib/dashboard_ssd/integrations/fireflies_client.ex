@@ -156,10 +156,12 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
 
   Options (subset, subject to Fireflies API constraints):
     * `:mine` - boolean; filter to API key owner
+    * `:keyword` - String; keyword search (supersedes deprecated `title`)
+    * `:scope` - "TITLE" | "SENTENCES" | "ALL" (defaults server-side)
     * `:organizers` - [String]
     * `:participants` - [String]
-    * `:from_date` - ISO 8601 string
-    * `:to_date` - ISO 8601 string
+    * `:from_date` - ISO 8601 string (supersedes deprecated `date`)
+    * `:to_date` - ISO 8601 string (supersedes deprecated `date`)
     * `:limit` - integer (max 50)
     * `:skip` - integer
   """
@@ -168,6 +170,7 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
     with {:ok, token} <- token() do
       query = """
       query Transcripts(
+        $keyword: String,
         $mine: Boolean,
         $userId: String,
         $hostEmail: String,
@@ -181,6 +184,7 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
         $skip: Int
       ) {
         transcripts(
+          keyword: $keyword,
           mine: $mine,
           user_id: $userId,
           host_email: $hostEmail,
@@ -203,6 +207,8 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
             short_overview
             bullet_gist
           }
+          participants
+          meeting_link
         }
       }
       """
@@ -237,6 +243,7 @@ defmodule DashboardSSD.Integrations.FirefliesClient do
       end
 
     %{
+      "keyword" => Keyword.get(opts, :keyword),
       "mine" => mine_opt,
       "userId" => Map.get(exclusives, "userId") || user_opt,
       "hostEmail" => Map.get(exclusives, "hostEmail"),
