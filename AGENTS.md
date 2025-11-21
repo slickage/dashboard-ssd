@@ -83,26 +83,26 @@ docs in a single commit. Add files separately and commit separately using the
 Angular format above.
 
 Recommended grouping
-- Code changes (Elixir/Phoenix): feat|fix|refactor(<scope>)
-  - Scope is the feature area, e.g., fireflies, meetings, auth, models/users.
-  - Include only lib/ and related test changes in this commit.
+- Code changes: feat|fix|refactor(<scope>)
+  - Scope is the feature area (e.g., models/users, api, ui, auth).
+  - Include only source code and related tests in this commit.
 - Scripts and tooling: feat|build|ci(scripts)
   - Examples: scripts/*.sh, scripts/*.py, CI configs.
   - Keep script additions separate from code or docs.
 - Documentation: docs(<scope>)
-  - Examples: docs/fireflies/**, README, AGENTS.md updates.
+  - Examples: docs/**, README, AGENTS.md updates.
   - Large generated content should be its own commit.
 
 Process (example)
 1) Stage and commit code only
-   - Files: lib/**, test/** (if tests are part of the code change)
-   - Message: feat(fireflies): add keyword-based transcript search
+   - Files: src/** or lib/**, test/** (if tests are part of the code change)
+   - Message: feat(feature-x): add functionality y
 2) Stage and commit scripts only
-   - Files: scripts/fireflies_scrape.py (or other scripts)
-   - Message: feat(scripts): add Fireflies docs scraper
+   - Files: scripts/tool_x.py (or other scripts)
+   - Message: feat(scripts): add tooling for feature x
 3) Stage and commit docs only
-   - Files: docs/fireflies/** (and/or docs/fireflies_md/**)
-   - Message: docs(fireflies): add scraped GraphQL API and Schema docs and manifest
+   - Files: docs/**
+   - Message: docs(feature-x): add documentation and manifest
 
 Rules
 - Do not include documentation files and scripts in a code commit.
@@ -112,8 +112,8 @@ Rules
 
 Example sequence (commands)
 - git add lib/ test/
-- git commit -m "feat(fireflies): add keyword-based transcript search\n\n- support `keyword` arg\n- include participants and meeting_link\n- remove enum to match API\n- add boundary helper\n"
-- git add scripts/fireflies_scrape.py
-- git commit -m "feat(scripts): add Fireflies docs scraper\n\n- crawl docs.fireflies.ai\n- normalize code blocks; write raw/clean/markdown\n- manifests in docs/fireflies*\n"
-- git add docs/fireflies/**
-- git commit -m "docs(fireflies): add scraped GraphQL API and Schema docs and manifest\n\n- include markdown versions\n- add index manifest for lookup\n"
+- git commit -m "feat(feature-x): add functionality y\n\n- short bullet 1\n- short bullet 2\n"
+- git add scripts/tool_x.py
+- git commit -m "feat(scripts): add tool for feature x\n\n- purpose of tool\n- how it integrates\n"
+- git add docs/**
+- git commit -m "docs(feature-x): add docs and manifest\n\n- what was added\n- where to find it\n"
