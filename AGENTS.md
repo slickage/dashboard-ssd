@@ -78,3 +78,45 @@ Footer
 Reverts
 - revert(<scope>): <original header>
 - Body: This reverts commit <hash>.
+
+## Commit Workflow (Atomic, separated commits)
+
+Always split work into minimal, logical commits. Do not mix code, scripts, and
+docs in a single commit. Add files separately and commit separately using the
+Angular format above.
+
+Recommended grouping
+- Code changes (Elixir/Phoenix): feat|fix|refactor(<scope>)
+  - Scope is the feature area, e.g., fireflies, meetings, auth, models/users.
+  - Include only lib/ and related test changes in this commit.
+- Scripts and tooling: feat|build|ci(scripts)
+  - Examples: scripts/*.sh, scripts/*.py, CI configs.
+  - Keep script additions separate from code or docs.
+- Documentation: docs(<scope>)
+  - Examples: docs/fireflies/**, README, AGENTS.md updates.
+  - Large generated content should be its own commit.
+
+Process (example)
+1) Stage and commit code only
+   - Files: lib/**, test/** (if tests are part of the code change)
+   - Message: feat(fireflies): add keyword-based transcript search
+2) Stage and commit scripts only
+   - Files: scripts/fireflies_scrape.py (or other scripts)
+   - Message: feat(scripts): add Fireflies docs scraper
+3) Stage and commit docs only
+   - Files: docs/fireflies/** (and/or docs/fireflies_md/**)
+   - Message: docs(fireflies): add scraped GraphQL API and Schema docs and manifest
+
+Rules
+- Do not include documentation files and scripts in a code commit.
+- Do not include code files in a documentation-only commit.
+- Prefer multiple small commits over one large mixed commit.
+- Keep each commit message within 100 columns and subjects imperative.
+
+Example sequence (commands)
+- git add lib/ test/
+- git commit -m "feat(fireflies): add keyword-based transcript search\n\n- support `keyword` arg\n- include participants and meeting_link\n- remove enum to match API\n- add boundary helper\n"
+- git add scripts/fireflies_scrape.py
+- git commit -m "feat(scripts): add Fireflies docs scraper\n\n- crawl docs.fireflies.ai\n- normalize code blocks; write raw/clean/markdown\n- manifests in docs/fireflies*\n"
+- git add docs/fireflies/**
+- git commit -m "docs(fireflies): add scraped GraphQL API and Schema docs and manifest\n\n- include markdown versions\n- add index manifest for lookup\n"
