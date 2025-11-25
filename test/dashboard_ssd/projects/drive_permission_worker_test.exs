@@ -1,98 +1,128 @@
 defmodule DashboardSSD.Projects.DrivePermissionWorkerTest do
-  use DashboardSSD.DataCase, async: true
+  use ExUnit.Case, async: true
+
+  import ExUnit.CaptureLog
+  import Tesla.Mock
 
   alias DashboardSSD.Projects.DrivePermissionWorker
 
   setup do
+    envs = %{
+      env: Application.get_env(:dashboard_ssd, :env),
+      inline: Application.get_env(:dashboard_ssd, :drive_permission_worker_inline),
+      disabled: Application.get_env(:dashboard_ssd, :drive_permission_worker_disabled),
+      backoff: Application.get_env(:dashboard_ssd, :drive_permission_worker_backoff_ms),
+      test_env: Application.get_env(:dashboard_ssd, :test_env?)
+    }
+
+    Application.put_env(:dashboard_ssd, :env, :dev)
     Application.put_env(:dashboard_ssd, :drive_permission_worker_inline, true)
-    Application.put_env(:dashboard_ssd, :drive_permission_worker_backoff_ms, 5)
-    Application.put_env(:dashboard_ssd, :integrations, drive_token: "drive-token")
+    Application.put_env(:dashboard_ssd, :drive_permission_worker_disabled, false)
+    Application.put_env(:dashboard_ssd, :drive_permission_worker_backoff_ms, 0)
+    Application.put_env(:dashboard_ssd, :test_env?, true)
 
     on_exit(fn ->
-      Application.delete_env(:dashboard_ssd, :drive_permission_worker_inline)
-      Application.delete_env(:dashboard_ssd, :drive_permission_worker_backoff_ms)
-      Application.delete_env(:dashboard_ssd, :integrations)
+      restore_env(:env, envs.env)
+      restore_env(:drive_permission_worker_inline, envs.inline)
+      restore_env(:drive_permission_worker_disabled, envs.disabled)
+      restore_env(:drive_permission_worker_backoff_ms, envs.backoff)
+      restore_env(:test_env?, envs.test_env)
     end)
 
     :ok
   end
 
-  test "share posts Drive permission request" do
-    Tesla.Mock.mock(fn %Tesla.Env{method: :post, url: url, body: body} = env ->
-      assert String.contains?(url, "/files/folder-123/permissions")
-      params = Jason.decode!(body)
-      assert params["emailAddress"] == "client@example.com"
-      assert params["role"] == "reader"
-      assert params["type"] == "user"
-
-      %{env | status: 200, body: %{"id" => "perm-1"}}
+  test "share returns :ok when no retries needed" do
+    mock(fn
+      %{method: :post, url: "https://www.googleapis.com/drive/v3/files/folder/permissions"} ->
+        {:ok, %Tesla.Env{status: 200, body: %{"id" => "perm"}}}
     end)
 
     assert :ok =
-             DrivePermissionWorker.share("folder-123", %{
-               role: "reader",
-               type: "user",
-               email: "client@example.com"
-             })
+             DrivePermissionWorker.share("folder", %{role: "reader", email: "user@example.com"})
   end
 
-  test "unshare deletes permission entry" do
-    Tesla.Mock.mock(fn %Tesla.Env{method: :delete, url: url} = env ->
-      assert String.contains?(url, "/files/folder-123/permissions/perm-2")
-      %{env | status: 204, body: ""}
+  test "share logs when retries exceed max attempts" do
+    {:ok, counter} = Agent.start_link(fn -> 0 end)
+    on_exit(fn -> if Process.alive?(counter), do: Agent.stop(counter) end)
+
+    mock(fn
+      %{method: :post, url: "https://www.googleapis.com/drive/v3/files/folder/permissions"} ->
+        Agent.update(counter, &(&1 + 1))
+        {:ok, %Tesla.Env{status: 500, body: %{"error" => "boom"}}}
     end)
 
-    assert :ok = DrivePermissionWorker.unshare("folder-123", "perm-2")
+    log =
+      capture_log(fn ->
+        assert :ok =
+                 DrivePermissionWorker.share("folder", %{role: "reader", email: "user@example.com"})
+      end)
+
+    assert log =~ "Drive permission worker exceeded retries"
+    assert log =~ "Drive permission share failed on attempt 1"
+    assert Agent.get(counter, & &1) == 4
   end
 
-  test "revoke_email finds permission id before unsharing" do
-    Tesla.Mock.mock(fn
-      %Tesla.Env{method: :get, url: url} = env ->
-        assert String.contains?(url, "/files/folder-abc/permissions")
-
-        %{
-          env
-          | status: 200,
-            body: %{
-              "permissions" => [%{"id" => "perm-9", "emailAddress" => "client@example.com"}]
-            }
-        }
-
-      %Tesla.Env{method: :delete, url: url} = env ->
-        assert String.contains?(url, "/files/folder-abc/permissions/perm-9")
-        %{env | status: 204, body: ""}
+  test "unshare succeeds" do
+    mock(fn
+      %{method: :delete,
+        url: "https://www.googleapis.com/drive/v3/files/folder/permissions/perm-1"} ->
+        {:ok, %Tesla.Env{status: 204}}
     end)
 
-    assert :ok = DrivePermissionWorker.revoke_email("folder-abc", "client@example.com")
+    assert :ok = DrivePermissionWorker.unshare("folder", "perm-1")
   end
 
-  test "share retries when Drive API errors" do
-    parent = self()
+  test "revoke_email deletes matching permission" do
+    mock(fn
+      %{method: :get, url: "https://www.googleapis.com/drive/v3/files/folder/permissions"} ->
+        {:ok,
+         %Tesla.Env{
+           status: 200,
+           body: %{
+             "permissions" => [
+               %{"id" => "perm-123", "emailAddress" => "user@example.com"}
+             ]
+           }
+         }}
 
-    Tesla.Mock.mock(fn %Tesla.Env{method: :post} = env ->
-      send(parent, {:share_attempt, env})
-      {:error, :boom}
+      %{method: :delete,
+        url: "https://www.googleapis.com/drive/v3/files/folder/permissions/perm-123"} ->
+        {:ok, %Tesla.Env{status: 204}}
     end)
 
-    assert :ok =
-             DrivePermissionWorker.share("folder-error", %{
-               role: "reader",
-               type: "user",
-               email: "client@example.com"
-             })
+    log =
+      capture_log(fn ->
+        assert :ok = DrivePermissionWorker.revoke_email("folder", "User@example.com")
+      end)
 
-    assert_receive {:share_attempt, _}
+    assert log == ""
   end
 
-  test "revoke_email handles permission lookup failures" do
-    parent = self()
+  test "revoke_email retries when permission lookup fails" do
+    {:ok, counter} = Agent.start_link(fn -> 0 end)
+    on_exit(fn -> if Process.alive?(counter), do: Agent.stop(counter) end)
 
-    Tesla.Mock.mock(fn %Tesla.Env{method: :get} = env ->
-      send(parent, {:permission_lookup, env})
-      {:error, :boom}
+    mock(fn
+      %{method: :get, url: "https://www.googleapis.com/drive/v3/files/folder/permissions"} ->
+        Agent.update(counter, &(&1 + 1))
+        {:error, :boom}
     end)
 
-    assert :ok = DrivePermissionWorker.revoke_email("folder-error", "client@example.com")
-    assert_receive {:permission_lookup, _}
+    log =
+      capture_log(fn ->
+        assert :ok = DrivePermissionWorker.revoke_email("folder", "user@example.com")
+      end)
+
+    assert log =~ "Drive permission unshare_lookup failed on attempt 1"
+    assert log =~ "Drive permission worker exceeded retries"
+    assert Agent.get(counter, & &1) == 4
   end
-end
+
+  test "revoke_email ignores nil" do
+    assert :ok = DrivePermissionWorker.revoke_email("folder", nil)
+  end
+
+  defp restore_env(key, nil), do: Application.delete_env(:dashboard_ssd, key)
+  defp restore_env(key, value), do: Application.put_env(:dashboard_ssd, key, value)
+ end

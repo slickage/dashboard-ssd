@@ -93,7 +93,7 @@ test/
 - **Testing**: N/A (operational pre-check that unblocks subsequent phases).
 
 ### Phase 2 – Foundational Data, Cache & Workspace Templates
-- **Work**: Create `shared_documents` and `document_access_logs` tables; implement schema modules/changesets; extend Drive helper APIs and shared cache namespaces; add repository-managed Markdown templates (Drive: Contracts/SOW/Change Orders, Notion: Project KB/Runbook) plus the blueprint config and `WorkspaceBootstrap`.
+- **Work**: Create `shared_documents` and `document_access_logs` tables; implement schema modules/changesets; extend Drive helper APIs and shared cache namespaces; add repository-managed Markdown templates (Drive: Contracts/SOW/Change Orders, Notion: Project KB hierarchy) plus the blueprint config and `WorkspaceBootstrap`.
 - **Dependencies**: Existing clients/projects tables, Drive service account, Notion credentials.
 - **Testing**: Migration/DataCase tests for schemas; cache helper unit tests; bootstrap tests mocking Drive/Notion APIs.
 

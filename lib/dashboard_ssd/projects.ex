@@ -79,8 +79,7 @@ defmodule DashboardSSD.Projects do
     :drive_contracts,
     :drive_sow,
     :drive_change_orders,
-    :notion_project_kb,
-    :notion_runbook
+    :notion_project_kb
   ]
 
   @doc """
@@ -1377,19 +1376,49 @@ defmodule DashboardSSD.Projects do
   end
 
   defp drive_root_folder_id do
-    case Application.get_env(:dashboard_ssd, :shared_documents_integrations, []) do
-      list when is_list(list) ->
-        drive_cfg = Keyword.get(list, :drive, [])
-
-        case Keyword.get(drive_cfg, :root_folder_id) do
-          id when is_binary(id) and id != "" -> {:ok, id}
-          _ -> {:error, :missing_drive_root_folder_id}
-        end
-
-      _ ->
-        {:error, :missing_drive_root_folder_id}
+    with {:error, _} <- drive_root_from_config() do
+      drive_root_from_env()
     end
   end
+
+  defp drive_root_from_config do
+    Application.get_env(:dashboard_ssd, :shared_documents_integrations)
+    |> extract_drive_config()
+    |> extract_root_folder_id()
+  end
+
+  defp drive_root_from_env do
+    env_id = System.get_env("DRIVE_ROOT_FOLDER_ID")
+
+    case is_binary(env_id) and env_id != "" do
+      true -> {:ok, env_id}
+      false -> {:error, :missing_drive_root_folder_id}
+    end
+  end
+
+  defp extract_drive_config(nil), do: nil
+  defp extract_drive_config(config) when is_list(config), do: Keyword.get(config, :drive)
+  defp extract_drive_config(config) when is_map(config), do: Map.get(config, :drive)
+  defp extract_drive_config(_), do: nil
+
+  defp extract_root_folder_id(nil), do: {:error, :missing_drive_root_folder_id}
+
+  defp extract_root_folder_id(cfg) when is_list(cfg) do
+    cfg
+    |> Keyword.get(:root_folder_id)
+    |> validate_root_folder_id()
+  end
+
+  defp extract_root_folder_id(cfg) when is_map(cfg) do
+    cfg
+    |> Map.get(:root_folder_id)
+    |> validate_root_folder_id()
+  end
+
+  defp extract_root_folder_id(_), do: {:error, :missing_drive_root_folder_id}
+
+  defp validate_root_folder_id(id) when is_binary(id) and id != "", do: {:ok, id}
+  defp validate_root_folder_id(_), do: {:error, :missing_drive_root_folder_id}
 
   defp client_folder_name(%Project{client: %{name: name}}) when is_binary(name) and name != "" do
     {:ok, name}

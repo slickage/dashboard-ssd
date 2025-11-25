@@ -1,56 +1,116 @@
 defmodule DashboardSSD.Documents.DriveSyncTest do
-  use DashboardSSD.DataCase, async: true
+  use DashboardSSD.DataCase, async: false
 
-  alias DashboardSSD.Cache.SharedDocumentsCache
   alias DashboardSSD.Clients.Client
-  alias DashboardSSD.Documents.{DriveSync, SharedDocument}
+  alias DashboardSSD.Documents.DriveSync
+  alias DashboardSSD.Documents.SharedDocument
   alias DashboardSSD.Projects.Project
   alias DashboardSSD.Repo
 
-  setup do
-    SharedDocumentsCache.invalidate_listing(:all)
-    SharedDocumentsCache.invalidate_download(:all)
-    :ok
-  end
+  describe "sync/2" do
+    setup do
+      client = Repo.insert!(%Client{name: "Sync Client"})
+      project = Repo.insert!(%Project{name: "Sync Project", client_id: client.id})
+      %{client: client, project: project}
+    end
 
-  test "inserts and updates drive documents" do
-    client = Repo.insert!(%Client{name: "Acme"})
-    project = Repo.insert!(%Project{name: "Proj", client_id: client.id})
+    test "inserts and updates shared documents", %{client: client, project: project} do
+      attrs = [
+        %{
+          client_id: client.id,
+          project_id: project.id,
+          source_id: "file-1",
+          doc_type: "contract",
+          title: "Original",
+          metadata: %{webViewLink: "https://example.com"}
+        }
+      ]
 
-    docs = [
-      %{
-        client_id: client.id,
-        project_id: project.id,
-        source_id: "file-1",
-        title: "Doc 1",
-        doc_type: "sow",
-        visibility: :client,
-        mime_type: "application/pdf"
-      },
-      %{
-        client_id: client.id,
-        project_id: project.id,
-        source_id: "file-2",
-        title: "Doc 2",
-        doc_type: "change_order",
-        stale?: true
-      }
-    ]
+      assert {:ok, %{inserted: 1, updated: 0, deleted: 0}} = DriveSync.sync(attrs)
 
-    assert {:ok, %{inserted: 2, updated: 0}} = DriveSync.sync(docs)
-    assert Repo.aggregate(SharedDocument, :count, :id) == 2
+      original = Repo.get_by!(SharedDocument, source_id: "file-1")
+      assert original.title == "Original"
 
-    update = [
-      %{
-        client_id: client.id,
-        project_id: project.id,
-        source_id: "file-1",
-        title: "Doc 1 updated",
-        doc_type: "sow"
-      }
-    ]
+      updated_attrs = [
+        %{
+          client_id: client.id,
+          project_id: project.id,
+          source_id: "file-1",
+          doc_type: "contract",
+          title: "Updated",
+          metadata: %{webViewLink: "https://example.com/doc"}
+        }
+      ]
 
-    assert {:ok, %{inserted: 0, updated: 1}} = DriveSync.sync(update)
-    assert Repo.get_by!(SharedDocument, source_id: "file-1").title == "Doc 1 updated"
+      assert {:ok, %{inserted: 0, updated: 1, deleted: 0}} = DriveSync.sync(updated_attrs)
+      assert Repo.get!(SharedDocument, original.id).title == "Updated"
+    end
+
+    test "prunes documents missing from Drive when prune_missing? true", %{
+      client: client,
+      project: project
+    } do
+      stale =
+        Repo.insert!(%SharedDocument{
+          client_id: client.id,
+          project_id: project.id,
+          source: :drive,
+          source_id: "stale",
+          doc_type: "contract",
+          title: "Stale",
+          visibility: :client
+        })
+
+      fresh_attrs = [
+        %{
+          client_id: client.id,
+          project_id: project.id,
+          source_id: "fresh",
+          doc_type: "contract",
+          title: "Fresh"
+        }
+      ]
+
+      assert {:ok, %{inserted: 1, updated: 0, deleted: 1}} =
+               DriveSync.sync(fresh_attrs, prune_missing?: true)
+
+      assert Repo.get(SharedDocument, stale.id) == nil
+      assert Repo.get_by!(SharedDocument, source_id: "fresh")
+    end
+
+    test "prunes projects provided via project_ids option when no remote docs", %{
+      client: client,
+      project: project
+    } do
+      stale =
+        Repo.insert!(%SharedDocument{
+          client_id: client.id,
+          project_id: project.id,
+          source: :drive,
+          source_id: "prune-me",
+          doc_type: "contract",
+          title: "Prune Me",
+          visibility: :client
+        })
+
+      assert {:ok, %{inserted: 0, updated: 0, deleted: 1}} =
+               DriveSync.sync([], prune_missing?: true, project_ids: [project.id])
+
+      refute Repo.get(SharedDocument, stale.id)
+    end
+
+    test "returns error when validation fails", %{client: client} do
+      attrs = [
+        %{
+          client_id: client.id,
+          project_id: nil,
+          source_id: nil,
+          doc_type: "contract",
+          title: "Invalid"
+        }
+      ]
+
+      assert {:error, %Ecto.Changeset{}} = DriveSync.sync(attrs)
+    end
   end
 end

@@ -22,6 +22,7 @@ defmodule DashboardSSDWeb.ProjectsLive.IndexUnitTest do
         collapsed_teams: MapSet.new(),
         linear_enabled: false,
         can_view_contracts?: false,
+        can_view_client_contracts?: false,
         can_manage_projects?: false
       })
 
@@ -50,6 +51,7 @@ defmodule DashboardSSDWeb.ProjectsLive.IndexUnitTest do
         collapsed_teams: MapSet.new(),
         linear_enabled: false,
         can_view_contracts?: false,
+        can_view_client_contracts?: false,
         can_manage_projects?: false
       })
 
@@ -109,6 +111,7 @@ defmodule DashboardSSDWeb.ProjectsLive.IndexUnitTest do
         collapsed_teams: MapSet.new(),
         linear_enabled: false,
         can_view_contracts?: false,
+        can_view_client_contracts?: false,
         can_manage_projects?: false
       })
 
@@ -139,7 +142,7 @@ defmodule DashboardSSDWeb.ProjectsLive.IndexUnitTest do
       linear_enabled: true,
       projects: [project],
       can_view_contracts?: false,
-      can_manage_projects?: false,
+      can_view_client_contracts?: false,
       summaries: %{
         project.id => %{
           total: 3,
@@ -192,7 +195,8 @@ defmodule DashboardSSDWeb.ProjectsLive.IndexUnitTest do
       last_linear_sync_at: nil,
       last_linear_sync_reason: nil,
       can_manage_projects?: false,
-      can_view_contracts?: false
+      can_view_contracts?: false,
+      can_view_client_contracts?: false
     }
 
     html = assigns |> Index.render() |> rendered_to_string()
@@ -225,7 +229,8 @@ defmodule DashboardSSDWeb.ProjectsLive.IndexUnitTest do
       last_linear_sync_at: nil,
       last_linear_sync_reason: nil,
       can_manage_projects?: false,
-      can_view_contracts?: false
+      can_view_contracts?: false,
+      can_view_client_contracts?: false
     }
 
     html = assigns |> Index.render() |> rendered_to_string()
@@ -247,7 +252,8 @@ defmodule DashboardSSDWeb.ProjectsLive.IndexUnitTest do
         accessible_client_scope: :all,
         client_id: nil,
         can_view_contracts?: false,
-        can_manage_projects?: false
+        can_manage_projects?: false,
+        can_view_client_contracts?: false
       })
 
     {:noreply, updated} =
@@ -308,7 +314,8 @@ defmodule DashboardSSDWeb.ProjectsLive.IndexUnitTest do
       last_linear_sync_at: nil,
       last_linear_sync_reason: nil,
       can_manage_projects?: false,
-      can_view_contracts?: false
+      can_view_contracts?: false,
+      can_view_client_contracts?: false
     }
 
     html = assigns |> Index.render() |> rendered_to_string()
@@ -332,6 +339,7 @@ defmodule DashboardSSDWeb.ProjectsLive.IndexUnitTest do
         collapsed_teams: MapSet.new(),
         linear_enabled: false,
         can_view_contracts?: false,
+        can_view_client_contracts?: false,
         can_manage_projects?: false
       })
 

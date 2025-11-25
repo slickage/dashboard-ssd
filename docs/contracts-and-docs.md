@@ -6,8 +6,12 @@ DashboardSSD so engineers can reason about templates, permissions, and automatio
 ## Workspace Bootstrap
 
 * **Blueprint** – `config/*.exs` defines Drive and Notion sections (Contracts, SOW,
-  Change Orders, Project KB, Runbook). Each section points to a Markdown template under
+  Change Orders, Project KB). Each section points to a Markdown template under
   `priv/workspace_templates/**`.
+* **Notion hierarchy** – `NOTION_PROJECTS_KB_PARENT_ID` (or `NOTION_CONTRACTS_PAGE_PARENT_ID`)
+  points to the Projects KB database (rows = clients). Each client entry links to a child page,
+  that page contains one child page per project, and each project page receives a templated
+  doc (and future docs) rendered from `priv/workspace_templates/notion/project_kb.md`.
 * **Automatic bootstrap** – `DashboardSSD.Documents.bootstrap_workspace/2` is invoked
   when projects are created with a Drive folder and whenever a client is created (all of
   their projects get bootstrapped). The default sections come from

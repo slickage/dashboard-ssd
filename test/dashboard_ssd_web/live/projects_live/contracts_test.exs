@@ -88,13 +88,13 @@ defmodule DashboardSSDWeb.ProjectsLive.ContractsTest do
 
     form_params = %{
       "project_id" => "#{project_id}",
-      "sections" => ["drive_contracts", "notion_runbook"]
+      "sections" => ["drive_contracts", "notion_project_kb"]
     }
 
     view |> form("#workspace-bootstrap-form", form_params) |> render_submit()
 
     assert_receive {:workspace_bootstrap, ^project_id, sections}
-    assert sections == [:drive_contracts, :notion_runbook]
+    assert sections == [:drive_contracts, :notion_project_kb]
   end
 
   test "regen form deduplicates sections", %{conn: conn} do
@@ -396,7 +396,7 @@ defmodule DashboardSSDWeb.ProjectsLive.ContractsTest do
     Application.put_env(:dashboard_ssd, DashboardSSD.Documents.WorkspaceBlueprint, %{
       sections: [
         %{id: :drive_special_docs, type: :drive, enabled?: true},
-        %{id: :notion_runbook_notes, type: :notion, enabled?: true}
+        %{id: :notion_project_notes, type: :notion, enabled?: true}
       ],
       default_sections: [:drive_special_docs]
     })
@@ -436,8 +436,46 @@ defmodule DashboardSSDWeb.ProjectsLive.ContractsTest do
     html = render(view)
     assert html =~ "Drive Special Docs"
     assert html =~ "Drive section"
-    assert html =~ "Notion Runbook Notes"
+    assert html =~ "Notion Project Notes"
     assert html =~ "Notion section"
+  end
+
+  test "drive sync success message clears syncing flag", %{conn: conn} do
+    {:ok, client} = Clients.create_client(%{name: "Sync"})
+    {:ok, project} = Repo.insert(%Project{name: "Proj", client_id: client.id})
+    insert_document(client.id, project.id, title: "Doc")
+
+    {:ok, admin} =
+      Accounts.create_user(%{
+        email: "admin-sync@example.com",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    conn = init_test_session(conn, %{user_id: admin.id})
+    {:ok, view, _html} = live(conn, ~p"/projects/contracts")
+
+    send(view.pid, {:drive_sync_done, :ok})
+
+    assert render(view) =~ "Drive documents synced."
+  end
+
+  test "drive sync failure shows error flash", %{conn: conn} do
+    {:ok, client} = Clients.create_client(%{name: "SyncErr"})
+    {:ok, project} = Repo.insert(%Project{name: "Proj", client_id: client.id})
+    insert_document(client.id, project.id, title: "Doc")
+
+    {:ok, admin} =
+      Accounts.create_user(%{
+        email: "admin-sync-error@example.com",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    conn = init_test_session(conn, %{user_id: admin.id})
+    {:ok, view, _html} = live(conn, ~p"/projects/contracts")
+
+    send(view.pid, {:drive_sync_done, {:error, :timeout}})
+
+    assert render(view) =~ "Drive sync failed: :timeout"
   end
 
   defp insert_document(client_id, project_id, attrs) do

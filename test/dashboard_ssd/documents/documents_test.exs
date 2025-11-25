@@ -8,6 +8,7 @@ defmodule DashboardSSD.DocumentsTest do
   alias DashboardSSD.Documents.DocumentAccessLog
   alias DashboardSSD.Documents.SharedDocument
   alias DashboardSSD.Projects.Project
+  import Tesla.Mock
 
   setup do
     SharedDocumentsCache.invalidate_listing(:all)
@@ -105,6 +106,18 @@ defmodule DashboardSSD.DocumentsTest do
     assert Enum.map(docs, & &1.title) == ["Primary"]
   end
 
+  test "list_staff_documents filters by project id" do
+    client = Repo.insert!(%Client{name: "Acme"})
+    project_a = Repo.insert!(%Project{name: "A", client_id: client.id})
+    project_b = Repo.insert!(%Project{name: "B", client_id: client.id})
+
+    insert_document(%{client_id: client.id, project_id: project_a.id, title: "Doc A"})
+    insert_document(%{client_id: client.id, project_id: project_b.id, title: "Doc B"})
+
+    docs = Documents.list_staff_documents(project_id: project_b.id)
+    assert Enum.map(docs, & &1.title) == ["Doc B"]
+  end
+
   test "update_document_settings toggles visibility" do
     client = Repo.insert!(%Client{name: "Acme"})
 
@@ -119,6 +132,17 @@ defmodule DashboardSSD.DocumentsTest do
 
     assert updated.visibility == :client
     assert Repo.aggregate(DocumentAccessLog, :count, :id) == 1
+  end
+
+  test "update_document_settings returns error changeset" do
+    client = Repo.insert!(%Client{name: "Err"})
+    project = Repo.insert!(%Project{name: "Proj", client_id: client.id})
+    doc = insert_document(%{client_id: client.id, project_id: project.id, title: "Valid"})
+
+    assert {:error, %Ecto.Changeset{}} =
+             Documents.update_document_settings(doc, %{title: nil}, nil)
+
+    assert Repo.get!(SharedDocument, doc.id).title == "Valid"
   end
 
   test "fetch_client_document enforces client scoping" do
@@ -157,7 +181,7 @@ defmodule DashboardSSD.DocumentsTest do
     Application.put_env(:dashboard_ssd, DashboardSSD.Documents.WorkspaceBlueprint, %{
       sections: [
         %{id: :drive_contracts, enabled?: true},
-        %{id: :notion_runbook, enabled?: false}
+        %{id: :notion_project_kb, enabled?: false}
       ]
     })
 
@@ -187,6 +211,142 @@ defmodule DashboardSSD.DocumentsTest do
 
     assert :ok = Documents.bootstrap_workspace(project, sections: [:drive_contracts])
     assert_receive {:workspace_bootstrap, 999, [:drive_contracts]}, 1_000
+  end
+
+  test "sync_drive_documents imports files from Drive" do
+    Application.put_env(:dashboard_ssd, DashboardSSD.Documents.WorkspaceBlueprint, %{
+      sections: [
+        %{id: :drive_contracts, type: :drive, enabled?: true, label: "Contracts"}
+      ],
+      default_sections: [:drive_contracts]
+    })
+
+    Application.put_env(:dashboard_ssd, :integrations, drive_token: "drive-token")
+
+    client = Repo.insert!(%Client{name: "Drive Client"})
+
+    project =
+      Repo.insert!(%Project{
+        name: "Drive Project",
+        client_id: client.id,
+        drive_folder_id: "root-folder"
+      })
+
+    mock(fn
+      %{method: :get, url: "https://www.googleapis.com/drive/v3/files", query: query} ->
+        q = Keyword.get(query, :q) || ""
+
+        cond do
+          String.contains?(q, "mimeType") ->
+            %Tesla.Env{status: 200, body: %{"files" => []}}
+
+          String.contains?(q, "section-folder") ->
+            %Tesla.Env{
+              status: 200,
+              body: %{
+                "files" => [
+                  %{
+                    "id" => "doc-1",
+                    "name" => "Drive Doc",
+                    "mimeType" => "application/vnd.google-apps.document",
+                    "webViewLink" => "https://docs.example/doc-1"
+                  }
+                ]
+              }
+            }
+
+          true ->
+            flunk("Unexpected GET /files query: #{inspect(query)}")
+        end
+
+      %{method: :post, url: "https://www.googleapis.com/drive/v3/files", body: body} ->
+        params = Jason.decode!(body)
+        assert params["name"] == "Contracts"
+        %Tesla.Env{status: 200, body: %{"id" => "section-folder"}}
+
+      %{method: :get, url: "https://www.googleapis.com/drive/v3/files/section-folder"} ->
+        %Tesla.Env{status: 200, body: %{"driveId" => "drive-123", "id" => "section-folder"}}
+    end)
+
+    assert :ok = Documents.sync_drive_documents(project_ids: [project.id])
+
+    doc = Repo.one!(SharedDocument)
+    assert doc.source_id == "doc-1"
+    assert doc.title == "Drive Doc"
+    assert doc.metadata["webViewLink"] == "https://docs.example/doc-1"
+  end
+
+  test "sync_drive_documents prunes missing Drive docs" do
+    Application.put_env(:dashboard_ssd, DashboardSSD.Documents.WorkspaceBlueprint, %{
+      sections: [
+        %{
+          id: :drive_contracts,
+          type: :drive,
+          enabled?: true,
+          folder_path: "Contracts",
+          template_path: Path.join([File.cwd!(), "priv/workspace_templates/drive/contracts.md"])
+        }
+      ],
+      default_sections: [:drive_contracts]
+    })
+
+    Application.put_env(:dashboard_ssd, :integrations, drive_token: "drive-token")
+
+    client = Repo.insert!(%Client{name: "Prune Client"})
+
+    project =
+      Repo.insert!(%Project{
+        name: "Prune Project",
+        client_id: client.id,
+        drive_folder_id: "root-folder"
+      })
+
+    stale =
+      insert_document(%{
+        client_id: client.id,
+        project_id: project.id,
+        title: "Stale Doc",
+        source_id: "stale-doc"
+      })
+
+    mock(fn
+      %{method: :get, url: "https://www.googleapis.com/drive/v3/files", query: query} ->
+        q = Keyword.get(query, :q) || ""
+
+        cond do
+          String.contains?(q, "mimeType") ->
+            %Tesla.Env{status: 200, body: %{"files" => []}}
+
+          String.contains?(q, "section-folder") ->
+            %Tesla.Env{status: 200, body: %{"files" => []}}
+
+          true ->
+            flunk("Unexpected GET /files query: #{inspect(query)}")
+        end
+
+      %{method: :post, url: "https://www.googleapis.com/drive/v3/files", body: body} ->
+        params = Jason.decode!(body)
+        assert params["name"] == "Contracts"
+        %Tesla.Env{status: 200, body: %{"id" => "section-folder"}}
+
+      %{method: :get, url: "https://www.googleapis.com/drive/v3/files/section-folder"} ->
+        %Tesla.Env{status: 200, body: %{"driveId" => "drive-123", "id" => "section-folder"}}
+    end)
+
+    assert :ok =
+             Documents.sync_drive_documents(
+               project_ids: [project.id],
+               prune_missing?: true
+             )
+
+    refute Repo.get(SharedDocument, stale.id)
+  end
+
+  test "sync_drive_documents returns error when blueprint missing" do
+    Application.delete_env(:dashboard_ssd, DashboardSSD.Documents.WorkspaceBlueprint)
+    Application.put_env(:dashboard_ssd, :integrations, drive_token: "drive-token")
+
+    assert {:error, :workspace_blueprint_not_configured} = Documents.sync_drive_documents()
   end
 
   defp insert_document(attrs) do

@@ -14,35 +14,38 @@ defmodule DashboardSSD.Documents.WorkspaceBootstrap.GoogleDriveClient do
 
   @impl true
   def ensure_section_folder(%Project{} = project, section, _opts) do
-    with {:ok, %Project{} = project} <- Projects.ensure_drive_folder(project),
+    with {:ok, %Project{} = project} <- ensure_project_drive_folder(project),
          {:ok, token} <- Integrations.drive_service_token(),
          {:ok, name} <- section_folder_name(section),
          {:ok, folder} <-
-           Drive.ensure_project_folder(token, %{parent_id: project.drive_folder_id, name: name}) do
+           drive_api().ensure_project_folder(token, %{
+             parent_id: project.drive_folder_id,
+             name: name
+           }) do
       {:ok, folder}
     end
   end
 
   @impl true
   def upsert_document(%Project{} = project, section, template, _opts) do
-    with {:ok, %Project{} = project} <- Projects.ensure_drive_folder(project),
+    with {:ok, %Project{} = project} <- ensure_project_drive_folder(project),
          {:ok, token} <- Integrations.drive_service_token(),
          {:ok, folder_name} <- section_folder_name(section),
          {:ok, folder} <-
-           Drive.ensure_project_folder(token, %{
+           drive_api().ensure_project_folder(token, %{
              parent_id: project.drive_folder_id,
              name: folder_name
            }),
-         {:ok, folder_meta} <- Drive.get_file(token, folder["id"]),
+         {:ok, folder_meta} <- drive_api().get_file(token, folder["id"]),
          {:ok, doc_name} <- section_doc_name(section),
-         {:ok, existing} <- Drive.find_file(token, folder["id"], doc_name) do
+         {:ok, existing} <- drive_api().find_file(token, folder["id"], doc_name) do
       Logger.debug(
         "Drive bootstrap upsert section=#{section.id} folder=#{folder["id"]} drive=#{folder_meta["driveId"]} doc=#{doc_name}"
       )
 
       case existing do
         nil ->
-          case Drive.create_doc_with_content(token, folder["id"], doc_name, template || "") do
+          case drive_api().create_doc_with_content(token, folder["id"], doc_name, template || "") do
             {:ok, doc} ->
               {:ok, Map.put(doc, "webViewLink", doc_web_view_link(doc, folder_meta))}
 
@@ -52,7 +55,7 @@ defmodule DashboardSSD.Documents.WorkspaceBootstrap.GoogleDriveClient do
 
         doc ->
           with {:ok, updated} <-
-                 Drive.update_file_with_content(
+                 drive_api().update_file_with_content(
                    token,
                    doc["id"],
                    template || ""
@@ -117,4 +120,15 @@ defmodule DashboardSSD.Documents.WorkspaceBootstrap.GoogleDriveClient do
     |> String.split(" ", trim: true)
     |> Enum.map_join(" ", &String.capitalize/1)
   end
+
+  defp drive_api do
+    Application.get_env(:dashboard_ssd, :drive_api_module, Drive)
+  end
+
+  defp ensure_project_drive_folder(%Project{drive_folder_id: folder_id} = project)
+       when is_binary(folder_id) and folder_id != "" do
+    {:ok, project}
+  end
+
+  defp ensure_project_drive_folder(project), do: Projects.ensure_drive_folder(project)
 end

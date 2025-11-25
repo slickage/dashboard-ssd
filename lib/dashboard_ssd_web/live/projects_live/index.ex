@@ -983,7 +983,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                           </span>
 
                           <.link
-                            :if={@can_view_contracts?}
+                            :if={@can_view_contracts? and not is_nil(p.client_id)}
                             navigate={~p"/projects/contracts?client_id=#{p.client_id}"}
                             class="text-white/80 underline decoration-white/30 decoration-dotted transition hover:decoration-white"
                           >

@@ -164,13 +164,6 @@ config :dashboard_ssd, DashboardSSD.Documents.WorkspaceBlueprint,
       type: :notion,
       template_path: workspace_template_path.("notion/project_kb.md"),
       enabled?: true
-    },
-    %{
-      id: :notion_runbook,
-      label: "Notion · Runbook",
-      type: :notion,
-      template_path: workspace_template_path.("notion/runbook.md"),
-      enabled?: true
     }
   ],
   default_sections: [:drive_contracts, :drive_sow, :drive_change_orders, :notion_project_kb],
@@ -179,6 +172,10 @@ config :dashboard_ssd, DashboardSSD.Documents.WorkspaceBlueprint,
 config :dashboard_ssd,
        :workspace_bootstrap_drive_client,
        DashboardSSD.Documents.WorkspaceBootstrap.GoogleDriveClient
+
+config :dashboard_ssd,
+       :workspace_bootstrap_notion_client,
+       DashboardSSD.Documents.WorkspaceBootstrap.NotionProjectKBClient
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

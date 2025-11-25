@@ -200,7 +200,8 @@ defmodule DashboardSSDWeb.ClientsLive.ContractsTest do
           project_id: nil,
           mobile_menu_open: false,
           documents: [],
-          projects: []
+          projects: [],
+          can_manage_contracts?: false
         }
         |> Map.merge(assigns)
     }

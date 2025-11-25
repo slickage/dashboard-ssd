@@ -208,7 +208,8 @@ defmodule DashboardSSD.Integrations do
   defp service_account_credentials do
     path =
       System.get_env("DRIVE_SERVICE_ACCOUNT_JSON") ||
-        System.get_env("GOOGLE_APPLICATION_CREDENTIALS")
+        System.get_env("GOOGLE_APPLICATION_CREDENTIALS") ||
+        drive_service_account_json_path()
 
     cond do
       is_nil(path) or path == "" ->
@@ -234,6 +235,29 @@ defmodule DashboardSSD.Integrations do
         end
     end
   end
+
+  defp drive_service_account_json_path do
+    Application.get_env(:dashboard_ssd, :shared_documents_integrations)
+    |> drive_config()
+    |> extract_service_account_path()
+  end
+
+  defp drive_config(nil), do: nil
+  defp drive_config(config) when is_list(config), do: Keyword.get(config, :drive)
+  defp drive_config(config) when is_map(config), do: Map.get(config, :drive)
+  defp drive_config(_), do: nil
+
+  defp extract_service_account_path(nil), do: nil
+
+  defp extract_service_account_path(cfg) when is_list(cfg) do
+    Keyword.get(cfg, :service_account_json_path)
+  end
+
+  defp extract_service_account_path(cfg) when is_map(cfg) do
+    Map.get(cfg, :service_account_json_path)
+  end
+
+  defp extract_service_account_path(_), do: nil
 
   defp sign_jwt(email, private_key) do
     iat = System.system_time(:second)

@@ -7,7 +7,7 @@
 
 ## Requirement Completeness
 - [X] CHK001 Are client vs. staff visibility requirements enumerated for every surface (portal tab, staff Contracts view, download proxy) so no document state is undefined? [Completeness, Spec FR-003/FR-004]
-- [X] CHK002 Do workspace bootstrap requirements list each Drive (Contracts, SOW, Change Orders) and Notion (Project KB, Runbook) section so provisioning scope is explicit? [Completeness, Spec FR-010]
+- [X] CHK002 Do workspace bootstrap requirements list each Drive (Contracts, SOW, Change Orders) section plus the Notion Project KB hierarchy so provisioning scope is explicit? [Completeness, Spec FR-010]
 - [X] CHK003 Are admin-triggered and automatic workspace generation flows documented, including when bootstrap must rerun for existing projects? [Completeness, Plan Phase 5, Tasks T037–T039]
 
 ## Requirement Clarity

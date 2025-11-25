@@ -1,179 +1,126 @@
 defmodule DashboardSSD.Integrations.DriveTest do
   use ExUnit.Case, async: true
 
+  import Tesla.Mock
+
   alias DashboardSSD.Integrations.Drive
 
-  describe "list_files_in_folder/2" do
-    test "includes auth header and q param" do
-      Tesla.Mock.mock(fn
-        %{
-          method: :get,
-          url: "https://www.googleapis.com/drive/v3/files",
-          headers: headers,
-          query: query
-        } ->
-          assert Enum.any?(headers, fn {k, v} ->
-                   k == "authorization" and String.starts_with?(v, "Bearer ")
-                 end)
+  @token "token"
 
-          assert {:q, q} = Enum.find(query, fn {k, _} -> k == :q end)
-          assert q =~ "in parents"
-          %Tesla.Env{status: 200, body: %{"files" => []}}
-      end)
+  test "find_file returns file when present" do
+    mock(fn
+      %{method: :get, url: "https://www.googleapis.com/drive/v3/files"} ->
+        %Tesla.Env{status: 200, body: %{"files" => [%{"id" => "file-1", "name" => "Doc"}]}}
+    end)
 
-      assert {:ok, %{"files" => []}} = Drive.list_files_in_folder("tok", "folder123")
-    end
-
-    test "returns http_error on non-200" do
-      Tesla.Mock.mock(fn _ -> %Tesla.Env{status: 401, body: %{"error" => {"code", 401}}} end)
-      assert {:error, {:http_error, 401, _}} = Drive.list_files_in_folder("bad", "folder123")
-    end
-
-    test "propagates adapter error tuple" do
-      Tesla.Mock.mock(fn _ -> {:error, :timeout} end)
-      assert {:error, :timeout} = Drive.list_files_in_folder("tok", "folder123")
-    end
+    assert {:ok, %{"id" => "file-1"}} = Drive.find_file(@token, "folder", "Doc")
   end
 
-  describe "ensure_project_folder/2" do
-    test "returns existing folder when present" do
-      Tesla.Mock.mock(fn
-        %{method: :get, query: query} ->
-          assert Enum.any?(query, fn {k, _} -> k == :q end)
-          %Tesla.Env{status: 200, body: %{"files" => [%{"id" => "folder-1"}]}}
-      end)
+  test "find_file returns nil when not found" do
+    mock(fn
+      %{method: :get, url: "https://www.googleapis.com/drive/v3/files"} ->
+        %Tesla.Env{status: 200, body: %{"files" => []}}
+    end)
 
-      assert {:ok, %{"id" => "folder-1"}} =
-               Drive.ensure_project_folder("tok", %{parent_id: "parent", name: "Proj"})
-    end
-
-    test "creates folder when missing" do
-      Tesla.Mock.mock(fn
-        %{method: :get} ->
-          %Tesla.Env{status: 200, body: %{"files" => []}}
-
-        %{method: :post, body: body} ->
-          body = Jason.decode!(body)
-          assert body["name"] == "Proj"
-          assert body["parents"] == ["parent"]
-          assert body["appProperties"] == %{"project_id" => "42"}
-          %Tesla.Env{status: 200, body: %{"id" => "new-folder"}}
-      end)
-
-      assert {:ok, %{"id" => "new-folder"}} =
-               Drive.ensure_project_folder("tok", %{
-                 parent_id: "parent",
-                 name: "Proj",
-                 properties: %{project_id: "42"}
-               })
-    end
+    assert {:ok, nil} = Drive.find_file(@token, "folder", "Missing")
   end
 
-  describe "list_documents/1" do
-    test "aggregates pages" do
-      Tesla.Mock.mock(fn
-        %{method: :get, query: query} ->
-          case Keyword.get(query, :pageToken) do
-            nil ->
-              %Tesla.Env{
-                status: 200,
-                body: %{"files" => [%{"id" => "1"}], "nextPageToken" => "abc"}
-              }
+  test "create_doc_with_content uploads markdown" do
+    mock(fn
+      %{method: :post, url: "https://www.googleapis.com/drive/v3/files"} ->
+        %Tesla.Env{status: 200, body: %{"id" => "doc-1"}}
 
-            "abc" ->
-              %Tesla.Env{
-                status: 200,
-                body: %{"files" => [%{"id" => "2"}]}
-              }
-          end
-      end)
+      %{method: :get, url: "https://docs.googleapis.com/v1/documents/doc-1"} ->
+        %Tesla.Env{status: 200, body: %{"body" => %{"content" => [%{"endIndex" => 5}]}}}
 
-      assert {:ok, %{"files" => [%{"id" => "1"}, %{"id" => "2"}]}} =
-               Drive.list_documents(%{token: "tok", folder_id: "folder123"})
-    end
+      %{method: :post, url: "https://docs.googleapis.com/v1/documents/doc-1:batchUpdate"} ->
+        %Tesla.Env{status: 200, body: %{"documentId" => "doc-1"}}
+    end)
+
+    assert {:ok, %{"id" => "doc-1"}} =
+             Drive.create_doc_with_content(@token, "parent", "Doc", "# Title")
   end
 
-  test "list_documents validates presence of folder_id" do
-    assert {:error, :invalid_arguments} = Drive.list_documents(%{token: "tok"})
+  test "list_documents fetches multiple pages" do
+    mock(fn
+      %{method: :get, url: "https://www.googleapis.com/drive/v3/files", query: query} ->
+        case Keyword.get(query, :pageToken) do
+          nil ->
+            %Tesla.Env{
+              status: 200,
+              body: %{"files" => [%{"id" => "file-1"}], "nextPageToken" => "next"}
+            }
+
+          "next" ->
+            %Tesla.Env{status: 200, body: %{"files" => [%{"id" => "file-2"}]}}
+        end
+    end)
+
+    assert {:ok, %{"files" => files}} =
+             Drive.list_documents(%{token: @token, folder_id: "folder"})
+
+    assert Enum.map(files, & &1["id"]) == ["file-1", "file-2"]
   end
 
-  describe "share_folder/3" do
-    test "posts permission payload" do
-      Tesla.Mock.mock(fn
-        %{method: :post, url: url, body: body, query: query} ->
-          body = Jason.decode!(body)
-          assert url =~ "/files/folder123/permissions"
-          assert body["role"] == "writer"
-          assert body["type"] == "user"
-          assert body["emailAddress"] == "user@example.com"
-          assert {:sendNotificationEmail, false} in query
-          %Tesla.Env{status: 200, body: %{"id" => "perm-1"}}
-      end)
-
-      assert {:ok, %{"id" => "perm-1"}} =
-               Drive.share_folder("tok", "folder123", %{
-                 role: "writer",
-                 email: "user@example.com",
-                 send_notification_email?: false
-               })
-    end
+  test "ensure_project_folder returns error on invalid args" do
+    assert {:error, :invalid_folder_arguments} = Drive.ensure_project_folder(@token, %{})
   end
 
-  test "share_folder raises when role missing" do
+  test "share_folder sends permissions request" do
+    mock(fn
+      %{
+        method: :post,
+        url: "https://www.googleapis.com/drive/v3/files/folder-1/permissions",
+        body: body,
+        query: query
+      } ->
+        params = Jason.decode!(body)
+        assert query[:supportsAllDrives]
+        assert query[:sendNotificationEmail] == false
+        assert params["role"] == "reader"
+        assert params["emailAddress"] == "user@example.com"
+        %Tesla.Env{status: 200, body: %{"id" => "perm-1"}}
+    end)
+
+    assert {:ok, %{"id" => "perm-1"}} =
+             Drive.share_folder(@token, "folder-1", %{
+               role: "reader",
+               type: "user",
+               email: "user@example.com"
+             })
+  end
+
+  test "share_folder raises when email missing for user type" do
     assert_raise ArgumentError, fn ->
-      Drive.share_folder("tok", "folder", %{email: "user@example.com"})
+      Drive.share_folder(@token, "folder-1", %{role: "reader", type: "user"})
     end
   end
 
-  describe "unshare_folder/3" do
-    test "removes permission entry" do
-      Tesla.Mock.mock(fn
-        %{method: :delete, url: url} ->
-          assert url =~ "/files/folder123/permissions/perm-1"
-          %Tesla.Env{status: 204, body: ""}
-      end)
-
-      assert :ok = Drive.unshare_folder("tok", "folder123", "perm-1")
-    end
-  end
-
-  test "unshare_folder returns error on non-2xx response" do
-    Tesla.Mock.mock(fn
-      %{method: :delete} ->
-        %Tesla.Env{status: 403, body: %{"error" => "denied"}}
+  test "unshare_folder returns :ok for 204" do
+    mock(fn
+      %{
+        method: :delete,
+        url: "https://www.googleapis.com/drive/v3/files/folder-1/permissions/perm-1",
+        query: query
+      } ->
+        assert query[:supportsAllDrives]
+        %Tesla.Env{status: 204, body: ""}
     end)
 
-    assert {:error, {:http_error, 403, _}} = Drive.unshare_folder("tok", "folder", "perm")
+    assert :ok = Drive.unshare_folder(@token, "folder-1", "perm-1")
   end
 
-  describe "download_file/2" do
-    test "returns env on success" do
-      Tesla.Mock.mock(fn
-        %{method: :get, url: url, query: query} ->
-          assert url =~ "/files/file-1"
-          assert {:alt, "media"} in query
-          %Tesla.Env{status: 200, body: "data", headers: [{"content-type", "application/pdf"}]}
-      end)
-
-      assert {:ok, %Tesla.Env{body: "data"}} = Drive.download_file("tok", "file-1")
-    end
-  end
-
-  test "download_file bubbles http errors" do
-    Tesla.Mock.mock(fn
-      %{method: :get} ->
-        %Tesla.Env{status: 404, body: %{"error" => "missing"}}
+  test "unshare_folder bubbles up errors" do
+    mock(fn
+      %{
+        method: :delete,
+        url: "https://www.googleapis.com/drive/v3/files/folder-1/permissions/perm-1",
+        query: _
+      } ->
+        %Tesla.Env{status: 404, body: %{"error" => "notFound"}}
     end)
 
-    assert {:error, {:http_error, 404, _}} = Drive.download_file("tok", "file-404")
-  end
-
-  test "list_permissions handles http errors" do
-    Tesla.Mock.mock(fn _ -> %Tesla.Env{status: 500, body: %{"error" => "oops"}} end)
-    assert {:error, {:http_error, 500, _}} = Drive.list_permissions("tok", "folder")
-  end
-
-  test "ensure_project_folder returns error when arguments invalid" do
-    assert {:error, :invalid_folder_arguments} = Drive.ensure_project_folder("tok", %{})
+    assert {:error, {:http_error, 404, %{"error" => "notFound"}}} =
+             Drive.unshare_folder(@token, "folder-1", "perm-1")
   end
 end

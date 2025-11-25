@@ -341,4 +341,102 @@ defmodule DashboardSSDWeb.KbComponentsTest do
     assert html =~ "3."
     assert html =~ "style=\"padding-left: 42px;\""
   end
+
+  test "kb_block renders quote, callout, code, divider, media, bookmark, and fallback" do
+    quote_html =
+      render_component(&KbComponents.kb_block/1,
+        block: %{type: :quote, segments: [%{text: "Quoted", annotations: %{}}], children: []},
+        level: 0
+      )
+
+    assert quote_html =~ "<blockquote"
+    assert quote_html =~ "Quoted"
+
+    callout_html =
+      render_component(&KbComponents.kb_block/1,
+        block: %{
+          type: :callout,
+          icon: %{emoji: "ℹ️"},
+          segments: [%{text: "Heads up", annotations: %{}}],
+          children: []
+        },
+        level: 0
+      )
+
+    assert callout_html =~ "ℹ️"
+    assert callout_html =~ "Heads up"
+
+    code_html =
+      render_component(&KbComponents.kb_block/1,
+        block: %{
+          type: :code,
+          language: "elixir",
+          segments: [%{text: "IO.inspect(:ok)", annotations: %{}}],
+          children: []
+        },
+        level: 0
+      )
+
+    assert code_html =~ "language-elixir"
+    assert code_html =~ "IO"
+
+    divider_html =
+      render_component(&KbComponents.kb_block/1,
+        block: %{type: :divider, children: []},
+        level: 0
+      )
+
+    assert divider_html =~ "<hr"
+
+    image_html =
+      render_component(&KbComponents.kb_block/1,
+        block: %{
+          type: :image,
+          source: "https://example.com/image.png",
+          caption: [%{text: "Caption", annotations: %{}}],
+          children: []
+        },
+        level: 0
+      )
+
+    assert image_html =~ "image.png"
+    assert image_html =~ "Caption"
+
+    bookmark_html =
+      render_component(&KbComponents.kb_block/1,
+        block: %{
+          type: :bookmark,
+          url: "https://example.com",
+          caption: [%{text: "More info", annotations: %{}}],
+          children: []
+        },
+        level: 0
+      )
+
+    assert bookmark_html =~ "https://example.com"
+    assert bookmark_html =~ "More info"
+
+    fallback_html =
+      render_component(&KbComponents.kb_block/1,
+        block: %{
+          type: :link_to_page,
+          target_type: "database_id",
+          target_id: "db-1",
+          target_title: nil,
+          segments: [%{text: "", annotations: %{}}],
+          target_icon: nil,
+          children: []
+        },
+        level: 0
+      )
+
+    assert fallback_html =~ "Linked database: db-1"
+
+    unsupported_html =
+      render_component(&KbComponents.kb_block/1,
+        block: %{type: :unsupported, raw_type: "audio", children: []}
+      )
+
+    assert unsupported_html =~ "Unsupported block (audio)"
+  end
 end

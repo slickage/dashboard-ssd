@@ -206,7 +206,11 @@ defmodule DashboardSSDWeb.SharedDocumentControllerTest do
     {:ok, client} = Clients.create_client(%{name: "Acme"})
 
     doc =
-      insert_document(client.id, nil, source: :notion, source_id: "page-123", title: "Runbook")
+      insert_document(client.id, nil,
+        source: :notion,
+        source_id: "page-123",
+        title: "Project KB"
+      )
 
     {:ok, user} =
       Accounts.create_user(%{

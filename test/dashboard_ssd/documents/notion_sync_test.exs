@@ -20,7 +20,7 @@ defmodule DashboardSSD.Documents.NotionSyncTest do
         client_id: client.id,
         project_id: nil,
         source_id: "page-1",
-        title: "Runbook",
+        title: "Project KB",
         doc_type: "kb",
         visibility: :client,
         metadata: %{"notion_url" => "https://notion.so/page-1"}
@@ -34,13 +34,13 @@ defmodule DashboardSSD.Documents.NotionSyncTest do
         client_id: client.id,
         project_id: nil,
         source_id: "page-1",
-        title: "Runbook V2",
+        title: "Project KB V2",
         doc_type: "kb"
       }
     ]
 
     assert {:ok, %{inserted: 0, updated: 1}} = NotionSync.sync(update)
-    assert Repo.get_by!(SharedDocument, source_id: "page-1").title == "Runbook V2"
+    assert Repo.get_by!(SharedDocument, source_id: "page-1").title == "Project KB V2"
   end
 
   test "returns error when insert fails" do

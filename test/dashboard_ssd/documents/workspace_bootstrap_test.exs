@@ -100,14 +100,14 @@ defmodule DashboardSSD.Documents.WorkspaceBootstrapTest do
     project = %Project{id: 3, name: "Client C", drive_folder_id: nil}
 
     expect(NotionClientMock, :upsert_page, fn ^project, section, template, _opts ->
-      assert section.id == :notion_runbook
-      assert template =~ "Project Runbook"
-      {:ok, %{id: "page-runbook"}}
+      assert section.id == :notion_project_kb
+      assert template =~ "Project Knowledge Base"
+      {:ok, %{id: "page-kb"}}
     end)
 
-    assert {:ok, %{sections: [%{section: :notion_runbook}]}} =
+    assert {:ok, %{sections: [%{section: :notion_project_kb}]}} =
              WorkspaceBootstrap.bootstrap(project,
-               sections: [:notion_runbook],
+               sections: [:notion_project_kb],
                drive_client: DriveClientMock,
                notion_client: NotionClientMock
              )

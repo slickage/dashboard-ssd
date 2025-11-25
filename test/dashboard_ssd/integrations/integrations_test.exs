@@ -1,11 +1,13 @@
 defmodule DashboardSSD.IntegrationsTest do
-  use DashboardSSD.DataCase, async: true
+  use DashboardSSD.DataCase, async: false
 
   alias DashboardSSD.Accounts
   alias DashboardSSD.Accounts.ExternalIdentity
   alias DashboardSSD.Integrations
   alias DashboardSSD.Repo
   import Tesla.Mock
+
+  @moduletag :tmp_dir
 
   setup do
     previous_env =
@@ -165,5 +167,44 @@ defmodule DashboardSSD.IntegrationsTest do
 
     assert {:ok, %{"files" => ["doc"]}} =
              Integrations.drive_list_files_for_user(user, "folder-1")
+  end
+
+  describe "drive_service_token/0" do
+    setup do
+      original_test_env = Application.get_env(:dashboard_ssd, :test_env?, true)
+
+      on_exit(fn ->
+        Application.put_env(:dashboard_ssd, :test_env?, original_test_env)
+        System.delete_env("GOOGLE_DRIVE_TOKEN")
+        System.delete_env("GOOGLE_OAUTH_TOKEN")
+        System.delete_env("DRIVE_SERVICE_ACCOUNT_JSON")
+      end)
+
+      :ok
+    end
+
+    test "prefers explicit env tokens" do
+      System.put_env("GOOGLE_DRIVE_TOKEN", "env-token")
+      assert {:ok, "env-token"} = Integrations.drive_service_token()
+    end
+
+    test "returns stub token when running in test env without creds" do
+      Application.put_env(:dashboard_ssd, :test_env?, true)
+      System.delete_env("GOOGLE_DRIVE_TOKEN")
+      System.delete_env("GOOGLE_OAUTH_TOKEN")
+
+      assert {:ok, "drive-test-token"} = Integrations.drive_service_token()
+    end
+
+    test "returns error when service account json invalid", %{tmp_dir: tmp_dir} do
+      Application.put_env(:dashboard_ssd, :test_env?, false)
+      path = Path.join(tmp_dir, "invalid-sa.json")
+      File.write!(path, "not json")
+      System.put_env("DRIVE_SERVICE_ACCOUNT_JSON", path)
+      System.delete_env("GOOGLE_DRIVE_TOKEN")
+      System.delete_env("GOOGLE_OAUTH_TOKEN")
+
+      assert {:error, {:invalid_json, _}} = Integrations.drive_service_token()
+    end
   end
 end

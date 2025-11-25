@@ -1,11 +1,13 @@
 defmodule DashboardSSD.DeploymentsTest do
-  use DashboardSSD.DataCase, async: true
+  use DashboardSSD.DataCase, async: false
 
   alias DashboardSSD.Clients
   alias DashboardSSD.Deployments
   alias DashboardSSD.Deployments.{HealthCheck, HealthCheckSetting}
   alias DashboardSSD.Projects
   alias DashboardSSD.Repo
+  alias Plug.Conn
+  alias Bypass
 
   setup do
     {:ok, client} = Clients.create_client(%{name: "C"})
@@ -59,6 +61,10 @@ defmodule DashboardSSD.DeploymentsTest do
   end
 
   describe "health check utilities" do
+    setup _context do
+      on_exit(fn -> Application.put_env(:dashboard_ssd, :env, :test) end)
+      :ok
+    end
     test "latest_health_status_by_project_ids returns most recent status", %{project: project} do
       older = DateTime.utc_now() |> DateTime.add(-60, :second) |> DateTime.truncate(:second)
       newer = DateTime.utc_now() |> DateTime.truncate(:second)
@@ -145,6 +151,62 @@ defmodule DashboardSSD.DeploymentsTest do
         })
 
       assert {:error, :invalid_config} = Deployments.run_health_check_now(project.id)
+    end
+
+    test "run_health_check_now classifies http errors", %{project: project} do
+      bypass = Bypass.open()
+      url = "http://127.0.0.1:#{bypass.port}/health"
+      Application.put_env(:dashboard_ssd, :env, :dev)
+
+      {:ok, _} =
+        Deployments.upsert_health_check_setting(project.id, %{
+          provider: "http",
+          endpoint_url: url,
+          enabled: true
+        })
+
+      Bypass.expect_once(bypass, fn conn ->
+        Conn.resp(conn, 404, "missing")
+      end)
+
+      assert {:ok, "degraded"} = Deployments.run_health_check_now(project.id)
+
+      Bypass.expect_once(bypass, fn conn ->
+        Conn.resp(conn, 502, "error")
+      end)
+
+      assert {:ok, "down"} = Deployments.run_health_check_now(project.id)
+    end
+
+    test "run_health_check_now follows redirects", %{project: project} do
+      bypass = Bypass.open()
+      url = "http://127.0.0.1:#{bypass.port}/health"
+      Application.put_env(:dashboard_ssd, :env, :dev)
+
+      {:ok, _} =
+        Deployments.upsert_health_check_setting(project.id, %{
+          provider: "http",
+          endpoint_url: url,
+          enabled: true
+        })
+
+      parent = self()
+
+      Bypass.expect(bypass, fn conn ->
+        case conn.request_path do
+          "/health" ->
+            conn
+            |> Conn.put_resp_header("location", "/status")
+            |> Conn.resp(302, "")
+
+          "/status" ->
+            send(parent, :redirect_followed)
+            Conn.resp(conn, 200, "ok")
+        end
+      end)
+
+      assert {:ok, "up"} = Deployments.run_health_check_now(project.id)
+      assert_received :redirect_followed
     end
   end
 end

@@ -94,13 +94,23 @@ drive_service_account_path =
 
 drive_root_id = System.get_env("DRIVE_ROOT_FOLDER_ID")
 
+notion_token =
+  System.get_env("NOTION_TOKEN") ||
+    System.get_env("NOTION_API_KEY") ||
+    "notion-dev-token"
+
+projects_kb_parent_id =
+  System.get_env("NOTION_PROJECTS_KB_PARENT_ID") ||
+    System.get_env("NOTION_CONTRACTS_PAGE_PARENT_ID")
+
 config :dashboard_ssd, :shared_documents_integrations,
   drive: [
     service_account_json_path: drive_service_account_path,
     root_folder_id: drive_root_id
   ],
   notion: [
-    token: System.get_env("NOTION_TOKEN") || "notion-dev-token",
+    token: notion_token,
+    projects_kb_parent_id: projects_kb_parent_id,
     contracts_database_id:
       System.get_env("NOTION_CONTRACTS_DATABASE_ID") || "notion-contracts-db-dev",
     contracts_page_parent_id:

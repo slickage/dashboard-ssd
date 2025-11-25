@@ -8,7 +8,7 @@
   - `project_id` – FK → `projects.id`, nullable for client-wide docs.
   - `source` – enum (`drive`, `notion`).
   - `source_id` – string (Drive file ID or Notion page ID), unique per `source`.
-  - `doc_type` – string (e.g., `sow`, `change_order`, `runbook`).
+  - `doc_type` – string (e.g., `sow`, `change_order`, `project_kb`).
   - `title` – string.
   - `description` – text, optional.
   - `visibility` – enum (`internal`, `client`).
