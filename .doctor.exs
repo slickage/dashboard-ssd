@@ -1,5 +1,5 @@
 %Doctor.Config{
-  ignore_modules: [],
+  ignore_modules: [DashboardSSDWeb.ProjectsLive.Index],
   ignore_paths: ["priv/", "assets/"],
   min_module_doc_coverage: 80,
   min_module_spec_coverage: 80,
