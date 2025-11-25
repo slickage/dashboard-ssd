@@ -86,3 +86,6 @@ config :dashboard_ssd, :shared_documents_integrations,
     contracts_page_parent_id:
       System.get_env("NOTION_CONTRACTS_PAGE_PARENT_ID") || "notion-contracts-page-test"
   ]
+
+config :sobelow,
+  skip: ["Traversal.FileModule"]

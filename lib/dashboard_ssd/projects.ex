@@ -161,13 +161,6 @@ defmodule DashboardSSD.Projects do
         )
 
         {:error, reason}
-
-      other ->
-        Logger.error(
-          "Drive folder ensure failed project_id=#{project.id} reason=#{inspect(other)}"
-        )
-
-        {:error, other}
     end
   end
 

@@ -55,7 +55,10 @@ defmodule DashboardSSD.Projects.DrivePermissionWorkerTest do
     log =
       capture_log(fn ->
         assert :ok =
-                 DrivePermissionWorker.share("folder", %{role: "reader", email: "user@example.com"})
+                 DrivePermissionWorker.share("folder", %{
+                   role: "reader",
+                   email: "user@example.com"
+                 })
       end)
 
     assert log =~ "Drive permission worker exceeded retries"
@@ -65,8 +68,10 @@ defmodule DashboardSSD.Projects.DrivePermissionWorkerTest do
 
   test "unshare succeeds" do
     mock(fn
-      %{method: :delete,
-        url: "https://www.googleapis.com/drive/v3/files/folder/permissions/perm-1"} ->
+      %{
+        method: :delete,
+        url: "https://www.googleapis.com/drive/v3/files/folder/permissions/perm-1"
+      } ->
         {:ok, %Tesla.Env{status: 204}}
     end)
 
@@ -86,8 +91,10 @@ defmodule DashboardSSD.Projects.DrivePermissionWorkerTest do
            }
          }}
 
-      %{method: :delete,
-        url: "https://www.googleapis.com/drive/v3/files/folder/permissions/perm-123"} ->
+      %{
+        method: :delete,
+        url: "https://www.googleapis.com/drive/v3/files/folder/permissions/perm-123"
+      } ->
         {:ok, %Tesla.Env{status: 204}}
     end)
 
@@ -125,4 +132,4 @@ defmodule DashboardSSD.Projects.DrivePermissionWorkerTest do
 
   defp restore_env(key, nil), do: Application.delete_env(:dashboard_ssd, key)
   defp restore_env(key, value), do: Application.put_env(:dashboard_ssd, key, value)
- end
+end

@@ -427,8 +427,9 @@ defmodule DashboardSSD.Documents do
 
   defp drive_sections(%{sections: sections}) when is_list(sections) do
     sections
-    |> Enum.filter(&match?(%{type: :drive}, &1))
-    |> Enum.filter(&(Map.get(&1, :enabled?, true) !== false))
+    |> Enum.filter(fn section ->
+      match?(%{type: :drive}, section) and Map.get(section, :enabled?, true) !== false
+    end)
   end
 
   defp drive_sections(_), do: []

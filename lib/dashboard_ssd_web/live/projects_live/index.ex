@@ -76,6 +76,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
     end
   end
 
+  @doc "Handle health updates, summary reloads, and other LiveView info messages."
   @impl true
   def handle_info({:health_updated, health}, socket) do
     {:noreply, assign(socket, :health, health)}
@@ -593,8 +594,8 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
   defp context_suffix(:auto), do: " during auto-sync"
   defp context_suffix(_), do: ""
 
+  @doc "Handle project-level UI events such as sync and client filtering."
   @impl true
-  @doc "Handle project events (sync, filter)."
   def handle_event("sync", _params, socket) do
     result = Projects.sync_from_linear(force: true)
     {socket, _status} = handle_sync_result(socket, result, context: :manual, show_flash?: true)
@@ -840,6 +841,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
     end
   end
 
+  @doc "Render the projects table, filters, and sync controls."
   @impl true
   def render(assigns) do
     ~H"""

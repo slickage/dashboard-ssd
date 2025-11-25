@@ -170,6 +170,8 @@ defmodule DashboardSSDWeb.ClientsLive.ContractsTest do
   end
 
   defp insert_document(client_id, project_id, attrs) do
+    attrs = Map.new(attrs)
+
     params = %{
       client_id: client_id,
       project_id: project_id,
@@ -177,10 +179,15 @@ defmodule DashboardSSDWeb.ClientsLive.ContractsTest do
       source_id: Ecto.UUID.generate(),
       doc_type: "sow",
       title: attrs[:title] || "Doc",
-      visibility: :client
+      visibility: Map.get(attrs, :visibility, :client),
+      metadata: Map.get(attrs, :metadata, %{})
     }
 
-    {:ok, doc} = %SharedDocument{} |> SharedDocument.changeset(params) |> Repo.insert()
+    {:ok, doc} =
+      %SharedDocument{}
+      |> SharedDocument.changeset(params)
+      |> Repo.insert()
+
     doc
   end
 

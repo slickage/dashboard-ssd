@@ -4,16 +4,11 @@
   },
   "skip_files": [
     "lib/dashboard_ssd.ex",
-    "lib/dashboard_ssd/deployments.ex",
-    "lib/dashboard_ssd/health_checks/scheduler.ex",
-    "lib/dashboard_ssd_web/controllers/auth_controller.ex",
-    "lib/dashboard_ssd_web/controllers/page_html.ex",
     "lib/dashboard_ssd_web/endpoint.ex",
     "lib/dashboard_ssd_web/gettext.ex",
     "lib/dashboard_ssd/mailer.ex",
     "lib/dashboard_ssd/vault.ex",
     "lib/dashboard_ssd/repo.ex",
-    "lib/dashboard_ssd_web/components/.*",
     "lib/dashboard_ssd_web/components/core_components.ex",
     "lib/mix/tasks/coveralls_ci.ex"
   ]

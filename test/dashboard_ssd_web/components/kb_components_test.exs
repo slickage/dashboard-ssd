@@ -6,6 +6,36 @@ defmodule DashboardSSDWeb.KbComponentsTest do
   alias DashboardSSD.KnowledgeBase.Types
   alias DashboardSSDWeb.KbComponents
 
+  describe "document_icon/1" do
+    test "renders svg embed with large size" do
+      html =
+        render_component(&KbComponents.document_icon/1,
+          icon: "https://cdn.example/icon.svg",
+          size: "lg"
+        )
+
+      assert html =~ "<embed"
+      assert html =~ "w-6 h-6"
+    end
+
+    test "renders remote non-svg image" do
+      html =
+        render_component(&KbComponents.document_icon/1,
+          icon: "https://cdn.example/icon.png",
+          size: "sm"
+        )
+
+      assert html =~ "<img"
+      assert html =~ "crossorigin=\"anonymous\""
+    end
+
+    test "renders emoji fallback" do
+      html = render_component(&KbComponents.document_icon/1, icon: "🚀")
+      assert html =~ "🚀"
+      assert html =~ "text-sm"
+    end
+  end
+
   test "recent_activity_list renders document entries" do
     activity = %Types.RecentActivity{
       user_id: 1,
@@ -106,6 +136,43 @@ defmodule DashboardSSDWeb.KbComponentsTest do
 
     assert html =~ "timeout"
     refute html =~ "No documents available yet."
+  end
+
+  test "collection_tree renders badge-only errors and empty state" do
+    errors = [%{reason: {:missing_env, "NOTION_TOKEN"}}]
+
+    html =
+      render_component(&KbComponents.collection_tree/1,
+        collections: [],
+        collection_errors: errors,
+        documents_by_collection: %{},
+        document_errors: %{}
+      )
+
+    assert html =~ "Missing environment variable NOTION_TOKEN"
+    assert html =~ "No curated collections are available yet."
+  end
+
+  test "collection_tree shows no documents message when expanded without errors" do
+    collection = %Types.Collection{
+      id: "db-empty",
+      name: "Empty",
+      description: nil,
+      document_count: 0,
+      last_document_updated_at: nil
+    }
+
+    html =
+      render_component(&KbComponents.collection_tree/1,
+        collections: [collection],
+        collection_errors: [],
+        documents_by_collection: %{"db-empty" => []},
+        document_errors: %{"db-empty" => []},
+        expanded_ids: MapSet.new(["db-empty"]),
+        selected_collection_id: "db-empty"
+      )
+
+    assert html =~ "No documents available yet."
   end
 
   test "document_viewer renders blocks" do
@@ -342,6 +409,46 @@ defmodule DashboardSSDWeb.KbComponentsTest do
     assert html =~ "style=\"padding-left: 42px;\""
   end
 
+  test "document viewer shows loading, error, and share link states" do
+    loading =
+      render_component(&KbComponents.document_viewer/1, document: nil, loading: true, error: nil)
+
+    assert loading =~ "Loading document"
+
+    error =
+      render_component(&KbComponents.document_viewer/1,
+        document: nil,
+        loading: false,
+        error: "Boom"
+      )
+
+    assert error =~ "Boom"
+
+    document = %{
+      title: "Doc",
+      owner: "Owner",
+      icon: nil,
+      share_url: "https://notion.example/doc",
+      last_updated_at: ~U[2024-05-01 12:00:00Z],
+      tags: [],
+      rendered_blocks: [],
+      collection_id: "db",
+      id: "doc-id"
+    }
+
+    html =
+      render_component(&KbComponents.document_viewer/1,
+        document: document,
+        loading: false,
+        error: nil,
+        share_url: "https://dashboard/doc"
+      )
+
+    assert html =~ "Copy URL"
+    assert html =~ "View in Notion"
+    assert html =~ "Updated 2024-05-01 12:00"
+  end
+
   test "kb_block renders quote, callout, code, divider, media, bookmark, and fallback" do
     quote_html =
       render_component(&KbComponents.kb_block/1,
@@ -438,5 +545,17 @@ defmodule DashboardSSDWeb.KbComponentsTest do
       )
 
     assert unsupported_html =~ "Unsupported block (audio)"
+  end
+
+  test "kb_rich_text renders hyperlinks with annotations" do
+    segments = [
+      %{text: "Docs", href: "https://example.com", annotations: %{bold: true, italic: true}}
+    ]
+
+    html = render_component(&KbComponents.kb_rich_text/1, segments: segments)
+
+    assert html =~ "<a"
+    assert html =~ "font-semibold"
+    assert html =~ "italic"
   end
 end

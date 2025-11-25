@@ -5,6 +5,7 @@ defmodule DashboardSSDWeb.ProjectsLive.IndexUnitTest do
   import Phoenix.LiveViewTest, only: [rendered_to_string: 1]
 
   alias DashboardSSD.Clients.Client
+  alias DashboardSSD.Projects.CacheStore
   alias DashboardSSD.Projects.Project
   alias DashboardSSD.Repo
   alias DashboardSSDWeb.ProjectsLive.Index
@@ -324,6 +325,23 @@ defmodule DashboardSSDWeb.ProjectsLive.IndexUnitTest do
     assert html =~ "No Linear Team"
   end
 
+  test "prune_collapsed removes invalid keys and handles nil" do
+    project =
+      %Project{
+        id: 99,
+        name: "Keyed",
+        linear_team_id: "team-key",
+        linear_team_name: "Team Key"
+      }
+
+    collapsed = Index.test_prune_collapsed(nil, [project])
+    assert collapsed == MapSet.new()
+
+    trimmed = Index.test_prune_collapsed(MapSet.new(["obsolete", "team-key"]), [project])
+    refute MapSet.member?(trimmed, "obsolete")
+    assert MapSet.member?(trimmed, "team-key")
+  end
+
   test "handle_params reloads when r param provided even if cached" do
     client = Repo.insert!(%Client{name: "Scoped"})
     project = Repo.insert!(%Project{name: "ScopedProj", client_id: client.id})
@@ -390,6 +408,32 @@ defmodule DashboardSSDWeb.ProjectsLive.IndexUnitTest do
     assert updated.assigns.summaries_task_ref == socket.assigns.summaries_task_ref
   end
 
+  test "handle_info project_updated refreshes project with flash" do
+    client = Repo.insert!(%Client{name: "Proj Client"})
+    project = Repo.insert!(%Project{name: "Proj", client_id: client.id, linear_team_id: "team"})
+
+    socket =
+      %Socket{assigns: %{flash: %{}, __changed__: %{}}, private: %{live_temp: %{}}}
+      |> assign(%{
+        projects: [project],
+        collapsed_teams: MapSet.new(["team"]),
+        team_members: %{},
+        health: %{},
+        summaries: %{},
+        params: %{},
+        can_manage_projects?: true,
+        can_view_contracts?: true,
+        can_view_client_contracts?: true
+      })
+
+    {:noreply, updated} =
+      Index.handle_info({:project_updated, project, "Updated!", true}, socket)
+
+    assert Enum.any?(updated.assigns.projects, &(&1.id == project.id))
+    assert updated.redirected == {:live, :patch, %{to: "/projects", kind: :push}}
+    assert updated.assigns.flash["info"] =~ "Updated!"
+  end
+
   test "fetch_projects handles all scopes and ids" do
     {:ok, client} = DashboardSSD.Clients.create_client(%{name: "Fetch"})
 
@@ -426,6 +470,8 @@ defmodule DashboardSSDWeb.ProjectsLive.IndexUnitTest do
       |> Enum.map(& &1.client_id)
 
     assert Enum.sort(all_scoped) == [c1.id]
+
+    assert Index.test_fetch_projects(nil, []) == []
   end
 
   test "clients_for_scope returns expected lists" do
@@ -436,11 +482,23 @@ defmodule DashboardSSDWeb.ProjectsLive.IndexUnitTest do
     assert Enum.map(scoped, & &1.id) == [client.id]
   end
 
+  test "accessible client scope helper handles roles" do
+    assert Index.test_accessible_client_scope(nil) == :all
+    assert Index.test_accessible_client_scope(%{role: %{name: "staff"}}) == :all
+    assert Index.test_accessible_client_scope(%{role: %{name: "client"}, client_id: 5}) == [5]
+    assert Index.test_accessible_client_scope(%{role: %{name: "client"}, client_id: nil}) == []
+  end
+
   test "client filter helper predicates" do
     assert Index.test_client_filter_enabled?(:all)
     refute Index.test_client_filter_enabled?([])
     assert Index.test_client_filter_enabled?([1, 2])
     refute Index.test_client_filter_enabled?([1])
+  end
+
+  test "client contracts path helper falls back" do
+    assert Index.test_client_contracts_path(%{id: 42}) == "/clients/contracts?project_id=42"
+    assert Index.test_client_contracts_path(%{}) == "/clients/contracts"
   end
 
   test "normalize client id respects scope lists" do
@@ -506,5 +564,111 @@ defmodule DashboardSSDWeb.ProjectsLive.IndexUnitTest do
       )
 
     assert cached_socket.assigns.flash["info"]
+  end
+
+  test "sync flash helpers cover cached scenarios" do
+    socket =
+      %Socket{assigns: %{flash: %{}, __changed__: %{}}, private: %{live_temp: %{}}}
+      |> assign(%{summaries: %{}, summaries_cached: %{}})
+
+    now = DateTime.utc_now()
+
+    cached =
+      Index.test_maybe_put_sync_flash(
+        socket,
+        %{
+          cached?: true,
+          cached_reason: :rate_limited,
+          message: nil,
+          synced_at: now
+        },
+        true
+      )
+
+    assert cached.assigns.flash["info"] =~ "rate limit"
+
+    inline =
+      Index.test_maybe_put_sync_flash(
+        socket,
+        %{
+          cached?: true,
+          cached_reason: :rate_limited,
+          message: "Slow down",
+          synced_at: now
+        },
+        false
+      )
+
+    assert inline.assigns.flash["info"] =~ "Slow down"
+  end
+
+  test "rate limit and error flashes respect show flag" do
+    socket =
+      %Socket{assigns: %{flash: %{}, __changed__: %{}}, private: %{live_temp: %{}}}
+      |> assign(%{})
+
+    result = Index.test_maybe_put_rate_limit_flash(socket, "Too fast", true)
+    assert result.assigns.flash["error"] =~ "Too fast"
+
+    assert Index.test_maybe_put_rate_limit_flash(socket, "Too fast", false) == socket
+
+    err = Index.test_maybe_put_error_flash(socket, :boom, true)
+    assert err.assigns.flash["error"] =~ "boom"
+    assert Index.test_maybe_put_error_flash(socket, :boom, false) == socket
+  end
+
+  test "context suffix helper formats auto context" do
+    assert Index.test_context_suffix(:auto) =~ "auto"
+    assert Index.test_context_suffix(:manual) == ""
+  end
+
+  test "refresh handles blank client filter and caches summaries" do
+    client = Repo.insert!(%Client{name: "Refresh"})
+    project = Repo.insert!(%Project{name: "RefreshProj", client_id: client.id})
+
+    socket =
+      assign(%Socket{}, %{
+        client_id: "",
+        collapsed_teams: MapSet.new(),
+        summaries: %{"cached" => %{}},
+        summaries_cached: %{to_string(project.id) => %{total: 0}},
+        team_members: %{}
+      })
+
+    refreshed = Index.test_refresh(socket)
+    assert Enum.any?(refreshed.assigns.projects, &(&1.id == project.id))
+  end
+
+  test "normalize sync info populates defaults" do
+    info = Index.test_normalize_sync_info(%{synced_at: nil})
+    assert info.cached? == false
+    assert info.summaries == %{}
+  end
+
+  test "hydrate_from_cached_sync consumes cached entry" do
+    CacheStore.put(%{
+      payload: %{inserted: 0, updated: 0, summaries: %{}},
+      synced_at: DateTime.utc_now(),
+      synced_at_mono: System.monotonic_time(:millisecond),
+      next_allowed_sync_mono: nil,
+      rate_limit_message: "cached",
+      summaries: %{}
+    })
+
+    socket =
+      %Socket{assigns: %{flash: %{}, __changed__: %{}}, private: %{live_temp: %{}}}
+      |> assign(%{summaries: %{}, summaries_cached: %{}})
+
+    hydrated = Index.test_hydrate_from_cached_sync(socket)
+    assert hydrated.assigns.last_linear_sync_reason == :pre_warm
+  end
+
+  test "format sync helpers handle nils and counts" do
+    assert Index.test_format_sync_time(nil) == "recently"
+    now = DateTime.utc_now()
+    assert Index.test_format_sync_time(now) =~ Integer.to_string(now.year)
+
+    assert Index.test_format_sync_counts(%{inserted: 1, updated: 2}) =~ "inserted=1"
+    assert Index.test_format_sync_counts(%{}) == ""
   end
 end

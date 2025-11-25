@@ -1,13 +1,13 @@
 defmodule DashboardSSD.DeploymentsTest do
   use DashboardSSD.DataCase, async: false
 
+  alias Bypass
   alias DashboardSSD.Clients
   alias DashboardSSD.Deployments
   alias DashboardSSD.Deployments.{HealthCheck, HealthCheckSetting}
   alias DashboardSSD.Projects
   alias DashboardSSD.Repo
   alias Plug.Conn
-  alias Bypass
 
   setup do
     {:ok, client} = Clients.create_client(%{name: "C"})
@@ -65,6 +65,7 @@ defmodule DashboardSSD.DeploymentsTest do
       on_exit(fn -> Application.put_env(:dashboard_ssd, :env, :test) end)
       :ok
     end
+
     test "latest_health_status_by_project_ids returns most recent status", %{project: project} do
       older = DateTime.utc_now() |> DateTime.add(-60, :second) |> DateTime.truncate(:second)
       newer = DateTime.utc_now() |> DateTime.truncate(:second)
@@ -207,6 +208,52 @@ defmodule DashboardSSD.DeploymentsTest do
 
       assert {:ok, "up"} = Deployments.run_health_check_now(project.id)
       assert_received :redirect_followed
+    end
+
+    test "run_health_check_now handles redirect loops as down", %{project: project} do
+      bypass = Bypass.open()
+      url = "http://127.0.0.1:#{bypass.port}/loop"
+      prev_env = Application.get_env(:dashboard_ssd, :env)
+      Application.put_env(:dashboard_ssd, :env, :dev)
+      on_exit(fn -> Application.put_env(:dashboard_ssd, :env, prev_env) end)
+
+      {:ok, _} =
+        Deployments.upsert_health_check_setting(project.id, %{
+          provider: "http",
+          endpoint_url: url,
+          enabled: true
+        })
+
+      Bypass.expect(bypass, fn conn ->
+        conn
+        |> Conn.put_resp_header("location", url)
+        |> Conn.resp(302, "")
+      end)
+
+      assert {:ok, "down"} = Deployments.run_health_check_now(project.id)
+    end
+
+    test "run_health_check_now handles invalid redirect targets", %{project: project} do
+      bypass = Bypass.open()
+      url = "http://127.0.0.1:#{bypass.port}/redirect"
+      prev_env = Application.get_env(:dashboard_ssd, :env)
+      Application.put_env(:dashboard_ssd, :env, :dev)
+      on_exit(fn -> Application.put_env(:dashboard_ssd, :env, prev_env) end)
+
+      {:ok, _} =
+        Deployments.upsert_health_check_setting(project.id, %{
+          provider: "http",
+          endpoint_url: url,
+          enabled: true
+        })
+
+      Bypass.expect_once(bypass, fn conn ->
+        conn
+        |> Conn.put_resp_header("location", "javascript:alert('boom')")
+        |> Conn.resp(302, "")
+      end)
+
+      assert {:ok, "down"} = Deployments.run_health_check_now(project.id)
     end
   end
 end

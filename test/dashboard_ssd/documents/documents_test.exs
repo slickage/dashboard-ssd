@@ -8,6 +8,7 @@ defmodule DashboardSSD.DocumentsTest do
   alias DashboardSSD.Documents.DocumentAccessLog
   alias DashboardSSD.Documents.SharedDocument
   alias DashboardSSD.Projects.Project
+  import ExUnit.CaptureLog
   import Tesla.Mock
 
   setup do
@@ -145,6 +146,56 @@ defmodule DashboardSSD.DocumentsTest do
     assert Repo.get!(SharedDocument, doc.id).title == "Valid"
   end
 
+  test "update_document_settings handles switching back to internal visibility" do
+    Application.put_env(:dashboard_ssd, :drive_permission_worker_inline, true)
+    Application.put_env(:dashboard_ssd, :integrations, drive_token: "drive-token")
+
+    on_exit(fn ->
+      Application.delete_env(:dashboard_ssd, :drive_permission_worker_inline)
+      Application.delete_env(:dashboard_ssd, :integrations)
+    end)
+
+    client = Repo.insert!(%Client{name: "ACL Client"})
+
+    project =
+      Repo.insert!(%Project{
+        name: "Drive ACL",
+        client_id: client.id,
+        drive_folder_id: "acl-folder"
+      })
+
+    doc =
+      insert_document(%{
+        client_id: client.id,
+        project_id: project.id,
+        visibility: :client,
+        source: :drive
+      })
+
+    assert {:ok, updated} =
+             Documents.update_document_settings(doc, %{visibility: :internal})
+
+    assert updated.visibility == :internal
+  end
+
+  test "update_document_settings skips drive ACL refresh for non-drive sources" do
+    client = Repo.insert!(%Client{name: "Notion Client"})
+    project = Repo.insert!(%Project{name: "Project", client_id: client.id})
+
+    doc =
+      insert_document(%{
+        client_id: client.id,
+        project_id: project.id,
+        source: :notion,
+        visibility: :client
+      })
+
+    assert {:ok, updated} =
+             Documents.update_document_settings(doc, %{client_edit_allowed: false})
+
+    assert updated.source == :notion
+  end
+
   test "fetch_client_document enforces client scoping" do
     client = Repo.insert!(%Client{name: "Acme"})
     other_client = Repo.insert!(%Client{name: "Other"})
@@ -188,6 +239,14 @@ defmodule DashboardSSD.DocumentsTest do
     assert [%{id: :drive_contracts}] = Documents.workspace_section_options()
   end
 
+  test "workspace_section_options handles legacy blueprint maps" do
+    Application.put_env(:dashboard_ssd, DashboardSSD.Documents.WorkspaceBlueprint, %{
+      default_sections: [:drive_contracts]
+    })
+
+    assert [] == Documents.workspace_section_options()
+  end
+
   test "workspace_section_options returns empty list when blueprint missing" do
     Application.delete_env(:dashboard_ssd, DashboardSSD.Documents.WorkspaceBlueprint)
     assert [] == Documents.workspace_section_options()
@@ -211,6 +270,87 @@ defmodule DashboardSSD.DocumentsTest do
 
     assert :ok = Documents.bootstrap_workspace(project, sections: [:drive_contracts])
     assert_receive {:workspace_bootstrap, 999, [:drive_contracts]}, 1_000
+  end
+
+  test "bootstrap_workspace_sync persists drive docs from bootstrap results" do
+    client = Repo.insert!(%Client{name: "Bootstrap Persist"})
+
+    project =
+      Repo.insert!(%Project{
+        name: "Persisted",
+        client_id: client.id,
+        drive_folder_id: "bootstrap-folder"
+      })
+
+    Application.put_env(
+      :dashboard_ssd,
+      :workspace_bootstrap_module,
+      DashboardSSD.WorkspaceBootstrapDriveStub
+    )
+
+    on_exit(fn ->
+      Application.delete_env(:dashboard_ssd, :workspace_bootstrap_module)
+    end)
+
+    assert {:ok, _} = Documents.bootstrap_workspace_sync(project, [])
+    assert Repo.aggregate(SharedDocument, :count, :id) > 0
+  end
+
+  test "bootstrap_workspace_sync logs drive sync warnings when inserts fail" do
+    Application.put_env(
+      :dashboard_ssd,
+      :workspace_bootstrap_module,
+      DashboardSSD.WorkspaceBootstrapDriveStub
+    )
+
+    on_exit(fn ->
+      Application.delete_env(:dashboard_ssd, :workspace_bootstrap_module)
+    end)
+
+    bogus_project = %Project{id: 876, client_id: 999_999, drive_folder_id: "missing"}
+
+    log =
+      capture_log(fn ->
+        assert {:ok, _} = Documents.bootstrap_workspace_sync(bogus_project, [])
+      end)
+
+    assert log =~ "Drive sync after bootstrap failed for project 876"
+  end
+
+  test "bootstrap_workspace logs warning when bootstrap fails" do
+    project = %Project{id: 321, name: "Broken"}
+
+    Application.put_env(
+      :dashboard_ssd,
+      :workspace_bootstrap_module,
+      DashboardSSD.WorkspaceBootstrapErrorStub
+    )
+
+    on_exit(fn ->
+      Application.delete_env(:dashboard_ssd, :workspace_bootstrap_module)
+    end)
+
+    log =
+      capture_log(fn ->
+        assert :ok = Documents.bootstrap_workspace(project, [])
+        Process.sleep(25)
+      end)
+
+    assert log =~ "Workspace bootstrap failed for project 321"
+  end
+
+  test "bootstrap_workspace_sync returns error tuples when bootstrap fails" do
+    Application.put_env(
+      :dashboard_ssd,
+      :workspace_bootstrap_module,
+      DashboardSSD.WorkspaceBootstrapErrorStub
+    )
+
+    on_exit(fn ->
+      Application.delete_env(:dashboard_ssd, :workspace_bootstrap_module)
+    end)
+
+    assert {:error, :boom} = Documents.bootstrap_workspace_sync(%Project{id: 404}, [])
   end
 
   test "sync_drive_documents imports files from Drive" do
@@ -274,6 +414,56 @@ defmodule DashboardSSD.DocumentsTest do
     assert doc.source_id == "doc-1"
     assert doc.title == "Drive Doc"
     assert doc.metadata["webViewLink"] == "https://docs.example/doc-1"
+  end
+
+  test "sync_drive_documents surfaces DriveSync errors" do
+    Application.put_env(:dashboard_ssd, DashboardSSD.Documents.WorkspaceBlueprint, %{
+      sections: [
+        %{id: :drive_contracts, type: :drive, enabled?: true, label: "Contracts"}
+      ],
+      default_sections: [:drive_contracts]
+    })
+
+    Application.put_env(:dashboard_ssd, :integrations, drive_token: "drive-token")
+
+    client = Repo.insert!(%Client{name: "Err Client"})
+
+    project =
+      Repo.insert!(%Project{
+        name: "Err Project",
+        client_id: client.id,
+        drive_folder_id: "root-folder"
+      })
+
+    mock(fn
+      %{method: :get, url: "https://www.googleapis.com/drive/v3/files", query: query} ->
+        q = Keyword.get(query, :q) || ""
+
+        cond do
+          String.contains?(q, "mimeType") ->
+            %Tesla.Env{status: 200, body: %{"files" => []}}
+
+          String.contains?(q, "section-folder") ->
+            %Tesla.Env{
+              status: 200,
+              body: %{"files" => [%{"name" => "Nameless Doc", "mimeType" => "application"}]}
+            }
+
+          true ->
+            flunk("Unexpected GET /files query: #{inspect(query)}")
+        end
+
+      %{method: :post, url: "https://www.googleapis.com/drive/v3/files", body: body} ->
+        params = Jason.decode!(body)
+        assert params["name"] == "Contracts"
+        %Tesla.Env{status: 200, body: %{"id" => "section-folder"}}
+
+      %{method: :get, url: "https://www.googleapis.com/drive/v3/files/section-folder"} ->
+        %Tesla.Env{status: 200, body: %{"driveId" => "drive-123", "id" => "section-folder"}}
+    end)
+
+    assert {:error, %Ecto.Changeset{}} =
+             Documents.sync_drive_documents(project_ids: [project.id])
   end
 
   test "sync_drive_documents prunes missing Drive docs" do
@@ -349,11 +539,54 @@ defmodule DashboardSSD.DocumentsTest do
     assert {:error, :workspace_blueprint_not_configured} = Documents.sync_drive_documents()
   end
 
+  test "sync_drive_documents skips sections with invalid folder names" do
+    Application.put_env(:dashboard_ssd, DashboardSSD.Documents.WorkspaceBlueprint, %{
+      sections: [
+        %{type: :drive, enabled?: true}
+      ],
+      default_sections: [:drive_contracts]
+    })
+
+    Application.put_env(:dashboard_ssd, :integrations, drive_token: "drive-token")
+
+    client = Repo.insert!(%Client{name: "Invalid Section"})
+
+    project =
+      Repo.insert!(%Project{
+        name: "Invalid Project",
+        client_id: client.id,
+        drive_folder_id: "root-folder"
+      })
+
+    mock(fn env -> flunk("Unexpected Drive call: #{inspect(env)}") end)
+
+    assert :ok = Documents.sync_drive_documents(project_ids: [project.id])
+    assert Repo.aggregate(SharedDocument, :count, :id) == 0
+  end
+
+  test "sync_drive_documents handles legacy blueprint structures" do
+    Application.put_env(:dashboard_ssd, DashboardSSD.Documents.WorkspaceBlueprint, :legacy)
+    Application.put_env(:dashboard_ssd, :integrations, drive_token: "drive-token")
+
+    client = Repo.insert!(%Client{name: "Legacy"})
+
+    project =
+      Repo.insert!(%Project{
+        name: "Legacy Project",
+        client_id: client.id,
+        drive_folder_id: "root-folder"
+      })
+
+    mock(fn env -> flunk("Unexpected Drive call: #{inspect(env)}") end)
+
+    assert :ok = Documents.sync_drive_documents(project_ids: [project.id])
+  end
+
   defp insert_document(attrs) do
     base = %{
       client_id: attrs[:client_id] || Repo.insert!(%Client{name: "Default"}).id,
       project_id: attrs[:project_id],
-      source: :drive,
+      source: Map.get(attrs, :source, :drive),
       source_id: Ecto.UUID.generate(),
       doc_type: "sow",
       title: Map.get(attrs, :title, "Doc"),
@@ -366,5 +599,34 @@ defmodule DashboardSSD.DocumentsTest do
       |> Repo.insert()
 
     record
+  end
+end
+
+defmodule DashboardSSD.WorkspaceBootstrapErrorStub do
+  @moduledoc false
+
+  def bootstrap(_project, _opts), do: {:error, :boom}
+end
+
+defmodule DashboardSSD.WorkspaceBootstrapDriveStub do
+  @moduledoc false
+
+  def bootstrap(_project, _opts) do
+    {:ok,
+     %{
+       sections: [
+         %{
+           section: :drive_contracts,
+           type: :drive,
+           document: %{
+             "id" => "doc-bootstrap",
+             "name" => "Drive · Contracts",
+             "mimeType" => "application/vnd.google-apps.document",
+             "webViewLink" => "https://docs.example/doc-bootstrap"
+           },
+           folder: %{"id" => "folder-bootstrap", "driveId" => "drive-bootstrap"}
+         }
+       ]
+     }}
   end
 end

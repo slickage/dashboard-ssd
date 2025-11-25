@@ -83,45 +83,42 @@ defmodule DashboardSSDWeb.ProjectsLive.Contracts do
     end
   end
 
-  def handle_event("show_bootstrap_form", %{"id" => id} = params, socket) do
-    if socket.assigns.can_manage? do
-      project = Projects.get_project!(String.to_integer(id))
-      section_id = params["section"] && to_section_atom(params["section"])
+  def handle_event("show_bootstrap_form", _params, %{assigns: %{can_manage?: false}} = socket),
+    do: {:noreply, socket}
 
-      if Projects.drive_folder_configured?(project) do
-        {:noreply, open_bootstrap_form(socket, project, only_section: section_id)}
-      else
-        {:noreply,
-         socket
-         |> put_flash(:error, "Project is missing a Drive folder.")
-         |> load_documents()}
-      end
+  def handle_event("show_bootstrap_form", %{"id" => id} = params, socket) do
+    project = Projects.get_project!(String.to_integer(id))
+    section_id = params["section"] && to_section_atom(params["section"])
+
+    if Projects.drive_folder_configured?(project) do
+      {:noreply, open_bootstrap_form(socket, project, only_section: section_id)}
     else
-      {:noreply, socket}
+      {:noreply,
+       socket
+       |> put_flash(:error, "Project is missing a Drive folder.")
+       |> load_documents()}
     end
   end
 
+  def handle_event(
+        "show_bootstrap_form_from_picker",
+        _params,
+        %{assigns: %{can_manage?: false}} = socket
+      ),
+      do: {:noreply, socket}
+
   def handle_event("show_bootstrap_form_from_picker", %{"project_id" => project_id}, socket) do
-    if socket.assigns.can_manage? do
-      case Integer.parse(project_id || "") do
-        {id, ""} ->
-          project = Projects.get_project!(id)
-
-          case Projects.ensure_drive_folder(project) do
-            {:ok, updated} ->
-              {:noreply,
-               socket |> refresh_projects_for_bootstrap() |> open_bootstrap_form(updated)}
-
-            {:error, reason} ->
-              {:noreply,
-               put_flash(socket, :error, "Unable to prepare Drive folder: #{inspect(reason)}")}
-          end
-
-        _ ->
-          {:noreply, put_flash(socket, :error, "Select a project to regenerate.")}
-      end
+    with {id, ""} <- Integer.parse(project_id || ""),
+         project = Projects.get_project!(id),
+         {:ok, updated} <- Projects.ensure_drive_folder(project) do
+      {:noreply, socket |> refresh_projects_for_bootstrap() |> open_bootstrap_form(updated)}
     else
-      {:noreply, socket}
+      {:error, reason} ->
+        {:noreply,
+         put_flash(socket, :error, "Unable to prepare Drive folder: #{inspect(reason)}")}
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Select a project to regenerate.")}
     end
   end
 
@@ -581,32 +578,32 @@ defmodule DashboardSSDWeb.ProjectsLive.Contracts do
   defp process_bootstrap_form(socket, project, params) do
     if Projects.drive_folder_configured?(project) do
       sections = sanitize_sections(Map.get(params, "sections"), socket.assigns.available_sections)
-
-      case sections do
-        [] ->
-          assign_bootstrap_error(socket, project, sections, "Select at least one section.")
-
-        _ ->
-          case Documents.bootstrap_workspace_sync(project, sections: sections) do
-            {:ok, _result} ->
-              socket
-              |> put_flash(
-                :info,
-                bootstrap_flash(project, sections, socket.assigns.available_sections)
-              )
-              |> reset_bootstrap_form()
-              |> load_documents()
-
-            {:error, reason} ->
-              socket
-              |> put_flash(:error, "Workspace bootstrap failed: #{inspect(reason)}")
-              |> reset_bootstrap_form()
-          end
-      end
+      handle_bootstrap_sections(socket, project, sections)
     else
       socket
       |> put_flash(:error, "Project is missing a Drive folder.")
       |> reset_bootstrap_form()
+    end
+  end
+
+  defp handle_bootstrap_sections(socket, project, []),
+    do: assign_bootstrap_error(socket, project, [], "Select at least one section.")
+
+  defp handle_bootstrap_sections(socket, project, sections) do
+    case Documents.bootstrap_workspace_sync(project, sections: sections) do
+      {:ok, _result} ->
+        socket
+        |> put_flash(
+          :info,
+          bootstrap_flash(project, sections, socket.assigns.available_sections)
+        )
+        |> reset_bootstrap_form()
+        |> load_documents()
+
+      {:error, reason} ->
+        socket
+        |> put_flash(:error, "Workspace bootstrap failed: #{inspect(reason)}")
+        |> reset_bootstrap_form()
     end
   end
 

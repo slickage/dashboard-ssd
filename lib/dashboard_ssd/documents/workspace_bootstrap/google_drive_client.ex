@@ -16,13 +16,11 @@ defmodule DashboardSSD.Documents.WorkspaceBootstrap.GoogleDriveClient do
   def ensure_section_folder(%Project{} = project, section, _opts) do
     with {:ok, %Project{} = project} <- ensure_project_drive_folder(project),
          {:ok, token} <- Integrations.drive_service_token(),
-         {:ok, name} <- section_folder_name(section),
-         {:ok, folder} <-
-           drive_api().ensure_project_folder(token, %{
-             parent_id: project.drive_folder_id,
-             name: name
-           }) do
-      {:ok, folder}
+         {:ok, name} <- section_folder_name(section) do
+      drive_api().ensure_project_folder(token, %{
+        parent_id: project.drive_folder_id,
+        name: name
+      })
     end
   end
 

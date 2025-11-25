@@ -197,44 +197,57 @@ defmodule DashboardSSD.Integrations do
         {:error, reason} ->
           Logger.error("Drive service token mint failed: #{inspect(reason)}")
           {:error, reason}
-
-        other ->
-          Logger.error("Drive service token mint failed: #{inspect(other)}")
-          {:error, other}
       end
     end
   end
 
   defp service_account_credentials do
+    with {:ok, path} <- service_account_path(),
+         {:ok, creds} <- parse_service_account_json(path) do
+      {:ok, Map.put(creds, :path, path)}
+    end
+  end
+
+  defp service_account_path do
     path =
       System.get_env("DRIVE_SERVICE_ACCOUNT_JSON") ||
         System.get_env("GOOGLE_APPLICATION_CREDENTIALS") ||
         drive_service_account_json_path()
 
-    cond do
-      is_nil(path) or path == "" ->
-        {:error, :missing_service_account_json}
-
-      true ->
-        case File.read(path) do
-          {:ok, raw} ->
-            case Jason.decode(raw) do
-              {:ok, %{"client_email" => email, "private_key" => key}}
-              when is_binary(email) and is_binary(key) and email != "" and key != "" ->
-                {:ok, %{client_email: email, private_key: key, path: path}}
-
-              {:ok, _} ->
-                {:error, :invalid_service_account_json}
-
-              {:error, reason} ->
-                {:error, {:invalid_json, reason}}
-            end
-
-          {:error, reason} ->
-            {:error, {:unreadable_service_account, reason}}
-        end
+    if present_path?(path) do
+      {:ok, path}
+    else
+      {:error, :missing_service_account_json}
     end
   end
+
+  # sobelow_skip ["Traversal.FileModule"]
+  defp parse_service_account_json(path) do
+    # sobelow_skip ["Traversal.FileModule"]
+    case File.read(path) do
+      {:ok, raw} ->
+        decode_service_account_json(raw)
+
+      {:error, reason} ->
+        {:error, {:unreadable_service_account, reason}}
+    end
+  end
+
+  defp decode_service_account_json(raw) do
+    case Jason.decode(raw) do
+      {:ok, %{"client_email" => email, "private_key" => key}}
+      when is_binary(email) and is_binary(key) and email != "" and key != "" ->
+        {:ok, %{client_email: email, private_key: key}}
+
+      {:ok, _} ->
+        {:error, :invalid_service_account_json}
+
+      {:error, reason} ->
+        {:error, {:invalid_json, reason}}
+    end
+  end
+
+  defp present_path?(path), do: is_binary(path) and path != ""
 
   defp drive_service_account_json_path do
     Application.get_env(:dashboard_ssd, :shared_documents_integrations)
@@ -275,8 +288,8 @@ defmodule DashboardSSD.Integrations do
     jws = %{"alg" => "RS256", "typ" => "JWT"}
 
     case JOSE.JWT.sign(jwk, jws, claims) |> JOSE.JWS.compact() do
+      {:error, reason} -> {:error, {:jwt_sign_failed, reason}}
       {_, jwt} -> {:ok, jwt}
-      error -> {:error, {:jwt_sign_failed, error}}
     end
   rescue
     e -> {:error, {:jwt_sign_exception, e}}

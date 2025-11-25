@@ -89,41 +89,41 @@ defmodule DashboardSSD.Documents.DriveSync do
   end
 
   defp prune_missing_drive_docs(remote_docs_or_ids, seen_ids) do
-    project_ids =
-      case remote_docs_or_ids do
-        ids when is_list(ids) ->
-          if Enum.all?(ids, &is_integer/1) do
-            ids
-          else
-            ids
-            |> Enum.map(&Map.get(&1, :project_id))
-            |> Enum.reject(&is_nil/1)
-            |> Enum.uniq()
-          end
-
-        _ ->
-          []
-      end
-
-    Enum.reduce(project_ids, 0, fn project_id, acc ->
-      deleted_count =
-        Repo.all(
-          from(sd in SharedDocument,
-            where: sd.source == :drive and sd.project_id == ^project_id
-          )
-        )
-        |> Enum.reduce(0, fn doc, count ->
-          if MapSet.member?(seen_ids, doc.source_id) do
-            count
-          else
-            Repo.delete!(doc)
-            count + 1
-          end
-        end)
-
-      acc + deleted_count
+    remote_docs_or_ids
+    |> project_ids_for_pruning()
+    |> Enum.reduce(0, fn project_id, acc ->
+      acc + delete_missing_drive_docs_for_project(project_id, seen_ids)
     end)
   end
+
+  defp delete_missing_drive_docs_for_project(project_id, seen_ids) do
+    Repo.all(
+      from(sd in SharedDocument,
+        where: sd.source == :drive and sd.project_id == ^project_id
+      )
+    )
+    |> Enum.reduce(0, fn doc, count ->
+      if MapSet.member?(seen_ids, doc.source_id) do
+        count
+      else
+        Repo.delete!(doc)
+        count + 1
+      end
+    end)
+  end
+
+  defp project_ids_for_pruning(ids) when is_list(ids) do
+    if Enum.all?(ids, &is_integer/1) do
+      ids
+    else
+      ids
+      |> Enum.map(&Map.get(&1, :project_id))
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+    end
+  end
+
+  defp project_ids_for_pruning(_), do: []
 
   defp upsert(attrs) do
     changeset = SharedDocument.changeset(%SharedDocument{}, attrs)
