@@ -778,6 +778,66 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
     def test_presence(value) do
       presence(value)
     end
+
+    @doc false
+    def test_prune_collapsed(collapsed, projects) do
+      prune_collapsed(collapsed, projects)
+    end
+
+    @doc false
+    def test_accessible_client_scope(user_or_role) do
+      accessible_client_scope(user_or_role)
+    end
+
+    @doc false
+    def test_client_contracts_path(client) do
+      client_contracts_path(client)
+    end
+
+    @doc false
+    def test_maybe_put_sync_flash(socket, info, show_flash?) do
+      maybe_put_sync_flash(socket, info, show_flash?)
+    end
+
+    @doc false
+    def test_maybe_put_rate_limit_flash(socket, message, show_flash?) do
+      maybe_put_rate_limit_flash(socket, message, show_flash?)
+    end
+
+    @doc false
+    def test_maybe_put_error_flash(socket, reason, show_flash?) do
+      maybe_put_error_flash(socket, reason, show_flash?)
+    end
+
+    @doc false
+    def test_context_suffix(context) do
+      context_suffix(context)
+    end
+
+    @doc false
+    def test_refresh(socket) do
+      refresh(socket)
+    end
+
+    @doc false
+    def test_normalize_sync_info(info) do
+      normalize_sync_info(info)
+    end
+
+    @doc false
+    def test_hydrate_from_cached_sync(socket) do
+      hydrate_from_cached_sync(socket)
+    end
+
+    @doc false
+    def test_format_sync_time(value) do
+      format_sync_time(value)
+    end
+
+    @doc false
+    def test_format_sync_counts(info) do
+      format_sync_counts(info)
+    end
   end
 
   @impl true
