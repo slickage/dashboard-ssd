@@ -140,7 +140,7 @@ When to use
 Workflow
 1) Identify conflicted files
    - `git diff --name-only --diff-filter=U`
-2) For each conflicted file (iterate one-by-one)
+2) For each conflicted file (iterate one-by-one; do not attempt to resolve all files with a single patch)
    - Collect three versions:
      - Base: `git show :1:path/to/file`
      - Ours: `git show :2:path/to/file`
@@ -154,6 +154,10 @@ Workflow
    - Format and lint: `mix format && mix credo --strict`
    - Test and types: `mix test && mix dialyzer` (or `mix check`)
    - Commit when green. Rerere will remember the fix for similar conflicts.
+
+Sequential resolution reminder
+- Always work on one conflicted file until it is fully resolved, approved, and staged before moving to the next.
+- Do not try to produce a giant combined patch that touches multiple files at once; that defeats the per-file workflow and increases risk.
 
 Patch format (what the AI should output)
 - Preferred: Codex apply_patch envelope with a single file per patch.
