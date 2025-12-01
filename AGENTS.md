@@ -120,3 +120,102 @@ Example sequence (commands)
 - git commit -m "feat(scripts): add tool for feature x\n\n- purpose of tool\n- how it integrates\n"
 - git add docs/**
 - git commit -m "docs(feature-x): add docs and manifest\n\n- what was added\n- where to find it\n"
+
+## AI Merge Conflicts (Three-way, Patch-first)
+
+Goals
+- Perform true three-way merges (base, ours, theirs).
+- Generate a per-file patch proposal and present it for approval before applying.
+- Keep diffs minimal and deterministic; validate with checks.
+
+Setup (once per machine)
+- Enable base markers in conflicts: `git config --global merge.conflictStyle diff3`
+- Reuse prior resolutions: `git config --global rerere.enabled true`
+- Auto-apply known resolutions: `git config --global rerere.autoupdate true`
+
+When to use
+- During `git merge` or `git rebase` when files are conflicted.
+- For text source files only. Do NOT hand-merge binaries or generated artifacts.
+
+Workflow
+1) Identify conflicted files
+   - `git diff --name-only --diff-filter=U`
+2) For each conflicted file (iterate one-by-one)
+   - Collect three versions:
+     - Base: `git show :1:path/to/file`
+     - Ours: `git show :2:path/to/file`
+     - Theirs: `git show :3:path/to/file`
+   - Ask the AI to perform a precise three-way merge using the prompt template below.
+   - The AI must return a patch proposal only (no commentary).
+   - Present the patch to the human for review/approval.
+   - On approval, apply the patch and stage the file.
+   - Quick check: `mix compile` to catch early issues.
+3) After all files are resolved
+   - Format and lint: `mix format && mix credo --strict`
+   - Test and types: `mix test && mix dialyzer` (or `mix check`)
+   - Commit when green. Rerere will remember the fix for similar conflicts.
+
+Patch format (what the AI should output)
+- Preferred: Codex apply_patch envelope with a single file per patch.
+  - Example:
+
+```
+*** Begin Patch
+*** Update File: path/to/file.ex
+@@
+-old/conflicted code
++merged code
+*** End Patch
+```
+
+- Alternative: Unified diff patch at repo root paths (for `git apply -p0`).
+- No extra commentary, logs, or prose around the patch.
+- Use workspace-relative paths; avoid absolute paths and URLs.
+- Keep the diff minimal: preserve formatting, dedupe imports/aliases, avoid reordering unless necessary.
+
+Applying the proposal
+- In Codex CLI: apply the envelope with `apply_patch` after approval.
+- Outside Codex: save to `merge.patch` then run `git apply -p0 merge.patch` and `git add path/to/file`.
+
+Prompt Template (copy/paste for each file)
+- Use this to ask the AI for a merge patch. Keep temperature low for determinism.
+
+```
+You are performing a precise 3-way merge. Goals:
+- Keep all real logic from both sides. If both sides add different features, include both.
+- If one side refactors (rename/reorder) and the other adds logic, keep the new logic within the refactor.
+- Dedupe imports/aliases; preserve formatting; minimize unrelated changes.
+
+Return ONLY a patch proposal: EITHER
+1) Codex apply_patch envelope (preferred), or
+2) A unified diff applying at the repo root.
+
+No extra commentary or explanations.
+
+FILE: path/to/file
+
+=== BASE
+<paste output of: git show :1:path/to/file>
+=== OURS
+<paste output of: git show :2:path/to/file>
+=== THEIRS
+<paste output of: git show :3:path/to/file>
+```
+
+Elixir/Phoenix nuances
+- mix.lock: Prefer one side, then run `mix deps.get` to regenerate; do not hand-merge.
+- Ecto migrations: Keep both migration files. Create a new migration to reconcile schema diffs; avoid forcing one side.
+- Router/LiveView: Merge new routes, plugs, and pipelines additively; avoid reordering unless necessary.
+- Tests: Keep both new tests; ensure `describe`/test names don’t collide.
+- Generated/binary files: Regenerate rather than merging by hand.
+
+Accuracy guardrails
+- Ask for minimal diffs to reduce noise and merge risk.
+- If patch application fails, regenerate with more surrounding context in the patch hunk(s).
+- Run `mix check` before committing to validate formatting, lint, tests, types, and docs.
+
+Agent behavior (enforced)
+- Walk conflicted files one-by-one; one patch per file.
+- Always present the patch to the human and wait for approval before applying.
+- After applying each patch, run a quick `mix compile` to surface immediate errors.
+- Do not attempt to auto-merge lockfiles or binaries; follow the nuances above.
