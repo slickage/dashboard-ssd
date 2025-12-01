@@ -82,4 +82,3 @@ defmodule DashboardSSD.Integrations.FirefliesBinaryItemsTest do
              Fireflies.fetch_latest_for_series(series_id, title: "Weekly")
   end
 end
-
