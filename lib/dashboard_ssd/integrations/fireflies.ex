@@ -252,6 +252,7 @@ defmodule DashboardSSD.Integrations.Fireflies do
     end
   end
 
+  @dialyzer {:nowarn_function, normalize_items_to_list: 1}
   defp normalize_items_to_list(items) when is_list(items), do: items
 
   defp normalize_items_to_list(items) when is_binary(items) do
@@ -259,6 +260,8 @@ defmodule DashboardSSD.Integrations.Fireflies do
     |> String.split(["\r\n", "\n"], trim: true)
     |> Enum.reject(&(&1 == ""))
   end
+
+  defp normalize_items_to_list(_), do: []
 
   defp persist_artifacts_if_present(series_id, transcript_id, notes, items, bullet) do
     case {notes, items, bullet} do
