@@ -109,16 +109,10 @@ defmodule DashboardSSDWeb.KbComponents do
         <% end %>
       <% end %>
 
-      <p
-        :if={Enum.empty?(@collections) and Enum.empty?(@collection_errors)}
-        class="text-sm text-theme-muted"
-      >
+      <p :if={Enum.empty?(@collections)} class="text-sm text-theme-muted">
         No curated collections are available yet.
       </p>
-      <p
-        :if={Enum.empty?(@collections) and Enum.empty?(@collection_errors)}
-        class="text-sm text-theme-muted"
-      >
+      <p :if={Enum.empty?(@collections)} class="text-sm text-theme-muted">
         No documents are available in this collection yet.
       </p>
 

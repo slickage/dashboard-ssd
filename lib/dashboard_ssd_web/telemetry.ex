@@ -95,6 +95,71 @@ defmodule DashboardSSDWeb.Telemetry do
         unit: {:native, :millisecond},
         description: "Duration of Notion API requests triggered by the Knowledge Base context"
       ),
+      summary("dashboard_ssd.documents.drive_sync.duration",
+        event_name: [:dashboard_ssd, :documents, :drive_sync, :result],
+        measurement: :duration,
+        tags: [:status],
+        unit: {:native, :millisecond},
+        description: "Duration of Drive sync batches"
+      ),
+      summary("dashboard_ssd.documents.drive_sync.stale_pct",
+        event_name: [:dashboard_ssd, :documents, :drive_sync, :result],
+        measurement: :stale_pct,
+        tags: [:status],
+        description: "Percentage of stale Drive entries detected during sync"
+      ),
+      last_value("dashboard_ssd.documents.drive_sync.stale_pct",
+        event_name: [:dashboard_ssd, :documents, :drive_sync, :result],
+        measurement: :stale_pct,
+        tags: [:status],
+        description: "Latest Drive stale percentage for alerting"
+      ),
+      summary("dashboard_ssd.documents.notion_sync.duration",
+        event_name: [:dashboard_ssd, :documents, :notion_sync, :result],
+        measurement: :duration,
+        tags: [:status],
+        unit: {:native, :millisecond},
+        description: "Duration of Notion sync batches"
+      ),
+      summary("dashboard_ssd.documents.notion_sync.stale_pct",
+        event_name: [:dashboard_ssd, :documents, :notion_sync, :result],
+        measurement: :stale_pct,
+        tags: [:status],
+        description: "Percentage of stale Notion entries detected during sync"
+      ),
+      last_value("dashboard_ssd.documents.notion_sync.stale_pct",
+        event_name: [:dashboard_ssd, :documents, :notion_sync, :result],
+        measurement: :stale_pct,
+        tags: [:status],
+        description: "Latest Notion stale percentage for alerting"
+      ),
+      summary("dashboard_ssd.documents.download.duration",
+        event_name: [:dashboard_ssd, :documents, :download],
+        measurement: :duration,
+        tags: [:status, :source],
+        unit: {:native, :millisecond},
+        description: "Latency for client downloads served via the proxy"
+      ),
+      summary("dashboard_ssd.documents.visibility_toggle.duration",
+        event_name: [:dashboard_ssd, :documents, :visibility_toggle],
+        measurement: :duration,
+        tags: [:status, :visibility],
+        unit: {:native, :millisecond},
+        description: "Time to apply staff visibility/edit toggles"
+      ),
+      summary("dashboard_ssd.drive_acl.sync.duration",
+        event_name: [:dashboard_ssd, :drive_acl, :sync],
+        measurement: :duration,
+        tags: [:operation, :status],
+        unit: {:native, :millisecond},
+        description: "Duration of Drive permission share/unshare operations"
+      ),
+      counter("dashboard_ssd.drive_acl.sync.failures",
+        event_name: [:dashboard_ssd, :drive_acl, :sync],
+        measurement: :failure,
+        tags: [:operation],
+        description: "Count of Drive ACL operations that returned errors"
+      ),
 
       # VM Metrics
       summary("vm.memory.total", unit: {:byte, :kilobyte}),

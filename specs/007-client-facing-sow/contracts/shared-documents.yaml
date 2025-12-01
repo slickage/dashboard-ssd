@@ -1,0 +1,207 @@
+openapi: 3.0.3
+info:
+  title: DashboardSSD Shared Documents API
+  version: 0.1.0
+  description: |
+    Internal endpoints powering the Contracts & Docs experience for staff and client portals.
+servers:
+  - url: https://dashboard-ssd.internal/api
+paths:
+  /shared_documents:
+    get:
+      summary: List shared documents for the current user scope
+      tags: [SharedDocuments]
+      operationId: listSharedDocuments
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: scope
+          in: query
+          schema:
+            type: string
+            enum: [staff, client]
+            default: client
+        - name: project_id
+          in: query
+          schema:
+            type: integer
+            nullable: true
+        - name: client_id
+          in: query
+          schema:
+            type: integer
+            nullable: true
+      responses:
+        '200':
+          description: Filtered shared document list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SharedDocument'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Missing capability for requested scope
+  /shared_documents/{id}/visibility:
+    put:
+      summary: Update client visibility/edit settings (staff only)
+      tags: [SharedDocuments]
+      operationId: updateVisibility
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visibility, client_edit_allowed]
+              properties:
+                visibility:
+                  type: string
+                  enum: [internal, client]
+                client_edit_allowed:
+                  type: boolean
+      responses:
+        '200':
+          description: Updated record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SharedDocument'
+        '400':
+          description: Invalid transition (e.g., edit allowed on Notion source)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Requires contracts.manage capability
+  /shared_documents/{id}/download:
+    post:
+      summary: Request a proxied download stream
+      tags: [SharedDocuments]
+      operationId: downloadDocument
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+      responses:
+        '200':
+          description: Download stream initiated
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Visibility/capability violation
+        '404':
+          description: Unknown or deleted document
+  /shared_documents/drive_permissions:
+    post:
+      summary: Trigger Drive permission sync for a client/project pair
+      tags: [SharedDocuments]
+      operationId: syncDrivePermissions
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [project_id, user_id]
+              properties:
+                project_id:
+                  type: integer
+                user_id:
+                  type: integer
+      responses:
+        '202':
+          description: Sync enqueued
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Requires contracts.manage or settings.rbac capability
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: _dashboard_ssd_key
+  schemas:
+    SharedDocument:
+      type: object
+      required:
+        - id
+        - client_id
+        - source
+        - source_id
+        - title
+        - visibility
+        - doc_type
+      properties:
+        id:
+          type: string
+          format: uuid
+        client_id:
+          type: integer
+        project_id:
+          type: integer
+          nullable: true
+        source:
+          type: string
+          enum: [drive, notion]
+        source_id:
+          type: string
+        doc_type:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        visibility:
+          type: string
+          enum: [internal, client]
+        client_edit_allowed:
+          type: boolean
+        mime_type:
+          type: string
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string

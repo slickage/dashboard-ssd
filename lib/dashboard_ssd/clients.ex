@@ -8,6 +8,8 @@ defmodule DashboardSSD.Clients do
   """
   import Ecto.Query, warn: false
   alias DashboardSSD.Clients.Client
+  alias DashboardSSD.Documents
+  alias DashboardSSD.Projects
   alias DashboardSSD.Repo
   alias Phoenix.PubSub
 
@@ -85,7 +87,14 @@ defmodule DashboardSSD.Clients do
     %Client{}
     |> Client.changeset(attrs)
     |> Repo.insert()
-    |> broadcast(:created)
+    |> case do
+      {:ok, client} = result ->
+        bootstrap_projects_for_client(client)
+        broadcast(result, :created)
+
+      {:error, _} = error ->
+        error
+    end
   end
 
   @doc """
@@ -174,4 +183,11 @@ defmodule DashboardSSD.Clients do
 
   defp normalize_queryable(%Ecto.Query{} = query), do: query
   defp normalize_queryable(module) when is_atom(module), do: from(c in module)
+
+  defp bootstrap_projects_for_client(client) do
+    Projects.list_projects_by_client(client.id)
+    |> Enum.each(fn project ->
+      Documents.bootstrap_workspace(project, sections: Projects.workspace_sections())
+    end)
+  end
 end

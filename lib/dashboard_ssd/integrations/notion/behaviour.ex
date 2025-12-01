@@ -12,8 +12,15 @@ defmodule DashboardSSD.Integrations.Notion.Behaviour do
 
   @callback search(token(), String.t(), options()) :: {:ok, map()} | {:error, term()}
   @callback list_databases(token(), options()) :: {:ok, map()} | {:error, term()}
+  @callback retrieve_database(token(), String.t(), options()) ::
+              {:ok, map()} | {:error, term()}
   @callback retrieve_page(token(), String.t(), options()) :: {:ok, map()} | {:error, term()}
   @callback query_database(token(), String.t(), options()) :: {:ok, map()} | {:error, term()}
   @callback retrieve_block_children(token(), String.t(), options()) ::
               {:ok, map()} | {:error, term()}
+  @callback create_page(token(), map(), options()) :: {:ok, map()} | {:error, term()}
+  @callback create_database(token(), map(), options()) :: {:ok, map()} | {:error, term()}
+  @callback append_block_children(token(), String.t(), list(), options()) ::
+              {:ok, map()} | {:error, term()}
+  @callback delete_block(token(), String.t(), options()) :: {:ok, map()} | {:error, term()}
 end

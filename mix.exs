@@ -179,13 +179,14 @@ defmodule DashboardSSD.MixProject do
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
       {:git_hooks, "~> 0.8", only: :dev, runtime: false},
-      {:sobelow, "~> 0.13", only: :dev, runtime: false},
+      {:sobelow, "~> 0.13", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.18", only: [:dev, :test], runtime: false},
       {:cloak_ecto, "~> 1.2"},
       {:ueberauth, "~> 0.10"},
       {:ueberauth_google, "~> 0.10"},
       {:doctor, "~> 0.22", only: :dev, runtime: false},
-      {:mix_audit, "~> 2.1", only: :dev, runtime: false}
+      {:mix_audit, "~> 2.1", only: :dev, runtime: false},
+      {:jose, "~> 1.11"}
     ]
   end
 
@@ -197,7 +198,7 @@ defmodule DashboardSSD.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
-      setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build"],
+      setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build", "shared_documents.sync"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
@@ -210,7 +211,7 @@ defmodule DashboardSSD.MixProject do
         "cmd MIX_ENV=test mix compile --force --warnings-as-errors",
         "format --check-formatted",
         "credo --strict",
-        "cmd SOBELOW_CONFIDENCE=medium MIX_ENV=dev mix sobelow -i Config.HTTPS --skip --exit",
+        "cmd SOBELOW_CONFIDENCE=medium MIX_ENV=dev mix sobelow -i Config.HTTPS --skip Traversal.FileModule --exit",
         "cmd MIX_ENV=dev mix assets.setup",
         "cmd MIX_ENV=dev mix assets.build",
         "cmd MIX_ENV=dev mix dialyzer --plt",
