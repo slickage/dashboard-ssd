@@ -179,6 +179,12 @@ auto_page_collection_description =
       "Top-level pages from the company wiki"
     )
 
+slickage_allowed_domains =
+  parse_env_list.(
+    System.get_env("SLICKAGE_ALLOWED_DOMAINS"),
+    ["slickage.com"]
+  )
+
 {curated_collections_sample, fallback_curated_database_ids} =
   if config_env() == :prod do
     {[], []}
@@ -238,6 +244,10 @@ knowledge_base_config =
   |> Keyword.put(:auto_page_collection_description, auto_page_collection_description)
 
 Application.put_env(:dashboard_ssd, DashboardSSD.KnowledgeBase, knowledge_base_config)
+
+Application.put_env(:dashboard_ssd, DashboardSSD.Accounts,
+  slickage_allowed_domains: slickage_allowed_domains
+)
 
 parsed_curated_database_ids =
   case raw_curated_database_ids do

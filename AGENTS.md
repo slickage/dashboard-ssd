@@ -23,8 +23,9 @@
 - **Security**: No `IO.inspect` in production code
 
 ## Active Technologies
-- Elixir (per repo), Phoenix LiveView + Ecto; Google Calendar API (OAuth2); Fireflies.ai API (token-based); JSON/HTTP client; Phoenix LiveView UI (001-add-meetings-fireflies)
-- PostgreSQL (minimal tables for manual agenda items, associations, and optional Fireflies cache) (001-add-meetings-fireflies)
+- Elixir ~> 1.18 (Phoenix LiveView application) + Phoenix ~> 1.8, Phoenix LiveView ~> 1.1, Ecto/Repo, Ueberauth + Ueberauth Google, Tailwind/Alpine (front-end) (006-simplify-rbac)
+- PostgreSQL (existing `roles`, `users`, `external_identities`, audit tables) (006-simplify-rbac)
 
 ## Recent Changes
+- 006-simplify-rbac: Added Elixir ~> 1.18 (Phoenix LiveView application) + Phoenix ~> 1.8, Phoenix LiveView ~> 1.1, Ecto/Repo, Ueberauth + Ueberauth Google, Tailwind/Alpine (front-end)
 - 001-add-meetings-fireflies: Added Elixir (per repo), Phoenix LiveView + Ecto; Google Calendar API (OAuth2); Fireflies.ai API (token-based); JSON/HTTP client; Phoenix LiveView UI

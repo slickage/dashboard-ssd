@@ -1,11 +1,11 @@
-# Script for populating the database. You can run it as:
-#
-#     mix run priv/repo/seeds.exs
-#
-# Inside the script, you can read and write to any of your
-# repositories directly:
-#
-#     DashboardSSD.Repo.insert!(%DashboardSSD.SomeSchema{})
-#
-# We recommend using the bang functions (`insert!`, `update!`
-# and so on) as they will fail if something goes wrong.
+alias DashboardSSD.Accounts
+alias DashboardSSD.Auth.Capabilities
+
+# Ensure the canonical roles exist
+Enum.each(["admin", "employee", "client"], &Accounts.ensure_role!/1)
+
+# Apply default capability assignments
+Capabilities.default_assignments()
+|> Enum.each(fn {role_name, capability_codes} ->
+  {:ok, _} = Accounts.replace_role_capabilities(role_name, capability_codes)
+end)

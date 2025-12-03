@@ -4,6 +4,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
   import Mox
 
   alias DashboardSSD.Accounts
+  alias DashboardSSD.Auth.Capabilities
   alias DashboardSSD.Integrations.{Notion, NotionMock}
   alias DashboardSSD.KnowledgeBase.{Activity, CacheStore, Types}
   alias DashboardSSDWeb.KbLive.Index
@@ -14,9 +15,13 @@ defmodule DashboardSSDWeb.KbLiveTest do
     Mox.set_mox_global()
 
     CacheStore.reset()
-    Accounts.ensure_role!("admin")
-    Accounts.ensure_role!("employee")
-    Accounts.ensure_role!("client")
+    Enum.each(["admin", "employee", "client"], &Accounts.ensure_role!/1)
+
+    Capabilities.default_assignments()
+    |> Enum.each(fn {role, caps} ->
+      Accounts.ensure_role!(role)
+      Accounts.replace_role_capabilities(role, caps, granted_by_id: nil)
+    end)
 
     prev_integrations = Application.get_env(:dashboard_ssd, :integrations)
     prev_kb = Application.get_env(:dashboard_ssd, DashboardSSD.KnowledgeBase)
@@ -75,7 +80,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "allows employees to view the knowledge base", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "employee@example.com",
+          email: "employee@slickage.com",
           name: "Employee",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -89,7 +94,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "denies guests without permission", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "guest@example.com",
+          email: "guest@slickage.com",
           name: "Guest",
           role_id: Accounts.ensure_role!("guest").id
         })
@@ -105,7 +110,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "loads curated collections and recent activity", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "landing@example.com",
+          email: "landing@slickage.com",
           name: "Landing",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -184,7 +189,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       {:ok, user} =
         Accounts.create_user(%{
-          email: "empty@example.com",
+          email: "empty@slickage.com",
           name: "Empty",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -221,7 +226,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       {:ok, user} =
         Accounts.create_user(%{
-          email: "auto@example.com",
+          email: "auto@slickage.com",
           name: "Auto",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -251,7 +256,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       {:ok, user} =
         Accounts.create_user(%{
-          email: "error@example.com",
+          email: "error@slickage.com",
           name: "Error",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -265,7 +270,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "uses cached document detail to skip initial loading spinner", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "cached@example.com",
+          email: "cached@slickage.com",
           name: "Cached",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -329,7 +334,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "selecting a document loads the reader", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "reader@example.com",
+          email: "reader@slickage.com",
           name: "Reader",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -495,7 +500,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       {:ok, user} =
         Accounts.create_user(%{
-          email: "collections@example.com",
+          email: "collections@slickage.com",
           name: "Collections",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -523,7 +528,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       {:ok, user} =
         Accounts.create_user(%{
-          email: "collection-error@example.com",
+          email: "collection-error@slickage.com",
           name: "Collection Error",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -577,7 +582,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       {:ok, user} =
         Accounts.create_user(%{
-          email: "doc-error@example.com",
+          email: "doc-error@slickage.com",
           name: "Doc Error",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -610,7 +615,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       {:ok, user} =
         Accounts.create_user(%{
-          email: "reader-error@example.com",
+          email: "reader-error@slickage.com",
           name: "Reader Error",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -635,7 +640,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "selects document on keydown", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "select-key@example.com",
+          email: "select-key@slickage.com",
           name: "Select Key",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -674,7 +679,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "toggles mobile menu", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "mobile-menu@example.com",
+          email: "mobile-menu@slickage.com",
           name: "Mobile Menu",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -758,7 +763,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       {:ok, user} =
         Accounts.create_user(%{
-          email: "toggle-key@example.com",
+          email: "toggle-key@slickage.com",
           name: "Toggle Key",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -777,7 +782,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "processes async search result messages", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "search-msg@example.com",
+          email: "search-msg@slickage.com",
           name: "Search Msg",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -804,7 +809,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       {:ok, user} =
         Accounts.create_user(%{
-          email: "cache-hit@example.com",
+          email: "cache-hit@slickage.com",
           name: "Cache Hit",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -865,7 +870,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       {:ok, user} =
         Accounts.create_user(%{
-          email: "cache-miss@example.com",
+          email: "cache-miss@slickage.com",
           name: "Cache Miss",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -929,7 +934,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "background update check ignores when document not selected", %{conn: _conn} do
       {:ok, _user} =
         Accounts.create_user(%{
-          email: "ignore-update@example.com",
+          email: "ignore-update@slickage.com",
           name: "Ignore Update",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1132,7 +1137,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       {:ok, user} =
         Accounts.create_user(%{
-          email: "cache-error@example.com",
+          email: "cache-error@slickage.com",
           name: "Cache Error",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1200,7 +1205,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "displays results returned from Notion", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "employee-search@example.com",
+          email: "employee-search@slickage.com",
           name: "Searcher",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1264,7 +1269,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       {:ok, user} =
         Accounts.create_user(%{
-          email: "employee-filter@example.com",
+          email: "employee-filter@slickage.com",
           name: "Filter",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1315,9 +1320,9 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       {:ok, user} =
         Accounts.create_user(%{
-          email: "client@example.com",
-          name: "Client",
-          role_id: Accounts.ensure_role!("client").id
+          email: "employee-kb@slickage.com",
+          name: "Employee",
+          role_id: Accounts.ensure_role!("employee").id
         })
 
       conn = init_test_session(conn, %{user_id: user.id})
@@ -1333,7 +1338,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "ignores empty search queries", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "empties@example.com",
+          email: "empties@slickage.com",
           name: "Empty",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1351,7 +1356,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "shows error when notion returns http error", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "errors@example.com",
+          email: "errors@slickage.com",
           name: "Errors",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1374,7 +1379,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "shows fallback title and nil date when Notion omits data", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "untitled@example.com",
+          email: "untitled@slickage.com",
           name: "Untitled",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1402,7 +1407,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "handles search results with properties but no title field", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "no-title@example.com",
+          email: "no-title@slickage.com",
           name: "No Title",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1441,7 +1446,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "handles search results with rich_text title", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "rich-title@example.com",
+          email: "rich-title@slickage.com",
           name: "Rich Title",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1482,7 +1487,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "handles search results with invalid last_edited_time", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "invalid-date@example.com",
+          email: "invalid-date@slickage.com",
           name: "Invalid Date",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1522,7 +1527,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "handles search results with emoji icon type", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "emoji-type@example.com",
+          email: "emoji-type@slickage.com",
           name: "Emoji Type",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1562,7 +1567,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "handles generic notion errors", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "timeouts@example.com",
+          email: "timeouts@slickage.com",
           name: "Timeout",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1585,7 +1590,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "handles structured notion errors", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "struct-error@example.com",
+          email: "struct-error@slickage.com",
           name: "Struct",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1608,7 +1613,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "clears search on x button keydown", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "clear-key@example.com",
+          email: "clear-key@slickage.com",
           name: "Clear Key",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1638,7 +1643,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "clears search on x button click", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "clear-click@example.com",
+          email: "clear-click@slickage.com",
           name: "Clear Click",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1668,7 +1673,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "handles async search result", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "async@example.com",
+          email: "async@slickage.com",
           name: "Async",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1701,7 +1706,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "handles async search error", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "async-error@example.com",
+          email: "async-error@slickage.com",
           name: "Async Error",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1718,7 +1723,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "search with no results shows empty state", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "no-results@example.com",
+          email: "no-results@slickage.com",
           name: "No Results",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1746,7 +1751,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "mobile menu toggle works", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "mobile@example.com",
+          email: "mobile@slickage.com",
           name: "Mobile",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1768,7 +1773,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "typeahead search shows error on notion failure", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "search-error@example.com",
+          email: "search-error@slickage.com",
           name: "Search Error",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1861,7 +1866,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "clear_search_key clears search on escape", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "clear-escape@example.com",
+          email: "clear-escape@slickage.com",
           name: "Clear Escape",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1893,7 +1898,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "select_document_key selects document on space", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "select-space@example.com",
+          email: "select-space@slickage.com",
           name: "Select Space",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1933,7 +1938,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "close_mobile_menu sets mobile_menu_open to false", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "close-menu@example.com",
+          email: "close-menu@slickage.com",
           name: "Close Menu",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1961,7 +1966,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "toggle_mobile_menu closes when already open", %{conn: conn} do
       {:ok, user} =
         Accounts.create_user(%{
-          email: "toggle-close@example.com",
+          email: "toggle-close@slickage.com",
           name: "Toggle Close",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -1994,7 +1999,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       {:ok, user} =
         Accounts.create_user(%{
-          email: "open-search@example.com",
+          email: "open-search@slickage.com",
           name: "Opener",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -2074,7 +2079,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       {:ok, user} =
         Accounts.create_user(%{
-          email: "open-empty@example.com",
+          email: "open-empty@slickage.com",
           name: "Empty",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -2149,7 +2154,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       {:ok, user} =
         Accounts.create_user(%{
-          email: "open-new@example.com",
+          email: "open-new@slickage.com",
           name: "New Collection",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -2437,7 +2442,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       {:ok, user} =
         Accounts.create_user(%{
-          email: "remove-empty@example.com",
+          email: "remove-empty@slickage.com",
           name: "Remove Empty",
           role_id: Accounts.ensure_role!("employee").id
         })
@@ -2525,7 +2530,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
       {:ok, user} =
         Accounts.create_user(%{
-          email: "load-doc@example.com",
+          email: "load-doc@slickage.com",
           name: "Load Doc",
           role_id: Accounts.ensure_role!("employee").id
         })

@@ -17,6 +17,8 @@ defmodule DashboardSSDWeb.CoreComponents do
   use Phoenix.Component
   use Gettext, backend: DashboardSSDWeb.Gettext
 
+  alias DashboardSSD.Accounts
+  alias DashboardSSD.Auth.Policy
   alias Phoenix.Component, as: Component
   alias Phoenix.HTML.Form
   alias Phoenix.HTML.FormField
@@ -251,24 +253,34 @@ defmodule DashboardSSDWeb.CoreComponents do
   """
   attr :type, :string, default: nil
   attr :class, :string, default: nil
+  attr :current_user, :map, default: nil
+
+  attr :capability, :any,
+    default: nil,
+    doc: "optional capability requirement (either {action, subject} or capability code)"
+
   attr :rest, :global, include: ~w(disabled form name value)
 
   slot :inner_block, required: true
 
   @spec button(map()) :: Rendered.t()
   def button(assigns) do
+    assigns = assign(assigns, :authorized?, button_authorized?(assigns))
+
     ~H"""
-    <button
-      type={@type}
-      class={[
-        "phx-submit-loading:opacity-75 rounded-full bg-theme-primary hover:bg-theme-primary-soft py-2 px-3",
-        "text-sm font-semibold leading-6 text-white active:text-white/80",
-        @class
-      ]}
-      {@rest}
-    >
-      {render_slot(@inner_block)}
-    </button>
+    <%= if @authorized? do %>
+      <button
+        type={@type}
+        class={[
+          "phx-submit-loading:opacity-75 rounded-full bg-theme-primary hover:bg-theme-primary py-2 px-3",
+          "text-sm font-semibold leading-6 text-white active:text-white/80",
+          @class
+        ]}
+        {@rest}
+      >
+        {render_slot(@inner_block)}
+      </button>
+    <% end %>
     """
   end
 
@@ -929,4 +941,18 @@ defmodule DashboardSSDWeb.CoreComponents do
   defp percent(n, total) when is_integer(n) and is_integer(total) and total > 0 do
     trunc(n * 100 / total)
   end
+
+  defp button_authorized?(%{capability: nil}), do: true
+  defp button_authorized?(%{current_user: nil}), do: false
+
+  defp button_authorized?(%{capability: {action, subject}, current_user: user}) do
+    Policy.can?(user, action, subject)
+  end
+
+  defp button_authorized?(%{capability: capability, current_user: %{role: %{id: role_id}}})
+       when is_binary(capability) do
+    capability in Accounts.capabilities_for_role(role_id)
+  end
+
+  defp button_authorized?(_assigns), do: true
 end

@@ -8,7 +8,8 @@ defmodule DashboardSSD.Accounts.User do
           id: integer() | nil,
           email: String.t() | nil,
           name: String.t() | nil,
-          role_id: integer() | nil
+          role_id: integer() | nil,
+          client_id: integer() | nil
         }
 
   @derive {Jason.Encoder, only: [:id, :email, :name, :role_id]}
@@ -16,6 +17,7 @@ defmodule DashboardSSD.Accounts.User do
     field :email, :string
     field :name, :string
     belongs_to :role, DashboardSSD.Accounts.Role, type: :id
+    belongs_to :client, DashboardSSD.Clients.Client, type: :id
     has_many :external_identities, DashboardSSD.Accounts.ExternalIdentity
     timestamps(type: :utc_datetime)
   end
@@ -35,7 +37,7 @@ defmodule DashboardSSD.Accounts.User do
   @spec changeset(t() | Changeset.t(), map()) :: Changeset.t()
   def changeset(user, attrs) do
     user
-    |> cast(attrs, [:email, :name, :role_id])
+    |> cast(attrs, [:email, :name, :role_id, :client_id])
     |> validate_required([:email])
     |> unique_constraint(:email)
   end

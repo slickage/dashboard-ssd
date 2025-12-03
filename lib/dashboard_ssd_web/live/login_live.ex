@@ -56,7 +56,7 @@ defmodule DashboardSSDWeb.LoginLive do
               <button
                 type="button"
                 phx-click="start_oauth"
-                class="w-full flex items-center justify-center gap-3 px-4 py-3 border border-theme-border rounded-xl text-theme-text bg-theme-surface hover:bg-theme-surface-muted transition-colors duration-200 group"
+                class="w-full flex items-center justify-center gap-3 px-4 py-3 border border-theme-border rounded-xl text-theme-text bg-theme-surface hover:bg-white/10 transition-colors duration-200 group"
               >
                 <svg class="h-5 w-5" viewBox="0 0 24 24">
                   <path

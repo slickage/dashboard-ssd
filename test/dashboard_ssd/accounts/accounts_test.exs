@@ -1,8 +1,24 @@
 defmodule DashboardSSD.AccountsTest do
-  use DashboardSSD.DataCase, async: true
+  use DashboardSSD.DataCase, async: false
 
-  alias DashboardSSD.{Accounts, Repo}
+  alias DashboardSSD.{Accounts, Clients, Repo}
   alias DashboardSSD.Accounts.ExternalIdentity
+
+  setup do
+    prev = Application.get_env(:dashboard_ssd, DashboardSSD.Accounts)
+
+    Application.put_env(:dashboard_ssd, DashboardSSD.Accounts,
+      slickage_allowed_domains: ["slickage.com", "example.com"]
+    )
+
+    on_exit(fn ->
+      if prev,
+        do: Application.put_env(:dashboard_ssd, DashboardSSD.Accounts, prev),
+        else: Application.delete_env(:dashboard_ssd, DashboardSSD.Accounts)
+    end)
+
+    :ok
+  end
 
   test "upsert_user_with_identity matches by provider+provider_id and updates credentials" do
     # Ensure role exists
@@ -27,7 +43,7 @@ defmodule DashboardSSD.AccountsTest do
     # Call upsert with same provider+provider_id but different email
     result_user =
       Accounts.upsert_user_with_identity("google", %{
-        email: "different@example.com",
+        email: "different@slickage.com",
         name: "Different",
         provider_id: "prov-123",
         token: "new-token",
@@ -47,7 +63,7 @@ defmodule DashboardSSD.AccountsTest do
     # First login creates user and identity
     user =
       Accounts.upsert_user_with_identity("google", %{
-        email: "first@example.com",
+        email: "first@slickage.com",
         name: "First",
         provider_id: "prov-x",
         token: "tok-1",
@@ -65,7 +81,7 @@ defmodule DashboardSSD.AccountsTest do
     # Second login updates identity
     user2 =
       Accounts.upsert_user_with_identity("google", %{
-        email: "first@example.com",
+        email: "first@slickage.com",
         name: "First",
         provider_id: "prov-y",
         token: "tok-2",
@@ -97,7 +113,7 @@ defmodule DashboardSSD.AccountsTest do
 
     _admin =
       Accounts.upsert_user_with_identity("google", %{
-        email: "admin@example.com",
+        email: "admin@slickage.com",
         name: "First User",
         provider_id: "prov-admin",
         token: "token-admin"
@@ -105,7 +121,7 @@ defmodule DashboardSSD.AccountsTest do
 
     second =
       Accounts.upsert_user_with_identity("google", %{
-        email: "employee@example.com",
+        email: "employee@slickage.com",
         name: "Second User",
         provider_id: "prov-employee",
         token: "token-employee"
@@ -114,10 +130,170 @@ defmodule DashboardSSD.AccountsTest do
 
     assert second.role.name == "employee"
   end
+
+  test "apply_invite updates role, client, and marks invite used" do
+    admin_role = Accounts.ensure_role!("admin")
+    employee_role = Accounts.ensure_role!("employee")
+    client_role = Accounts.ensure_role!("client")
+
+    {:ok, admin} =
+      Accounts.create_user(%{
+        email: "invite-admin@slickage.com",
+        name: "Admin",
+        role_id: admin_role.id
+      })
+
+    client = Clients.ensure_client!("Acme Corp")
+
+    {:ok, invite} =
+      Accounts.create_user_invite(%{
+        "email" => "invited@example.com",
+        "role" => "client",
+        "client_id" => client.id,
+        "invited_by_id" => admin.id
+      })
+
+    {:ok, user} =
+      Accounts.create_user(%{
+        email: "invited@example.com",
+        name: "Invited",
+        role_id: employee_role.id
+      })
+
+    assert invite.used_at == nil
+
+    {:ok, updated_user} =
+      user
+      |> Repo.preload([:role, :client])
+      |> Accounts.apply_invite(invite.token)
+
+    assert updated_user.role.name == client_role.name
+    assert updated_user.client_id == client.id
+
+    updated_invite = Accounts.get_invite_by_token(invite.token)
+    assert updated_invite.used_at
+    assert updated_invite.accepted_user_id == updated_user.id
+  end
+
+  test "apply_invite ignores mismatched email" do
+    employee_role = Accounts.ensure_role!("employee")
+
+    {:ok, user} =
+      Accounts.create_user(%{
+        email: "different@slickage.com",
+        name: "Different",
+        role_id: employee_role.id
+      })
+
+    {:ok, invite} =
+      Accounts.create_user_invite(%{
+        "email" => "other@example.com",
+        "role" => "client"
+      })
+
+    {:ok, result} = Accounts.apply_invite(Repo.preload(user, [:role]), invite.token)
+
+    assert result.id == user.id
+    assert result.role_id == employee_role.id
+    refute result.client_id
+
+    invite = Accounts.get_invite_by_token(invite.token)
+    assert invite.used_at == nil
+  end
+
+  test "apply_invite with invalid token returns original user" do
+    employee_role = Accounts.ensure_role!("employee")
+
+    {:ok, user} =
+      Accounts.create_user(%{
+        email: "tokenless@slickage.com",
+        name: "Tokenless",
+        role_id: employee_role.id
+      })
+
+    {:ok, result} = Accounts.apply_invite(Repo.preload(user, [:role]), "unknown-token")
+
+    assert result.id == user.id
+  end
+
+  test "apply_invite returns user unchanged when no token provided" do
+    employee_role = Accounts.ensure_role!("employee")
+
+    {:ok, user} =
+      Accounts.create_user(%{
+        email: "notoken@slickage.com",
+        name: "No Token",
+        role_id: employee_role.id
+      })
+
+    {:ok, result} = Accounts.apply_invite(Repo.preload(user, [:role]), nil)
+
+    assert result.id == user.id
+  end
+
+  test "create_user_invite rejects missing email" do
+    assert {:error, :invalid_email} = Accounts.create_user_invite(%{})
+  end
+
+  test "create_user_invite rejects when user already exists" do
+    role = Accounts.ensure_role!("client")
+
+    {:ok, user} =
+      Accounts.create_user(%{
+        email: "existing-invitee@example.com",
+        name: "Existing Invitee",
+        role_id: role.id
+      })
+
+    assert {:error, :user_exists} =
+             Accounts.create_user_invite(%{"email" => user.email, "role" => "client"})
+  end
+
+  test "create_user_invite casts client_id and invited_by_id" do
+    admin = Accounts.ensure_role!("admin")
+
+    {:ok, inviter} =
+      Accounts.create_user(%{
+        email: "inviter@example.com",
+        name: "Inviter",
+        role_id: admin.id
+      })
+
+    client = Clients.ensure_client!("Widget Co")
+
+    {:ok, invite} =
+      Accounts.create_user_invite(%{
+        "email" => "string-ids@example.com",
+        "role" => "client",
+        "client_id" => Integer.to_string(client.id),
+        "invited_by_id" => Integer.to_string(inviter.id)
+      })
+
+    assert invite.client_id == client.id
+    assert invite.invited_by_id == inviter.id
+  end
+
+  test "get_invite_by_token returns nil for unknown token" do
+    assert Accounts.get_invite_by_token("missing-token") == nil
+  end
+
+  test "replace_role_capabilities rejects invalid capability codes" do
+    Accounts.ensure_role!("employee")
+
+    assert {:error, {:invalid_capability, "bogus"}} ==
+             Accounts.replace_role_capabilities("employee", ["bogus"])
+  end
+
+  test "replace_role_capabilities enforces required admin capabilities" do
+    Accounts.ensure_role!("admin")
+
+    assert {:error, :missing_required_admin_capability} ==
+             Accounts.replace_role_capabilities("admin", ["dashboard.view"])
+  end
 end
 
 defmodule DashboardSSD.AccountsGetUserTest do
-  use DashboardSSD.DataCase, async: true
+  use DashboardSSD.DataCase, async: false
 
   alias DashboardSSD.Accounts
 
@@ -182,6 +358,10 @@ defmodule DashboardSSD.AccountsGetUserTest do
     assert role.name == "new_role"
   end
 
+  test "switch_user_role returns error when user not found" do
+    assert {:error, :user_not_found} = Accounts.switch_user_role("missing@example.com", "client")
+  end
+
   test "upsert_user_with_identity assigns admin role to first user" do
     # Clear all users and roles to test first user logic
     DashboardSSD.Repo.delete_all(DashboardSSD.Accounts.User)
@@ -190,7 +370,7 @@ defmodule DashboardSSD.AccountsGetUserTest do
     # First user should get admin role
     user =
       Accounts.upsert_user_with_identity("google", %{
-        email: "first@example.com",
+        email: "first@slickage.com",
         name: "First User",
         provider_id: "first-123",
         token: "token",

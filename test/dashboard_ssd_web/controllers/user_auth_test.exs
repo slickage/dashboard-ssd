@@ -2,18 +2,26 @@ defmodule DashboardSSDWeb.UserAuthTest do
   use DashboardSSDWeb.ConnCase, async: true
 
   alias DashboardSSD.Accounts
+  alias DashboardSSD.Auth.Capabilities
   alias DashboardSSDWeb.UserAuth
 
   setup do
     Accounts.ensure_role!("admin")
     Accounts.ensure_role!("employee")
+
+    Capabilities.default_assignments()
+    |> Enum.each(fn {role, caps} ->
+      Accounts.ensure_role!(role)
+      Accounts.replace_role_capabilities(role, caps, granted_by_id: nil)
+    end)
+
     :ok
   end
 
   test "fetch_current_user assigns user", %{conn: conn} do
     {:ok, u} =
       Accounts.create_user(%{
-        email: "u@example.com",
+        email: "u@slickage.com",
         name: "U",
         role_id: Accounts.ensure_role!("admin").id
       })
@@ -62,7 +70,7 @@ defmodule DashboardSSDWeb.UserAuthTest do
   test "on_mount {:ensure_authorized, action, subject} allows admin for any subject" do
     {:ok, adm} =
       Accounts.create_user(%{
-        email: "admu@example.com",
+        email: "admu@slickage.com",
         name: "AdmU",
         role_id: Accounts.ensure_role!("admin").id
       })
@@ -78,7 +86,7 @@ defmodule DashboardSSDWeb.UserAuthTest do
   test "on_mount {:ensure_authorized, action, subject} halts when forbidden and continues when permitted" do
     {:ok, emp} =
       Accounts.create_user(%{
-        email: "e@example.com",
+        email: "e@slickage.com",
         name: "E",
         role_id: Accounts.ensure_role!("employee").id
       })
@@ -89,7 +97,7 @@ defmodule DashboardSSDWeb.UserAuthTest do
     assert {:cont, _} =
              UserAuth.on_mount({:ensure_authorized, :read, :projects}, %{}, %{}, socket)
 
-    assert {:halt, _} = UserAuth.on_mount({:ensure_authorized, :read, :clients}, %{}, %{}, socket)
+    assert {:halt, _} = UserAuth.on_mount({:ensure_authorized, :manage, :rbac}, %{}, %{}, socket)
   end
 
   test "on_mount {:require, action, subject} redirects when unauthenticated and continues when authorized" do
@@ -105,7 +113,7 @@ defmodule DashboardSSDWeb.UserAuthTest do
 
     {:ok, adm} =
       Accounts.create_user(%{
-        email: "a@example.com",
+        email: "a@slickage.com",
         name: "A",
         role_id: Accounts.ensure_role!("admin").id
       })
@@ -118,7 +126,7 @@ defmodule DashboardSSDWeb.UserAuthTest do
   test "on_mount {:require, action, subject} halts when authenticated but not authorized" do
     {:ok, emp} =
       Accounts.create_user(%{
-        email: "emp@example.com",
+        email: "emp@slickage.com",
         name: "Emp",
         role_id: Accounts.ensure_role!("employee").id
       })
@@ -126,13 +134,13 @@ defmodule DashboardSSDWeb.UserAuthTest do
     emp = DashboardSSD.Repo.preload(emp, :role)
     socket = %Phoenix.LiveView.Socket{assigns: %{current_user: emp}}
 
-    assert {:halt, _} = UserAuth.on_mount({:require, :read, :clients}, %{}, %{}, socket)
+    assert {:halt, _} = UserAuth.on_mount({:require, :manage, :rbac}, %{}, %{}, socket)
   end
 
   test "on_mount :mount_current_user assigns user and current_path" do
     {:ok, u} =
       Accounts.create_user(%{
-        email: "mount@example.com",
+        email: "mount@slickage.com",
         name: "Mount",
         role_id: Accounts.ensure_role!("employee").id
       })

@@ -32,4 +32,22 @@ defmodule DashboardSSD.ClientsTest do
 
     assert result_names == Enum.sort([c1.name, c2.name])
   end
+
+  test "list/search clients for user respects role scope" do
+    {:ok, c1} = Clients.create_client(%{name: "Globex"})
+    {:ok, c2} = Clients.create_client(%{name: "Acme"})
+
+    assert Enum.sort(
+             Enum.map(Clients.list_clients_for_user(%{role: %{name: "employee"}}), & &1.id)
+           ) ==
+             Enum.sort([c1.id, c2.id])
+
+    assert Clients.list_clients_for_user(%{role: %{name: "client"}, client_id: nil}) == []
+    assert Clients.search_clients_for_user(%{role: %{name: "client"}, client_id: nil}, "") == []
+
+    scoped = %{role: %{name: "client"}, client_id: c2.id}
+    assert Enum.map(Clients.list_clients_for_user(scoped), & &1.id) == [c2.id]
+    assert Enum.map(Clients.search_clients_for_user(scoped, "Ac"), & &1.id) == [c2.id]
+    assert Clients.search_clients_for_user(scoped, "Globex") == []
+  end
 end

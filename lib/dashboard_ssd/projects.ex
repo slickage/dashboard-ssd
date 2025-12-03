@@ -38,6 +38,16 @@ defmodule DashboardSSD.Projects do
   end
 
   @doc """
+  Lists projects for any of the provided client IDs.
+  """
+  @spec list_projects_for_clients([pos_integer()]) :: [Project.t()]
+  def list_projects_for_clients([]), do: []
+
+  def list_projects_for_clients(client_ids) when is_list(client_ids) do
+    from(p in Project, where: p.client_id in ^client_ids, preload: [:client]) |> Repo.all()
+  end
+
+  @doc """
   Fetches a project by ID with client preloaded.
 
   Raises Ecto.NoResultsError if the project does not exist.

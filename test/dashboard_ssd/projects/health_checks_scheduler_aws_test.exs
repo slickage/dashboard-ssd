@@ -16,9 +16,9 @@ defmodule DashboardSSD.Projects.HealthChecksSchedulerAwsTest do
         aws_target_group_arn: "arn:aws:elasticloadbalancing:...:targetgroup/..."
       })
 
-    {:ok, pid} = start_supervised(HealthChecksScheduler)
+    {:ok, pid} = start_supervised({HealthChecksScheduler, sandbox_owner: self()})
     Process.sleep(50)
-    Process.exit(pid, :normal)
+    :ok = HealthChecksScheduler.stop(pid)
 
     # No health check inserted because aws is not configured
     m = Deployments.latest_health_status_by_project_ids([p.id])

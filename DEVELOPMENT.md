@@ -9,6 +9,16 @@
 
 Run `mix setup` to install Elixir deps and prepare the database.
 
+### Quick Role Switching (local only)
+
+During development or testing you can change a user's role without touching the database directly:
+
+```bash
+mix dashboard.role_switch --role employee --email user@slickage.com
+```
+
+When the `--email` flag is omitted the task promotes the first user it finds. The task is restricted to `dev` and `test` environments.
+
 ## Local Checks (`mix check`)
 
 `mix check` runs the same validations that CI executes before allowing a push:

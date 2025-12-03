@@ -30,7 +30,7 @@ defmodule DashboardSSDWeb.ClientsLiveTest do
     assert html =~ "Globex"
   end
 
-  test "employee is redirected with forbidden", %{conn: conn} do
+  test "employee can view clients but not manage", %{conn: conn} do
     {:ok, emp} =
       Accounts.create_user(%{
         email: "emp@example.com",
@@ -38,8 +38,53 @@ defmodule DashboardSSDWeb.ClientsLiveTest do
         role_id: Accounts.ensure_role!("employee").id
       })
 
+    {:ok, _} = Clients.create_client(%{name: "Acme"})
     conn = init_test_session(conn, %{user_id: emp.id})
-    assert {:error, {:redirect, %{to: "/"}}} = live(conn, ~p"/clients")
+
+    {:ok, view, html} = live(conn, ~p"/clients")
+    assert html =~ "Clients"
+
+    refute has_element?(view, "a", "New Client")
+  end
+
+  test "client user sees only their client without search", %{conn: conn} do
+    Accounts.ensure_role!("client")
+
+    {:ok, acme} = Clients.create_client(%{name: "Acme"})
+    {:ok, _other} = Clients.create_client(%{name: "Globex"})
+
+    {:ok, client_user} =
+      Accounts.create_user(%{
+        email: "client-visibility@example.com",
+        name: "Client",
+        role_id: Accounts.ensure_role!("client").id,
+        client_id: acme.id
+      })
+
+    conn = init_test_session(conn, %{user_id: client_user.id})
+    {:ok, view, html} = live(conn, ~p"/clients")
+
+    assert html =~ "Acme"
+    refute html =~ "Globex"
+    refute has_element?(view, "form[phx-change='search']")
+    # Clients can still navigate to their projects
+    assert html =~ ~p"/projects?client_id=#{acme.id}"
+  end
+
+  test "client without assignment is prompted to contact admin", %{conn: conn} do
+    Accounts.ensure_role!("client")
+
+    {:ok, client_user} =
+      Accounts.create_user(%{
+        email: "client-unassigned@example.com",
+        name: "Client",
+        role_id: Accounts.ensure_role!("client").id
+      })
+
+    conn = init_test_session(conn, %{user_id: client_user.id})
+    {:ok, _view, html} = live(conn, ~p"/clients")
+
+    assert html =~ "Please contact an administrator for access"
   end
 
   test "anonymous is redirected", %{conn: conn} do
@@ -103,7 +148,11 @@ defmodule DashboardSSDWeb.ClientsLiveTest do
 
     {:ok, c} = Clients.create_client(%{name: "Acme"})
     conn = init_test_session(conn, %{user_id: emp.id})
-    assert {:error, {:redirect, %{to: "/"}}} = live(conn, ~p"/clients/#{c.id}/edit")
+
+    assert {:error, {:live_redirect, %{to: "/clients", flash: %{"error" => message}}}} =
+             live(conn, ~p"/clients/#{c.id}/edit")
+
+    assert message == "You don't have permission to manage Clients"
   end
 
   test "mobile menu toggle works", %{conn: conn} do

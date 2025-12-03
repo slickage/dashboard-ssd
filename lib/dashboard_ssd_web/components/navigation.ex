@@ -2,6 +2,7 @@ defmodule DashboardSSDWeb.Navigation do
   @moduledoc "Shared navigation components for the theme layout."
   use DashboardSSDWeb, :html
 
+  alias DashboardSSD.Accounts
   alias Phoenix.LiveView.Rendered
 
   import DashboardSSDWeb.Layouts, only: [user_initials: 1, user_display_name: 1, user_role: 1]
@@ -287,33 +288,85 @@ defmodule DashboardSSDWeb.Navigation do
   defp filtered_items(user, :mobile), do: nav_items(user, :all)
   defp filtered_items(user, _), do: nav_items(user, :all)
 
-  defp nav_items(_user, scope) do
+  defp nav_items(user, scope) do
+    capabilities = user_capability_codes(user)
+    settings_group = if Enum.member?(capabilities, "settings.rbac"), do: :admin, else: :main
+
     items =
       [
-        %{label: "Dashboard", path: ~p"/", icon: :home, group: :main},
-        %{label: "Projects", path: ~p"/projects", icon: :projects, group: :main},
-        %{label: "Meetings", path: ~p"/meetings", icon: :meetings, group: :main},
-        %{label: "Clients", path: ~p"/clients", icon: :clients, group: :main},
+        %{
+          label: "Dashboard",
+          path: ~p"/",
+          icon: :home,
+          group: :main,
+          capability: "dashboard.view"
+        },
+        %{
+          label: "Projects",
+          path: ~p"/projects",
+          icon: :projects,
+          group: :main,
+          capability: "projects.view"
+        },
+        %{
+          label: "Meetings",
+          path: ~p"/meetings",
+          icon: :meetings,
+          group: :main
+        },
+        %{
+          label: "Clients",
+          path: ~p"/clients",
+          icon: :clients,
+          group: :main,
+          capability: "clients.view"
+        },
         %{
           label: "Knowledge Base",
           path: ~p"/kb",
           icon: :knowledge_base,
-          group: :main
+          group: :main,
+          capability: "knowledge_base.view"
         },
         %{
           label: "Analytics",
           path: ~p"/analytics",
           icon: :analytics,
-          group: :admin
+          group: :admin,
+          capability: "analytics.view"
         },
-        %{label: "Settings", path: ~p"/settings", icon: :settings, group: :admin}
+        %{
+          label: "Settings",
+          path: ~p"/settings",
+          icon: :settings,
+          group: settings_group,
+          capability: ["settings.personal", "settings.rbac"]
+        }
       ]
+      |> Enum.filter(fn item ->
+        required = Map.get(item, :capability)
+
+        cond do
+          required in [nil, ""] -> true
+          is_binary(required) -> Enum.member?(capabilities, required)
+          is_list(required) -> Enum.any?(required, &Enum.member?(capabilities, &1))
+          true -> false
+        end
+      end)
 
     case scope do
       :all -> items
       target -> Enum.filter(items, fn item -> Map.get(item, :group, :main) == target end)
     end
   end
+
+  defp user_capability_codes(nil), do: []
+
+  defp user_capability_codes(%{role: %{id: role_id}}) do
+    Accounts.capabilities_for_role(role_id)
+  end
+
+  defp user_capability_codes(_), do: []
 
   defp nav_active?(current_path, path) do
     # Handle nil or empty current_path
