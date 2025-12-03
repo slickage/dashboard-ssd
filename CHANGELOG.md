@@ -1,3 +1,20 @@
+# [1.6.0](https://github.com/slickage/dashboard-ssd/compare/v1.5.0...v1.6.0) (2025-11-01)
+
+
+### Bug Fixes
+
+* **kb:** cache link to page metadata ([af59c69](https://github.com/slickage/dashboard-ssd/commit/af59c69046ec6c120c82ff7e8e0823b7b7c33175))
+
+
+### Features
+
+* **kb:** render link-to-page blocks with metadata ([3d045f3](https://github.com/slickage/dashboard-ssd/commit/3d045f361a6789e33e7d1b450daf0994da750e25))
+
+
+### Performance Improvements
+
+* **kb:** streamline pagination accumulation ([f89cffd](https://github.com/slickage/dashboard-ssd/commit/f89cffdc0937342b6cff5b80475ab0b4c0c260aa))
+
 # [1.5.0](https://github.com/slickage/dashboard-ssd/compare/v1.4.10...v1.5.0) (2025-11-01)
 
 

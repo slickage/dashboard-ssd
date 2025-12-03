@@ -53,6 +53,13 @@ defmodule DashboardSSD.CacheTest do
     assert :miss == Cache.get(:documents, :temp)
   end
 
+  test "init reuses existing table and skips cleanup scheduling when interval is non-positive" do
+    Cache.put(:documents, :existing, :value)
+
+    assert {:ok, %{cleanup_interval: 0}} =
+             Cache.init(table: :dashboard_ssd_cache, cleanup_interval: 0)
+  end
+
   test "delete removes individual entries" do
     Cache.put(:documents, :delete_me, :value)
     assert {:ok, :value} = Cache.get(:documents, :delete_me)

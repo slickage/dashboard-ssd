@@ -7,7 +7,7 @@ defmodule DashboardSSD.Integrations.LinearUtilsTest do
   use DashboardSSD.DataCase, async: false
 
   alias DashboardSSD.Integrations.LinearUtils
-  alias DashboardSSD.Projects.LinearWorkflowState
+  alias DashboardSSD.Projects.{LinearWorkflowState, WorkflowStateCache}
   alias DashboardSSD.Repo
 
   setup do
@@ -15,6 +15,7 @@ defmodule DashboardSSD.Integrations.LinearUtilsTest do
     Application.put_env(:dashboard_ssd, :integrations, linear_token: "test_token")
     previous_adapter = Application.get_env(:tesla, :adapter)
     Application.put_env(:tesla, :adapter, Tesla.Mock)
+    WorkflowStateCache.flush()
 
     on_exit(fn ->
       case previous_adapter do

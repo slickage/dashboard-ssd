@@ -2,11 +2,15 @@ defmodule DashboardSSD.Projects.SyncFromLinearTest do
   use DashboardSSD.DataCase, async: false
 
   alias DashboardSSD.{Clients, Projects}
+  alias DashboardSSD.Projects.{CacheStore, WorkflowStateCache}
 
   setup do
     # Configure Linear token for Integrations
     prev = Application.get_env(:dashboard_ssd, :integrations)
     Application.put_env(:dashboard_ssd, :integrations, linear_token: "tok")
+
+    CacheStore.delete()
+    WorkflowStateCache.flush()
 
     on_exit(fn ->
       if prev,

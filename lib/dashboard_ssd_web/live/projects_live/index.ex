@@ -34,6 +34,10 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         |> assign(:last_linear_sync_at, nil)
         |> assign(:last_linear_sync_reason, nil)
         |> assign(:summaries_cached, %{})
+        |> assign(:summaries_task_ref, nil)
+        |> assign(:summaries_task_context, nil)
+        |> assign(:summaries_loading, false)
+        |> hydrate_from_cached_sync()
 
       if auto_sync?, do: send(self(), :sync_from_linear)
 
@@ -66,21 +70,51 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
   @impl true
   def handle_info(:reload_summaries, socket) do
     Logger.info("Reloading Linear task summaries for #{length(socket.assigns.projects)} projects")
-    result = Projects.sync_from_linear()
-
-    {socket, _status} =
-      handle_sync_result(socket, result, context: :auto, show_flash?: false)
-
-    {:noreply, socket}
+    {:noreply, start_linear_sync(socket, context: :auto)}
   end
 
   @impl true
   def handle_info(:sync_from_linear, socket) do
-    result = Projects.sync_from_linear()
+    {:noreply, start_linear_sync(socket, context: :auto)}
+  end
+
+  @impl true
+  def handle_info({ref, result}, %{assigns: %{summaries_task_ref: ref}} = socket)
+      when is_reference(ref) do
+    Process.demonitor(ref, [:flush])
+    context = socket.assigns.summaries_task_context || :auto
 
     {socket, _status} =
-      handle_sync_result(socket, result, context: :auto, show_flash?: false)
+      handle_sync_result(socket, result, context: context, show_flash?: false)
 
+    {:noreply,
+     socket
+     |> assign(:summaries_task_ref, nil)
+     |> assign(:summaries_task_context, nil)
+     |> assign(:summaries_loading, false)}
+  end
+
+  @impl true
+  def handle_info({ref, _msg}, socket) when is_reference(ref) do
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info(
+        {:DOWN, ref, :process, _pid, reason},
+        %{assigns: %{summaries_task_ref: ref}} = socket
+      ) do
+    Logger.warning("Linear sync task exited: #{inspect(reason)}")
+
+    {:noreply,
+     socket
+     |> assign(:summaries_task_ref, nil)
+     |> assign(:summaries_task_context, nil)
+     |> assign(:summaries_loading, false)}
+  end
+
+  @impl true
+  def handle_info({:DOWN, _ref, :process, _pid, _reason}, socket) do
     {:noreply, socket}
   end
 
@@ -141,10 +175,8 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         |> assign(:summaries, %{})
         |> assign(:collapsed_teams, prune_collapsed(socket.assigns.collapsed_teams, projects))
         |> assign(:team_members, load_team_members(projects))
-
-      if socket.assigns.linear_enabled do
-        schedule_summary_reload(self())
-      end
+        |> maybe_schedule_summary_reload()
+        |> hydrate_from_cached_sync()
 
       {:noreply, socket}
     end
@@ -172,13 +204,8 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         |> assign(:summaries, %{})
         |> assign(:collapsed_teams, collapsed)
         |> assign(:team_members, load_team_members(projects))
-
-      if socket.assigns.linear_enabled do
-        Logger.info("Linear enabled, scheduling summary reload")
-        schedule_summary_reload(self())
-      else
-        Logger.info("Linear not enabled")
-      end
+        |> maybe_schedule_summary_reload()
+        |> hydrate_from_cached_sync()
 
       {:noreply, socket}
     end
@@ -529,9 +556,70 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
     socket
   end
 
-  defp schedule_summary_reload(pid, delay_ms \\ 600)
+  defp schedule_summary_reload(pid, delay_ms)
        when is_pid(pid) and is_integer(delay_ms) and delay_ms >= 0 do
     Process.send_after(pid, :reload_summaries, delay_ms)
+  end
+
+  defp maybe_schedule_summary_reload(socket, delay_ms \\ 600) do
+    cond do
+      not socket.assigns.linear_enabled ->
+        Logger.info("Linear not enabled")
+        socket
+
+      not connected?(socket) ->
+        socket
+
+      true ->
+        Logger.info("Linear enabled, scheduling summary reload")
+        schedule_summary_reload(self(), delay_ms)
+        socket
+    end
+  end
+
+  defp start_linear_sync(socket, opts) do
+    env =
+      Application.get_env(:dashboard_ssd, :env, Application.get_env(:elixir, :config_env, :prod))
+
+    force? = Keyword.get(opts, :force?, false)
+    context = Keyword.get(opts, :context, :auto)
+
+    cond do
+      env == :test ->
+        result = Projects.sync_from_linear(force: force?)
+
+        {socket, _status} =
+          handle_sync_result(socket, result, context: context, show_flash?: false)
+
+        assign(socket, :summaries_loading, false)
+
+      socket.assigns.summaries_task_ref ->
+        socket
+
+      true ->
+        task =
+          Task.Supervisor.async_nolink(DashboardSSD.TaskSupervisor, fn ->
+            Projects.sync_from_linear(force: force?)
+          end)
+
+        socket
+        |> assign(:summaries_task_ref, task.ref)
+        |> assign(:summaries_task_context, context)
+        |> assign(:summaries_loading, true)
+    end
+  end
+
+  defp hydrate_from_cached_sync(socket) do
+    case Projects.cached_linear_sync() do
+      {:ok, info} ->
+        {socket, _status} =
+          handle_sync_result(socket, {:ok, info}, context: :pre_warm, show_flash?: false)
+
+        socket
+
+      :miss ->
+        socket
+    end
   end
 
   defp summary_assigned(:unavailable), do: :unavailable
