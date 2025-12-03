@@ -1,3 +1,24 @@
+## [1.7.1](https://github.com/slickage/dashboard-ssd/compare/v1.7.0...v1.7.1) (2025-11-01)
+
+
+### Bug Fixes
+
+* **cd:** bump version ([66b8285](https://github.com/slickage/dashboard-ssd/commit/66b8285fe71b7e9bc4c8c39cb5a510fa87769802))
+
+# [1.7.0](https://github.com/slickage/dashboard-ssd/compare/v1.6.0...v1.7.0) (2025-11-01)
+
+
+### Bug Fixes
+
+* **projects:** guard sandbox access in health check scheduler ([2be0b05](https://github.com/slickage/dashboard-ssd/commit/2be0b059e3b692d19e1794a83dfd834d0abf4494))
+* resolve database connection errors in health checks scheduler and improve cache warmer test coverage ([2d4652b](https://github.com/slickage/dashboard-ssd/commit/2d4652bac4197447d8fd401f669cb02d39668941))
+
+
+### Features
+
+* **cache:** introduce shared cache warmer ([515e7c4](https://github.com/slickage/dashboard-ssd/commit/515e7c4ff1507c48e6730c3e323111c33b8f88da))
+* **kb:** reuse cached document detail on initial load ([73051ec](https://github.com/slickage/dashboard-ssd/commit/73051eca4d47bc84a6eb326258106908ac5f29f0))
+
 # [1.6.0](https://github.com/slickage/dashboard-ssd/compare/v1.5.0...v1.6.0) (2025-11-01)
 
 
