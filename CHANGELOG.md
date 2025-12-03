@@ -1,3 +1,26 @@
+# [1.5.0](https://github.com/slickage/dashboard-ssd/compare/v1.4.10...v1.5.0) (2025-11-01)
+
+
+### Bug Fixes
+
+* **projects:** improve team header contrast in light theme ([33cc4e9](https://github.com/slickage/dashboard-ssd/commit/33cc4e9f34ba97e53cdf99510df4694034335bf0))
+* **ui:** darken total chip outline in light theme ([079136b](https://github.com/slickage/dashboard-ssd/commit/079136b8600bde4c585a9d8b82214394c0ebb208))
+
+
+### Features
+
+* **linear:** expose assigned issue counts ([6240614](https://github.com/slickage/dashboard-ssd/commit/6240614549901fda3908614376ff40c80085cba3))
+* **linear:** sync all teams with workflow state metadata ([46f4765](https://github.com/slickage/dashboard-ssd/commit/46f476564ded0513b8fa245f42e741c70b77a64c))
+* **projects:** cache Linear sync results and reuse summaries ([8cf4e11](https://github.com/slickage/dashboard-ssd/commit/8cf4e117aa48c3a18931a722f2ac2fbb2c6f2f0b))
+* **projects:** display assigned task owners ([02d954e](https://github.com/slickage/dashboard-ssd/commit/02d954ee9df11ebd878a243f8fdb5417f179780a))
+* **projects:** persist linear team members and live data ([22e565b](https://github.com/slickage/dashboard-ssd/commit/22e565b54a02efb216624aa77fe9576c33aa5c02))
+* **ui:** surface todo totals in project summary pill ([b94677d](https://github.com/slickage/dashboard-ssd/commit/b94677d98b2d8c0210a0d186c9d8e82f55999dab))
+
+
+### Performance Improvements
+
+* **kb:** leverage cached documents and refresh async ([542106b](https://github.com/slickage/dashboard-ssd/commit/542106b2aa873a3e33b2f79e043c6973ef02ee74))
+
 ## [1.4.10](https://github.com/slickage/dashboard-ssd/compare/v1.4.9...v1.4.10) (2025-10-30)
 
 
