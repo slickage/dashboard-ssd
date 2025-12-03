@@ -130,7 +130,13 @@ defmodule DashboardSSD.Integrations do
   """
   def linear_graphql(query, variables \\ %{}) do
     with {:ok, token} <- fetch!(:linear_token, "LINEAR_TOKEN") do
-      Linear.list_issues(strip_bearer(token), query, variables)
+      case Linear.list_issues(strip_bearer(token), query, variables) do
+        {:error, {:http_error, 429, body}} ->
+          {:error, {:rate_limited, rate_limit_message(body)}}
+
+        other ->
+          other
+      end
     end
   end
 
@@ -142,6 +148,45 @@ defmodule DashboardSSD.Integrations do
   end
 
   defp strip_bearer(other), do: other
+
+  defp rate_limit_message(%{"errors" => errors}) when is_list(errors) do
+    errors
+    |> Enum.find(&matches_rate_limit?/1)
+    |> case do
+      nil -> default_rate_limit_message()
+      error -> extract_rate_limit_message(error)
+    end
+  end
+
+  defp rate_limit_message(%{errors: errors}) when is_list(errors) do
+    rate_limit_message(%{"errors" => errors})
+  end
+
+  defp rate_limit_message(_), do: default_rate_limit_message()
+
+  defp matches_rate_limit?(error) do
+    case get_in(error, ["extensions", "code"]) || get_in(error, [:extensions, :code]) do
+      nil ->
+        String.contains?(
+          String.downcase(to_string(error["message"] || error[:message] || "")),
+          "ratelimit"
+        )
+
+      code ->
+        String.upcase(to_string(code)) == "RATELIMITED"
+    end
+  end
+
+  defp extract_rate_limit_message(error) do
+    get_in(error, ["extensions", "userPresentableMessage"]) ||
+      get_in(error, [:extensions, :userPresentableMessage]) ||
+      error["message"] ||
+      error[:message] ||
+      default_rate_limit_message()
+  end
+
+  defp default_rate_limit_message,
+    do: "Linear API rate limit exceeded. Please wait before retrying."
 
   # Google Calendar (user/env token helper)
   @doc """

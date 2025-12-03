@@ -5,6 +5,8 @@ defmodule DashboardSSDWeb.ProjectsLiveTest do
   alias DashboardSSD.Accounts
   alias DashboardSSD.Clients
   alias DashboardSSD.Projects
+  alias DashboardSSD.Projects.LinearTeamMember
+  alias DashboardSSD.Repo
 
   setup do
     Tesla.Mock.mock(fn
@@ -56,7 +58,21 @@ defmodule DashboardSSDWeb.ProjectsLiveTest do
       })
 
     {:ok, c} = Clients.create_client(%{name: "Acme"})
-    {:ok, _} = Projects.create_project(%{name: "Website", client_id: c.id})
+
+    {:ok, _} =
+      Projects.create_project(%{
+        name: "Website",
+        client_id: c.id,
+        linear_team_id: "team-1",
+        linear_team_name: "Platform"
+      })
+
+    Repo.insert!(%LinearTeamMember{
+      linear_team_id: "team-1",
+      linear_user_id: "user-1",
+      name: "Alice",
+      display_name: "Alice Example"
+    })
 
     conn = init_test_session(conn, %{user_id: adm.id})
     {:ok, _view, html} = live(conn, ~p"/projects")
@@ -64,8 +80,49 @@ defmodule DashboardSSDWeb.ProjectsLiveTest do
     assert html =~ "Projects"
     assert html =~ "Website"
     assert html =~ "Acme"
+    assert html =~ "Platform"
+    assert html =~ "Alice Example"
+    assert html =~ ~s/data-team-name="Platform"/
     # Linear disabled in setup; should show N/A instead of totals
     assert html =~ "N/A"
+  end
+
+  test "admin can collapse and expand a team group", %{conn: conn} do
+    {:ok, adm} =
+      Accounts.create_user(%{
+        email: "adm-team-toggle@example.com",
+        name: "A",
+        role_id: Accounts.ensure_role!("admin").id
+      })
+
+    {:ok, c} = Clients.create_client(%{name: "Acme"})
+
+    {:ok, _} =
+      Projects.create_project(%{
+        name: "Website",
+        client_id: c.id,
+        linear_team_id: "team-1",
+        linear_team_name: "Platform"
+      })
+
+    Repo.insert!(%LinearTeamMember{
+      linear_team_id: "team-1",
+      linear_user_id: "user-2",
+      name: "Bob",
+      display_name: "Bob Example"
+    })
+
+    conn = init_test_session(conn, %{user_id: adm.id})
+    {:ok, view, _html} = live(conn, ~p"/projects")
+
+    assert render(view) =~ "Website"
+    assert render(view) =~ "Bob Example"
+
+    view |> element(~s(button[data-team-name="Platform"])) |> render_click()
+    refute render(view) =~ "Website"
+
+    view |> element(~s(button[data-team-name="Platform"])) |> render_click()
+    assert render(view) =~ "Website"
   end
 
   test "initial load with no projects shows empty state", %{conn: conn} do

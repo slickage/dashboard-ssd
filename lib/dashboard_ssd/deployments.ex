@@ -198,21 +198,81 @@ defmodule DashboardSSD.Deployments do
       {:ok, 200}
     else
       try do
-        req = Finch.build(:get, url)
-
-        case Finch.request(req, DashboardSSD.Finch, receive_timeout: 5000) do
-          {:ok, %Finch.Response{status: status}} -> {:ok, status}
-          {:error, reason} -> {:error, reason}
-        end
+        call_with_redirects(url, 0)
       rescue
         _ -> {:error, :request_failed}
       end
     end
   end
 
-  defp classify_http_status({:ok, 200}), do: "up"
-  defp classify_http_status({:ok, status}) when status in 500..599, do: "down"
+  defp call_with_redirects(_url, depth) when depth > 5, do: {:error, :too_many_redirects}
+
+  defp call_with_redirects(url, depth) do
+    case Finch.build(:get, url) |> Finch.request(DashboardSSD.Finch, receive_timeout: 5000) do
+      {:ok, %Finch.Response{} = resp} ->
+        maybe_follow_redirect(resp, url, depth)
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp maybe_follow_redirect(%Finch.Response{status: status} = resp, current_url, depth)
+       when status in 301..303 or status in 307..308 do
+    case redirect_target(resp, current_url) do
+      {:ok, next_url} -> call_with_redirects(next_url, depth + 1)
+      :no_location -> {:ok, status}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp maybe_follow_redirect(%Finch.Response{status: status}, _current_url, _depth),
+    do: {:ok, status}
+
+  defp redirect_target(resp, current_url) do
+    location =
+      resp.headers
+      |> Enum.find_value(fn {key, value} ->
+        if String.downcase(key) == "location", do: value
+      end)
+
+    if is_nil(location) do
+      :no_location
+    else
+      build_redirect_url(location, current_url)
+    end
+  end
+
+  defp build_redirect_url(location, current_url) do
+    current = URI.parse(current_url)
+
+    location
+    |> URI.parse()
+    |> normalize_redirect(current)
+    |> case do
+      %URI{scheme: scheme, host: host} = uri when not is_nil(scheme) and not is_nil(host) ->
+        {:ok, URI.to_string(uri)}
+
+      _ ->
+        {:error, :invalid_redirect}
+    end
+  rescue
+    _ -> {:error, :invalid_redirect}
+  end
+
+  defp normalize_redirect(%URI{scheme: nil, host: nil} = uri, %URI{} = current) do
+    URI.merge(current, uri)
+  end
+
+  defp normalize_redirect(%URI{scheme: nil} = uri, %URI{} = current) do
+    %URI{uri | scheme: current.scheme}
+  end
+
+  defp normalize_redirect(%URI{} = uri, _current), do: uri
+
+  defp classify_http_status({:ok, status}) when status in 200..399, do: "up"
   defp classify_http_status({:ok, status}) when status in 400..499, do: "degraded"
+  defp classify_http_status({:ok, status}) when status >= 500, do: "down"
   defp classify_http_status({:ok, _}), do: "degraded"
   defp classify_http_status({:error, _}), do: "down"
 

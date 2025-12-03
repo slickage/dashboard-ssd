@@ -5,7 +5,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
   alias DashboardSSD.Accounts
   alias DashboardSSD.Integrations.{Notion, NotionMock}
-  alias DashboardSSD.KnowledgeBase.{Activity, Cache, Types}
+  alias DashboardSSD.KnowledgeBase.{Activity, CacheStore, Types}
   alias DashboardSSDWeb.KbLive.Index
 
   setup :verify_on_exit!
@@ -13,7 +13,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
   setup do
     Mox.set_mox_global()
 
-    Cache.reset()
+    CacheStore.reset()
     Accounts.ensure_role!("admin")
     Accounts.ensure_role!("employee")
     Accounts.ensure_role!("client")
@@ -60,7 +60,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
         Application.delete_env(:dashboard_ssd, DashboardSSD.KnowledgeBase)
       end
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
     end)
 
@@ -336,6 +336,30 @@ defmodule DashboardSSDWeb.KbLiveTest do
       assert html =~ "Kickoff agenda"
     end
 
+    test "ignores toggle_collection events with blank ids" do
+      socket = base_socket(%{expanded_collections: MapSet.new()})
+
+      assert {:noreply, new_socket} =
+               Index.handle_event("toggle_collection", %{"id" => ""}, socket)
+
+      assert new_socket.assigns.expanded_collections == MapSet.new()
+    end
+
+    test "copy_share_link pushes feedback" do
+      socket = base_socket(%{flash: %{}, search_dropdown_open: false})
+
+      assert {:noreply, new_socket} =
+               Index.handle_event(
+                 "copy_share_link",
+                 %{"url" => "https://example.com/share"},
+                 socket
+               )
+
+      assert new_socket.assigns.flash == %{
+               "info" => "Share link copied to clipboard"
+             }
+    end
+
     test "selecting another collection updates the documents", %{conn: conn} do
       Application.put_env(:dashboard_ssd, :integrations,
         notion_token: "tok",
@@ -349,7 +373,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
         ]
       )
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       handbook_page = %{
@@ -529,7 +553,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
       conn = init_test_session(conn, %{user_id: user.id})
       {:ok, view, _html} = live(conn, ~p"/kb")
 
-      Cache.delete(:collections, {:document_detail, "page-1"})
+      CacheStore.delete({:document_detail, "page-1"})
 
       render_click(element(view, "button[phx-value-id='page-1']"))
 
@@ -612,7 +636,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
         ]
       )
 
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       handbook_page = %{
@@ -684,11 +708,34 @@ defmodule DashboardSSDWeb.KbLiveTest do
       html = render(view)
       assert html =~ "Key Guide"
     end
+
+    test "processes async search result messages", %{conn: conn} do
+      {:ok, user} =
+        Accounts.create_user(%{
+          email: "search-msg@example.com",
+          name: "Search Msg",
+          role_id: Accounts.ensure_role!("employee").id
+        })
+
+      conn = init_test_session(conn, %{user_id: user.id})
+      {:ok, view, _html} = live(conn, ~p"/kb")
+
+      send(view.pid, {:search_result, "Doc", {:ok, %{"results" => []}}})
+      render(view)
+      assert live_assign(view, :query) == "Doc"
+      assert live_assign(view, :search_dropdown_open)
+      assert live_assign(view, :search_loading) == false
+
+      send(view.pid, {:search_result, "Err", {:error, :timeout}})
+      assert render(view) =~ "Unable to reach Notion"
+      assert live_assign(view, :query) == "Err"
+      assert live_assign(view, :results) == []
+    end
   end
 
   describe "document caching" do
     test "loading document uses cache when available", %{conn: conn} do
-      Cache.reset()
+      CacheStore.reset()
 
       {:ok, user} =
         Accounts.create_user(%{
@@ -733,7 +780,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
         {:ok, %{"results" => [], "has_more" => false, "next_cursor" => nil}}
       end)
 
-      Cache.put(:collections, {:document_detail, "cached-doc"}, cached_document)
+      CacheStore.put({:document_detail, "cached-doc"}, cached_document)
 
       conn = init_test_session(conn, %{user_id: user.id})
       {:ok, view, _html} = live(conn, ~p"/kb")
@@ -749,7 +796,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     end
 
     test "loading document fetches when not cached", %{conn: conn} do
-      Cache.reset()
+      CacheStore.reset()
 
       {:ok, user} =
         Accounts.create_user(%{
@@ -836,7 +883,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     end
 
     test "background update refreshes document when changed", %{conn: _conn} do
-      Cache.reset()
+      CacheStore.reset()
 
       Tesla.Mock.mock(fn
         %{method: :get, url: "https://api.notion.com/v1/pages/doc-1"} ->
@@ -919,7 +966,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     test "background update refreshes documents_by_collection when document is found", %{
       conn: _conn
     } do
-      Cache.reset()
+      CacheStore.reset()
 
       Tesla.Mock.mock(fn
         %{method: :get, url: "https://api.notion.com/v1/pages/doc-1"} ->
@@ -1016,7 +1063,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     end
 
     test "loading document handles cache error gracefully", %{conn: conn} do
-      Cache.reset()
+      CacheStore.reset()
 
       {:ok, user} =
         Accounts.create_user(%{
@@ -1708,7 +1755,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     end
 
     test "background update does nothing when document not changed", %{conn: _conn} do
-      Cache.reset()
+      CacheStore.reset()
 
       Tesla.Mock.mock(fn
         %{method: :get, url: "https://api.notion.com/v1/pages/doc-1"} ->
@@ -1877,7 +1924,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
 
   describe "event handling" do
     test "open_search_result loads the selected document without reloading collection" do
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       {:ok, user} =
@@ -1958,7 +2005,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     end
 
     test "open_search_result keeps current state when collection id missing" do
-      Cache.reset()
+      CacheStore.reset()
 
       {:ok, user} =
         Accounts.create_user(%{
@@ -1995,7 +2042,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
         source: :cache
       }
 
-      Cache.put(:collections, {:document_detail, "page-empty"}, detail, :timer.minutes(1))
+      CacheStore.put({:document_detail, "page-empty"}, detail, :timer.minutes(1))
 
       socket = %Phoenix.LiveView.Socket{
         assigns: %{
@@ -2033,7 +2080,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     end
 
     test "open_search_result loads new collection when id differs" do
-      Cache.reset()
+      CacheStore.reset()
 
       {:ok, user} =
         Accounts.create_user(%{
@@ -2083,8 +2130,8 @@ defmodule DashboardSSDWeb.KbLiveTest do
         source: :cache
       }
 
-      Cache.put(:collections, {:documents, "db-guides"}, [new_doc], :timer.minutes(1))
-      Cache.put(:collections, {:document_detail, "page-new"}, detail, :timer.minutes(1))
+      CacheStore.put({:documents, "db-guides"}, [new_doc], :timer.minutes(1))
+      CacheStore.put({:document_detail, "page-new"}, detail, :timer.minutes(1))
 
       socket = %Phoenix.LiveView.Socket{
         assigns: %{
@@ -2118,7 +2165,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
         Index.handle_info({:load_document, "page-new", opts}, loading_socket)
 
       assert new_socket.assigns.selected_collection_id == "db-guides"
-      assert Enum.map(new_socket.assigns.documents, & &1.id) == []
+      assert Enum.map(new_socket.assigns.documents, & &1.id) == ["page-new"]
       assert new_socket.assigns.selected_document_id == "page-new"
       assert new_socket.assigns.reader_error == nil
     end
@@ -2304,7 +2351,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     end
 
     test "toggle_collection removes empty collection from list", %{conn: conn} do
-      Cache.reset()
+      CacheStore.reset()
       Notion.reset_circuits()
 
       {:ok, user} =
@@ -2393,7 +2440,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     end
 
     test "handle_info processes matching document_id" do
-      Cache.reset()
+      CacheStore.reset()
 
       {:ok, user} =
         Accounts.create_user(%{
@@ -2461,7 +2508,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
     end
 
     test "handle_info uses cached document detail when available" do
-      Cache.reset()
+      CacheStore.reset()
 
       document = %Types.DocumentDetail{
         id: "doc-cached",
@@ -2472,7 +2519,7 @@ defmodule DashboardSSDWeb.KbLiveTest do
         last_updated_at: ~U[2024-05-01 12:00:00Z]
       }
 
-      Cache.put(:collections, {:document_detail, document.id}, document)
+      CacheStore.put({:document_detail, document.id}, document)
 
       socket = %Phoenix.LiveView.Socket{
         assigns: %{
@@ -2695,6 +2742,32 @@ defmodule DashboardSSDWeb.KbLiveTest do
       assert new_socket.assigns.search_dropdown_open == true
       assert new_socket.assigns.flash == %{"error" => "Unable to reach Notion (:timeout)."}
     end
+  end
+
+  defp live_assign(view, key) do
+    view
+    |> view_assigns()
+    |> Map.get(key)
+  end
+
+  defp view_assigns(view) do
+    view.pid
+    |> :sys.get_state()
+    |> Map.fetch!(:socket)
+    |> Map.fetch!(:assigns)
+  end
+
+  defp base_socket(assigns) do
+    %Phoenix.LiveView.Socket{
+      endpoint: DashboardSSDWeb.Endpoint,
+      view: Index,
+      root_pid: self(),
+      transport_pid: self(),
+      private: %{live_temp: %{events: []}},
+      assigns:
+        %{__changed__: %{}, flash: %{}}
+        |> Map.merge(assigns)
+    }
   end
 
   defp restore_env(%{notion_token: token, notion_api_key: api_key}) do

@@ -195,6 +195,74 @@ defmodule DashboardSSD.Integrations.WrappersTest do
     end
   end
 
+  describe "linear_graphql/2" do
+    test "returns rate_limited error with user presentable message" do
+      Application.put_env(:dashboard_ssd, :integrations, linear_token: "tok")
+
+      Tesla.Mock.mock(fn
+        %{method: :post, url: "https://api.linear.app/graphql"} ->
+          %Tesla.Env{
+            status: 429,
+            body: %{
+              "errors" => [
+                %{
+                  "message" => "ratelimit exceeded",
+                  "extensions" => %{
+                    "code" => "RATELIMITED",
+                    "userPresentableMessage" =>
+                      "This IP address has been rate limited due to unusual activity. Please try again later."
+                  }
+                }
+              ]
+            }
+          }
+      end)
+
+      assert {:error, {:rate_limited, msg}} =
+               Integrations.linear_graphql("{ issues { id } }", %{})
+
+      assert msg ==
+               "This IP address has been rate limited due to unusual activity. Please try again later."
+    end
+
+    test "returns message when only error string present" do
+      Application.put_env(:dashboard_ssd, :integrations, linear_token: "tok")
+
+      Tesla.Mock.mock(fn
+        %{method: :post, url: "https://api.linear.app/graphql"} ->
+          %Tesla.Env{
+            status: 429,
+            body: %{
+              "errors" => [
+                %{
+                  "message" => "RateLimit exceeded"
+                }
+              ]
+            }
+          }
+      end)
+
+      assert {:error, {:rate_limited, msg}} =
+               Integrations.linear_graphql("{ issues { id } }", %{})
+
+      assert msg == "RateLimit exceeded"
+    end
+
+    test "uses default message when response missing details" do
+      Application.put_env(:dashboard_ssd, :integrations, linear_token: "tok")
+
+      Tesla.Mock.mock(fn
+        %{method: :post, url: "https://api.linear.app/graphql"} ->
+          %Tesla.Env{status: 429, body: %{"message" => "too many requests"}}
+      end)
+
+      assert {:error, {:rate_limited, msg}} =
+               Integrations.linear_graphql("{ issues { id } }", %{})
+
+      assert msg == "Linear API rate limit exceeded. Please wait before retrying."
+    end
+  end
+
   describe "notion_search/1" do
     test "posts search with token" do
       Application.put_env(:dashboard_ssd, :integrations, notion_token: "tok")

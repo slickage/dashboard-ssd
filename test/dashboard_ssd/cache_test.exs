@@ -1,7 +1,7 @@
-defmodule DashboardSSD.KnowledgeBase.CacheTest do
+defmodule DashboardSSD.CacheTest do
   use ExUnit.Case, async: false
 
-  alias DashboardSSD.KnowledgeBase.Cache
+  alias DashboardSSD.Cache
 
   setup do
     Cache.reset()
