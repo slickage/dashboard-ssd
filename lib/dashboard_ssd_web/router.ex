@@ -62,6 +62,8 @@ defmodule DashboardSSDWeb.Router do
       live "/projects/contracts", ProjectsLive.Contracts, :index
       live "/analytics", AnalyticsLive.Index, :index
       live "/kb", KbLive.Index, :index
+      live "/meetings", MeetingsLive.Index, :index
+      live "/meetings/:id", MeetingLive.Index, :index
     end
 
     post "/shared_documents/:id/download", SharedDocumentController, :download
