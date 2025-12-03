@@ -1,6 +1,10 @@
 defmodule DashboardSSDWeb.KbComponents do
   @moduledoc """
   Function components used by the Knowledge Base experience.
+
+    - Renders collection/document navigation lists and action menus for the KB.
+  - Provides icon helpers that gracefully handle SVGs, remote images, and emoji fallbacks.
+  - Wraps CodeHighlighter to display Notion code blocks inside LiveView templates.
   """
 
   use DashboardSSDWeb, :html
@@ -105,16 +109,10 @@ defmodule DashboardSSDWeb.KbComponents do
         <% end %>
       <% end %>
 
-      <p
-        :if={Enum.empty?(@collections) and Enum.empty?(@collection_errors)}
-        class="text-sm text-theme-muted"
-      >
+      <p :if={Enum.empty?(@collections)} class="text-sm text-theme-muted">
         No curated collections are available yet.
       </p>
-      <p
-        :if={Enum.empty?(@collections) and Enum.empty?(@collection_errors)}
-        class="text-sm text-theme-muted"
-      >
+      <p :if={Enum.empty?(@collections)} class="text-sm text-theme-muted">
         No documents are available in this collection yet.
       </p>
 

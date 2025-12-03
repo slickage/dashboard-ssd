@@ -1,5 +1,11 @@
 defmodule DashboardSSD.Accounts.UserInvite do
-  @moduledoc "Schema representing an invitation for a user to join the system."
+  @moduledoc """
+  Schema representing an invitation for a user to join the system.
+
+    - Persists invite metadata (email, role, client, inviter, usage state).
+  - Validates tokens/emails and provides specialized changesets for creation/form flows.
+  - Links accepted invites back to the resulting user for audit trails.
+  """
   use Ecto.Schema
   import Ecto.Changeset
 

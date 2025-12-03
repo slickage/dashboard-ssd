@@ -1,6 +1,10 @@
 defmodule DashboardSSD.Integrations.LinearUtils do
   @moduledoc """
   Shared utilities for Linear integration, including issue fetching and summarization.
+
+    - Provides GraphQL queries/helpers to fetch Linear issues by project name/ID.
+  - Supplies workload summarization helpers used by dashboards and cache warmers.
+  - Offers feature flags (`linear_enabled?/0`) and resilient fallbacks when Linear is disabled.
   """
 
   alias DashboardSSD.{Integrations, Projects}

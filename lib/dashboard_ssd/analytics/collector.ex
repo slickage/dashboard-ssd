@@ -8,6 +8,10 @@ defmodule DashboardSSD.Analytics.Collector do
   - Error rates and other performance indicators
 
   Supported health check providers: http, aws_elbv2, custom
+
+    - Orchestrates scheduled metric collection across all projects and health providers.
+  - Persists derived metrics (uptime, MTTR, response times) via the Analytics context.
+  - Logs provider-specific warnings for unimplemented collectors to aid future work.
   """
 
   require Logger

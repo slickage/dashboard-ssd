@@ -25,6 +25,8 @@
 ## Active Technologies
 - Elixir ~> 1.18 (Phoenix LiveView application) + Phoenix ~> 1.8, Phoenix LiveView ~> 1.1, Ecto/Repo, Ueberauth + Ueberauth Google, Tailwind/Alpine (front-end) (006-simplify-rbac)
 - PostgreSQL (existing `roles`, `users`, `external_identities`, audit tables) (006-simplify-rbac)
+- Elixir ~> 1.18 with Phoenix 1.8 & LiveView 1.1 + Phoenix/Ecto stack, ETS cache infrastructure (`DashboardSSD.Cache`, Projects cache helpers), Google Drive service account integration, Notion sync pipeline, Oban/GenServers for jobs (007-client-facing-sow)
+- PostgreSQL (new `shared_documents`, optional `document_access_logs`, Drive folder mapping fields), Google Drive/Notion as external sources (007-client-facing-sow)
 
 ## Recent Changes
 - 006-simplify-rbac: Added Elixir ~> 1.18 (Phoenix LiveView application) + Phoenix ~> 1.8, Phoenix LiveView ~> 1.1, Ecto/Repo, Ueberauth + Ueberauth Google, Tailwind/Alpine (front-end)

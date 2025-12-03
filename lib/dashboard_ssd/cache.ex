@@ -3,6 +3,10 @@ defmodule DashboardSSD.Cache do
   Lightweight ETS-backed cache shared across the application. Entries are stored
   per logical namespace with TTL-based expiration and a periodic cleanup pass to
   reclaim stale data.
+
+    - Provides convenience `put/get/fetch` helpers around a single ETS table.
+  - Ensures the cache process is booted lazily for test helpers and scripts.
+  - Periodically sweeps expired keys so short-lived data never overgrows memory.
   """
   use GenServer
 

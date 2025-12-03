@@ -1,5 +1,11 @@
 defmodule DashboardSSDWeb.ClientsLive.Index do
-  @moduledoc "LiveView for listing and managing clients."
+  @moduledoc """
+  LiveView for listing and managing clients.
+
+    - Enforces capability-scoped client visibility and management actions.
+  - Subscribes to client PubSub updates to keep the table reactive.
+  - Coordinates form modals (new/edit/delete) and search interactions.
+  """
   use DashboardSSDWeb, :live_view
 
   alias DashboardSSD.Auth.Policy
@@ -27,6 +33,7 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
        |> assign(:page_title, "Clients")
        |> assign(:mobile_menu_open, false)
        |> assign(:can_manage_clients?, can_manage?)
+       |> assign(:can_view_client_contracts?, Policy.can?(user, :read, :client_contracts))
        |> assign(:search_enabled?, search_enabled?)
        |> assign(:client_assignment_missing?, client_assignment_missing?)}
     else
@@ -156,6 +163,15 @@ defmodule DashboardSSDWeb.ClientsLive.Index do
               New Client
             </.link>
           </div>
+        <% end %>
+
+        <%= if @can_view_client_contracts? and not @client_assignment_missing? do %>
+          <.link
+            navigate={~p"/clients/contracts"}
+            class="inline-flex items-center justify-center rounded-full border border-theme-border bg-theme-surface px-4 py-2 text-sm font-semibold text-theme-text shadow-theme-soft transition hover:border-theme-primary hover:text-theme-text"
+          >
+            Contracts & Docs
+          </.link>
         <% end %>
       </div>
 

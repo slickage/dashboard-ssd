@@ -1,5 +1,11 @@
 defmodule DashboardSSD.Integrations.Slack do
-  @moduledoc "Basic Slack API client (chat.postMessage)."
+  @moduledoc """
+  Basic Slack API client (chat.postMessage).
+
+    - Configures a Tesla client pointed at the Slack Web API.
+  - Sends channel messages using bot/user tokens provided at runtime.
+  - Normalizes success/error tuples for higher-level notification workflows.
+  """
   use Tesla
 
   @base "https://slack.com/api"

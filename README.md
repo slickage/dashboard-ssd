@@ -13,10 +13,10 @@ A modern, dark-themed dashboard for managing software development projects, clie
 
 - **User Authentication**: Google OAuth integration with role-based access control (Admin, Employee, Client)
 - **Project Management**: Track projects, clients, deployments, and health checks
-- **Integrations**: Connect with Linear (issues), Slack (notifications), Notion (knowledge base), Google Drive (documents)
+- **Integrations**: Connect with Linear (issues), Slack (notifications), Notion (knowledge base), Google Drive (documents) and emit telemetry for each integration so alerts can be configured
 - **Real-time Dashboard**: Live updates for project status, workload, and metrics
 - **Dark Theme**: Modern, responsive UI with dark mode
-- **Contracts**: Manage Statements of Work (SOWs) and Change Requests (CRs)
+- **Contracts & Docs**: Repository-managed workspace templates, client portal downloads, Drive ACL automation, and telemetry (see `docs/contracts-and-docs.md`)
 
 ## Prerequisites
 
@@ -47,6 +47,17 @@ A modern, dark-themed dashboard for managing software development projects, clie
 
 4. **Visit** [`localhost:4000`](http://localhost:4000)
 
+### Contracts & Docs
+
+- Workspace templates are defined in `priv/workspace_templates/**` and wired through the
+  blueprint config in `config/*.exs`. See `docs/contracts-and-docs.md` for the full playbook.
+- Drive/Notion artifacts are bootstrapped automatically during project/client creation and
+  can be regenerated from Projects → Contracts with per-section toggles.
+- Drive ACL automation runs whenever client assignments change and emits telemetry events
+  (`[:dashboard_ssd, :drive_acl, :sync]`, `[:dashboard_ssd, :documents, :download]`,
+  `[:dashboard_ssd, :documents, :visibility_toggle]`) so alerting rules can enforce
+  SC-001–SC-003.
+
 ## Development
 
 - **Run tests**: `mix test`
@@ -74,6 +85,18 @@ Required environment variables in `.env`:
 - `NOTION_TOKEN`: Notion API access
 - `ENCRYPTION_KEY`: Base64-encoded encryption key for sensitive data
 - `SLICKAGE_ALLOWED_DOMAINS`: Comma-separated list of Google Workspace domains that should be treated as internal Slickage users (e.g., `slickage.com,subsidiary.com`)
+
+Drive service account (for Contracts → Regenerate / workspace bootstrap):
+
+- `DRIVE_ROOT_FOLDER_ID`: Drive folder ID shared with the service account (Editor). The app creates `Clients/<Client>/<Project>` under this root.
+- `DRIVE_SERVICE_ACCOUNT_JSON`: Absolute path to the service account JSON key (e.g., `/Users/kkid/secrets/slickage-dashboard-472000-e85feaabee6c.json`). The app mints a Drive access token at runtime from this file; you do NOT need `GOOGLE_DRIVE_TOKEN`.
+
+Example (local):
+```bash
+export DRIVE_ROOT_FOLDER_ID="<your-root-folder-id>"
+export DRIVE_SERVICE_ACCOUNT_JSON="/absolute/path/to/drive-service-account.json"
+mix phx.server
+```
 
 ### Testing
 
@@ -134,3 +157,21 @@ MIT License - see [LICENSE](LICENSE) file.
 - [Phoenix Framework](https://www.phoenixframework.org/)
 - [Elixir Documentation](https://hexdocs.pm/elixir/)
 - [LiveView Guides](https://hexdocs.pm/phoenix_live_view/)
+- [Contracts & Docs Playbook](docs/contracts-and-docs.md)
+
+## Integrations
+
+### Linear
+- Configure `LINEAR_TOKEN` in environment.
+- To re-run Linear sync on demand, use the Projects page -> Sync button.
+
+### Notion
+- Configure `NOTION_API_TOKEN` and `NOTION_DATABASE_ID` in environment for the knowledge base.
+- To re-run Notion sync on demand, use the KB page -> Sync button.
+
+### Google Drive
+- Enable **Google Drive API** and **Google Docs API** in your GCP project.
+- Create a service account (IAM & Admin → Service Accounts) and generate a JSON key; point `DRIVE_SERVICE_ACCOUNT_JSON` to this file.
+- Add the service account as a member of the target **Shared Drive** with at least Content Manager access.
+- Set `DRIVE_ROOT_FOLDER_ID` to the Shared Drive ID (from the Drive URL: `https://drive.google.com/drive/folders/<ID>`).
+- Start the app with these env vars exported; Regenerate/Sync in Contracts will create/update Drive docs under that Shared Drive.

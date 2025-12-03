@@ -4,6 +4,10 @@ defmodule DashboardSSD.KnowledgeBase.Search do
 
   Implementation will follow in later phases; this module currently provides
   the public API contract for upcoming work.
+
+    - Defines the future-facing API for KB search, including options and result types.
+  - Will orchestrate cache lookups and Notion queries to satisfy search requests.
+  - Serves as a placeholder so other modules can depend on the eventual public interface.
   """
 
   alias DashboardSSD.KnowledgeBase.Types

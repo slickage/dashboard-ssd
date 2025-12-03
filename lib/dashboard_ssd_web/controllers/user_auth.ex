@@ -1,5 +1,11 @@
 defmodule DashboardSSDWeb.UserAuth do
-  @moduledoc "User authentication helpers for controllers and LiveViews."
+  @moduledoc """
+  User authentication helpers for controllers and LiveViews.
+
+    - Fetches/assigns the current user on Plug connections and LiveView sockets.
+  - Provides `on_mount` hooks to enforce authentication/authorization per LiveView.
+  - Supplies redirect helpers for post-login flows and session teardown.
+  """
   import Plug.Conn
   alias DashboardSSD.Accounts.User
   alias DashboardSSD.Auth.Policy

@@ -5,6 +5,10 @@ defmodule DashboardSSD.Integrations.Notion do
   Provides convenience wrappers around Notion's search, database query, and block
   retrieval endpoints with retry and rudimentary circuit-breaker support to
   respect upstream rate limits.
+
+    - Implements the `Notion.Behaviour` callbacks used by the Knowledge Base.
+  - Wraps Tesla with retries, backoff, and circuit-breaker protection.
+  - Supplies helper functions for searching, retrieving pages, and fetching blocks/databases.
   """
 
   @behaviour DashboardSSD.Integrations.Notion.Behaviour
@@ -61,6 +65,18 @@ defmodule DashboardSSD.Integrations.Notion do
       |> Keyword.put_new(:operation, :list_databases)
 
     request_json(:post, "/v1/search", token, request_opts)
+  end
+
+  @impl true
+  @spec retrieve_database(String.t(), String.t(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def retrieve_database(token, database_id, opts \\ []) do
+    request_opts =
+      opts
+      |> Keyword.put_new(:circuit_breaker_key, {:retrieve_database, database_id})
+      |> Keyword.put_new(:operation, :retrieve_database)
+
+    request_json(:get, "/v1/databases/#{database_id}", token, request_opts)
   end
 
   @impl true
@@ -145,6 +161,56 @@ defmodule DashboardSSD.Integrations.Notion do
     request_json(:get, "/v1/blocks/#{block_id}/children", token, request_opts)
   end
 
+  @impl true
+  @spec create_page(String.t(), map(), keyword()) :: {:ok, map()} | {:error, term()}
+  def create_page(token, attrs, opts \\ []) do
+    request_opts =
+      opts
+      |> Keyword.put(:body, attrs)
+      |> Keyword.put_new(:circuit_breaker_key, :create_page)
+      |> Keyword.put_new(:operation, :create_page)
+
+    request_json(:post, "/v1/pages", token, request_opts)
+  end
+
+  @impl true
+  @spec create_database(String.t(), map(), keyword()) :: {:ok, map()} | {:error, term()}
+  def create_database(token, attrs, opts \\ []) do
+    request_opts =
+      opts
+      |> Keyword.put(:body, attrs)
+      |> Keyword.put_new(:circuit_breaker_key, :create_database)
+      |> Keyword.put_new(:operation, :create_database)
+
+    request_json(:post, "/v1/databases", token, request_opts)
+  end
+
+  @impl true
+  @spec append_block_children(String.t(), String.t(), list(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def append_block_children(token, block_id, children, opts \\ []) do
+    body = %{children: children}
+
+    request_opts =
+      opts
+      |> Keyword.put(:body, body)
+      |> Keyword.put_new(:circuit_breaker_key, {:append_block_children, block_id})
+      |> Keyword.put_new(:operation, :append_block_children)
+
+    request_json(:patch, "/v1/blocks/#{block_id}/children", token, request_opts)
+  end
+
+  @impl true
+  @spec delete_block(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
+  def delete_block(token, block_id, opts \\ []) do
+    request_opts =
+      opts
+      |> Keyword.put_new(:circuit_breaker_key, {:delete_block, block_id})
+      |> Keyword.put_new(:operation, :delete_block)
+
+    request_json(:delete, "/v1/blocks/#{block_id}", token, request_opts)
+  end
+
   # -- Request helpers -------------------------------------------------------
 
   defp request_json(method, path, token, opts) do
@@ -211,6 +277,37 @@ defmodule DashboardSSD.Integrations.Notion do
     body = http_opts.body || %{}
 
     case post(path, body, headers: headers, query: http_opts.query) do
+      {:ok, %Tesla.Env{status: status, body: body} = env} when status in 200..299 ->
+        {:ok, %{env | body: body}}
+
+      {:ok, %Tesla.Env{status: status, body: body}} ->
+        {:error, {:http_error, status, body}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp execute_request(:patch, path, token, http_opts) do
+    headers = authorized_headers(token, http_opts.headers)
+    body = http_opts.body || %{}
+
+    case patch(path, body, headers: headers, query: http_opts.query) do
+      {:ok, %Tesla.Env{status: status, body: body} = env} when status in 200..299 ->
+        {:ok, %{env | body: body}}
+
+      {:ok, %Tesla.Env{status: status, body: body}} ->
+        {:error, {:http_error, status, body}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp execute_request(:delete, path, token, http_opts) do
+    headers = authorized_headers(token, http_opts.headers)
+
+    case delete(path, headers: headers, query: http_opts.query) do
       {:ok, %Tesla.Env{status: status, body: body} = env} when status in 200..299 ->
         {:ok, %{env | body: body}}
 

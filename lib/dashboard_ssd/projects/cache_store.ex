@@ -3,6 +3,10 @@ defmodule DashboardSSD.Projects.CacheStore do
   Projects-specific wrapper around the shared cache. Encapsulates the namespace,
   TTLs, and payload shape used for Linear sync results so the rest of the
   context stays lean.
+
+    - Namespaces cached Linear sync payloads separate from other cache uses.
+  - Provides helper functions for storing/retrieving sync metadata and rate-limit info.
+  - Offers delete/reset operations leveraged by tests and manual sync triggers.
   """
 
   alias DashboardSSD.Cache

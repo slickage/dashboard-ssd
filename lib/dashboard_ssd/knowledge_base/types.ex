@@ -1,6 +1,10 @@
 defmodule DashboardSSD.KnowledgeBase.Types do
   @moduledoc """
   Shared structs and type definitions for the Knowledge Base context.
+
+    - Defines reusable type specs (`collection_id`, `document_id`, etc.) for KB modules.
+  - Encapsulates struct definitions for collections, documents, search results, and activity.
+  - Keeps serialization-focused structs close to their type specs for consistency.
   """
 
   @typedoc "Unique identifier for a curated Notion collection (database ID)."

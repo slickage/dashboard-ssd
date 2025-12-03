@@ -1,5 +1,11 @@
 defmodule DashboardSSDWeb.API.RBACController do
-  @moduledoc "API endpoints for managing role-to-capability assignments."
+  @moduledoc """
+  API endpoints for managing role-to-capability assignments.
+
+    - Exposes JSON endpoints to list, update, and reset RBAC role capabilities.
+  - Validates capability codes and enforces admin safeguards before persistence.
+  - Serializes controller-friendly summaries consumed by the settings UI.
+  """
   use DashboardSSDWeb, :controller
 
   alias DashboardSSD.Accounts

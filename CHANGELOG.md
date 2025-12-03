@@ -1,3 +1,40 @@
+# [1.9.0](https://github.com/slickage/dashboard-ssd/compare/v1.8.0...v1.9.0) (2025-12-01)
+
+
+### Features
+
+* add client contracts capability and listings ([e0cab45](https://github.com/slickage/dashboard-ssd/commit/e0cab45b0bada75dc31a17bdecd16159a47cc6f9))
+* add client contracts liveview and download proxy ([2cec23d](https://github.com/slickage/dashboard-ssd/commit/2cec23da09707a70fad855d47d0574a81774a166))
+* add drive/notion sync modules with telemetry ([6c85049](https://github.com/slickage/dashboard-ssd/commit/6c85049e597a07f213934b39ad47fc083df5508d))
+* add Notion renderer and client contracts tests ([80e7ea3](https://github.com/slickage/dashboard-ssd/commit/80e7ea35ac7cec95b1386b0f4d9ec9ce524ff997))
+* add shared documents migrations and schemas ([792a40d](https://github.com/slickage/dashboard-ssd/commit/792a40d810eeb68c07fe5414b9cd1e92ee465c88))
+* add staff contracts console and ACL toggles ([005d58a](https://github.com/slickage/dashboard-ssd/commit/005d58ab890eebe611546a76fbf03fdbc49accfe))
+* add workspace bootstrap controls ([cd949d4](https://github.com/slickage/dashboard-ssd/commit/cd949d4a9ece327e61fb089cf40a00a7dc6d6874))
+* add workspace bootstrap templates and helpers ([96ba158](https://github.com/slickage/dashboard-ssd/commit/96ba15890e7c889fd97f65336042c2b846f09efe))
+* **contracts:** improve regeneration ux and templates ([429cc54](https://github.com/slickage/dashboard-ssd/commit/429cc543cc88f5af5a897c305d81d0831b9722a7))
+* **drive:** improve bootstrap content and sync pruning ([30c2049](https://github.com/slickage/dashboard-ssd/commit/30c204998537ce1c98891b30aa2386062191d125))
+* expand Drive helpers for shared documents ([8b069e7](https://github.com/slickage/dashboard-ssd/commit/8b069e779a34eb1865c08af1eb1130717634b301))
+* handle oversized downloads and add tests ([67a583a](https://github.com/slickage/dashboard-ssd/commit/67a583aa47486b84bd634a0490eeae4d5bf61ae2))
+* instrument contracts telemetry and docs ([a31fa5e](https://github.com/slickage/dashboard-ssd/commit/a31fa5e511a70cbcace9f5597b8da71af91e817a))
+* introduce shared documents cache helper ([d8b9c79](https://github.com/slickage/dashboard-ssd/commit/d8b9c7900250b2bd972a68c6c74f55681a435114))
+* store Drive folder metadata on projects ([81f81bd](https://github.com/slickage/dashboard-ssd/commit/81f81bd1aa7d5f923849a8aaa109b4c9d854d078))
+* wire drive ACL automation to client assignments ([14dd839](https://github.com/slickage/dashboard-ssd/commit/14dd8392a684fa64a76eb4147cc0fa2df0919d69))
+
+# [1.8.0](https://github.com/slickage/dashboard-ssd/compare/v1.7.1...v1.8.0) (2025-11-07)
+
+
+### Bug Fixes
+
+* satisfy invite docs requirements ([e42488e](https://github.com/slickage/dashboard-ssd/commit/e42488e21b562bff1f071cf7e4b93e0ec7c6e083))
+* **tests:** stabilize health scheduler teardown ([54c9890](https://github.com/slickage/dashboard-ssd/commit/54c98900620bb21431e6986429c6f4feb5f438a2))
+
+
+### Features
+
+* **clients:** scope client list to assigned users ([c121dd1](https://github.com/slickage/dashboard-ssd/commit/c121dd1910aca6bf7c9760c7520b3eed599d2b3c))
+* **rbac:** simplify roles and add invite management ([56116e3](https://github.com/slickage/dashboard-ssd/commit/56116e316f9a8506245783e0aa0fdd3940b1dfe7))
+* **settings:** refine RBAC UI and enforce project edit gating ([a8fb862](https://github.com/slickage/dashboard-ssd/commit/a8fb8626a7256205402838f73becafa1aa504bbd))
+
 ## [1.7.1](https://github.com/slickage/dashboard-ssd/compare/v1.7.0...v1.7.1) (2025-11-01)
 
 

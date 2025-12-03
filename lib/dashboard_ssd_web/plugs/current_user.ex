@@ -1,5 +1,11 @@
 defmodule DashboardSSDWeb.Plugs.CurrentUser do
-  @moduledoc "Assigns the current user (with role) from the session, if present."
+  @moduledoc """
+  Assigns the current user (with role) from the session, if present.
+
+    - Looks up `:user_id` from the session and fetches the corresponding record.
+  - Preloads the user’s role so downstream plugs/components can check capabilities.
+  - Ensures `conn.assigns.current_user` is always set (even if nil) for consistency.
+  """
   import Plug.Conn
   alias DashboardSSD.Accounts.User
   alias DashboardSSD.Repo

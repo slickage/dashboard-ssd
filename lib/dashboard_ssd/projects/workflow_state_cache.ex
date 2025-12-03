@@ -2,6 +2,10 @@ defmodule DashboardSSD.Projects.WorkflowStateCache do
   @moduledoc """
   Caches Linear workflow state metadata per team so repeated lookups avoid hitting
   the database on every summary build.
+
+    - Wraps the shared cache with a dedicated namespace for workflow-state entries.
+  - Provides helpers to get/put/delete team-specific state payloads with TTLs.
+  - Offers flush/reset functions used by sync jobs and tests.
   """
 
   alias DashboardSSD.Cache

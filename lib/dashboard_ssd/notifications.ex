@@ -1,6 +1,10 @@
 defmodule DashboardSSD.Notifications do
   @moduledoc """
   Notifications context: alerts and notification rules.
+
+    - Offers CRUD helpers for alerts and notification rules scoped to projects.
+  - Serves as the single source of truth for alert/rule persistence logic.
+  - Intended to integrate with outbound channels (email, Slack, etc.) managed elsewhere.
   """
   import Ecto.Query, warn: false
   alias DashboardSSD.Notifications.{Alert, NotificationRule}

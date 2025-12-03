@@ -1,5 +1,11 @@
 defmodule DashboardSSD.Accounts.User do
-  @moduledoc "User schema with role and external identities."
+  @moduledoc """
+  User schema with role and external identities.
+
+    - Stores fundamental identity data (email, name) plus optional role/client associations.
+  - Relates to `ExternalIdentity` and `LinearUserLink` records for SSO and syncing.
+  - Offers a changeset enforcing unique emails for Accounts context operations.
+  """
   use Ecto.Schema
   import Ecto.Changeset
   alias Ecto.Changeset
@@ -19,6 +25,7 @@ defmodule DashboardSSD.Accounts.User do
     belongs_to :role, DashboardSSD.Accounts.Role, type: :id
     belongs_to :client, DashboardSSD.Clients.Client, type: :id
     has_many :external_identities, DashboardSSD.Accounts.ExternalIdentity
+    has_one :linear_user_link, DashboardSSD.Accounts.LinearUserLink
     timestamps(type: :utc_datetime)
   end
 

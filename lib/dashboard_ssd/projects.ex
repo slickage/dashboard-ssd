@@ -1,21 +1,33 @@
 defmodule DashboardSSD.Projects do
   @moduledoc """
   Projects context: manage projects and queries per client.
+
+    - Handles project-level CRUD plus client-scoped listing/sharing helpers.
+  - Bridges Linear metadata (team members, workflow states) into cached structures.
+  - Offers entry points used by schedulers, cache warmers, and LiveViews for project data.
   """
   import Ecto.Query
+  alias DashboardSSD.Accounts
+  alias DashboardSSD.Cache.SharedDocumentsCache
   alias DashboardSSD.Clients
+  alias DashboardSSD.Documents
+  alias DashboardSSD.Documents.SharedDocument
   alias DashboardSSD.Integrations
+  alias DashboardSSD.Integrations.Drive
   alias DashboardSSD.Integrations.LinearUtils
 
   alias DashboardSSD.Projects.{
     CacheStore,
+    DrivePermissionWorker,
     LinearTeamMember,
     LinearWorkflowState,
     Project,
     WorkflowStateCache
   }
 
+  alias DashboardSSD.Accounts.User
   alias DashboardSSD.Repo
+  require Logger
 
   @doc """
   Lists all projects with their associated clients preloaded.
@@ -63,6 +75,19 @@ defmodule DashboardSSD.Projects do
   @spec change_project(Project.t(), map()) :: Ecto.Changeset.t()
   def change_project(%Project{} = project, attrs \\ %{}), do: Project.changeset(project, attrs)
 
+  @workspace_sections [
+    :drive_contracts,
+    :drive_sow,
+    :drive_change_orders,
+    :notion_project_kb
+  ]
+
+  @doc """
+  Returns the default workspace sections used during automatic bootstrap.
+  """
+  @spec workspace_sections() :: [atom()]
+  def workspace_sections, do: @workspace_sections
+
   @doc """
   Creates a new project with the given attributes.
 
@@ -70,7 +95,10 @@ defmodule DashboardSSD.Projects do
   """
   @spec create_project(map()) :: {:ok, Project.t()} | {:error, Ecto.Changeset.t()}
   def create_project(attrs) do
-    %Project{} |> Project.changeset(attrs) |> Repo.insert()
+    %Project{}
+    |> Project.changeset(attrs)
+    |> Repo.insert()
+    |> after_project_create()
   end
 
   @doc """
@@ -81,6 +109,255 @@ defmodule DashboardSSD.Projects do
   @spec update_project(Project.t(), map()) :: {:ok, Project.t()} | {:error, Ecto.Changeset.t()}
   def update_project(%Project{} = project, attrs) do
     project |> Project.changeset(attrs) |> Repo.update()
+  end
+
+  @doc """
+  Returns `true` when Drive folder metadata has been stored for the project.
+  """
+  @spec drive_folder_configured?(Project.t()) :: boolean()
+  def drive_folder_configured?(%Project{drive_folder_id: folder_id}) do
+    is_binary(folder_id) and folder_id != ""
+  end
+
+  @doc """
+  Ensures a Drive folder exists for the project (and its client container) using the service account.
+
+  Creates `Clients/<client>/<project>` under the configured Drive root and persists `drive_folder_id`
+  if it was missing.
+  """
+  @spec ensure_drive_folder(Project.t()) :: {:ok, Project.t()} | {:error, term()}
+  def ensure_drive_folder(%Project{} = project) do
+    project = Repo.preload(project, :client)
+
+    with {:ok, token} <- Integrations.drive_service_token(),
+         {:ok, root_id} <- drive_root_folder_id(),
+         {:ok, client_name} <- client_folder_name(project),
+         _ <-
+           Logger.debug(
+             "Drive folder ensure start project_id=#{project.id} client=#{client_name} root_id=#{root_id}"
+           ),
+         {:ok, client_folder} <-
+           Drive.ensure_project_folder(token, %{parent_id: root_id, name: client_name}),
+         {:ok, project_name} <- project_folder_name(project),
+         {:ok, project_folder} <-
+           Drive.ensure_project_folder(token, %{
+             parent_id: client_folder["id"],
+             name: project_name
+           }),
+         {:ok, updated} <-
+           upsert_drive_folder_metadata(project, %{
+             drive_folder_id: project_folder["id"],
+             drive_folder_sharing_inherited: true
+           }) do
+      Logger.debug(
+        "Drive folder ensured project_id=#{project.id} client=#{client_name} drive_root=#{root_id} folder_id=#{project_folder["id"]}"
+      )
+
+      {:ok, updated}
+    else
+      {:error, reason} ->
+        Logger.error(
+          "Drive folder ensure returned error project_id=#{project.id} client=#{project.client && project.client.name} reason=#{inspect(reason)}"
+        )
+
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Upserts Drive folder metadata for a project or project id.
+
+  Accepts any subset of:
+    * `:drive_folder_id`
+    * `:drive_folder_sharing_inherited`
+    * `:drive_folder_last_permission_sync_at`
+  """
+  @spec upsert_drive_folder_metadata(Project.t() | pos_integer(), map()) ::
+          {:ok, Project.t()} | {:error, Ecto.Changeset.t()}
+  def upsert_drive_folder_metadata(project_or_id, attrs) when is_map(attrs) do
+    project_or_id
+    |> fetch_project!()
+    |> Project.drive_metadata_changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Marks the Drive permission sync timestamp for a project.
+  """
+  @spec mark_drive_permission_sync(Project.t() | pos_integer(), DateTime.t()) ::
+          {:ok, Project.t()} | {:error, Ecto.Changeset.t()}
+  def mark_drive_permission_sync(project_or_id, synced_at \\ DateTime.utc_now()) do
+    upsert_drive_folder_metadata(project_or_id, %{
+      drive_folder_last_permission_sync_at: synced_at
+    })
+  end
+
+  @doc """
+  Clears Drive folder metadata, typically used when re-bootstrapping a project.
+  """
+  @spec clear_drive_folder_metadata(Project.t() | pos_integer()) ::
+          {:ok, Project.t()} | {:error, Ecto.Changeset.t()}
+  def clear_drive_folder_metadata(project_or_id) do
+    upsert_drive_folder_metadata(project_or_id, %{
+      drive_folder_id: nil,
+      drive_folder_sharing_inherited: true,
+      drive_folder_last_permission_sync_at: nil
+    })
+  end
+
+  @doc """
+  Handles Drive ACL updates when a user's client assignment changes.
+  """
+  @spec handle_client_assignment_change(map() | nil, pos_integer() | nil) :: :ok
+  def handle_client_assignment_change(user, previous_client_id \\ nil)
+  def handle_client_assignment_change(nil, _previous_client_id), do: :ok
+
+  def handle_client_assignment_change(%{client_id: client_id} = user, previous_client_id) do
+    cond do
+      is_nil(client_id) and is_nil(previous_client_id) ->
+        :ok
+
+      client_id == previous_client_id ->
+        :ok
+
+      is_nil(previous_client_id) ->
+        sync_drive_permissions_for_user(user)
+
+      is_nil(client_id) ->
+        revoke_drive_permissions_for_user(user, previous_client_id)
+
+      true ->
+        revoke_drive_permissions_for_user(user, previous_client_id)
+        sync_drive_permissions_for_user(user)
+    end
+  end
+
+  @doc """
+  Shares Drive folders for all projects associated with the user's assigned client.
+  """
+  @spec sync_drive_permissions_for_user(map()) :: :ok
+  def sync_drive_permissions_for_user(%{client_id: client_id} = user)
+      when is_integer(client_id) do
+    list_projects_by_client(client_id)
+    |> Enum.each(&maybe_grant_project_access(&1, user))
+
+    :ok
+  end
+
+  def sync_drive_permissions_for_user(_), do: :ok
+
+  @doc """
+  Shares Drive folders for all projects associated with the given client across all client users.
+  """
+  @spec sync_drive_permissions_for_client(pos_integer()) :: :ok
+  def sync_drive_permissions_for_client(client_id) when is_integer(client_id) do
+    Repo.all(from u in User, where: u.client_id == ^client_id and not is_nil(u.email))
+    |> Enum.each(&sync_drive_permissions_for_user/1)
+
+    :ok
+  end
+
+  def sync_drive_permissions_for_client(_), do: :ok
+
+  @doc """
+  Revokes Drive folder access for the user's previous client assignment.
+  """
+  @spec revoke_drive_permissions_for_user(map(), pos_integer() | nil) :: :ok
+  def revoke_drive_permissions_for_user(user, client_id \\ nil)
+
+  def revoke_drive_permissions_for_user(%{} = user, client_id) do
+    target_client_id = client_id || Map.get(user, :client_id)
+
+    if is_integer(target_client_id) do
+      list_projects_by_client(target_client_id)
+      |> Enum.each(&maybe_revoke_project_access(&1, user))
+    end
+
+    :ok
+  end
+
+  defp maybe_grant_project_access(%{drive_folder_id: folder_id} = project, %{email: email} = user)
+       when is_binary(folder_id) and folder_id != "" and is_binary(email) and email != "" do
+    docs = drive_documents_for_project(project.id)
+    role = permission_role_for_docs(docs)
+
+    params = %{
+      role: role,
+      type: "user",
+      email: email,
+      allow_file_discovery: false,
+      send_notification_email?: false
+    }
+
+    drive_permission_worker().share(folder_id, params)
+    log_permission_events(docs, user, :permissions_granted, role, project.id)
+    invalidate_user_cache(user, project.id, docs)
+    mark_drive_permission_sync(project)
+  end
+
+  defp maybe_grant_project_access(_, _), do: :ok
+
+  defp maybe_revoke_project_access(
+         %{drive_folder_id: folder_id} = project,
+         %{email: email} = user
+       )
+       when is_binary(folder_id) and folder_id != "" and is_binary(email) and email != "" do
+    docs = drive_documents_for_project(project.id)
+    role = permission_role_for_docs(docs)
+
+    drive_permission_worker().revoke_email(folder_id, email)
+    log_permission_events(docs, user, :permissions_revoked, role, project.id)
+    invalidate_user_cache(user, project.id, docs)
+    mark_drive_permission_sync(project)
+  end
+
+  defp maybe_revoke_project_access(_, _), do: :ok
+
+  defp drive_documents_for_project(nil), do: []
+
+  defp drive_documents_for_project(project_id) do
+    from(sd in SharedDocument,
+      where: sd.project_id == ^project_id and sd.visibility == :client and sd.source == :drive
+    )
+    |> Repo.all()
+  end
+
+  defp permission_role_for_docs(docs) do
+    if Enum.any?(docs, &(&1.client_edit_allowed == true)) do
+      "writer"
+    else
+      "reader"
+    end
+  end
+
+  defp invalidate_user_cache(user, project_id, docs) do
+    user_id = Map.get(user, :id)
+
+    if user_id do
+      SharedDocumentsCache.invalidate_listing({user_id, nil})
+      SharedDocumentsCache.invalidate_listing({user_id, project_id})
+    end
+
+    Enum.each(docs, fn doc ->
+      SharedDocumentsCache.invalidate_download(doc.id)
+    end)
+  end
+
+  defp log_permission_events(docs, user, action, role, project_id) do
+    Enum.each(docs, fn doc ->
+      context = %{
+        project_id: project_id,
+        user_id: Map.get(user, :id),
+        user_email: Map.get(user, :email),
+        role: role
+      }
+
+      Documents.log_access(doc, nil, action, context)
+    end)
+  end
+
+  defp drive_permission_worker do
+    Application.get_env(:dashboard_ssd, :drive_permission_worker, DrivePermissionWorker)
   end
 
   @doc """
@@ -931,6 +1208,17 @@ defmodule DashboardSSD.Projects do
         )
         |> Repo.delete_all()
 
+        Enum.each(normalized, fn member ->
+          Accounts.auto_link_linear_member(%LinearTeamMember{
+            linear_team_id: team_id,
+            linear_user_id: member.linear_user_id,
+            name: member.name,
+            display_name: member.display_name,
+            email: member.email,
+            avatar_url: member.avatar_url
+          })
+        end)
+
         :ok
     end
   end
@@ -1073,4 +1361,79 @@ defmodule DashboardSSD.Projects do
       c -> c.id
     end
   end
+
+  defp fetch_project!(%Project{} = project), do: project
+
+  defp fetch_project!(project_id) when is_integer(project_id) do
+    Repo.get!(Project, project_id)
+  end
+
+  defp drive_root_folder_id do
+    with {:error, _} <- drive_root_from_config() do
+      drive_root_from_env()
+    end
+  end
+
+  defp drive_root_from_config do
+    Application.get_env(:dashboard_ssd, :shared_documents_integrations)
+    |> extract_drive_config()
+    |> extract_root_folder_id()
+  end
+
+  defp drive_root_from_env do
+    env_id = System.get_env("DRIVE_ROOT_FOLDER_ID")
+
+    case is_binary(env_id) and env_id != "" do
+      true -> {:ok, env_id}
+      false -> {:error, :missing_drive_root_folder_id}
+    end
+  end
+
+  defp extract_drive_config(nil), do: nil
+  defp extract_drive_config(config) when is_list(config), do: Keyword.get(config, :drive)
+  defp extract_drive_config(config) when is_map(config), do: Map.get(config, :drive)
+  defp extract_drive_config(_), do: nil
+
+  defp extract_root_folder_id(nil), do: {:error, :missing_drive_root_folder_id}
+
+  defp extract_root_folder_id(cfg) when is_list(cfg) do
+    cfg
+    |> Keyword.get(:root_folder_id)
+    |> validate_root_folder_id()
+  end
+
+  defp extract_root_folder_id(cfg) when is_map(cfg) do
+    cfg
+    |> Map.get(:root_folder_id)
+    |> validate_root_folder_id()
+  end
+
+  defp extract_root_folder_id(_), do: {:error, :missing_drive_root_folder_id}
+
+  defp validate_root_folder_id(id) when is_binary(id) and id != "", do: {:ok, id}
+  defp validate_root_folder_id(_), do: {:error, :missing_drive_root_folder_id}
+
+  defp client_folder_name(%Project{client: %{name: name}}) when is_binary(name) and name != "" do
+    {:ok, name}
+  end
+
+  defp client_folder_name(%Project{client_id: client_id}) do
+    {:ok, "Client #{client_id}"}
+  end
+
+  defp project_folder_name(%Project{name: name}) when is_binary(name) and name != "" do
+    {:ok, name}
+  end
+
+  defp project_folder_name(%Project{id: id}) do
+    {:ok, "Project #{id}"}
+  end
+
+  defp after_project_create({:ok, %Project{drive_folder_id: folder_id} = project} = result)
+       when is_binary(folder_id) and folder_id != "" do
+    Documents.bootstrap_workspace(project, sections: workspace_sections())
+    result
+  end
+
+  defp after_project_create(other), do: other
 end

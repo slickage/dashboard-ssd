@@ -51,7 +51,21 @@ defmodule DashboardSSD.Auth.PolicyTest do
     assert Policy.can?(client, :read, :projects)
     assert Policy.can?(client, :read, :clients)
     assert Policy.can?(client, :read, :settings)
+    assert Policy.can?(client, :read, :client_contracts)
     refute Policy.can?(client, :read, :knowledge_base)
+  end
+
+  test "employee contracts permissions", %{employee: employee} do
+    assert Policy.can?(employee, :read, :projects_contracts)
+    refute Policy.can?(employee, :manage, :projects_contracts)
+
+    {:ok, _} =
+      Accounts.replace_role_capabilities("employee", ["projects.contracts.manage"],
+        granted_by_id: nil
+      )
+
+    employee = build_user("employee")
+    assert Policy.can?(employee, :manage, :projects_contracts)
   end
 
   test "nil user cannot access anything" do

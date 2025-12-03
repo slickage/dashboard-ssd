@@ -1,6 +1,10 @@
 defmodule DashboardSSDWeb.AuthController do
   @moduledoc """
   Handles Google OAuth sign-in/sign-out via Ueberauth and session management.
+
+    - Initiates the Ueberauth request phase and processes callbacks (success/failure).
+  - Enforces domain restrictions, invite application, and role bootstrapping on login.
+  - Manages user sessions (renewals, redirects) and logout flows.
   """
   use DashboardSSDWeb, :controller
   alias DashboardSSD.Accounts
@@ -76,27 +80,37 @@ defmodule DashboardSSDWeb.AuthController do
           do: "existing@example.com",
           else: "new@example.com"
 
-      user =
-        Accounts.upsert_user_with_identity("google", %{
-          email: email,
-          name: "Stub User",
-          provider_id: code
-        })
+      try do
+        user =
+          Accounts.upsert_user_with_identity("google", %{
+            email: email,
+            name: "Stub User",
+            provider_id: code
+          })
 
-      raw_redirect = get_session(conn, :redirect_to)
+        raw_redirect = get_session(conn, :redirect_to)
 
-      redirect_to =
-        case raw_redirect do
-          {:safe, val} -> val
-          nil -> "/"
-          val -> val
-        end
+        redirect_to =
+          case raw_redirect do
+            {:safe, val} -> val
+            nil -> "/"
+            val -> val
+          end
 
-      conn
-      |> put_session(:user_id, user.id)
-      |> delete_session(:redirect_to)
-      |> configure_session(renew: true)
-      |> handle_callback_redirect(redirect_to)
+        conn
+        |> put_session(:user_id, user.id)
+        |> delete_session(:redirect_to)
+        |> configure_session(renew: true)
+        |> handle_callback_redirect(redirect_to)
+      rescue
+        Accounts.DomainNotAllowedError ->
+          conn
+          |> put_flash(
+            :error,
+            gettext("This Google account is not permitted. Ask an admin to invite you.")
+          )
+          |> redirect(to: ~p"/login")
+      end
     else
       # No assigns and not in stub mode – treat like failure
       conn

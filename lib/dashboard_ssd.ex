@@ -1,9 +1,9 @@
 defmodule DashboardSSD do
   @moduledoc """
-  DashboardSSD keeps the contexts that define your domain
-  and business logic.
+  Top-level namespace describing the major contexts that compose DashboardSSD.
 
-  Contexts are also responsible for managing your data, regardless
-  if it comes from the database, an external API or others.
+    - Introduces the primary domain contexts (Accounts, Projects, etc.).
+  - Serves as the HexDocs landing place for readers exploring the codebase.
+  - Points engineers toward the appropriate context module for further details.
   """
 end

@@ -1,5 +1,11 @@
 defmodule DashboardSSD.Accounts.InviteEmail do
-  @moduledoc "Email helpers for sending user invitations."
+  @moduledoc """
+  Email helpers for sending user invitations.
+
+    - Generates HTML/text email bodies with invite context (client, sender).
+  - Links recipients back to `/invites/:token` for acceptance.
+  - Reads default From address from config while allowing overrides.
+  """
   import Swoosh.Email
   alias DashboardSSD.Accounts.UserInvite
   alias DashboardSSDWeb.Endpoint

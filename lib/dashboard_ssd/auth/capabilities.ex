@@ -1,6 +1,10 @@
 defmodule DashboardSSD.Auth.Capabilities do
   @moduledoc """
   Canonical capability catalog used for RBAC decisions and admin configuration.
+
+    - Defines the list of capability codes, labels, and descriptions shown in settings.
+  - Provides default role assignments used for seeding and reset actions.
+  - Exposes helper functions (`valid?/1`, `default_assignments/0`, etc.) for guards.
   """
 
   @capabilities [
@@ -35,6 +39,24 @@ defmodule DashboardSSD.Auth.Capabilities do
       description: "Create, edit, and delete client records."
     },
     %{
+      code: "projects.contracts.view",
+      label: "Contracts (View)",
+      group: :contracts,
+      description: "View shared documents across all projects."
+    },
+    %{
+      code: "projects.contracts.manage",
+      label: "Contracts (Manage)",
+      group: :contracts,
+      description: "Toggle client visibility/edit access and manage Drive ACLs."
+    },
+    %{
+      code: "contracts.client.view",
+      label: "Client Contracts",
+      group: :contracts,
+      description: "View the Contracts tab in the client portal."
+    },
+    %{
       code: "knowledge_base.view",
       label: "Knowledge Base (View)",
       group: :knowledge_base,
@@ -67,12 +89,14 @@ defmodule DashboardSSD.Auth.Capabilities do
       "projects.view",
       "clients.view",
       "knowledge_base.view",
-      "settings.personal"
+      "settings.personal",
+      "projects.contracts.view"
     ],
     "client" => [
       "projects.view",
       "clients.view",
-      "settings.personal"
+      "settings.personal",
+      "contracts.client.view"
     ]
   }
 

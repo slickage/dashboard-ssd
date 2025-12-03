@@ -1,5 +1,11 @@
 defmodule DashboardSSDWeb.ClientsLive.FormComponent do
-  @moduledoc "LiveComponent for creating and editing clients."
+  @moduledoc """
+  LiveComponent for creating and editing clients.
+
+    - Initializes and validates client changesets for new/edit actions.
+  - Enforces capability checks before persisting changes.
+  - Emits flash messages and push patches to keep the parent view in sync.
+  """
   use DashboardSSDWeb, :live_component
   alias DashboardSSD.Auth.Policy
   alias DashboardSSD.Clients

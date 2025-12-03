@@ -1,5 +1,11 @@
 defmodule DashboardSSDWeb.Navigation do
-  @moduledoc "Shared navigation components for the theme layout."
+  @moduledoc """
+  Shared navigation components for the theme layout.
+
+    - Builds sidebar/top navigation menus based on user role/capabilities.
+  - Provides convenience helpers for mobile menu toggles and action buttons.
+  - Centralizes navigation metadata (labels, heroicons, GitHub release link).
+  """
   use DashboardSSDWeb, :html
 
   alias DashboardSSD.Accounts

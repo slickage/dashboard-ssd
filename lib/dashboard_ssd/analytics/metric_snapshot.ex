@@ -1,5 +1,11 @@
 defmodule DashboardSSD.Analytics.MetricSnapshot do
-  @moduledoc "Schema for storing metric snapshots over time."
+  @moduledoc """
+  Schema for storing metric snapshots over time.
+
+    - Persists per-project metric readings (uptime, MTTR, etc.) with timestamps.
+  - Provides a changeset used by collectors to validate inputs before insert.
+  - Derives JSON encoding to support API and LiveView consumption.
+  """
   use Ecto.Schema
   import Ecto.Changeset
 

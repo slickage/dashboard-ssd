@@ -1,5 +1,11 @@
 defmodule DashboardSSD.Contracts.ChangeRequest do
-  @moduledoc "Change Request metadata and association to a project."
+  @moduledoc """
+  Change Request metadata and association to a project.
+
+    - Stores identifiers for Google Drive documents tied to project change requests.
+  - Ensures required fields (`name`, `project_id`) are validated via its changeset.
+  - Acts as the schema backing Contracts context operations for change requests.
+  """
   use Ecto.Schema
   import Ecto.Changeset
   alias Ecto.Changeset

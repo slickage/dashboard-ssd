@@ -1,5 +1,11 @@
 defmodule DashboardSSDWeb.Router do
-  @moduledoc "Application router defining pipelines, live_sessions and routes."
+  @moduledoc """
+  Application router defining pipelines, live_sessions and routes.
+
+    - Configures browser/API pipelines with security headers, session, and auth plugs.
+  - Defines public and authenticated LiveView sessions plus controller routes.
+  - Exposes RBAC-protected API endpoints and opt-in dev/protected scopes.
+  """
   use DashboardSSDWeb, :router
   alias Plug.Conn
 
@@ -50,13 +56,17 @@ defmodule DashboardSSDWeb.Router do
       live "/clients/new", ClientsLive.Index, :new
       live "/clients/:id/edit", ClientsLive.Index, :edit
       live "/clients/:id/delete", ClientsLive.Index, :delete
+      live "/clients/contracts", ClientsLive.Contracts, :index
       live "/projects", ProjectsLive.Index, :index
       live "/projects/:id/edit", ProjectsLive.Index, :edit
+      live "/projects/contracts", ProjectsLive.Contracts, :index
       live "/analytics", AnalyticsLive.Index, :index
       live "/kb", KbLive.Index, :index
       live "/meetings", MeetingsLive.Index, :index
       live "/meetings/:id", MeetingLive.Index, :index
     end
+
+    post "/shared_documents/:id/download", SharedDocumentController, :download
 
     get "/auth/:provider", AuthController, :request
     # Use distinct actions to avoid CSRF action reuse warnings

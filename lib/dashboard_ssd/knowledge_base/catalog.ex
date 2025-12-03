@@ -1,6 +1,10 @@
 defmodule DashboardSSD.KnowledgeBase.Catalog do
   @moduledoc """
   Handles curated collection and document metadata sourced from Notion.
+
+    - Fetches curated collections/documents from Notion with caching and concurrency.
+  - Normalizes Notion blocks into typed structs understood by the KB UI.
+  - Provides convenience APIs for listing recent documents and resolving metadata.
   """
 
   alias DashboardSSD.Integrations.Notion

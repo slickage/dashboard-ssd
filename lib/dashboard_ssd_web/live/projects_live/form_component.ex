@@ -1,5 +1,11 @@
 defmodule DashboardSSDWeb.ProjectsLive.FormComponent do
-  @moduledoc "LiveComponent for editing a project and its health check settings."
+  @moduledoc """
+  LiveComponent for editing a project and its health check settings.
+
+    - Loads project data plus associated health-check settings for editing.
+  - Validates and persists both project fields and health configuration changes.
+  - Emits messages back to the parent LiveView so UI state stays in sync.
+  """
   use DashboardSSDWeb, :live_component
 
   alias DashboardSSD.Auth.Policy

@@ -1,6 +1,10 @@
 defmodule DashboardSSD.Deployments do
   @moduledoc """
   Deployments context: manage deployments and health checks.
+
+    - Centralizes persistence helpers for deployments, health checks, and notification settings.
+  - Supplies project-scoped queries used by schedulers and LiveViews.
+  - Keeps schema validations encapsulated so on-call code only deals with clean tuples.
   """
   import Ecto.Query, warn: false
   alias DashboardSSD.Deployments.{Deployment, HealthCheck, HealthCheckSetting}

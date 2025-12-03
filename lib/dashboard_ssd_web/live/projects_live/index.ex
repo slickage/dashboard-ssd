@@ -1,5 +1,11 @@
 defmodule DashboardSSDWeb.ProjectsLive.Index do
-  @moduledoc "Projects hub listing with Linear task summary and health status."
+  @moduledoc """
+  Projects hub listing with Linear task summary and health status.
+
+    - Filters projects/clients based on RBAC and allows scoped client selection.
+  - Displays deployment health metadata plus Linear team summaries per project.
+  - Manages background sync tasks and cached summary hydration for responsiveness.
+  """
   use DashboardSSDWeb, :live_view
 
   require Logger
@@ -42,6 +48,8 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         |> assign(:summaries_task_ref, nil)
         |> assign(:summaries_task_context, nil)
         |> assign(:summaries_loading, false)
+        |> assign(:can_view_contracts?, Policy.can?(user, :read, :projects_contracts))
+        |> assign(:can_view_client_contracts?, Policy.can?(user, :read, :client_contracts))
         |> hydrate_from_cached_sync()
         |> assign(:can_manage_projects?, Policy.can?(user, :manage, :projects))
 
@@ -68,6 +76,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
     end
   end
 
+  @doc "Handle health updates, summary reloads, and other LiveView info messages."
   @impl true
   def handle_info({:health_updated, health}, socket) do
     {:noreply, assign(socket, :health, health)}
@@ -307,6 +316,11 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
       _ -> :error
     end
   end
+
+  defp client_contracts_path(%{id: id}) when is_integer(id),
+    do: ~p"/clients/contracts?project_id=#{id}"
+
+  defp client_contracts_path(_), do: ~p"/clients/contracts"
 
   defp auto_linear_sync_enabled? do
     not Application.get_env(:dashboard_ssd, :test_env?, false)
@@ -580,8 +594,8 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
   defp context_suffix(:auto), do: " during auto-sync"
   defp context_suffix(_), do: ""
 
+  @doc "Handle project-level UI events such as sync and client filtering."
   @impl true
-  @doc "Handle project events (sync, filter)."
   def handle_event("sync", _params, socket) do
     result = Projects.sync_from_linear(force: true)
     {socket, _status} = handle_sync_result(socket, result, context: :manual, show_flash?: true)
@@ -720,6 +734,114 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
 
   defp summary_assigned(_), do: []
 
+  if Mix.env() == :test do
+    @doc false
+    def test_handle_sync_result(socket, result, opts \\ []) do
+      handle_sync_result(socket, result, opts)
+    end
+
+    @doc false
+    def test_fetch_projects(client_id, scope) do
+      fetch_projects(client_id, scope)
+    end
+
+    @doc false
+    def test_clients_for_scope(scope) do
+      clients_for_scope(scope)
+    end
+
+    @doc false
+    def test_client_filter_enabled?(scope) do
+      client_filter_enabled?(scope)
+    end
+
+    @doc false
+    def test_normalize_client_id_for_scope(scope, client_id) do
+      normalize_client_id_for_scope(scope, client_id)
+    end
+
+    @doc false
+    def test_parse_client_id(client_id) do
+      parse_client_id(client_id)
+    end
+
+    @doc false
+    def test_sanitized_team_name(name) do
+      sanitized_team_name(name)
+    end
+
+    @doc false
+    def test_format_member_name(member) do
+      format_member_name(member)
+    end
+
+    @doc false
+    def test_presence(value) do
+      presence(value)
+    end
+
+    @doc false
+    def test_prune_collapsed(collapsed, projects) do
+      prune_collapsed(collapsed, projects)
+    end
+
+    @doc false
+    def test_accessible_client_scope(user_or_role) do
+      accessible_client_scope(user_or_role)
+    end
+
+    @doc false
+    def test_client_contracts_path(client) do
+      client_contracts_path(client)
+    end
+
+    @doc false
+    def test_maybe_put_sync_flash(socket, info, show_flash?) do
+      maybe_put_sync_flash(socket, info, show_flash?)
+    end
+
+    @doc false
+    def test_maybe_put_rate_limit_flash(socket, message, show_flash?) do
+      maybe_put_rate_limit_flash(socket, message, show_flash?)
+    end
+
+    @doc false
+    def test_maybe_put_error_flash(socket, reason, show_flash?) do
+      maybe_put_error_flash(socket, reason, show_flash?)
+    end
+
+    @doc false
+    def test_context_suffix(context) do
+      context_suffix(context)
+    end
+
+    @doc false
+    def test_refresh(socket) do
+      refresh(socket)
+    end
+
+    @doc false
+    def test_normalize_sync_info(info) do
+      normalize_sync_info(info)
+    end
+
+    @doc false
+    def test_hydrate_from_cached_sync(socket) do
+      hydrate_from_cached_sync(socket)
+    end
+
+    @doc false
+    def test_format_sync_time(value) do
+      format_sync_time(value)
+    end
+
+    @doc false
+    def test_format_sync_counts(info) do
+      format_sync_counts(info)
+    end
+  end
+
+  @doc "Render the projects table, filters, and sync controls."
   @impl true
   def render(assigns) do
     ~H"""
@@ -779,6 +901,8 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
         </div>
       <% else %>
         <div class="theme-card overflow-x-auto">
+          <% action_col? =
+            @can_manage_projects? or @can_view_contracts? or @can_view_client_contracts? %>
           <% groups = group_projects_by_team(@projects, @team_members || %{}) %>
           <table class="theme-table">
             <thead>
@@ -794,7 +918,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                 </th>
                 <th class="hidden lg:table-cell">Assigned</th>
                 <th>Prod</th>
-                <th :if={@can_manage_projects?}>Actions</th>
+                <th :if={action_col?}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -802,7 +926,7 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                 <% collapsed = MapSet.member?(@collapsed_teams, group.key) %>
                 <% count = length(group.projects) %>
                 <tr class="border-b border-white/5 bg-white/5">
-                  <td colspan={if @can_manage_projects?, do: 6, else: 5}>
+                  <td colspan={if action_col?, do: 6, else: 5}>
                     <button
                       type="button"
                       phx-click="toggle_team"
@@ -903,13 +1027,39 @@ defmodule DashboardSSDWeb.ProjectsLive.Index do
                             <.health_dot status={status} />
                         <% end %>
                       </td>
-                      <td :if={@can_manage_projects?}>
-                        <.link
-                          navigate={~p"/projects/#{p.id}/edit"}
-                          class="text-white/80 transition hover:text-white"
-                        >
-                          Edit
-                        </.link>
+                      <td :if={action_col?}>
+                        <div class="flex flex-wrap items-center gap-2">
+                          <.link
+                            :if={@can_view_client_contracts?}
+                            navigate={client_contracts_path(p)}
+                            class="text-white/80 underline decoration-white/30 decoration-dotted transition hover:decoration-white"
+                          >
+                            Contracts <span class="sr-only">for {p.name}</span>
+                          </.link>
+
+                          <span
+                            :if={@can_view_client_contracts? and @can_view_contracts?}
+                            class="text-white/40"
+                          >
+                            |
+                          </span>
+
+                          <.link
+                            :if={@can_view_contracts? and not is_nil(p.client_id)}
+                            navigate={~p"/projects/contracts?client_id=#{p.client_id}"}
+                            class="text-white/80 underline decoration-white/30 decoration-dotted transition hover:decoration-white"
+                          >
+                            Edit Contracts <span class="sr-only">for {p.name}</span>
+                          </.link>
+
+                          <.link
+                            :if={@can_manage_projects?}
+                            navigate={~p"/projects/#{p.id}/edit"}
+                            class="text-white/80 transition hover:text-white"
+                          >
+                            Edit
+                          </.link>
+                        </div>
                       </td>
                     </tr>
                   <% end %>
