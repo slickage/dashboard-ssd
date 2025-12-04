@@ -31,7 +31,7 @@ config :dashboard_ssd, DashboardSSD.Mailer, adapter: Swoosh.Adapters.Test
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
 
-# Print only warnings and errors during test
+# Ensure logger warnings/errors stay available to capture_log but never hit stdout.
 config :logger, level: :warning
 
 # Initialize plugs at runtime for faster test compilation
