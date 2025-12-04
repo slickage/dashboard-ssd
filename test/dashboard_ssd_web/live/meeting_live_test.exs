@@ -57,6 +57,51 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
     assert html =~ "B"
   end
 
+  test "can save manual agenda text", %{conn: conn} do
+    meeting_id = "evt-save"
+    {:ok, view, _html} = live(conn, ~p"/meetings/#{meeting_id}?mock=1")
+
+    form = element(view, "form[phx-submit='save_agenda_text']")
+    render_submit(form, %{"agenda_text" => "Line 1\nLine 2"})
+
+    # Verify it persisted and is rendered
+    assert DashboardSSD.Repo.aggregate(
+             from(ai in DashboardSSD.Meetings.AgendaItem, where: ai.calendar_event_id == ^meeting_id),
+             :count
+           ) == 1
+
+    html = render(view)
+    assert html =~ "Agenda"
+    assert html =~ "Line 1"
+    assert html =~ "Line 2"
+  end
+
+  test "associate to client, reset event and series", %{conn: conn} do
+    meeting_id = "evt-assoc"
+    series_id = "series-assoc"
+
+    {:ok, client} = DashboardSSD.Clients.create_client(%{name: "ACME"})
+
+    {:ok, view, _html} = live(conn, ~p"/meetings/#{meeting_id}?series_id=#{series_id}&mock=1")
+
+    # Save association to client with persist checked
+    assoc_form = element(view, "form[phx-submit='assoc_save']")
+    render_submit(assoc_form, %{"entity" => "client:#{client.id}", "persist_series" => "on"})
+
+    html = render(view)
+    assert html =~ "Client:"
+    assert html =~ client.name
+
+    # Reset event association (series may still apply)
+    render_click(element(view, "button[phx-click='assoc_reset_event']"))
+    html2 = render(view)
+    assert html2 =~ "Client:" # could still be suggested via series-level persisted association
+
+    # Reset series association, now should be unassigned
+    render_click(element(view, "button[phx-click='assoc_reset_series']"))
+    html3 = render(view)
+    assert html3 =~ "Unassigned"
+  end
   test "shows inline rate limit message in meeting detail", %{conn: conn} do
     # Mock Fireflies to return rate-limited error for any query
     Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
