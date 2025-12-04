@@ -68,4 +68,74 @@ defmodule DashboardSSD.Integrations.GoogleTokenTest do
     assert updated.token == "newtok"
     assert DateTime.compare(updated.expires_at, DateTime.utc_now()) == :gt
   end
+
+  test "returns :no_token when user has no google identity" do
+    user = Repo.insert!(%User{name: "C", email: "c@example.com"})
+    assert {:error, :no_token} = GoogleToken.get_access_token_for_user(user.id)
+  end
+
+  test "missing client env returns error" do
+    user = Repo.insert!(%User{name: "D", email: "d@example.com"})
+    past = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.add(-60, :second)
+
+    Repo.insert!(%ExternalIdentity{
+      user_id: user.id,
+      provider: "google",
+      token: "old",
+      refresh_token: "r1",
+      expires_at: past
+    })
+
+    # Remove client secret to trigger missing env
+    System.delete_env("GOOGLE_CLIENT_SECRET")
+    assert {:error, {:missing_env, "GOOGLE_CLIENT_SECRET"}} = GoogleToken.get_access_token_for_user(user.id)
+  end
+
+  test "refresh returns http error when token endpoint fails" do
+    user = Repo.insert!(%User{name: "E", email: "e@example.com"})
+    past = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.add(-60, :second)
+
+    Repo.insert!(%ExternalIdentity{
+      user_id: user.id,
+      provider: "google",
+      token: "old",
+      refresh_token: "r1",
+      expires_at: past
+    })
+
+    Tesla.Mock.mock(fn _ -> %Tesla.Env{status: 500, body: %{"error" => "boom"}} end)
+    assert {:error, {:http_error, 500, %{"error" => "boom"}}} = GoogleToken.get_access_token_for_user(user.id)
+  end
+
+  test "invalid response (no access_token) returns :invalid_response" do
+    user = Repo.insert!(%User{name: "F", email: "f@example.com"})
+    past = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.add(-60, :second)
+
+    Repo.insert!(%ExternalIdentity{
+      user_id: user.id,
+      provider: "google",
+      token: "old",
+      refresh_token: "r1",
+      expires_at: past
+    })
+
+    Tesla.Mock.mock(fn _ -> %Tesla.Env{status: 200, body: %{"expires_in" => 1800}} end)
+    assert {:error, :invalid_response} = GoogleToken.get_access_token_for_user(user.id)
+  end
+
+  test "refresh with access_token only defaults expiry" do
+    user = Repo.insert!(%User{name: "G", email: "g@example.com"})
+    past = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.add(-60, :second)
+
+    Repo.insert!(%ExternalIdentity{
+      user_id: user.id,
+      provider: "google",
+      token: "old",
+      refresh_token: "r1",
+      expires_at: past
+    })
+
+    Tesla.Mock.mock(fn _ -> %Tesla.Env{status: 200, body: %{"access_token" => "tok-only"}} end)
+    assert {:ok, "tok-only"} = GoogleToken.get_access_token_for_user(user.id)
+  end
 end
