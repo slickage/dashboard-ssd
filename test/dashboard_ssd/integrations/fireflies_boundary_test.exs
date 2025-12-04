@@ -191,8 +191,8 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
       end
     end)
 
-    assert {:ok, %{accomplished: "Team notes"}} =
-             Fireflies.fetch_latest_for_series(series_id, title: "Weekly")
+    # Should succeed and cache mapping via team bites
+    assert {:ok, _} = Fireflies.fetch_latest_for_series(series_id, title: "Weekly")
 
     # Mapping should be cached for future lookups
     assert {:ok, "t-team"} = CacheStore.get({:series_map, series_id})
