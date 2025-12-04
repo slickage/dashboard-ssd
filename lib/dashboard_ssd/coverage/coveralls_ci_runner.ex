@@ -27,9 +27,7 @@ defmodule DashboardSSD.Coverage.CoverallsCiRunner do
             reraise e, __STACKTRACE__
 
           coveralls_report_error?(e) ->
-            mix_shell_info(
-              "Skipping Coveralls upload (#{Exception.message(e)}). Set COVERALLS_REPO_TOKEN to test full pipeline locally."
-            )
+            :ok
 
           true ->
             reraise e, __STACKTRACE__
@@ -109,18 +107,6 @@ defmodule DashboardSSD.Coverage.CoverallsCiRunner do
 
       true ->
         :ok
-    end
-  end
-
-  defp mix_shell_info(message) do
-    if function_exported?(Mix, :shell, 0) do
-      # credo:disable-for-next-line Credo.Check.Refactor.Apply
-      shell = apply(Mix, :shell, [])
-
-      if function_exported?(shell, :info, 1) do
-        # credo:disable-for-next-line Credo.Check.Refactor.Apply
-        apply(shell, :info, [message])
-      end
     end
   end
 
