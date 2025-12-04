@@ -3,7 +3,7 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentTest do
   import Phoenix.LiveViewTest
 
   alias DashboardSSD.Accounts
-  alias DashboardSSD.Meetings.{Agenda, AgendaItem, CacheStore}
+  alias DashboardSSD.Meetings.{AgendaItem, CacheStore}
   alias DashboardSSDWeb.MeetingLive.DetailComponent
 
   setup do
@@ -11,9 +11,7 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentTest do
     :ok
   end
 
-  defp render_detail(assigns) do
-    render_component(&DetailComponent.render/1, assigns)
-  end
+  defp render_detail(assigns), do: render_component(DetailComponent, assigns)
 
   test "derives post from cache and normalizes action_items; manual agenda wins" do
     # Seed cache with bitstring action_items
@@ -44,7 +42,7 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentTest do
 
   test "shows suggested association based on title when none set" do
     # Create a client to match against title
-    {:ok, client_role} = {:ok, Accounts.ensure_role!("client")}
+    _ = Accounts.ensure_role!("client")
     {:ok, _} = DashboardSSD.Clients.create_client(%{name: "Acme Corp"})
     # Create a project too, to ensure client suggestion is visible
     {:ok, _} = DashboardSSD.Projects.create_project(%{name: "Legacy", client_id: nil})
@@ -61,7 +59,5 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentTest do
     # Suggested tag appears in the select option for the matching client
     assert html =~ "(suggested)"
     assert html =~ "Clients"
-    client_role
   end
 end
-
