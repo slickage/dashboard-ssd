@@ -179,7 +179,8 @@ defmodule DashboardSSDWeb.NavigationTest do
     test "sidebar_footer shows version and initials", %{admin: admin} do
       html = render_component(&Navigation.sidebar_footer/1, %{current_user: admin, version: "v0.2.0"})
       assert html =~ "v0.2.0"
-      assert html =~ ">MT<"
+      # Admin name is "Admin" in setup, so initials are "A"
+      assert html =~ ">A<"
     end
   end
 end
