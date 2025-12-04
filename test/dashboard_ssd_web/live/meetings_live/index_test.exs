@@ -66,9 +66,7 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexTest do
   test "tz:set updates formatting and shows Today label when d is today", %{conn: conn} do
     today = Date.utc_today() |> Date.to_iso8601()
     {:ok, view, _} = live(conn, ~p"/meetings?mock=1&d=#{today}")
-
-    # Simulate client tz detection with offset 0 (UTC)
-    render_hook(view, "tz-detector", "tz:set", %{"offset" => 0})
+    # tz_offset defaults to 0 when nil; with d=today, should show Today label
     html = render(view)
     assert html =~ "Today"
   end
