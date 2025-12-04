@@ -62,4 +62,44 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexTest do
     assert html =~ "Agenda"
     assert html =~ "Manual agenda A"
   end
+
+  test "tz:set updates formatting and shows Today label when d is today", %{conn: conn} do
+    today = Date.utc_today() |> Date.to_iso8601()
+    {:ok, view, _} = live(conn, ~p"/meetings?mock=1&d=#{today}")
+
+    # Simulate client tz detection with offset 0 (UTC)
+    render_hook(view, "tz-detector", "tz:set", %{"offset" => 0})
+    html = render(view)
+    assert html =~ "Today"
+  end
+
+  test "meeting link patches include id, series and title params", %{conn: conn} do
+    today = Date.utc_today() |> Date.to_iso8601()
+    {:ok, _view, html} = live(conn, ~p"/meetings?mock=1&d=#{today}")
+
+    # Asserts that the title link contains id, series_id, and title query params
+    assert html =~ "id=evt-1"
+    assert html =~ "series_id=series-alpha"
+    assert html =~ "title="
+  end
+
+  test "association chip shows client name when mapping exists", %{conn: conn} do
+    # Map evt-1 to a client via MeetingAssociation
+    {:ok, client} = DashboardSSD.Clients.create_client(%{name: "Assoc Client"})
+    _assoc =
+      %DashboardSSD.Meetings.MeetingAssociation{}
+      |> DashboardSSD.Meetings.MeetingAssociation.changeset(%{
+        calendar_event_id: "evt-1",
+        client_id: client.id,
+        origin: "manual",
+        persist_series: true
+      })
+      |> DashboardSSD.Repo.insert!()
+
+    today = Date.utc_today() |> Date.to_iso8601()
+    {:ok, _view, html} = live(conn, ~p"/meetings?mock=1&d=#{today}")
+
+    assert html =~ "· Client:"
+    assert html =~ client.name
+  end
 end
