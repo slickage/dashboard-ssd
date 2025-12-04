@@ -61,23 +61,24 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
     # Save client association with persist checked
     render_submit(element(view, "form[phx-submit='assoc_save']"), %{"entity" => "client:#{c.id}", "persist_series" => "on"})
     html = render(view)
-    assert html =~ "Client:"
-    assert html =~ c.name
+    # Client option should now be selected in the dropdown
+    assert html =~ ~s(value="client:#{c.id}" selected)
 
     # Save project association without explicit persist flag (defaults true in component)
     render_submit(element(view, "form[phx-submit='assoc_save']"), %{"entity" => "project:#{p.id}"})
     html2 = render(view)
-    assert html2 =~ "Project:"
-    assert html2 =~ p.name
+    assert html2 =~ ~s(value="project:#{p.id}" selected)
 
     # Reset event association -> unassigned
     render_click(element(view, "button[phx-click='assoc_reset_event']"))
     html3 = render(view)
-    assert html3 =~ "Unassigned"
+    refute html3 =~ ~s(value="client:#{c.id}" selected)
+    refute html3 =~ ~s(value="project:#{p.id}" selected)
 
     # Reset series association -> remains unassigned
     render_click(element(view, "button[phx-click='assoc_reset_series']"))
     html4 = render(view)
-    assert html4 =~ "Unassigned"
+    refute html4 =~ ~s(value="client:#{c.id}" selected)
+    refute html4 =~ ~s(value="project:#{p.id}" selected)
   end
 end
