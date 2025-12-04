@@ -27,7 +27,7 @@ defmodule DashboardSSD.Coverage.CoverallsCiRunner do
             reraise e, __STACKTRACE__
 
           coveralls_report_error?(e) ->
-            Mix.shell().info(
+            mix_shell_info(
               "Skipping Coveralls upload (#{Exception.message(e)}). Set COVERALLS_REPO_TOKEN to test full pipeline locally."
             )
 
@@ -92,8 +92,35 @@ defmodule DashboardSSD.Coverage.CoverallsCiRunner do
 
   defp run_coveralls(args) do
     case Application.get_env(:dashboard_ssd, :coveralls_ci_runner) do
-      nil -> Mix.Task.run("coveralls.multiple", args)
+      nil -> mix_task_run("coveralls.multiple", args)
       runner -> runner.run("coveralls.multiple", args)
+    end
+  end
+
+  defp mix_task_run(task, args) do
+    cond do
+      function_exported?(Mix.Task, :run, 2) ->
+        # credo:disable-for-next-line Credo.Check.Refactor.Apply
+        apply(Mix.Task, :run, [task, args])
+
+      function_exported?(Mix.Task, :run, 1) ->
+        # credo:disable-for-next-line Credo.Check.Refactor.Apply
+        apply(Mix.Task, :run, [task])
+
+      true ->
+        :ok
+    end
+  end
+
+  defp mix_shell_info(message) do
+    if function_exported?(Mix, :shell, 0) do
+      # credo:disable-for-next-line Credo.Check.Refactor.Apply
+      shell = apply(Mix, :shell, [])
+
+      if function_exported?(shell, :info, 1) do
+        # credo:disable-for-next-line Credo.Check.Refactor.Apply
+        apply(shell, :info, [message])
+      end
     end
   end
 

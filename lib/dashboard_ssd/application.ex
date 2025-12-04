@@ -8,6 +8,20 @@ defmodule DashboardSSD.Application do
   """
   use Application
 
+  @on_load :ensure_documented_modules_loaded
+
+  defp ensure_documented_modules_loaded do
+    Application.spec(:dashboard_ssd, :modules)
+    |> case do
+      nil ->
+        :ok
+
+      modules when is_list(modules) ->
+        Enum.each(modules, &Code.ensure_loaded?/1)
+        :ok
+    end
+  end
+
   @impl true
   def start(_type, _args) do
     children = [
