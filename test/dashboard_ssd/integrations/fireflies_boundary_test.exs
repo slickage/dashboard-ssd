@@ -173,7 +173,8 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
             %{"id" => "b-other", "transcript_id" => "t-other", "created_at" => "2024-01-01T00:00:00Z", "created_from" => %{"id" => "series-other"}}
           ]}}}
 
-        is_binary(query) and String.contains?(query, "query Bites") and vars["my_team"] == true ->
+        # Any other Bites query here is the team path; return a matching bite
+        is_binary(query) and String.contains?(query, "query Bites") ->
           # Team path returns a matching bite
           %Tesla.Env{status: 200, body: %{"data" => %{"bites" => [
             %{"id" => "b-team", "transcript_id" => "t-team", "created_at" => "2024-02-01T00:00:00Z", "created_from" => %{"id" => series_id}}
