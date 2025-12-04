@@ -40,6 +40,18 @@ Add tests for the following files (branch-added):
 - Before writing tests for a module, scan the module to enumerate functions and branches; include cases to exercise each function where practical, including error paths and option permutations.
 - Prefer small, deterministic unit tests; use explicit HTTP mocks to reach otherwise unreachable branches (rate limits, non-200s, empty payloads).
 
+### Coverage-Driven Prioritization (coverage.txt)
+
+- Maintain a `coverage.txt` file with per-file coverage for the plan’s files.
+- Before implementing the next tests:
+  - Parse `coverage.txt` and identify the lowest-covered files from this plan.
+  - Select the lowest one (or bottom 2–3 if time allows) and focus efforts there first.
+  - For each selected file:
+    - Scan the module to list public functions (and notable private helpers) and their branches.
+    - Cross-check which functions/branches are currently exercised by existing tests.
+    - Write targeted tests for unexercised functions/branches (including error paths and input permutations) until coverage meaningfully improves.
+  - Re-run `mix test` (and coverage) after each addition to confirm progress.
+
 ## Integrations — FirefliesClient (unit)
 
 Module: `DashboardSSD.Integrations.FirefliesClientTest` (DataCase, async: true)
