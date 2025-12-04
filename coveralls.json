@@ -10,6 +10,6 @@
     "lib/dashboard_ssd/vault.ex",
     "lib/dashboard_ssd/repo.ex",
     "lib/dashboard_ssd_web/components/core_components.ex",
-    "lib/mix/tasks/coveralls_ci.ex"
+    "lib/mix/tasks/.*"
   ]
 }

@@ -54,7 +54,7 @@ defmodule DashboardSSD.Coverage.CoverallsCiRunnerTest do
                       _ref}
     end
 
-    test "logs a friendly message when report upload fails without a token" do
+    test "skips reporting when upload fails without a token" do
       Application.put_env(:dashboard_ssd, :coveralls_ci_runner, ErrorRunner)
       System.delete_env("COVERALLS_REPO_TOKEN")
 
@@ -67,7 +67,7 @@ defmodule DashboardSSD.Coverage.CoverallsCiRunnerTest do
           assert :ok = CoverallsCiRunner.run([])
         end)
 
-      assert output =~ "Skipping Coveralls upload"
+      assert output == ""
     end
 
     test "re-raises upload errors when a repo token is present" do
