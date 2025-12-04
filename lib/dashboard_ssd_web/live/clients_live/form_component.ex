@@ -36,7 +36,7 @@ defmodule DashboardSSDWeb.ClientsLive.FormComponent do
   end
 
   def handle_event("save", %{"client" => params}, socket) do
-    if admin?(socket.assigns.current_user) do
+    if can_manage_clients?(socket.assigns.current_user) do
       save(socket, socket.assigns.action, params)
     else
       {:noreply, put_flash(socket, :error, "You don't have permission to access Clients")}
@@ -71,7 +71,12 @@ defmodule DashboardSSDWeb.ClientsLive.FormComponent do
 
   defp change(client, params \\ %{}), do: Clients.change_client(client, params)
 
-  defp admin?(user), do: Policy.can?(user, :manage, :clients)
+  defp can_manage_clients?(user) do
+    case user do
+      %{role: %{name: "admin"}} -> true
+      _ -> Policy.can?(user, :manage, :clients)
+    end
+  end
 
   @impl true
   def render(assigns) do

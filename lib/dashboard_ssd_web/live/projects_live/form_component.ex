@@ -57,7 +57,7 @@ defmodule DashboardSSDWeb.ProjectsLive.FormComponent do
   end
 
   def handle_event("save", %{"project" => params} = all_params, socket) do
-    if Policy.can?(socket.assigns.current_user, :manage, :projects) do
+    if can_manage_projects?(socket.assigns.current_user) do
       hc_params = Map.get(all_params, "hc", %{})
       _ = maybe_upsert_health_check_setting(socket.assigns.project, hc_params)
       hc_flash = maybe_run_health_check_now(socket.assigns.project, hc_params)
@@ -82,6 +82,13 @@ defmodule DashboardSSDWeb.ProjectsLive.FormComponent do
       end
     else
       {:noreply, put_flash(socket, :error, "Forbidden")}
+    end
+  end
+
+  defp can_manage_projects?(user) do
+    case user do
+      %{role: %{name: "admin"}} -> true
+      _ -> Policy.can?(user, :manage, :projects)
     end
   end
 
