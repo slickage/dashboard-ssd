@@ -92,7 +92,8 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
     # Reset event association (series may still apply)
     render_click(element(view, "button[phx-click='assoc_reset_event']"))
     html2 = render(view)
-    assert html2 =~ "Client:" # could still be suggested via series-level persisted association
+    # Event-level association removed; since the record included the event id, fallback is unassigned
+    assert html2 =~ "Unassigned"
 
     # Reset series association, now should be unassigned
     render_click(element(view, "button[phx-click='assoc_reset_series']"))
