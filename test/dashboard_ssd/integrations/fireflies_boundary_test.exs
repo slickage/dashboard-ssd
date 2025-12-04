@@ -157,4 +157,156 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
     # DB should not have an artifact inserted
     refute Repo.one(from a in FirefliesArtifact, where: a.recurring_series_id == ^series_id)
   end
+
+  test "falls back to team bites when mine has no match and caches mapping" do
+    series_id = "series-fb-team"
+
+    Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+      payload = if is_binary(body), do: Jason.decode!(body), else: body
+      query = Map.get(payload, "query") || Map.get(payload, :query)
+      vars = Map.get(payload, "variables") || %{}
+
+      cond do
+        is_binary(query) and String.contains?(query, "query Bites") and vars["mine"] == true ->
+          # Mine path returns bites that don't match series
+          %Tesla.Env{status: 200, body: %{"data" => %{"bites" => [
+            %{"id" => "b-other", "transcript_id" => "t-other", "created_at" => "2024-01-01T00:00:00Z", "created_from" => %{"id" => "series-other"}}
+          ]}}}
+
+        is_binary(query) and String.contains?(query, "query Bites") and vars["my_team"] == true ->
+          # Team path returns a matching bite
+          %Tesla.Env{status: 200, body: %{"data" => %{"bites" => [
+            %{"id" => "b-team", "transcript_id" => "t-team", "created_at" => "2024-02-01T00:00:00Z", "created_from" => %{"id" => series_id}}
+          ]}}}
+
+        is_binary(query) and String.contains?(query, "query Transcript(") ->
+          %Tesla.Env{status: 200, body: %{"data" => %{"transcript" => %{"summary" => %{"overview" => "Team notes", "action_items" => [], "bullet_gist" => nil}}}}}
+
+        true -> flunk("unexpected request: #{inspect(payload)}")
+      end
+    end)
+
+    assert {:ok, %{accomplished: "Team notes"}} =
+             Fireflies.fetch_latest_for_series(series_id, title: "Weekly")
+
+    # Mapping should be cached for future lookups
+    assert {:ok, "t-team"} = CacheStore.get({:series_map, series_id})
+  end
+
+  test "fallback by title selects best transcript and caches mapping" do
+    series_id = "series-fb-title"
+
+    Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+      payload = if is_binary(body), do: Jason.decode!(body), else: body
+      query = Map.get(payload, "query") || Map.get(payload, :query)
+
+      cond do
+        is_binary(query) and String.contains?(query, "query Bites") ->
+          # No bites for mine/team paths
+          %Tesla.Env{status: 200, body: %{"data" => %{"bites" => []}}}
+
+        is_binary(query) and String.contains?(query, "query Transcripts(") ->
+          # Provide one with matching tokens
+          %Tesla.Env{status: 200, body: %{"data" => %{"transcripts" => [
+            %{"id" => "tid1", "title" => "Some Other"},
+            %{"id" => "tid2", "title" => "Weekly Sync — Project"}
+          ]}}}
+
+        is_binary(query) and String.contains?(query, "query Transcript(") ->
+          %Tesla.Env{status: 200, body: %{"data" => %{"transcript" => %{"summary" => %{"overview" => "Title notes", "action_items" => ["Z"], "bullet_gist" => nil}}}}}
+
+        true -> flunk("unexpected request: #{inspect(payload)}")
+      end
+    end)
+
+    assert {:ok, %{accomplished: "Title notes", action_items: ["Z"]}} =
+             Fireflies.fetch_latest_for_series(series_id, title: "Weekly Sync")
+
+    assert {:ok, "tid2"} = CacheStore.get({:series_map, series_id})
+  end
+
+  test "fallback by title with nil returns empty artifacts" do
+    series_id = "series-fb-empty"
+
+    Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+      payload = if is_binary(body), do: Jason.decode!(body), else: body
+      query = Map.get(payload, "query") || Map.get(payload, :query)
+
+      cond do
+        is_binary(query) and String.contains?(query, "query Bites") ->
+          %Tesla.Env{status: 200, body: %{"data" => %{"bites" => []}}}
+        true -> flunk("unexpected request: #{inspect(payload)}")
+      end
+    end)
+
+    assert {:ok, %{accomplished: nil, action_items: []}} =
+             Fireflies.fetch_latest_for_series(series_id, title: nil)
+  end
+
+  test "persists when only notes or only bullet gist present" do
+    series_notes = "series-notes"
+    series_bullet = "series-bullet"
+
+    # Notes only
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+        payload = if is_binary(body), do: Jason.decode!(body), else: body
+        query = Map.get(payload, "query") || Map.get(payload, :query)
+
+        cond do
+          is_binary(query) and String.contains?(query, "query Bites") ->
+            %Tesla.Env{status: 200, body: %{"data" => %{"bites" => [
+              %{"id" => "b-n", "transcript_id" => "t-n", "created_at" => "2024-01-01T00:00:00Z", "created_from" => %{"id" => series_notes}}
+            ]}}}
+          is_binary(query) and String.contains?(query, "query Transcript(") ->
+            %Tesla.Env{status: 200, body: %{"data" => %{"transcript" => %{"summary" => %{"overview" => "Only notes", "action_items" => [], "bullet_gist" => nil}}}}}
+          true -> flunk("unexpected request: #{inspect(payload)}")
+        end
+    end)
+    assert {:ok, %{accomplished: "Only notes", action_items: []}} =
+             Fireflies.fetch_latest_for_series(series_notes, title: "X")
+
+    # Bullet only
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+        payload = if is_binary(body), do: Jason.decode!(body), else: body
+        query = Map.get(payload, "query") || Map.get(payload, :query)
+
+        cond do
+          is_binary(query) and String.contains?(query, "query Bites") ->
+            %Tesla.Env{status: 200, body: %{"data" => %{"bites" => [
+              %{"id" => "b-b", "transcript_id" => "t-b", "created_at" => "2024-01-01T00:00:00Z", "created_from" => %{"id" => series_bullet}}
+            ]}}}
+          is_binary(query) and String.contains?(query, "query Transcript(") ->
+            %Tesla.Env{status: 200, body: %{"data" => %{"transcript" => %{"summary" => %{"overview" => nil, "action_items" => [], "bullet_gist" => "• Only bullet"}}}}}
+          true -> flunk("unexpected request: #{inspect(payload)}")
+        end
+    end)
+    assert {:ok, %{accomplished: nil, action_items: []}} =
+             Fireflies.fetch_latest_for_series(series_bullet, title: "Y")
+  end
+
+  test "refresh_series deletes cache and refetches" do
+    series_id = "series-refresh"
+    # Seed cache with stale value
+    CacheStore.put({:series_artifacts, series_id}, %{accomplished: "stale", action_items: []}, 60_000)
+
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+        payload = if is_binary(body), do: Jason.decode!(body), else: body
+        query = Map.get(payload, "query") || Map.get(payload, :query)
+
+        cond do
+          is_binary(query) and String.contains?(query, "query Bites") ->
+            %Tesla.Env{status: 200, body: %{"data" => %{"bites" => [
+              %{"id" => "b-r", "transcript_id" => "t-r", "created_at" => "2024-01-01T00:00:00Z", "created_from" => %{"id" => series_id}}
+            ]}}}
+          is_binary(query) and String.contains?(query, "query Transcript(") ->
+            %Tesla.Env{status: 200, body: %{"data" => %{"transcript" => %{"summary" => %{"overview" => "fresh", "action_items" => [], "bullet_gist" => nil}}}}}
+          true -> flunk("unexpected request: #{inspect(payload)}")
+        end
+    end)
+
+    assert {:ok, %{accomplished: "fresh"}} = Fireflies.refresh_series(series_id, title: "Z")
+  end
 end
