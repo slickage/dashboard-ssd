@@ -116,7 +116,11 @@ defmodule DashboardSSDWeb.CalendarComponents do
     # 1=Mon .. 7=Sun
     dow = Date.day_of_week(first)
     count = if dow == 7, do: 0, else: dow
-    if count <= 0, do: [], else: for _ <- 1..count//1, do: :blank
+    if count <= 0 do
+      []
+    else
+      for _ <- 1..count//1, do: :blank
+    end
   end
 
   defp in_range?(%Date{} = d, %Date{} = s, %Date{} = e),
