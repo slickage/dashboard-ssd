@@ -167,17 +167,16 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
       vars = Map.get(payload, "variables") || %{}
 
       cond do
+        # Important: my_team comes first because FirefliesClient defaults mine=true
+        is_binary(query) and String.contains?(query, "query Bites") and vars["my_team"] == true ->
+          %Tesla.Env{status: 200, body: %{"data" => %{"bites" => [
+            %{"id" => "b-team", "transcript_id" => "t-team", "created_at" => "2024-02-01T00:00:00Z", "created_from" => %{"id" => series_id}}
+          ]}}}
+
         is_binary(query) and String.contains?(query, "query Bites") and vars["mine"] == true ->
           # Mine path returns bites that don't match series
           %Tesla.Env{status: 200, body: %{"data" => %{"bites" => [
             %{"id" => "b-other", "transcript_id" => "t-other", "created_at" => "2024-01-01T00:00:00Z", "created_from" => %{"id" => "series-other"}}
-          ]}}}
-
-        # Any other Bites query here is the team path; return a matching bite
-        is_binary(query) and String.contains?(query, "query Bites") ->
-          # Team path returns a matching bite
-          %Tesla.Env{status: 200, body: %{"data" => %{"bites" => [
-            %{"id" => "b-team", "transcript_id" => "t-team", "created_at" => "2024-02-01T00:00:00Z", "created_from" => %{"id" => series_id}}
           ]}}}
 
         is_binary(query) and String.contains?(query, "query Transcript(") ->
