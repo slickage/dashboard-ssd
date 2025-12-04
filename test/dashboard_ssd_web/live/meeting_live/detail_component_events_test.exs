@@ -13,10 +13,10 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
     def mount(_params, _session, socket) do
       {:ok,
        socket
-       |> assign(:meeting_id, "evt-dc")
-       |> assign(:series_id, "series-dc")
-       |> assign(:title, "Weekly – Harness")
-       |> assign(:params, %{"mock" => "1"})}
+       |> Phoenix.Component.assign(:meeting_id, "evt-dc")
+       |> Phoenix.Component.assign(:series_id, "series-dc")
+       |> Phoenix.Component.assign(:title, "Weekly – Harness")
+       |> Phoenix.Component.assign(:params, %{"mock" => "1"})}
     end
 
     def render(assigns) do
@@ -81,4 +81,3 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
     assert html4 =~ "Unassigned"
   end
 end
-
