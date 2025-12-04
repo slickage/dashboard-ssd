@@ -156,4 +156,30 @@ defmodule DashboardSSDWeb.NavigationTest do
       refute html =~ "/analytics"
     end
   end
+
+  describe "helpers and drawers" do
+    test "github_releases_url returns constant" do
+      assert Navigation.github_releases_url() =~ "github.com/slickage/dashboard-ssd/releases"
+    end
+
+    test "mobile_drawer shows version and user info", %{admin: admin} do
+      html =
+        render_component(&Navigation.mobile_drawer/1, %{
+          current_user: admin,
+          current_path: "/",
+          open: true,
+          version: "v9.9.9"
+        })
+
+      assert html =~ "v9.9.9"
+      assert html =~ "DashboardSSD"
+      assert html =~ "Admin"
+    end
+
+    test "sidebar_footer shows version and initials", %{admin: admin} do
+      html = render_component(&Navigation.sidebar_footer/1, %{current_user: admin, version: "v0.2.0"})
+      assert html =~ "v0.2.0"
+      assert html =~ ">MT<"
+    end
+  end
 end
