@@ -64,11 +64,8 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
     form = element(view, "form[phx-submit='save_agenda_text']")
     render_submit(form, %{"agenda_text" => "Line 1\nLine 2"})
 
-    # Verify it persisted and is rendered
-    assert DashboardSSD.Repo.aggregate(
-             from(ai in DashboardSSD.Meetings.AgendaItem, where: ai.calendar_event_id == ^meeting_id),
-             :count
-           ) == 1
+    # Verify it persisted (via context) and is rendered
+    assert DashboardSSD.Meetings.Agenda.list_items(meeting_id) |> length() == 1
 
     html = render(view)
     assert html =~ "Agenda"
