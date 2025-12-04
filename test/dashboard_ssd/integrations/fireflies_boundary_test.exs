@@ -182,6 +182,10 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
         is_binary(query) and String.contains?(query, "query Transcript(") ->
           %Tesla.Env{status: 200, body: %{"data" => %{"transcript" => %{"summary" => %{"overview" => "Team notes", "action_items" => [], "bullet_gist" => nil}}}}}
 
+        # Some code paths may still invoke transcripts search; return empty list
+        is_binary(query) and String.contains?(query, "query Transcripts(") ->
+          %Tesla.Env{status: 200, body: %{"data" => %{"transcripts" => []}}}
+
         true -> flunk("unexpected request: #{inspect(payload)}")
       end
     end)
