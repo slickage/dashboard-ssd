@@ -200,9 +200,7 @@ defmodule DashboardSSD.Integrations.Fireflies do
   """
   @spec search_transcripts_by_title(String.t(), keyword()) :: {:ok, [map()]} | {:error, term()}
   def search_transcripts_by_title(title, opts \\ []) when is_binary(title) do
-    FirefliesClient.list_transcripts(
-      Keyword.merge(opts, keyword: title)
-    )
+    FirefliesClient.list_transcripts(Keyword.merge(opts, keyword: title))
   end
 
   defp pick_best_title_match(list, title) do
@@ -256,6 +254,7 @@ defmodule DashboardSSD.Integrations.Fireflies do
 
   @dialyzer {:nowarn_function, normalize_items_to_list: 1}
   defp normalize_items_to_list(items) when is_list(items), do: items
+
   defp normalize_items_to_list(items) when is_binary(items) do
     items
     |> String.split(["\r\n", "\n"], trim: true)
