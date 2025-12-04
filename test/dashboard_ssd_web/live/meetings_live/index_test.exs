@@ -100,4 +100,10 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexTest do
     assert html =~ "· Client:"
     assert html =~ client.name
   end
+
+  test "calendar highlights days that have meetings (font-bold) with mock=1", %{conn: conn} do
+    {:ok, _view, html} = live(conn, ~p"/meetings?mock=1")
+    # Bold class is applied to days found in has_meetings map
+    assert html =~ "font-bold"
+  end
 end
