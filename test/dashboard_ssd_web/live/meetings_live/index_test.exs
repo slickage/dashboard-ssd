@@ -63,12 +63,12 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexTest do
     assert html =~ "Manual agenda A"
   end
 
-  test "tz:set updates formatting and shows Today label when d is today", %{conn: conn} do
+  test "formats times for same-day events with tz=0", %{conn: conn} do
     today = Date.utc_today() |> Date.to_iso8601()
-    {:ok, view, _} = live(conn, ~p"/meetings?mock=1&d=#{today}")
-    # tz_offset defaults to 0 when nil; with d=today, should show Today label
-    html = render(view)
-    assert html =~ "Today"
+    {:ok, _view, html} = live(conn, ~p"/meetings?mock=1&tz=0&d=#{today}")
+    # First sample event starts at 00:00 UTC and ends at 01:00
+    assert html =~ "00:00"
+    assert html =~ "01:00"
   end
 
   test "meeting link patches include id, series and title params", %{conn: conn} do
