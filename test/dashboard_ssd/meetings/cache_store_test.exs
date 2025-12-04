@@ -37,8 +37,7 @@ defmodule DashboardSSD.Meetings.CacheStoreTest do
   end
 
   defp start_cache do
-    # The underlying cache process is DashboardSSD.KnowledgeBase.Cache
-    unless Process.whereis(DashboardSSD.KnowledgeBase.Cache) do
+    unless Process.whereis(DashboardSSD.Cache) do
       start_supervised!({DashboardSSD.Cache, []})
     end
   end

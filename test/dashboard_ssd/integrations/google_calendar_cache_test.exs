@@ -72,7 +72,7 @@ defmodule DashboardSSD.Integrations.GoogleCalendarCacheTest do
   end
 
   defp start_cache do
-    unless Process.whereis(DashboardSSD.KnowledgeBase.Cache) do
+    unless Process.whereis(DashboardSSD.Cache) do
       start_supervised!({DashboardSSD.Cache, []})
     end
   end
