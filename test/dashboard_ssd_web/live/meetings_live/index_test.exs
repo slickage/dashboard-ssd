@@ -140,6 +140,8 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexTest do
   end
 
   test "meeting modal renders when id param present", %{conn: conn} do
+    # Seed series artifacts to avoid external HTTP in the detail component
+    DashboardSSD.Meetings.CacheStore.put({:series_artifacts, "series-alpha"}, %{accomplished: nil, action_items: []}, :timer.minutes(5))
     today_plus_6 = Date.add(Date.utc_today(), 6) |> Date.to_iso8601()
     # Use d=today+6 so first sample event aligns with today-start window
     {:ok, _view, html} = live(conn, ~p"/meetings?mock=1&d=#{today_plus_6}&id=evt-1&series_id=series-alpha&title=Weekly%20Sync")
