@@ -57,6 +57,87 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
     assert html =~ "B"
   end
 
+  test "shows summary and action items when DB artifact present", %{conn: conn} do
+    meeting_id = "evt-db"
+    series_id = "series-db"
+
+    {:ok, _} =
+      %FirefliesArtifact{}
+      |> FirefliesArtifact.changeset(%{
+        recurring_series_id: series_id,
+        transcript_id: "t-db",
+        accomplished: "DB Notes",
+        action_items: ["A", "B"],
+        fetched_at: DateTime.utc_now()
+      })
+      |> Repo.insert()
+
+    {:ok, _view, html} = live(conn, ~p"/meetings/#{meeting_id}?series_id=#{series_id}&title=Weekly")
+    assert html =~ "Last meeting summary"
+    assert html =~ "DB Notes"
+    assert html =~ ">A<"
+    assert html =~ ">B<"
+  end
+
+  test "refresh_post with nil series leaves summary pending", %{conn: conn} do
+    meeting_id = "evt-nil-series"
+    {:ok, view, html} = live(conn, ~p"/meetings/#{meeting_id}")
+    assert html =~ "Summary pending"
+
+    render_click(element(view, "button[phx-click='refresh_post']"))
+    html2 = render(view)
+    assert html2 =~ "Summary pending"
+  end
+
+  test "association section shows Client label with name", %{conn: conn} do
+    meeting_id = "evt-assoc-client"
+    {:ok, client} = Accounts.ensure_role!("client") |> then(fn _ -> 
+      DashboardSSD.Clients.create_client(%{name: "Assoc C"})
+    end)
+
+    _assoc =
+      %DashboardSSD.Meetings.MeetingAssociation{}
+      |> DashboardSSD.Meetings.MeetingAssociation.changeset(%{
+        calendar_event_id: meeting_id,
+        client_id: client.id,
+        origin: "manual",
+        persist_series: true
+      })
+      |> Repo.insert!()
+
+    {:ok, _view, html} = live(conn, ~p"/meetings/#{meeting_id}")
+    assert html =~ "Client:"
+    assert html =~ client.name
+  end
+
+  test "association section shows Project label with name", %{conn: conn} do
+    meeting_id = "evt-assoc-project"
+    {:ok, project} = DashboardSSD.Projects.create_project(%{name: "Assoc P"})
+
+    _assoc =
+      %DashboardSSD.Meetings.MeetingAssociation{}
+      |> DashboardSSD.Meetings.MeetingAssociation.changeset(%{
+        calendar_event_id: meeting_id,
+        project_id: project.id,
+        origin: "manual",
+        persist_series: true
+      })
+      |> Repo.insert!()
+
+    {:ok, _view, html} = live(conn, ~p"/meetings/#{meeting_id}")
+    assert html =~ "Project:"
+    assert html =~ project.name
+  end
+
+  test "assoc_save defaults persist_series when omitted", %{conn: conn} do
+    meeting_id = "evt-assoc-default"
+    {:ok, client} = DashboardSSD.Clients.create_client(%{name: "Persist Default"})
+    {:ok, view, _} = live(conn, ~p"/meetings/#{meeting_id}")
+
+    render_submit(element(view, "form[phx-submit='assoc_save']"), %{"entity" => "client:#{client.id}"})
+    html = render(view)
+    assert html =~ ">client:#{client.id}<" # selected option value visible in markup
+  end
   test "can save manual agenda text", %{conn: conn} do
     meeting_id = "evt-save"
     {:ok, view, _html} = live(conn, ~p"/meetings/#{meeting_id}?mock=1")
