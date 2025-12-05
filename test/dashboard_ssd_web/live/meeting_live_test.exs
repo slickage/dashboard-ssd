@@ -138,7 +138,7 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
 
     render_submit(element(view, "form[phx-submit='assoc_save']"), %{"entity" => "client:#{client.id}"})
     html = render(view)
-    assert html =~ ">client:#{client.id}<" # selected option value visible in markup
+    assert html =~ ~s(value="client:#{client.id}" selected)
   end
   test "can save manual agenda text", %{conn: conn} do
     meeting_id = "evt-save"
