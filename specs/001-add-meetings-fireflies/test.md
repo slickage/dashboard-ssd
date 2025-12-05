@@ -52,6 +52,15 @@ Add tests for the following files (branch-added):
     - Write targeted tests for unexercised functions/branches (including error paths and input permutations) until coverage meaningfully improves.
   - Re-run `mix test` (and coverage) after each addition to confirm progress.
 
+### Line-Level Gaps (no_hit.txt)
+
+- Maintain a `no_hit.txt` file listing file paths and line numbers with zero hits (from coveralls.json parsing).
+- Before implementing tests for a selected low-coverage file:
+  - Open `no_hit.txt` and filter entries for that file.
+  - For each no-hit line, map it to the nearest function/branch and identify a scenario to execute it (e.g., specific params, error path, edge case).
+  - Write focused tests to hit those lines (avoid over-broad assertions; prefer precise triggers).
+  - Validate locally with `mix test`; re-check coverage to ensure lines are now exercised.
+
 ## Integrations — FirefliesClient (unit)
 
 Module: `DashboardSSD.Integrations.FirefliesClientTest` (DataCase, async: true)
