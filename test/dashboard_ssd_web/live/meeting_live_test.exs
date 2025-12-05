@@ -4,6 +4,8 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
 
   alias DashboardSSD.Accounts
   alias DashboardSSD.Meetings.CacheStore
+  alias DashboardSSD.Meetings.FirefliesArtifact
+  alias DashboardSSD.Repo
 
   setup %{conn: conn} do
     prev_integrations = Application.get_env(:dashboard_ssd, :integrations)
