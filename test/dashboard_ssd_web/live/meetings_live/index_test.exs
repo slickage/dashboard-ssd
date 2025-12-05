@@ -120,4 +120,31 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexTest do
     # Bold class is applied to days found in has_meetings map
     assert html =~ "font-bold"
   end
+
+  test "client_show and project_show modals render when params present", %{conn: conn} do
+    {:ok, c} = DashboardSSD.Clients.create_client(%{name: "Modal Client"})
+    {:ok, p} = DashboardSSD.Projects.create_project(%{name: "Modal Project"})
+
+    {:ok, _view, html} = live(conn, ~p"/meetings?mock=1&client_id=#{c.id}")
+    assert html =~ "client-read-modal"
+
+    {:ok, _view2, html2} = live(conn, ~p"/meetings?mock=1&project_id=#{p.id}")
+    assert html2 =~ "project-read-modal"
+  end
+
+  test "prev from January wraps to December and next from December wraps to January", %{conn: conn} do
+    # Use a known January and December anchor to test wrap-around
+    jan = Date.new!(2025, 1, 7) |> Date.to_iso8601()
+    dec = Date.new!(2025, 12, 7) |> Date.to_iso8601()
+
+    # Prev from Jan → Dec of previous year
+    {:ok, view, _} = live(conn, ~p"/meetings?mock=1&d=#{jan}")
+    render_click(element(view, "button[phx-click='cal_prev_month']"))
+    assert_patch(view, ~p"/meetings?mock=1&d=2024-12-07")
+
+    # Next from Dec → Jan of next year
+    {:ok, view2, _} = live(conn, ~p"/meetings?mock=1&d=#{dec}")
+    render_click(element(view2, "button[phx-click='cal_next_month']"))
+    assert_patch(view2, ~p"/meetings?mock=1&d=2026-01-07")
+  end
 end
