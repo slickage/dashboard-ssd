@@ -10,6 +10,7 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
 
   defmodule HarnessLV do
     use Phoenix.LiveView
+
     def mount(_params, _session, socket) do
       {:ok,
        socket
@@ -43,7 +44,9 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
   test "save_agenda_text persists manual agenda", %{conn: conn} do
     {:ok, view, _html} = live_isolated(conn, HarnessLV)
 
-    render_submit(element(view, "form[phx-submit='save_agenda_text']"), %{"agenda_text" => "One\nTwo"})
+    render_submit(element(view, "form[phx-submit='save_agenda_text']"), %{
+      "agenda_text" => "One\nTwo"
+    })
 
     assert Agenda.list_items("evt-dc") |> length() == 1
     html = render(view)
@@ -59,13 +62,18 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
     {:ok, view, _} = live_isolated(conn, HarnessLV)
 
     # Save client association with persist checked
-    render_submit(element(view, "form[phx-submit='assoc_save']"), %{"entity" => "client:#{c.id}", "persist_series" => "on"})
+    render_submit(element(view, "form[phx-submit='assoc_save']"), %{
+      "entity" => "client:#{c.id}",
+      "persist_series" => "on"
+    })
+
     html = render(view)
     # Client option should now be selected in the dropdown
     assert html =~ ~s(value="client:#{c.id}" selected)
 
     # Save project association without explicit persist flag (defaults true in component)
     render_submit(element(view, "form[phx-submit='assoc_save']"), %{"entity" => "project:#{p.id}"})
+
     html2 = render(view)
     assert html2 =~ ~s(value="project:#{p.id}" selected)
 

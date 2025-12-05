@@ -47,4 +47,3 @@ defmodule DashboardSSDWeb.DateHelpersTest do
     assert DateHelpers.today?(now, 0)
   end
 end
-

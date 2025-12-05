@@ -169,24 +169,62 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
       cond do
         # Important: my_team comes first because FirefliesClient defaults mine=true
         is_binary(query) and String.contains?(query, "query Bites") and vars["my_team"] == true ->
-          %Tesla.Env{status: 200, body: %{"data" => %{"bites" => [
-            %{"id" => "b-team", "transcript_id" => "t-team", "created_at" => "2024-02-01T00:00:00Z", "created_from" => %{"id" => series_id}}
-          ]}}}
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "data" => %{
+                "bites" => [
+                  %{
+                    "id" => "b-team",
+                    "transcript_id" => "t-team",
+                    "created_at" => "2024-02-01T00:00:00Z",
+                    "created_from" => %{"id" => series_id}
+                  }
+                ]
+              }
+            }
+          }
 
         is_binary(query) and String.contains?(query, "query Bites") and vars["mine"] == true ->
           # Mine path returns bites that don't match series
-          %Tesla.Env{status: 200, body: %{"data" => %{"bites" => [
-            %{"id" => "b-other", "transcript_id" => "t-other", "created_at" => "2024-01-01T00:00:00Z", "created_from" => %{"id" => "series-other"}}
-          ]}}}
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "data" => %{
+                "bites" => [
+                  %{
+                    "id" => "b-other",
+                    "transcript_id" => "t-other",
+                    "created_at" => "2024-01-01T00:00:00Z",
+                    "created_from" => %{"id" => "series-other"}
+                  }
+                ]
+              }
+            }
+          }
 
         is_binary(query) and String.contains?(query, "query Transcript(") ->
-          %Tesla.Env{status: 200, body: %{"data" => %{"transcript" => %{"summary" => %{"overview" => "Team notes", "action_items" => [], "bullet_gist" => nil}}}}}
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "data" => %{
+                "transcript" => %{
+                  "summary" => %{
+                    "overview" => "Team notes",
+                    "action_items" => [],
+                    "bullet_gist" => nil
+                  }
+                }
+              }
+            }
+          }
 
         # Some code paths may still invoke transcripts search; return empty list
         is_binary(query) and String.contains?(query, "query Transcripts(") ->
           %Tesla.Env{status: 200, body: %{"data" => %{"transcripts" => []}}}
 
-        true -> flunk("unexpected request: #{inspect(payload)}")
+        true ->
+          flunk("unexpected request: #{inspect(payload)}")
       end
     end)
 
@@ -211,15 +249,36 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
 
         is_binary(query) and String.contains?(query, "query Transcripts(") ->
           # Provide one with matching tokens
-          %Tesla.Env{status: 200, body: %{"data" => %{"transcripts" => [
-            %{"id" => "tid1", "title" => "Some Other"},
-            %{"id" => "tid2", "title" => "Weekly Sync — Project"}
-          ]}}}
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "data" => %{
+                "transcripts" => [
+                  %{"id" => "tid1", "title" => "Some Other"},
+                  %{"id" => "tid2", "title" => "Weekly Sync — Project"}
+                ]
+              }
+            }
+          }
 
         is_binary(query) and String.contains?(query, "query Transcript(") ->
-          %Tesla.Env{status: 200, body: %{"data" => %{"transcript" => %{"summary" => %{"overview" => "Title notes", "action_items" => ["Z"], "bullet_gist" => nil}}}}}
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "data" => %{
+                "transcript" => %{
+                  "summary" => %{
+                    "overview" => "Title notes",
+                    "action_items" => ["Z"],
+                    "bullet_gist" => nil
+                  }
+                }
+              }
+            }
+          }
 
-        true -> flunk("unexpected request: #{inspect(payload)}")
+        true ->
+          flunk("unexpected request: #{inspect(payload)}")
       end
     end)
 
@@ -239,7 +298,9 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
       cond do
         is_binary(query) and String.contains?(query, "query Bites") ->
           %Tesla.Env{status: 200, body: %{"data" => %{"bites" => []}}}
-        true -> flunk("unexpected request: #{inspect(payload)}")
+
+        true ->
+          flunk("unexpected request: #{inspect(payload)}")
       end
     end)
 
@@ -259,14 +320,43 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
 
         cond do
           is_binary(query) and String.contains?(query, "query Bites") ->
-            %Tesla.Env{status: 200, body: %{"data" => %{"bites" => [
-              %{"id" => "b-n", "transcript_id" => "t-n", "created_at" => "2024-01-01T00:00:00Z", "created_from" => %{"id" => series_notes}}
-            ]}}}
+            %Tesla.Env{
+              status: 200,
+              body: %{
+                "data" => %{
+                  "bites" => [
+                    %{
+                      "id" => "b-n",
+                      "transcript_id" => "t-n",
+                      "created_at" => "2024-01-01T00:00:00Z",
+                      "created_from" => %{"id" => series_notes}
+                    }
+                  ]
+                }
+              }
+            }
+
           is_binary(query) and String.contains?(query, "query Transcript(") ->
-            %Tesla.Env{status: 200, body: %{"data" => %{"transcript" => %{"summary" => %{"overview" => "Only notes", "action_items" => [], "bullet_gist" => nil}}}}}
-          true -> flunk("unexpected request: #{inspect(payload)}")
+            %Tesla.Env{
+              status: 200,
+              body: %{
+                "data" => %{
+                  "transcript" => %{
+                    "summary" => %{
+                      "overview" => "Only notes",
+                      "action_items" => [],
+                      "bullet_gist" => nil
+                    }
+                  }
+                }
+              }
+            }
+
+          true ->
+            flunk("unexpected request: #{inspect(payload)}")
         end
     end)
+
     assert {:ok, %{accomplished: "Only notes", action_items: []}} =
              Fireflies.fetch_latest_for_series(series_notes, title: "X")
 
@@ -278,14 +368,43 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
 
         cond do
           is_binary(query) and String.contains?(query, "query Bites") ->
-            %Tesla.Env{status: 200, body: %{"data" => %{"bites" => [
-              %{"id" => "b-b", "transcript_id" => "t-b", "created_at" => "2024-01-01T00:00:00Z", "created_from" => %{"id" => series_bullet}}
-            ]}}}
+            %Tesla.Env{
+              status: 200,
+              body: %{
+                "data" => %{
+                  "bites" => [
+                    %{
+                      "id" => "b-b",
+                      "transcript_id" => "t-b",
+                      "created_at" => "2024-01-01T00:00:00Z",
+                      "created_from" => %{"id" => series_bullet}
+                    }
+                  ]
+                }
+              }
+            }
+
           is_binary(query) and String.contains?(query, "query Transcript(") ->
-            %Tesla.Env{status: 200, body: %{"data" => %{"transcript" => %{"summary" => %{"overview" => nil, "action_items" => [], "bullet_gist" => "• Only bullet"}}}}}
-          true -> flunk("unexpected request: #{inspect(payload)}")
+            %Tesla.Env{
+              status: 200,
+              body: %{
+                "data" => %{
+                  "transcript" => %{
+                    "summary" => %{
+                      "overview" => nil,
+                      "action_items" => [],
+                      "bullet_gist" => "• Only bullet"
+                    }
+                  }
+                }
+              }
+            }
+
+          true ->
+            flunk("unexpected request: #{inspect(payload)}")
         end
     end)
+
     assert {:ok, %{accomplished: nil, action_items: []}} =
              Fireflies.fetch_latest_for_series(series_bullet, title: "Y")
   end
@@ -293,7 +412,11 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
   test "refresh_series deletes cache and refetches" do
     series_id = "series-refresh"
     # Seed cache with stale value
-    CacheStore.put({:series_artifacts, series_id}, %{accomplished: "stale", action_items: []}, 60_000)
+    CacheStore.put(
+      {:series_artifacts, series_id},
+      %{accomplished: "stale", action_items: []},
+      60_000
+    )
 
     Tesla.Mock.mock(fn
       %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
@@ -302,12 +425,40 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
 
         cond do
           is_binary(query) and String.contains?(query, "query Bites") ->
-            %Tesla.Env{status: 200, body: %{"data" => %{"bites" => [
-              %{"id" => "b-r", "transcript_id" => "t-r", "created_at" => "2024-01-01T00:00:00Z", "created_from" => %{"id" => series_id}}
-            ]}}}
+            %Tesla.Env{
+              status: 200,
+              body: %{
+                "data" => %{
+                  "bites" => [
+                    %{
+                      "id" => "b-r",
+                      "transcript_id" => "t-r",
+                      "created_at" => "2024-01-01T00:00:00Z",
+                      "created_from" => %{"id" => series_id}
+                    }
+                  ]
+                }
+              }
+            }
+
           is_binary(query) and String.contains?(query, "query Transcript(") ->
-            %Tesla.Env{status: 200, body: %{"data" => %{"transcript" => %{"summary" => %{"overview" => "fresh", "action_items" => [], "bullet_gist" => nil}}}}}
-          true -> flunk("unexpected request: #{inspect(payload)}")
+            %Tesla.Env{
+              status: 200,
+              body: %{
+                "data" => %{
+                  "transcript" => %{
+                    "summary" => %{
+                      "overview" => "fresh",
+                      "action_items" => [],
+                      "bullet_gist" => nil
+                    }
+                  }
+                }
+              }
+            }
+
+          true ->
+            flunk("unexpected request: #{inspect(payload)}")
         end
     end)
 

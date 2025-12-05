@@ -116,6 +116,7 @@ defmodule DashboardSSDWeb.CalendarComponents do
     # 1=Mon .. 7=Sun
     dow = Date.day_of_week(first)
     count = if dow == 7, do: 0, else: dow
+
     if count <= 0 do
       []
     else

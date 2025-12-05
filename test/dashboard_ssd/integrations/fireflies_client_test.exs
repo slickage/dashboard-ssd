@@ -121,7 +121,12 @@ defmodule DashboardSSD.Integrations.FirefliesClientTest do
   test "list_transcripts builds variables (clamp, sanitize, configured user)" do
     # Provide a configured user id to prefer over mine when not explicitly set
     prev = Application.get_env(:dashboard_ssd, :integrations)
-    Application.put_env(:dashboard_ssd, :integrations, Keyword.merge(prev || [], fireflies_user_id: "user-123"))
+
+    Application.put_env(
+      :dashboard_ssd,
+      :integrations,
+      Keyword.merge(prev || [], fireflies_user_id: "user-123")
+    )
 
     on_exit(fn ->
       if prev,
@@ -171,22 +176,38 @@ defmodule DashboardSSD.Integrations.FirefliesClientTest do
 
     # GraphQL error mapping (rate limited)
     Tesla.Mock.mock(fn _ ->
-      %Tesla.Env{status: 200, body: %{"errors" => [%{"code" => "too_many_requests", "message" => "Burst"}]}}
+      %Tesla.Env{
+        status: 200,
+        body: %{"errors" => [%{"code" => "too_many_requests", "message" => "Burst"}]}
+      }
     end)
+
     assert {:error, {:rate_limited, "Burst"}} = FirefliesClient.get_bite("b2")
   end
 
   test "list_users returns ok and graphql errors" do
-    Tesla.Mock.mock(fn _ -> %Tesla.Env{status: 200, body: %{"data" => %{"users" => [%{"user_id" => "u1"}]}}} end)
+    Tesla.Mock.mock(fn _ ->
+      %Tesla.Env{status: 200, body: %{"data" => %{"users" => [%{"user_id" => "u1"}]}}}
+    end)
+
     assert {:ok, [%{"user_id" => "u1"}]} = FirefliesClient.list_users()
 
-    Tesla.Mock.mock(fn _ -> %Tesla.Env{status: 200, body: %{"errors" => [%{"message" => "bad"}]}} end)
+    Tesla.Mock.mock(fn _ ->
+      %Tesla.Env{status: 200, body: %{"errors" => [%{"message" => "bad"}]}}
+    end)
+
     assert {:error, {:graphql_error, _}} = FirefliesClient.list_users()
   end
 
   test "missing token returns error" do
     prev = Application.get_env(:dashboard_ssd, :integrations)
-    Application.put_env(:dashboard_ssd, :integrations, Keyword.delete(prev || [], :fireflies_api_token))
+
+    Application.put_env(
+      :dashboard_ssd,
+      :integrations,
+      Keyword.delete(prev || [], :fireflies_api_token)
+    )
+
     prev_env = System.get_env("FIREFLIES_API_TOKEN")
     System.delete_env("FIREFLIES_API_TOKEN")
 
@@ -194,6 +215,7 @@ defmodule DashboardSSD.Integrations.FirefliesClientTest do
       if prev,
         do: Application.put_env(:dashboard_ssd, :integrations, prev),
         else: Application.delete_env(:dashboard_ssd, :integrations)
+
       if prev_env, do: System.put_env("FIREFLIES_API_TOKEN", prev_env)
     end)
 
@@ -210,6 +232,7 @@ defmodule DashboardSSD.Integrations.FirefliesClientTest do
 
   test "get_transcript_summary returns defaults when missing data" do
     Tesla.Mock.mock(fn _ -> %Tesla.Env{status: 200, body: %{"data" => %{"foo" => "bar"}}} end)
+
     assert {:ok, %{notes: nil, action_items: [], bullet_gist: nil}} =
              FirefliesClient.get_transcript_summary("t-missing")
   end

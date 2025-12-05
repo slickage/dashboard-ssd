@@ -35,8 +35,16 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexTest do
 
   test "prev/next month buttons patch d param anchored to month start", %{conn: conn} do
     today = Date.utc_today()
-    prev_anchor = if today.month == 1, do: %Date{year: today.year - 1, month: 12, day: 1}, else: %Date{year: today.year, month: today.month - 1, day: 1}
-    next_anchor = if today.month == 12, do: %Date{year: today.year + 1, month: 1, day: 1}, else: %Date{year: today.year, month: today.month + 1, day: 1}
+
+    prev_anchor =
+      if today.month == 1,
+        do: %Date{year: today.year - 1, month: 12, day: 1},
+        else: %Date{year: today.year, month: today.month - 1, day: 1}
+
+    next_anchor =
+      if today.month == 12,
+        do: %Date{year: today.year + 1, month: 1, day: 1},
+        else: %Date{year: today.year, month: today.month + 1, day: 1}
 
     prev_d = Date.add(prev_anchor, 6) |> Date.to_iso8601()
     next_d = Date.add(next_anchor, 6) |> Date.to_iso8601()
@@ -55,7 +63,12 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexTest do
   test "agenda summary shows manual text when present", %{conn: conn} do
     # Seed a manual agenda item for the first sample meeting id "evt-1"
     %AgendaItem{}
-    |> AgendaItem.changeset(%{calendar_event_id: "evt-1", text: "Manual agenda A", position: 0, source: "manual"})
+    |> AgendaItem.changeset(%{
+      calendar_event_id: "evt-1",
+      text: "Manual agenda A",
+      position: 0,
+      source: "manual"
+    })
     |> Repo.insert!()
 
     {:ok, _view, html} = live(conn, ~p"/meetings?mock=1")
@@ -84,6 +97,7 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexTest do
   test "association chip shows client name when mapping exists", %{conn: conn} do
     # Map evt-1 to a client via MeetingAssociation
     {:ok, client} = DashboardSSD.Clients.create_client(%{name: "Assoc Client"})
+
     _assoc =
       %DashboardSSD.Meetings.MeetingAssociation{}
       |> DashboardSSD.Meetings.MeetingAssociation.changeset(%{

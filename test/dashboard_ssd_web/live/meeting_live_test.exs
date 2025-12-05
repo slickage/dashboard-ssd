@@ -92,6 +92,7 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
     # Reset event association (series may still apply)
     render_click(element(view, "button[phx-click='assoc_reset_event']"))
     html2 = render(view)
+
     # Event-level association removed; since the record included the event id, fallback is unassigned
     assert html2 =~ "Unassigned"
 
@@ -100,6 +101,7 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
     html3 = render(view)
     assert html3 =~ "Unassigned"
   end
+
   test "shows inline rate limit message in meeting detail", %{conn: conn} do
     # Mock Fireflies to return rate-limited error for any query
     Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql"} ->

@@ -16,12 +16,21 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentTest do
   test "derives post from cache and normalizes action_items; manual agenda wins" do
     # Seed cache with bitstring action_items
     :ok =
-      CacheStore.put({:series_artifacts, "series-1"}, %{accomplished: "Notes", action_items: "A\nB"}, 60_000)
+      CacheStore.put(
+        {:series_artifacts, "series-1"},
+        %{accomplished: "Notes", action_items: "A\nB"},
+        60_000
+      )
 
     # Seed manual agenda
     {:ok, _} =
       %AgendaItem{}
-      |> AgendaItem.changeset(%{calendar_event_id: "evt-1", text: "Manual", position: 0, source: "manual"})
+      |> AgendaItem.changeset(%{
+        calendar_event_id: "evt-1",
+        text: "Manual",
+        position: 0,
+        source: "manual"
+      })
       |> DashboardSSD.Repo.insert()
 
     html =

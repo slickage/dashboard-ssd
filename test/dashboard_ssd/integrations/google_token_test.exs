@@ -88,7 +88,9 @@ defmodule DashboardSSD.Integrations.GoogleTokenTest do
 
     # Remove client secret to trigger missing env
     System.delete_env("GOOGLE_CLIENT_SECRET")
-    assert {:error, {:missing_env, "GOOGLE_CLIENT_SECRET"}} = GoogleToken.get_access_token_for_user(user.id)
+
+    assert {:error, {:missing_env, "GOOGLE_CLIENT_SECRET"}} =
+             GoogleToken.get_access_token_for_user(user.id)
   end
 
   test "refresh returns http error when token endpoint fails" do
@@ -104,7 +106,9 @@ defmodule DashboardSSD.Integrations.GoogleTokenTest do
     })
 
     Tesla.Mock.mock(fn _ -> %Tesla.Env{status: 500, body: %{"error" => "boom"}} end)
-    assert {:error, {:http_error, 500, %{"error" => "boom"}}} = GoogleToken.get_access_token_for_user(user.id)
+
+    assert {:error, {:http_error, 500, %{"error" => "boom"}}} =
+             GoogleToken.get_access_token_for_user(user.id)
   end
 
   test "invalid response (no access_token) returns :invalid_response" do
