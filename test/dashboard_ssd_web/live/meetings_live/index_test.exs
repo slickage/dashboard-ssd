@@ -121,6 +121,40 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexTest do
     assert html =~ "font-bold"
   end
 
+  test "association chip shows project name when mapping exists", %{conn: conn} do
+    {:ok, project} = DashboardSSD.Projects.create_project(%{name: "Assoc Project"})
+    _assoc =
+      %DashboardSSD.Meetings.MeetingAssociation{}
+      |> DashboardSSD.Meetings.MeetingAssociation.changeset(%{
+        calendar_event_id: "evt-2",
+        project_id: project.id,
+        origin: "manual",
+        persist_series: true
+      })
+      |> DashboardSSD.Repo.insert!()
+
+    today = Date.utc_today() |> Date.to_iso8601()
+    {:ok, _view, html} = live(conn, ~p"/meetings?mock=1&d=#{today}")
+    assert html =~ "· Project:"
+    assert html =~ project.name
+  end
+
+  test "meeting modal renders when id param present", %{conn: conn} do
+    today_plus_6 = Date.add(Date.utc_today(), 6) |> Date.to_iso8601()
+    # Use d=today+6 so first sample event aligns with today-start window
+    {:ok, _view, html} = live(conn, ~p"/meetings?mock=1&d=#{today_plus_6}&id=evt-1&series_id=series-alpha&title=Weekly%20Sync")
+    assert html =~ "meeting-modal"
+  end
+
+  test "time formatting uses full datetime when range crosses local day", %{conn: conn} do
+    # Select d=today+6 so first event aligns to start of window; tz=+1380 (~+23h) crosses day
+    today_plus_6 = Date.add(Date.utc_today(), 6) |> Date.to_iso8601()
+    year = Date.utc_today().year |> Integer.to_string()
+    {:ok, _view, html} = live(conn, ~p"/meetings?mock=1&d=#{today_plus_6}&tz=1380")
+    assert html =~ " – "
+    assert html =~ year
+  end
+
   test "client_show and project_show modals render when params present", %{conn: conn} do
     {:ok, c} = DashboardSSD.Clients.create_client(%{name: "Modal Client"})
     {:ok, p} = DashboardSSD.Projects.create_project(%{name: "Modal Project"})
