@@ -3,9 +3,11 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
   import Phoenix.LiveViewTest
 
   alias DashboardSSD.Accounts
+  alias DashboardSSD.Meetings.Agenda
   alias DashboardSSD.Meetings.CacheStore
   alias DashboardSSD.Meetings.FirefliesArtifact
   alias DashboardSSD.Repo
+  alias Phoenix.LiveView.Socket
 
   setup %{conn: conn} do
     prev_integrations = Application.get_env(:dashboard_ssd, :integrations)
@@ -139,6 +141,136 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
     render_submit(element(view, "form[phx-submit='assoc_save']"), %{"entity" => "client:#{client.id}"})
     html = render(view)
     assert html =~ ~s(value="client:#{client.id}" selected)
+  end
+
+  test "assoc_save invalid entity and unknown leaves unassigned", %{conn: conn} do
+    meeting_id = "evt-assoc-invalid"
+    {:ok, view, html0} = live(conn, ~p"/meetings/#{meeting_id}?mock=1")
+    assert html0 =~ "Unassigned"
+
+    # Invalid parse for client id (non-integer)
+    render_submit(element(view, "form[phx-submit='assoc_save']"), %{"entity" => "client:abc"})
+    html1 = render(view)
+    assert html1 =~ "Unassigned"
+
+    # Unknown entity prefix
+    render_submit(element(view, "form[phx-submit='assoc_save']"), %{"entity" => "foo:1"})
+    html2 = render(view)
+    assert html2 =~ "Unassigned"
+  end
+
+  test "assoc_apply_guess sets association for client and project (unit)" do
+    meeting_id = "evt-apply-guess"
+    series_id = "series-apply-guess"
+    {:ok, client} = DashboardSSD.Clients.create_client(%{name: "Auto C"})
+    {:ok, project} = DashboardSSD.Projects.create_project(%{name: "Auto P"})
+
+    base_socket = %Socket{assigns: %{meeting_id: meeting_id, series_id: series_id, manual_agenda: []}}
+
+    {:noreply, s1} = DashboardSSDWeb.MeetingLive.Index.handle_event("assoc_apply_guess", %{"entity" => "client:#{client.id}"}, base_socket)
+    assert s1.assigns.assoc.client_id == client.id
+
+    {:noreply, s2} = DashboardSSDWeb.MeetingLive.Index.handle_event("assoc_apply_guess", %{"entity" => "project:#{project.id}"}, base_socket)
+    assert s2.assigns.assoc.project_id == project.id
+  end
+
+  test "tz:set updates tz_offset assign (unit)" do
+    s0 = %Socket{assigns: %{}}
+    {:noreply, s1} = DashboardSSDWeb.MeetingLive.Index.handle_event("tz:set", %{"offset" => 0}, s0)
+    assert s1.assigns.tz_offset == 0
+
+    {:noreply, s2} = DashboardSSDWeb.MeetingLive.Index.handle_event("tz:set", %{"offset" => "123"}, s0)
+    assert s2.assigns.tz_offset == 123
+
+    {:noreply, s3} = DashboardSSDWeb.MeetingLive.Index.handle_event("tz:set", %{"offset" => :bad}, s0)
+    assert s3.assigns.tz_offset == 0
+  end
+
+  describe "manual agenda item events (unit)" do
+    test "edit/save/move/delete flows update DB and assigns" do
+      meeting_id = "evt-items"
+      # Seed items via context
+      :ok = Agenda.replace_manual_text(meeting_id, "A\nB\nC")
+      items0 = Agenda.list_items(meeting_id)
+      assert length(items0) >= 1
+      # Note: replace_manual_text may store a single text row or multiple rows depending on implementation
+
+      # Normalize to at least two items for move tests
+      if length(items0) == 1 do
+        # Append another row to ensure we can move
+        {:ok, _} = DashboardSSD.Meetings.AgendaItem.changeset(%DashboardSSD.Meetings.AgendaItem{}, %{calendar_event_id: meeting_id, text: "B", position: 2}) |> Repo.insert()
+      end
+
+      items = Agenda.list_items(meeting_id)
+      s0 = %Socket{assigns: %{meeting_id: meeting_id, series_id: nil, manual_agenda: items}}
+
+      # edit_item success
+      first = hd(items)
+      {:noreply, s1} = DashboardSSDWeb.MeetingLive.Index.handle_event("edit_item", %{"id" => to_string(first.id)}, s0)
+      assert s1.assigns.editing_id == first.id
+      assert is_binary(s1.assigns.editing_text)
+
+      # edit_item with missing id
+      {:noreply, s1b} = DashboardSSDWeb.MeetingLive.Index.handle_event("edit_item", %{"id" => to_string(first.id + 999_999)}, s0)
+      assert Map.get(s1b.assigns, :editing_id) == nil
+
+      # save_item success (also clears editing assigns and refreshes)
+      {:noreply, _s2} = DashboardSSDWeb.MeetingLive.Index.handle_event("save_item", %{"id" => to_string(first.id), "text" => "  Changed  "}, s0)
+      updated = Agenda.list_items(meeting_id) |> Enum.find(&(&1.id == first.id))
+      assert updated.text == "Changed"
+
+      # save_item missing id
+      {:noreply, _s2b} = DashboardSSDWeb.MeetingLive.Index.handle_event("save_item", %{"id" => to_string(first.id + 999_999), "text" => "Noop"}, s0)
+      refute Enum.any?(Agenda.list_items(meeting_id), &(&1.text == "Noop"))
+
+      # move down then up (ensure reorder persisted)
+      items_before_move = Agenda.list_items(meeting_id)
+      assert length(items_before_move) >= 2
+      ids_before = Enum.map(items_before_move, & &1.id)
+      target = Enum.at(items_before_move, 0)
+      {:noreply, _s4} = DashboardSSDWeb.MeetingLive.Index.handle_event("move", %{"id" => to_string(target.id), "dir" => "down"}, s0)
+      ids_after_down = Agenda.list_items(meeting_id) |> Enum.map(& &1.id)
+      assert ids_after_down != ids_before
+
+      # Move up (may no-op if already first)
+      move_up_id = Enum.at(ids_after_down, 1) || hd(ids_after_down)
+      {:noreply, _s5} = DashboardSSDWeb.MeetingLive.Index.handle_event("move", %{"id" => to_string(move_up_id), "dir" => "up"}, s0)
+
+      # delete_item success
+      second = Agenda.list_items(meeting_id) |> Enum.find(fn it -> it.id != first.id end)
+      {:noreply, _s3} = DashboardSSDWeb.MeetingLive.Index.handle_event("delete_item", %{"id" => to_string(second.id)}, s0)
+      refute Enum.any?(Agenda.list_items(meeting_id), &(&1.id == second.id))
+
+      # delete_item missing id
+      {:noreply, _s3b} = DashboardSSDWeb.MeetingLive.Index.handle_event("delete_item", %{"id" => to_string(second.id + 999_999)}, s0)
+    end
+  end
+
+  test "refresh_post with series triggers refresh path with Tesla mocked", %{conn: conn} do
+    # Mock any Fireflies GraphQL call
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
+        %Tesla.Env{status: 200, body: %{"data" => %{}}}
+    end)
+
+    meeting_id = "evt-refresh"
+    series_id = "series-refresh"
+    {:ok, view, _} = live(conn, ~p"/meetings/#{meeting_id}?series_id=#{series_id}")
+    render_click(element(view, "button[phx-click='refresh_post']"))
+    # No assertion needed other than not crashing; render to ensure LV updated
+    _html = render(view)
+  end
+
+  test "shows generic message when Fireflies returns generic error", %{conn: conn} do
+    Tesla.Mock.mock(fn
+      # Simulate non-429 error path
+      %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
+        %Tesla.Env{status: 500, body: %{"errors" => [%{"message" => "boom"}]}}
+    end)
+
+    {:ok, _view, html} = live(conn, ~p"/meetings/evt-generic?series_id=series-generic&title=Weekly")
+    assert html =~ "Last meeting summary"
+    assert html =~ "Fireflies data unavailable. Please try again later."
   end
   test "can save manual agenda text", %{conn: conn} do
     meeting_id = "evt-save"
