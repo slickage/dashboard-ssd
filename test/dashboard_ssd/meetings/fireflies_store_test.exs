@@ -10,26 +10,32 @@ defmodule DashboardSSD.Meetings.FirefliesStoreTest do
     series_list = "series-list"
     series_map = "series-map"
 
-    Repo.insert!(%FirefliesArtifact{
+    %FirefliesArtifact{}
+    |> FirefliesArtifact.changeset(%{
       recurring_series_id: series_nil,
       accomplished: nil,
       action_items: nil,
       fetched_at: DateTime.utc_now() |> DateTime.truncate(:second)
     })
+    |> Repo.insert!()
 
-    Repo.insert!(%FirefliesArtifact{
+    %FirefliesArtifact{}
+    |> FirefliesArtifact.changeset(%{
       recurring_series_id: series_list,
       accomplished: "Notes",
       action_items: ["A", "B"],
       fetched_at: DateTime.utc_now() |> DateTime.truncate(:second)
     })
+    |> Repo.insert!()
 
-    Repo.insert!(%FirefliesArtifact{
+    %FirefliesArtifact{}
+    |> FirefliesArtifact.changeset(%{
       recurring_series_id: series_map,
       accomplished: nil,
       action_items: %{"items" => ["X"]},
       fetched_at: DateTime.utc_now() |> DateTime.truncate(:second)
     })
+    |> Repo.insert!()
 
     assert {:ok, %{action_items: []}} = FirefliesStore.get(series_nil)
 
