@@ -38,6 +38,57 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
     # Provide an admin user session (UI renders settings button, etc.)
     {:ok, role} = {:ok, Accounts.ensure_role!("admin")}
     {:ok, user} = Accounts.create_user(%{email: "dc@example.com", name: "DC", role_id: role.id})
+    prev_integrations = Application.get_env(:dashboard_ssd, :integrations)
+    prev_tesla = Application.get_env(:tesla, :adapter)
+
+    Application.put_env(
+      :dashboard_ssd,
+      :integrations,
+      Keyword.merge(prev_integrations || [], fireflies_api_token: "test-token")
+    )
+
+    Application.put_env(:tesla, :adapter, Tesla.Mock)
+
+    # Mock globally so LiveView processes can use it
+    Tesla.Mock.mock_global(fn
+      %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+        payload = if is_binary(body), do: Jason.decode!(body), else: body
+        q = Map.get(payload, "query") || Map.get(payload, :query) || ""
+
+        cond do
+          String.contains?(q, "query Bites") ->
+            %Tesla.Env{status: 200, body: %{"data" => %{"bites" => []}}}
+
+          String.contains?(q, "query Transcripts(") ->
+            %Tesla.Env{status: 200, body: %{"data" => %{"transcripts" => []}}}
+
+          String.contains?(q, "query Transcript(") ->
+            %Tesla.Env{
+              status: 200,
+              body: %{
+                "data" => %{
+                  "transcript" => %{"summary" => %{"overview" => nil, "action_items" => []}}
+                }
+              }
+            }
+
+          true ->
+            %Tesla.Env{status: 200, body: %{"data" => %{}}}
+        end
+    end)
+
+    on_exit(fn ->
+      case prev_integrations do
+        nil -> Application.delete_env(:dashboard_ssd, :integrations)
+        v -> Application.put_env(:dashboard_ssd, :integrations, v)
+      end
+
+      case prev_tesla do
+        nil -> Application.delete_env(:tesla, :adapter)
+        v -> Application.put_env(:tesla, :adapter, v)
+      end
+    end)
+
     {:ok, conn: init_test_session(conn, %{user_id: user.id})}
   end
 
