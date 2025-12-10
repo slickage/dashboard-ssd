@@ -5,10 +5,18 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
   alias DashboardSSD.Accounts
   alias DashboardSSD.Clients
   alias DashboardSSD.Projects
-  alias DashboardSSD.Meetings.{Agenda, AgendaItem, CacheStore, FirefliesArtifact, MeetingAssociation}
+
+  alias DashboardSSD.Meetings.{
+    Agenda,
+    AgendaItem,
+    CacheStore,
+    FirefliesArtifact,
+    MeetingAssociation
+  }
+
   alias DashboardSSD.Repo
-  alias Phoenix.LiveView.Socket
   alias DashboardSSDWeb.MeetingLive.Index, as: MeetingIndexLV
+  alias Phoenix.LiveView.Socket
 
   setup %{conn: conn} do
     prev_integrations = Application.get_env(:dashboard_ssd, :integrations)

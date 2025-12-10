@@ -4,7 +4,7 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexTest do
 
   alias DashboardSSD.Accounts
   alias DashboardSSD.Clients
-  alias DashboardSSD.Meetings.{AgendaItem, MeetingAssociation, CacheStore}
+  alias DashboardSSD.Meetings.{AgendaItem, CacheStore, MeetingAssociation}
   alias DashboardSSD.Projects
   alias DashboardSSD.Repo
 
