@@ -370,10 +370,34 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
   end
 
   test "shows generic message when Fireflies returns generic error", %{conn: conn} do
-    Tesla.Mock.mock(fn
-      # Simulate non-429 GraphQL error path
-      %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
-        %Tesla.Env{status: 200, body: %{"errors" => [%{"message" => "boom"}]}}
+    Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+      payload = if is_binary(body), do: Jason.decode!(body), else: body
+      query = Map.get(payload, "query") || Map.get(payload, :query)
+
+      cond do
+        is_binary(query) and String.contains?(query, "query Bites") ->
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "data" => %{
+                "bites" => [
+                  %{
+                    "id" => "b-err",
+                    "transcript_id" => "t-err",
+                    "created_at" => "2024-01-01T00:00:00Z",
+                    "created_from" => %{"id" => "series-generic"}
+                  }
+                ]
+              }
+            }
+          }
+
+        is_binary(query) and String.contains?(query, "query Transcript(") ->
+          %Tesla.Env{status: 500, body: %{"errors" => [%{"message" => "boom"}]}}
+
+        true ->
+          flunk("unexpected request: #{inspect(payload)}")
+      end
     end)
 
     {:ok, _view, html} =
