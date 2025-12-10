@@ -76,7 +76,9 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
       })
       |> Repo.insert()
 
-    {:ok, _view, html} = live(conn, ~p"/meetings/#{meeting_id}?series_id=#{series_id}&title=Weekly")
+    {:ok, _view, html} =
+      live(conn, ~p"/meetings/#{meeting_id}?series_id=#{series_id}&title=Weekly")
+
     assert html =~ "Last meeting summary"
     assert html =~ "DB Notes"
     assert html =~ ">A<"
@@ -95,9 +97,12 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
 
   test "association section shows Client label with name", %{conn: conn} do
     meeting_id = "evt-assoc-client"
-    {:ok, client} = Accounts.ensure_role!("client") |> then(fn _ -> 
-      DashboardSSD.Clients.create_client(%{name: "Assoc C"})
-    end)
+
+    {:ok, client} =
+      Accounts.ensure_role!("client")
+      |> then(fn _ ->
+        DashboardSSD.Clients.create_client(%{name: "Assoc C"})
+      end)
 
     _assoc =
       %DashboardSSD.Meetings.MeetingAssociation{}
@@ -138,7 +143,10 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
     {:ok, client} = DashboardSSD.Clients.create_client(%{name: "Persist Default"})
     {:ok, view, _} = live(conn, ~p"/meetings/#{meeting_id}")
 
-    render_submit(element(view, "form[phx-submit='assoc_save']"), %{"entity" => "client:#{client.id}"})
+    render_submit(element(view, "form[phx-submit='assoc_save']"), %{
+      "entity" => "client:#{client.id}"
+    })
+
     html = render(view)
     assert html =~ ~s(value="client:#{client.id}" selected)
   end
@@ -165,24 +173,45 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
     {:ok, client} = DashboardSSD.Clients.create_client(%{name: "Auto C"})
     {:ok, project} = DashboardSSD.Projects.create_project(%{name: "Auto P"})
 
-    base_socket = %Socket{assigns: %{meeting_id: meeting_id, series_id: series_id, manual_agenda: []}}
+    base_socket = %Socket{
+      assigns: %{meeting_id: meeting_id, series_id: series_id, manual_agenda: []}
+    }
 
-    {:noreply, s1} = DashboardSSDWeb.MeetingLive.Index.handle_event("assoc_apply_guess", %{"entity" => "client:#{client.id}"}, base_socket)
+    {:noreply, s1} =
+      DashboardSSDWeb.MeetingLive.Index.handle_event(
+        "assoc_apply_guess",
+        %{"entity" => "client:#{client.id}"},
+        base_socket
+      )
+
     assert s1.assigns.assoc.client_id == client.id
 
-    {:noreply, s2} = DashboardSSDWeb.MeetingLive.Index.handle_event("assoc_apply_guess", %{"entity" => "project:#{project.id}"}, base_socket)
+    {:noreply, s2} =
+      DashboardSSDWeb.MeetingLive.Index.handle_event(
+        "assoc_apply_guess",
+        %{"entity" => "project:#{project.id}"},
+        base_socket
+      )
+
     assert s2.assigns.assoc.project_id == project.id
   end
 
   test "tz:set updates tz_offset assign (unit)" do
     s0 = %Socket{assigns: %{}}
-    {:noreply, s1} = DashboardSSDWeb.MeetingLive.Index.handle_event("tz:set", %{"offset" => 0}, s0)
+
+    {:noreply, s1} =
+      DashboardSSDWeb.MeetingLive.Index.handle_event("tz:set", %{"offset" => 0}, s0)
+
     assert s1.assigns.tz_offset == 0
 
-    {:noreply, s2} = DashboardSSDWeb.MeetingLive.Index.handle_event("tz:set", %{"offset" => "123"}, s0)
+    {:noreply, s2} =
+      DashboardSSDWeb.MeetingLive.Index.handle_event("tz:set", %{"offset" => "123"}, s0)
+
     assert s2.assigns.tz_offset == 123
 
-    {:noreply, s3} = DashboardSSDWeb.MeetingLive.Index.handle_event("tz:set", %{"offset" => :bad}, s0)
+    {:noreply, s3} =
+      DashboardSSDWeb.MeetingLive.Index.handle_event("tz:set", %{"offset" => :bad}, s0)
+
     assert s3.assigns.tz_offset == 0
   end
 
@@ -193,12 +222,19 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
       :ok = Agenda.replace_manual_text(meeting_id, "A\nB\nC")
       items0 = Agenda.list_items(meeting_id)
       assert length(items0) >= 1
+
       # Note: replace_manual_text may store a single text row or multiple rows depending on implementation
 
       # Normalize to at least two items for move tests
       if length(items0) == 1 do
         # Append another row to ensure we can move
-        {:ok, _} = DashboardSSD.Meetings.AgendaItem.changeset(%DashboardSSD.Meetings.AgendaItem{}, %{calendar_event_id: meeting_id, text: "B", position: 2}) |> Repo.insert()
+        {:ok, _} =
+          DashboardSSD.Meetings.AgendaItem.changeset(%DashboardSSD.Meetings.AgendaItem{}, %{
+            calendar_event_id: meeting_id,
+            text: "B",
+            position: 2
+          })
+          |> Repo.insert()
       end
 
       items = Agenda.list_items(meeting_id)
@@ -206,21 +242,46 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
 
       # edit_item success
       first = hd(items)
-      {:noreply, s1} = DashboardSSDWeb.MeetingLive.Index.handle_event("edit_item", %{"id" => to_string(first.id)}, s0)
+
+      {:noreply, s1} =
+        DashboardSSDWeb.MeetingLive.Index.handle_event(
+          "edit_item",
+          %{"id" => to_string(first.id)},
+          s0
+        )
+
       assert s1.assigns.editing_id == first.id
       assert is_binary(s1.assigns.editing_text)
 
       # edit_item with missing id
-      {:noreply, s1b} = DashboardSSDWeb.MeetingLive.Index.handle_event("edit_item", %{"id" => to_string(first.id + 999_999)}, s0)
+      {:noreply, s1b} =
+        DashboardSSDWeb.MeetingLive.Index.handle_event(
+          "edit_item",
+          %{"id" => to_string(first.id + 999_999)},
+          s0
+        )
+
       assert Map.get(s1b.assigns, :editing_id) == nil
 
       # save_item success (also clears editing assigns and refreshes)
-      {:noreply, _s2} = DashboardSSDWeb.MeetingLive.Index.handle_event("save_item", %{"id" => to_string(first.id), "text" => "  Changed  "}, s0)
+      {:noreply, _s2} =
+        DashboardSSDWeb.MeetingLive.Index.handle_event(
+          "save_item",
+          %{"id" => to_string(first.id), "text" => "  Changed  "},
+          s0
+        )
+
       updated = Agenda.list_items(meeting_id) |> Enum.find(&(&1.id == first.id))
       assert updated.text == "Changed"
 
       # save_item missing id
-      {:noreply, _s2b} = DashboardSSDWeb.MeetingLive.Index.handle_event("save_item", %{"id" => to_string(first.id + 999_999), "text" => "Noop"}, s0)
+      {:noreply, _s2b} =
+        DashboardSSDWeb.MeetingLive.Index.handle_event(
+          "save_item",
+          %{"id" => to_string(first.id + 999_999), "text" => "Noop"},
+          s0
+        )
+
       refute Enum.any?(Agenda.list_items(meeting_id), &(&1.text == "Noop"))
 
       # move down then up (ensure reorder persisted)
@@ -228,21 +289,46 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
       assert length(items_before_move) >= 2
       ids_before = Enum.map(items_before_move, & &1.id)
       target = Enum.at(items_before_move, 0)
-      {:noreply, _s4} = DashboardSSDWeb.MeetingLive.Index.handle_event("move", %{"id" => to_string(target.id), "dir" => "down"}, s0)
+
+      {:noreply, _s4} =
+        DashboardSSDWeb.MeetingLive.Index.handle_event(
+          "move",
+          %{"id" => to_string(target.id), "dir" => "down"},
+          s0
+        )
+
       ids_after_down = Agenda.list_items(meeting_id) |> Enum.map(& &1.id)
       assert ids_after_down != ids_before
 
       # Move up (may no-op if already first)
       move_up_id = Enum.at(ids_after_down, 1) || hd(ids_after_down)
-      {:noreply, _s5} = DashboardSSDWeb.MeetingLive.Index.handle_event("move", %{"id" => to_string(move_up_id), "dir" => "up"}, s0)
+
+      {:noreply, _s5} =
+        DashboardSSDWeb.MeetingLive.Index.handle_event(
+          "move",
+          %{"id" => to_string(move_up_id), "dir" => "up"},
+          s0
+        )
 
       # delete_item success
       second = Agenda.list_items(meeting_id) |> Enum.find(fn it -> it.id != first.id end)
-      {:noreply, _s3} = DashboardSSDWeb.MeetingLive.Index.handle_event("delete_item", %{"id" => to_string(second.id)}, s0)
+
+      {:noreply, _s3} =
+        DashboardSSDWeb.MeetingLive.Index.handle_event(
+          "delete_item",
+          %{"id" => to_string(second.id)},
+          s0
+        )
+
       refute Enum.any?(Agenda.list_items(meeting_id), &(&1.id == second.id))
 
       # delete_item missing id
-      {:noreply, _s3b} = DashboardSSDWeb.MeetingLive.Index.handle_event("delete_item", %{"id" => to_string(second.id + 999_999)}, s0)
+      {:noreply, _s3b} =
+        DashboardSSDWeb.MeetingLive.Index.handle_event(
+          "delete_item",
+          %{"id" => to_string(second.id + 999_999)},
+          s0
+        )
     end
   end
 
@@ -268,10 +354,13 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
         %Tesla.Env{status: 500, body: %{"errors" => [%{"message" => "boom"}]}}
     end)
 
-    {:ok, _view, html} = live(conn, ~p"/meetings/evt-generic?series_id=series-generic&title=Weekly")
+    {:ok, _view, html} =
+      live(conn, ~p"/meetings/evt-generic?series_id=series-generic&title=Weekly")
+
     assert html =~ "Last meeting summary"
     assert html =~ "Fireflies data unavailable. Please try again later."
   end
+
   test "can save manual agenda text", %{conn: conn} do
     meeting_id = "evt-save"
     {:ok, view, _html} = live(conn, ~p"/meetings/#{meeting_id}?mock=1")

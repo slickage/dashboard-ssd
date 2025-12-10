@@ -123,6 +123,7 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexTest do
 
   test "association chip shows project name when mapping exists", %{conn: conn} do
     {:ok, project} = DashboardSSD.Projects.create_project(%{name: "Assoc Project"})
+
     _assoc =
       %DashboardSSD.Meetings.MeetingAssociation{}
       |> DashboardSSD.Meetings.MeetingAssociation.changeset(%{
@@ -141,10 +142,20 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexTest do
 
   test "meeting modal renders when id param present", %{conn: conn} do
     # Seed series artifacts to avoid external HTTP in the detail component
-    DashboardSSD.Meetings.CacheStore.put({:series_artifacts, "series-alpha"}, %{accomplished: nil, action_items: []}, :timer.minutes(5))
+    DashboardSSD.Meetings.CacheStore.put(
+      {:series_artifacts, "series-alpha"},
+      %{accomplished: nil, action_items: []},
+      :timer.minutes(5)
+    )
+
     today_plus_6 = Date.add(Date.utc_today(), 6) |> Date.to_iso8601()
     # Use d=today+6 so first sample event aligns with today-start window
-    {:ok, _view, html} = live(conn, ~p"/meetings?mock=1&d=#{today_plus_6}&id=evt-1&series_id=series-alpha&title=Weekly%20Sync")
+    {:ok, _view, html} =
+      live(
+        conn,
+        ~p"/meetings?mock=1&d=#{today_plus_6}&id=evt-1&series_id=series-alpha&title=Weekly%20Sync"
+      )
+
     assert html =~ "meeting-modal"
   end
 
@@ -168,7 +179,9 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexTest do
     assert html2 =~ "project-read-modal"
   end
 
-  test "prev from January wraps to December and next from December wraps to January", %{conn: conn} do
+  test "prev from January wraps to December and next from December wraps to January", %{
+    conn: conn
+  } do
     # Use a known January and December anchor to test wrap-around
     jan = Date.new!(2025, 1, 7) |> Date.to_iso8601()
     dec = Date.new!(2025, 12, 7) |> Date.to_iso8601()
