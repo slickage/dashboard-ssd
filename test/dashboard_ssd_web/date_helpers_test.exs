@@ -8,6 +8,10 @@ defmodule DashboardSSDWeb.DateHelpersTest do
     assert DateHelpers.human_date(ndt) == "Jan 02, 2025"
   end
 
+  test "human_date handles nil" do
+    assert DateHelpers.human_date(nil) == "n/a"
+  end
+
   test "human_date_local shifts date by offset for naive and datetime" do
     ndt = ~N[2025-01-01 23:30:00]
     # +60 minutes should push to next day
@@ -52,6 +56,10 @@ defmodule DashboardSSDWeb.DateHelpersTest do
   test "today? and same_day? with offsets" do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
     assert DateHelpers.today?(now, 0)
+
+    # Naive today
+    nn = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+    assert DateHelpers.today?(nn, 0)
 
     # Crossing day boundary with offset
     a = DateTime.from_naive!(~N[2025-01-01 23:30:00], "Etc/UTC")

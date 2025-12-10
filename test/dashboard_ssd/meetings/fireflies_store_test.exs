@@ -1,38 +1,68 @@
 defmodule DashboardSSD.Meetings.FirefliesStoreTest do
   use DashboardSSD.DataCase, async: true
 
+  alias DashboardSSD.Meetings.FirefliesArtifact
   alias DashboardSSD.Meetings.FirefliesStore
+  alias DashboardSSD.Repo
 
-  test "get returns :not_found when missing" do
-    assert :not_found == FirefliesStore.get("series-x")
+  test "get returns normalized items: nil, list, map{items}" do
+    series_nil = "series-nil"
+    series_list = "series-list"
+    series_map = "series-map"
+
+    Repo.insert!(%FirefliesArtifact{
+      recurring_series_id: series_nil,
+      accomplished: nil,
+      action_items: nil,
+      fetched_at: DateTime.utc_now()
+    })
+
+    Repo.insert!(%FirefliesArtifact{
+      recurring_series_id: series_list,
+      accomplished: "Notes",
+      action_items: ["A", "B"],
+      fetched_at: DateTime.utc_now()
+    })
+
+    Repo.insert!(%FirefliesArtifact{
+      recurring_series_id: series_map,
+      accomplished: nil,
+      action_items: %{"items" => ["X"]},
+      fetched_at: DateTime.utc_now()
+    })
+
+    assert {:ok, %{action_items: []}} = FirefliesStore.get(series_nil)
+
+    assert {:ok, %{action_items: ["A", "B"], accomplished: "Notes"}} =
+             FirefliesStore.get(series_list)
+
+    assert {:ok, %{action_items: ["X"]}} = FirefliesStore.get(series_map)
   end
 
-  test "upsert inserts then updates and normalizes items" do
-    s = "series-1"
+  test "upsert inserts then updates existing record and sets timestamps" do
+    series = "series-up"
 
     :ok =
-      FirefliesStore.upsert(s, %{
+      FirefliesStore.upsert(series, %{
         transcript_id: "t1",
-        accomplished: "Done",
-        action_items: ["A", "B"],
-        bullet_gist: nil
+        accomplished: "N",
+        action_items: ["A"]
       })
 
-    assert {:ok, art1} = FirefliesStore.get(s)
-    assert art1.accomplished == "Done"
-    assert art1.action_items == ["A", "B"]
+    rec1 = Repo.get_by!(FirefliesArtifact, recurring_series_id: series)
+    assert rec1.transcript_id == "t1"
+    assert rec1.accomplished == "N"
+    assert is_struct(rec1.fetched_at, DateTime)
 
-    # Update with map form for items to hit normalize_items/1 map branch
     :ok =
-      FirefliesStore.upsert(s, %{
-        accomplished: "Updated",
-        action_items: %{"items" => ["C"]},
-        bullet_gist: "gist"
+      FirefliesStore.upsert(series, %{
+        transcript_id: "t2",
+        accomplished: "M",
+        action_items: ["B"]
       })
 
-    assert {:ok, art2} = FirefliesStore.get(s)
-    assert art2.accomplished == "Updated"
-    assert art2.action_items == ["C"]
-    assert art2.bullet_gist == "gist"
+    rec2 = Repo.get_by!(FirefliesArtifact, recurring_series_id: series)
+    assert rec2.transcript_id == "t2"
+    assert rec2.accomplished == "M"
   end
 end

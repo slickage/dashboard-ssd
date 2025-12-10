@@ -541,4 +541,52 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
 
     assert {:ok, []} = Fireflies.search_transcripts_by_title("Weekly", limit: 1)
   end
+
+  test "fallback_by_title picks best match, caches mapping, and returns persisted notes" do
+    series_id = "series-best"
+
+    Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+      payload = if is_binary(body), do: Jason.decode!(body), else: body
+      query = Map.get(payload, "query") || Map.get(payload, :query)
+
+      cond do
+        is_binary(query) and String.contains?(query, "query Transcripts(") ->
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "data" => %{
+                "transcripts" => [
+                  %{"id" => "tid-z", "title" => "Weekly Sync – Zeta"},
+                  %{"id" => "tid-y", "title" => "Other"}
+                ]
+              }
+            }
+          }
+
+        is_binary(query) and String.contains?(query, "query Transcript(") ->
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "data" => %{
+                "transcript" => %{
+                  "summary" => %{
+                    "overview" => "Picked",
+                    "action_items" => [],
+                    "bullet_gist" => nil
+                  }
+                }
+              }
+            }
+          }
+
+        true ->
+          flunk("unexpected request: #{inspect(payload)}")
+      end
+    end)
+
+    assert {:ok, %{accomplished: "Picked", action_items: []}} =
+             Fireflies.fetch_latest_for_series(series_id, title: "Weekly Sync")
+
+    assert {:ok, "tid-z"} = CacheStore.get({:series_map, series_id})
+  end
 end
