@@ -183,7 +183,12 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
     {:ok, project} = Projects.create_project(%{name: "Auto P"})
 
     base_socket = %Socket{
-      assigns: %{meeting_id: meeting_id, series_id: series_id, manual_agenda: []}
+      assigns: %{
+        __changed__: %{},
+        meeting_id: meeting_id,
+        series_id: series_id,
+        manual_agenda: []
+      }
     }
 
     {:noreply, s1} =
@@ -206,7 +211,7 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
   end
 
   test "tz:set updates tz_offset assign (unit)" do
-    s0 = %Socket{assigns: %{}}
+    s0 = %Socket{assigns: %{__changed__: %{} }}
 
     {:noreply, s1} =
       MeetingIndexLV.handle_event("tz:set", %{"offset" => 0}, s0)
@@ -247,7 +252,15 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
       end
 
       items = Agenda.list_items(meeting_id)
-      s0 = %Socket{assigns: %{meeting_id: meeting_id, series_id: nil, manual_agenda: items}}
+      s0 =
+        %Socket{
+          assigns: %{
+            __changed__: %{},
+            meeting_id: meeting_id,
+            series_id: nil,
+            manual_agenda: items
+          }
+        }
 
       # edit_item success
       first = hd(items)
@@ -358,9 +371,9 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
 
   test "shows generic message when Fireflies returns generic error", %{conn: conn} do
     Tesla.Mock.mock(fn
-      # Simulate non-429 error path
+      # Simulate non-429 GraphQL error path
       %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
-        %Tesla.Env{status: 500, body: %{"errors" => [%{"message" => "boom"}]}}
+        %Tesla.Env{status: 200, body: %{"errors" => [%{"message" => "boom"}]}}
     end)
 
     {:ok, _view, html} =

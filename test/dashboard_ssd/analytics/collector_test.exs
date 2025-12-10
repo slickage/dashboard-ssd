@@ -76,12 +76,12 @@ defmodule DashboardSSD.Analytics.CollectorTest do
     end
 
     test "returns response time for successful requests" do
-      Tesla.Mock.mock(fn
-        %{method: :get, url: "http://example.com/"} ->
-          %Tesla.Env{status: 200, body: "OK"}
+      bypass = Bypass.open()
+      Bypass.expect_once(bypass, fn conn ->
+        Plug.Conn.resp(conn, 200, "OK")
       end)
 
-      url = "http://example.com/"
+      url = "http://127.0.0.1:#{bypass.port}/"
       assert {:ok, response_time} = Collector.collect_response_time(url)
       assert is_float(response_time)
       assert response_time >= 0
