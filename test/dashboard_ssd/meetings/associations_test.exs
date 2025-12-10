@@ -46,8 +46,9 @@ defmodule DashboardSSD.Meetings.AssociationsTest do
       origin: "manual"
     })
 
-    assert %MeetingAssociation{client_id: ^client.id} =
-             Associations.get_for_event_or_series("evt-other", "series-x")
+    assoc = Associations.get_for_event_or_series("evt-other", "series-x")
+    assert %MeetingAssociation{} = assoc
+    assert assoc.client_id == client.id
   end
 
   test "guess_from_title returns client/project/unknown based on matches" do
