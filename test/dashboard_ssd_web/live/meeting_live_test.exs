@@ -211,7 +211,7 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
   end
 
   test "tz:set updates tz_offset assign (unit)" do
-    s0 = %Socket{assigns: %{__changed__: %{} }}
+    s0 = %Socket{assigns: %{__changed__: %{}}}
 
     {:noreply, s1} =
       MeetingIndexLV.handle_event("tz:set", %{"offset" => 0}, s0)
@@ -252,6 +252,7 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
       end
 
       items = Agenda.list_items(meeting_id)
+
       s0 =
         %Socket{
           assigns: %{

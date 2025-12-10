@@ -77,6 +77,7 @@ defmodule DashboardSSD.Analytics.CollectorTest do
 
     test "returns response time for successful requests" do
       bypass = Bypass.open()
+
       Bypass.expect_once(bypass, fn conn ->
         Plug.Conn.resp(conn, 200, "OK")
       end)
