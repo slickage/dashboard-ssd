@@ -73,4 +73,18 @@ defmodule DashboardSSD.Meetings.FirefliesStoreTest do
     assert rec2.transcript_id == "t2"
     assert rec2.accomplished == "M"
   end
+
+  test "get normalizes map without items to empty list" do
+    series = "series-empty-items"
+
+    %FirefliesArtifact{}
+    |> FirefliesArtifact.changeset(%{
+      recurring_series_id: series,
+      action_items: %{},
+      fetched_at: DateTime.utc_now() |> DateTime.truncate(:second)
+    })
+    |> Repo.insert!()
+
+    assert {:ok, %{action_items: []}} = FirefliesStore.get(series)
+  end
 end

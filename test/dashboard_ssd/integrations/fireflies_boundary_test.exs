@@ -593,4 +593,81 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
 
     assert {:ok, "tid-z"} = CacheStore.get({:series_map, series_id})
   end
+
+  test "prefers latest mine bite by created_at and atom keys and fetches transcript" do
+    series_id = "series-latest"
+
+    Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+      payload = if is_binary(body), do: Jason.decode!(body), else: body
+      query = Map.get(payload, "query") || Map.get(payload, :query)
+
+      cond do
+        is_binary(query) and String.contains?(query, "query Bites(") and
+            payload["variables"]["mine"] == true ->
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "data" => %{
+                "bites" => [
+                  %{
+                    id: "b-old",
+                    transcript_id: "t-old",
+                    created_at: "2024-01-01T00:00:00Z",
+                    created_from: %{id: series_id}
+                  },
+                  %{
+                    id: "b-new",
+                    transcript_id: "t-new",
+                    created_at: "2025-01-01T00:00:00Z",
+                    created_from: %{id: series_id}
+                  }
+                ]
+              }
+            }
+          }
+
+        is_binary(query) and String.contains?(query, "query Transcript(") ->
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "data" => %{
+                "transcript" => %{"summary" => %{"overview" => "Latest", "action_items" => []}}
+              }
+            }
+          }
+
+        true ->
+          flunk("unexpected request: #{inspect(payload)}")
+      end
+    end)
+
+    assert {:ok, %{accomplished: "Latest"}} =
+             Fireflies.fetch_latest_for_series(series_id, title: "X")
+  end
+
+  test "fallback_by_title with no best match returns empty artifacts" do
+    series_id = "series-nomatch"
+
+    Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+      payload = if is_binary(body), do: Jason.decode!(body), else: body
+      query = Map.get(payload, "query") || Map.get(payload, :query)
+
+      cond do
+        is_binary(query) and String.contains?(query, "query Bites") ->
+          %Tesla.Env{status: 200, body: %{"data" => %{"bites" => []}}}
+
+        is_binary(query) and String.contains?(query, "query Transcripts(") ->
+          %Tesla.Env{
+            status: 200,
+            body: %{"data" => %{"transcripts" => [%{"id" => "t1", "title" => "Other"}]}}
+          }
+
+        true ->
+          flunk("unexpected request: #{inspect(payload)}")
+      end
+    end)
+
+    assert {:ok, %{accomplished: nil, action_items: []}} =
+             Fireflies.fetch_latest_for_series(series_id, title: "No Similar Title")
+  end
 end

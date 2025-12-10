@@ -55,6 +55,16 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
     assert html =~ "Two"
   end
 
+  test "refresh_post triggers refresh when series_id is present (component)", %{conn: conn} do
+    {:ok, view, html0} = live_isolated(conn, HarnessLV)
+    assert html0 =~ "Summary pending"
+
+    render_click(element(view, "button[phx-click='refresh_post']"))
+    html1 = render(view)
+    # Still pending (mock mode); ensures branch executed without crash
+    assert html1 =~ "Summary pending"
+  end
+
   test "assoc_save sets client and project, resets event and series", %{conn: conn} do
     {:ok, c} = Clients.create_client(%{name: "Client Z"})
     {:ok, p} = Projects.create_project(%{name: "Proj Z"})

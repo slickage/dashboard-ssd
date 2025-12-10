@@ -61,5 +61,16 @@ defmodule DashboardSSD.Meetings.AssociationsTest do
     assert {:project, found_project} = Associations.guess_from_title("Phoenix sync")
     assert found_project.id == project.id
     assert :unknown = Associations.guess_from_title("Something else")
+
+    # ambiguous when both match
+    {:ok, _c2} = Clients.create_client(%{name: "Phoenix"})
+
+    case Associations.guess_from_title("ACME Phoenix planning") do
+      {:ambiguous, list} ->
+        assert length(list) >= 2
+
+      other ->
+        flunk("expected ambiguous, got: #{inspect(other)}")
+    end
   end
 end
