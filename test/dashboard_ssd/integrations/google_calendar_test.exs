@@ -57,10 +57,10 @@ defmodule DashboardSSD.Integrations.GoogleCalendarTest do
                 "recurringEventId" => "r-123"
               },
               %{
-                id: "B",
-                title: "Title B",
-                start: %{date: "2025-01-02"},
-                end: %{date: "2025-01-03"}
+                "id" => "B",
+                "summary" => "Title B",
+                "start" => %{"date" => "2025-01-02"},
+                "end" => %{"date" => "2025-01-03"}
               }
             ]
           }
