@@ -35,6 +35,11 @@ defmodule DashboardSSDWeb.CalendarComponentsTest do
       />
       """
     end
+
+    @impl true
+    def handle_info({:assigns, map}, socket) when is_map(map) do
+      {:noreply, assign(socket, map)}
+    end
   end
 
   test "month_calendar sets default today when nil and shows header", %{conn: conn} do
