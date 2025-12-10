@@ -55,8 +55,11 @@ defmodule DashboardSSD.Meetings.AssociationsTest do
     {:ok, client} = Clients.create_client(%{name: "ACME"})
     {:ok, project} = Projects.create_project(%{name: "Phoenix"})
 
-    assert {:client, ^client} = Associations.guess_from_title("Weekly – ACME")
-    assert {:project, ^project} = Associations.guess_from_title("Phoenix sync")
+    assert {:client, found_client} = Associations.guess_from_title("Weekly – ACME")
+    assert found_client.id == client.id
+
+    assert {:project, found_project} = Associations.guess_from_title("Phoenix sync")
+    assert found_project.id == project.id
     assert :unknown = Associations.guess_from_title("Something else")
   end
 end

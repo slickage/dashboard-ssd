@@ -14,21 +14,21 @@ defmodule DashboardSSD.Meetings.FirefliesStoreTest do
       recurring_series_id: series_nil,
       accomplished: nil,
       action_items: nil,
-      fetched_at: DateTime.utc_now()
+      fetched_at: DateTime.utc_now() |> DateTime.truncate(:second)
     })
 
     Repo.insert!(%FirefliesArtifact{
       recurring_series_id: series_list,
       accomplished: "Notes",
       action_items: ["A", "B"],
-      fetched_at: DateTime.utc_now()
+      fetched_at: DateTime.utc_now() |> DateTime.truncate(:second)
     })
 
     Repo.insert!(%FirefliesArtifact{
       recurring_series_id: series_map,
       accomplished: nil,
       action_items: %{"items" => ["X"]},
-      fetched_at: DateTime.utc_now()
+      fetched_at: DateTime.utc_now() |> DateTime.truncate(:second)
     })
 
     assert {:ok, %{action_items: []}} = FirefliesStore.get(series_nil)
@@ -46,7 +46,8 @@ defmodule DashboardSSD.Meetings.FirefliesStoreTest do
       FirefliesStore.upsert(series, %{
         transcript_id: "t1",
         accomplished: "N",
-        action_items: ["A"]
+        action_items: ["A"],
+        fetched_at: DateTime.utc_now() |> DateTime.truncate(:second)
       })
 
     rec1 = Repo.get_by!(FirefliesArtifact, recurring_series_id: series)
@@ -58,7 +59,8 @@ defmodule DashboardSSD.Meetings.FirefliesStoreTest do
       FirefliesStore.upsert(series, %{
         transcript_id: "t2",
         accomplished: "M",
-        action_items: ["B"]
+        action_items: ["B"],
+        fetched_at: DateTime.utc_now() |> DateTime.truncate(:second)
       })
 
     rec2 = Repo.get_by!(FirefliesArtifact, recurring_series_id: series)

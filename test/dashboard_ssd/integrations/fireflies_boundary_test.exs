@@ -550,6 +550,10 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
       query = Map.get(payload, "query") || Map.get(payload, :query)
 
       cond do
+        is_binary(query) and String.contains?(query, "query Bites") ->
+          # No exact bites match; proceed to title search
+          %Tesla.Env{status: 200, body: %{"data" => %{"bites" => []}}}
+
         is_binary(query) and String.contains?(query, "query Transcripts(") ->
           %Tesla.Env{
             status: 200,
