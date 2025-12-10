@@ -3,11 +3,12 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
   import Phoenix.LiveViewTest
 
   alias DashboardSSD.Accounts
-  alias DashboardSSD.Meetings.Agenda
-  alias DashboardSSD.Meetings.CacheStore
-  alias DashboardSSD.Meetings.FirefliesArtifact
+  alias DashboardSSD.Clients
+  alias DashboardSSD.Projects
+  alias DashboardSSD.Meetings.{Agenda, AgendaItem, CacheStore, FirefliesArtifact, MeetingAssociation}
   alias DashboardSSD.Repo
   alias Phoenix.LiveView.Socket
+  alias DashboardSSDWeb.MeetingLive.Index, as: MeetingIndexLV
 
   setup %{conn: conn} do
     prev_integrations = Application.get_env(:dashboard_ssd, :integrations)
@@ -101,12 +102,12 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
     {:ok, client} =
       Accounts.ensure_role!("client")
       |> then(fn _ ->
-        DashboardSSD.Clients.create_client(%{name: "Assoc C"})
+        Clients.create_client(%{name: "Assoc C"})
       end)
 
     _assoc =
-      %DashboardSSD.Meetings.MeetingAssociation{}
-      |> DashboardSSD.Meetings.MeetingAssociation.changeset(%{
+      %MeetingAssociation{}
+      |> MeetingAssociation.changeset(%{
         calendar_event_id: meeting_id,
         client_id: client.id,
         origin: "manual",
@@ -121,11 +122,11 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
 
   test "association section shows Project label with name", %{conn: conn} do
     meeting_id = "evt-assoc-project"
-    {:ok, project} = DashboardSSD.Projects.create_project(%{name: "Assoc P"})
+    {:ok, project} = Projects.create_project(%{name: "Assoc P"})
 
     _assoc =
-      %DashboardSSD.Meetings.MeetingAssociation{}
-      |> DashboardSSD.Meetings.MeetingAssociation.changeset(%{
+      %MeetingAssociation{}
+      |> MeetingAssociation.changeset(%{
         calendar_event_id: meeting_id,
         project_id: project.id,
         origin: "manual",
@@ -140,7 +141,7 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
 
   test "assoc_save defaults persist_series when omitted", %{conn: conn} do
     meeting_id = "evt-assoc-default"
-    {:ok, client} = DashboardSSD.Clients.create_client(%{name: "Persist Default"})
+    {:ok, client} = Clients.create_client(%{name: "Persist Default"})
     {:ok, view, _} = live(conn, ~p"/meetings/#{meeting_id}")
 
     render_submit(element(view, "form[phx-submit='assoc_save']"), %{
@@ -170,15 +171,15 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
   test "assoc_apply_guess sets association for client and project (unit)" do
     meeting_id = "evt-apply-guess"
     series_id = "series-apply-guess"
-    {:ok, client} = DashboardSSD.Clients.create_client(%{name: "Auto C"})
-    {:ok, project} = DashboardSSD.Projects.create_project(%{name: "Auto P"})
+    {:ok, client} = Clients.create_client(%{name: "Auto C"})
+    {:ok, project} = Projects.create_project(%{name: "Auto P"})
 
     base_socket = %Socket{
       assigns: %{meeting_id: meeting_id, series_id: series_id, manual_agenda: []}
     }
 
     {:noreply, s1} =
-      DashboardSSDWeb.MeetingLive.Index.handle_event(
+      MeetingIndexLV.handle_event(
         "assoc_apply_guess",
         %{"entity" => "client:#{client.id}"},
         base_socket
@@ -187,7 +188,7 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
     assert s1.assigns.assoc.client_id == client.id
 
     {:noreply, s2} =
-      DashboardSSDWeb.MeetingLive.Index.handle_event(
+      MeetingIndexLV.handle_event(
         "assoc_apply_guess",
         %{"entity" => "project:#{project.id}"},
         base_socket
@@ -200,17 +201,17 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
     s0 = %Socket{assigns: %{}}
 
     {:noreply, s1} =
-      DashboardSSDWeb.MeetingLive.Index.handle_event("tz:set", %{"offset" => 0}, s0)
+      MeetingIndexLV.handle_event("tz:set", %{"offset" => 0}, s0)
 
     assert s1.assigns.tz_offset == 0
 
     {:noreply, s2} =
-      DashboardSSDWeb.MeetingLive.Index.handle_event("tz:set", %{"offset" => "123"}, s0)
+      MeetingIndexLV.handle_event("tz:set", %{"offset" => "123"}, s0)
 
     assert s2.assigns.tz_offset == 123
 
     {:noreply, s3} =
-      DashboardSSDWeb.MeetingLive.Index.handle_event("tz:set", %{"offset" => :bad}, s0)
+      MeetingIndexLV.handle_event("tz:set", %{"offset" => :bad}, s0)
 
     assert s3.assigns.tz_offset == 0
   end
@@ -229,7 +230,7 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
       if length(items0) == 1 do
         # Append another row to ensure we can move
         {:ok, _} =
-          DashboardSSD.Meetings.AgendaItem.changeset(%DashboardSSD.Meetings.AgendaItem{}, %{
+          AgendaItem.changeset(%AgendaItem{}, %{
             calendar_event_id: meeting_id,
             text: "B",
             position: 2
@@ -244,7 +245,7 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
       first = hd(items)
 
       {:noreply, s1} =
-        DashboardSSDWeb.MeetingLive.Index.handle_event(
+        MeetingIndexLV.handle_event(
           "edit_item",
           %{"id" => to_string(first.id)},
           s0
@@ -255,7 +256,7 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
 
       # edit_item with missing id
       {:noreply, s1b} =
-        DashboardSSDWeb.MeetingLive.Index.handle_event(
+        MeetingIndexLV.handle_event(
           "edit_item",
           %{"id" => to_string(first.id + 999_999)},
           s0
@@ -265,7 +266,7 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
 
       # save_item success (also clears editing assigns and refreshes)
       {:noreply, _s2} =
-        DashboardSSDWeb.MeetingLive.Index.handle_event(
+        MeetingIndexLV.handle_event(
           "save_item",
           %{"id" => to_string(first.id), "text" => "  Changed  "},
           s0
@@ -276,7 +277,7 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
 
       # save_item missing id
       {:noreply, _s2b} =
-        DashboardSSDWeb.MeetingLive.Index.handle_event(
+        MeetingIndexLV.handle_event(
           "save_item",
           %{"id" => to_string(first.id + 999_999), "text" => "Noop"},
           s0
@@ -291,7 +292,7 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
       target = Enum.at(items_before_move, 0)
 
       {:noreply, _s4} =
-        DashboardSSDWeb.MeetingLive.Index.handle_event(
+        MeetingIndexLV.handle_event(
           "move",
           %{"id" => to_string(target.id), "dir" => "down"},
           s0
@@ -304,7 +305,7 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
       move_up_id = Enum.at(ids_after_down, 1) || hd(ids_after_down)
 
       {:noreply, _s5} =
-        DashboardSSDWeb.MeetingLive.Index.handle_event(
+        MeetingIndexLV.handle_event(
           "move",
           %{"id" => to_string(move_up_id), "dir" => "up"},
           s0
@@ -314,7 +315,7 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
       second = Agenda.list_items(meeting_id) |> Enum.find(fn it -> it.id != first.id end)
 
       {:noreply, _s3} =
-        DashboardSSDWeb.MeetingLive.Index.handle_event(
+        MeetingIndexLV.handle_event(
           "delete_item",
           %{"id" => to_string(second.id)},
           s0
@@ -324,7 +325,7 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
 
       # delete_item missing id
       {:noreply, _s3b} =
-        DashboardSSDWeb.MeetingLive.Index.handle_event(
+        MeetingIndexLV.handle_event(
           "delete_item",
           %{"id" => to_string(second.id + 999_999)},
           s0
@@ -369,7 +370,7 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
     render_submit(form, %{"agenda_text" => "Line 1\nLine 2"})
 
     # Verify it persisted (via context) and is rendered
-    assert DashboardSSD.Meetings.Agenda.list_items(meeting_id) |> length() == 1
+    assert Agenda.list_items(meeting_id) |> length() == 1
 
     html = render(view)
     assert html =~ "Agenda"
@@ -381,7 +382,7 @@ defmodule DashboardSSDWeb.MeetingLiveTest do
     meeting_id = "evt-assoc"
     series_id = "series-assoc"
 
-    {:ok, client} = DashboardSSD.Clients.create_client(%{name: "ACME"})
+    {:ok, client} = Clients.create_client(%{name: "ACME"})
 
     {:ok, view, _html} = live(conn, ~p"/meetings/#{meeting_id}?series_id=#{series_id}&mock=1")
 

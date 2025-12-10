@@ -3,7 +3,9 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexTest do
   import Phoenix.LiveViewTest
 
   alias DashboardSSD.Accounts
-  alias DashboardSSD.Meetings.AgendaItem
+  alias DashboardSSD.Clients
+  alias DashboardSSD.Meetings.{AgendaItem, MeetingAssociation, CacheStore}
+  alias DashboardSSD.Projects
   alias DashboardSSD.Repo
 
   setup %{conn: conn} do
@@ -96,17 +98,17 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexTest do
 
   test "association chip shows client name when mapping exists", %{conn: conn} do
     # Map evt-1 to a client via MeetingAssociation
-    {:ok, client} = DashboardSSD.Clients.create_client(%{name: "Assoc Client"})
+    {:ok, client} = Clients.create_client(%{name: "Assoc Client"})
 
     _assoc =
-      %DashboardSSD.Meetings.MeetingAssociation{}
-      |> DashboardSSD.Meetings.MeetingAssociation.changeset(%{
+      %MeetingAssociation{}
+      |> MeetingAssociation.changeset(%{
         calendar_event_id: "evt-1",
         client_id: client.id,
         origin: "manual",
         persist_series: true
       })
-      |> DashboardSSD.Repo.insert!()
+      |> Repo.insert!()
 
     today = Date.utc_today() |> Date.to_iso8601()
     {:ok, _view, html} = live(conn, ~p"/meetings?mock=1&d=#{today}")
@@ -122,17 +124,17 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexTest do
   end
 
   test "association chip shows project name when mapping exists", %{conn: conn} do
-    {:ok, project} = DashboardSSD.Projects.create_project(%{name: "Assoc Project"})
+    {:ok, project} = Projects.create_project(%{name: "Assoc Project"})
 
     _assoc =
-      %DashboardSSD.Meetings.MeetingAssociation{}
-      |> DashboardSSD.Meetings.MeetingAssociation.changeset(%{
+      %MeetingAssociation{}
+      |> MeetingAssociation.changeset(%{
         calendar_event_id: "evt-2",
         project_id: project.id,
         origin: "manual",
         persist_series: true
       })
-      |> DashboardSSD.Repo.insert!()
+      |> Repo.insert!()
 
     today = Date.utc_today() |> Date.to_iso8601()
     {:ok, _view, html} = live(conn, ~p"/meetings?mock=1&d=#{today}")
@@ -142,7 +144,7 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexTest do
 
   test "meeting modal renders when id param present", %{conn: conn} do
     # Seed series artifacts to avoid external HTTP in the detail component
-    DashboardSSD.Meetings.CacheStore.put(
+    CacheStore.put(
       {:series_artifacts, "series-alpha"},
       %{accomplished: nil, action_items: []},
       :timer.minutes(5)

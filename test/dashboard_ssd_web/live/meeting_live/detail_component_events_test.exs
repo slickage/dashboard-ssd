@@ -4,8 +4,8 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
 
   alias DashboardSSD.Accounts
   alias DashboardSSD.Clients
-  alias DashboardSSD.Projects
   alias DashboardSSD.Meetings.Agenda
+  alias DashboardSSD.Projects
   alias DashboardSSDWeb.MeetingLive.DetailComponent
 
   defmodule HarnessLV do
