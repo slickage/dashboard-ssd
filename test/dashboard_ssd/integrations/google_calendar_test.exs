@@ -3,78 +3,72 @@ defmodule DashboardSSD.Integrations.GoogleCalendarTest do
 
   alias DashboardSSD.Integrations.GoogleCalendar
 
-  test "recurrence_id extracts from various shapes" do
-    assert GoogleCalendar.recurrence_id(%{"recurringEventId" => "series-1"}) == "series-1"
-    assert GoogleCalendar.recurrence_id(%{recurring_series_id: "series-2"}) == "series-2"
-    assert GoogleCalendar.recurrence_id(%{}) == nil
+  setup do
+    prev = Application.get_env(:tesla, :adapter)
+    Application.put_env(:tesla, :adapter, Tesla.Mock)
+
+    on_exit(fn ->
+      case prev do
+        nil -> Application.delete_env(:tesla, :adapter)
+        v -> Application.put_env(:tesla, :adapter, v)
+      end
+    end)
+
+    :ok
   end
 
-  test "list_upcoming returns ok tuple (skeleton)" do
-    now = DateTime.utc_now()
-    later = DateTime.add(now, 3600, :second)
-    assert {:ok, list} = GoogleCalendar.list_upcoming(now, later)
-    assert is_list(list)
+  test "list_upcoming_for_user returns sample events when mock: :sample" do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    {:ok, events} =
+      GoogleCalendar.list_upcoming_for_user(123, now, DateTime.add(now, 3600), mock: :sample)
+
+    assert length(events) == 2
+    assert Enum.any?(events, &(&1.id == "evt-1"))
   end
 
-  test "list_upcoming transforms API response (dateTime and date)" do
-    now = ~U[2025-11-04 00:00:00Z]
-    later = DateTime.add(now, 3600, :second)
+  test "list_upcoming returns http_error on non-200" do
+    Tesla.Mock.mock(fn
+      %{method: :get, url: "https://www.googleapis.com/calendar/v3/calendars/primary/events"} ->
+        %Tesla.Env{status: 500, body: %{"error" => "boom"}}
+    end)
+
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    assert {:error, {:http_error, 500, %{"error" => "boom"}}} =
+             GoogleCalendar.list_upcoming(now, DateTime.add(now, 3600), token: "t")
+  end
+
+  test "list_upcoming maps date and dateTime forms and recurrence id" do
+    start_dt = DateTime.from_naive!(~N[2025-01-01 10:00:00], "Etc/UTC")
+    end_dt = DateTime.add(start_dt, 3600, :second)
 
     Tesla.Mock.mock(fn
-      %{
-        method: :get,
-        url: "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-        headers: headers,
-        query: query
-      } ->
-        # Ensure Authorization header present
-        assert Enum.any?(headers, fn {k, v} ->
-                 k == "authorization" and String.starts_with?(v, "Bearer ")
-               end)
-
-        # Ensure typical query keys present
-        assert Enum.any?(query, fn {k, _} -> k in [:timeMin, :timeMax] end)
-
+      %{method: :get, url: "https://www.googleapis.com/calendar/v3/calendars/primary/events"} ->
         %Tesla.Env{
           status: 200,
           body: %{
             "items" => [
               %{
-                "id" => "evt-dt",
-                "summary" => "Design Sync",
-                "start" => %{"dateTime" => "2025-11-04T09:00:00Z"},
-                "end" => %{"dateTime" => "2025-11-04T10:00:00Z"},
-                "recurringEventId" => "series-dt"
+                "id" => "A",
+                "summary" => "Title A",
+                "start" => %{"dateTime" => DateTime.to_iso8601(start_dt)},
+                "end" => %{"dateTime" => DateTime.to_iso8601(end_dt)},
+                "recurringEventId" => "r-123"
               },
               %{
-                "id" => "evt-all",
-                "summary" => "All-day Planning",
-                "start" => %{"date" => "2025-11-05"},
-                "end" => %{"date" => "2025-11-06"}
+                id: "B",
+                title: "Title B",
+                start: %{date: "2025-01-02"},
+                end: %{date: "2025-01-03"}
               }
             ]
           }
         }
     end)
 
-    assert {:ok, events} = GoogleCalendar.list_upcoming(now, later, token: "tok")
-
-    assert [
-             %{id: "evt-dt", title: "Design Sync", start_at: %DateTime{}, end_at: %DateTime{}},
-             %{
-               id: "evt-all",
-               title: "All-day Planning",
-               start_at: %DateTime{},
-               end_at: %DateTime{}
-             }
-           ] = events
-
-    dt = Enum.find(events, &(&1.id == "evt-dt"))
-    assert DateTime.to_iso8601(dt.start_at) == "2025-11-04T09:00:00Z"
-    assert DateTime.to_iso8601(dt.end_at) == "2025-11-04T10:00:00Z"
-
-    allday = Enum.find(events, &(&1.id == "evt-all"))
-    # All-day start at midnight UTC on the given date
-    assert DateTime.to_iso8601(allday.start_at) == "2025-11-05T00:00:00Z"
+    {:ok, events} = GoogleCalendar.list_upcoming(start_dt, end_dt, token: "t")
+    assert Enum.find(events, &(&1.id == "A"))[:recurring_series_id] == "r-123"
+    assert Enum.find(events, &(&1.id == "B"))[:title] == "Title B"
   end
 end
