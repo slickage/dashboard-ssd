@@ -127,6 +127,16 @@ defmodule DashboardSSD.Integrations.FirefliesClientTest do
              FirefliesClient.get_summary_for_transcript("t1")
   end
 
+  test "get_transcript_summary returns http_error on non-200" do
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
+        %Tesla.Env{status: 500, body: %{"error" => "boom"}}
+    end)
+
+    assert {:error, {:http_error, 500, %{"error" => "boom"}}} =
+             FirefliesClient.get_transcript_summary("t1")
+  end
+
   test "list_users returns [] on ok without users" do
     Tesla.Mock.mock(fn
       %{method: :post, url: "https://api.fireflies.ai/graphql"} ->

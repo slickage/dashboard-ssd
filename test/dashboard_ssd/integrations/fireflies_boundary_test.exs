@@ -462,4 +462,83 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
 
     assert {:ok, %{accomplished: "fresh"}} = Fireflies.refresh_series(series_id, title: "Z")
   end
+
+  test "mapping exists but transcript fetch fails; falls back to search and returns empty" do
+    series_id = "series-map-fail"
+    # Pretend we have a cached mapping first
+    CacheStore.put({:series_map, series_id}, "tid-fail", :timer.minutes(5))
+
+    Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+      payload = if is_binary(body), do: Jason.decode!(body), else: body
+      query = Map.get(payload, "query") || Map.get(payload, :query)
+
+      cond do
+        is_binary(query) and String.contains?(query, "query Transcript(") ->
+          # Fail transcript summary -> triggers search_and_map path
+          %Tesla.Env{status: 500, body: %{"error" => "boom"}}
+
+        is_binary(query) and String.contains?(query, "query Bites") ->
+          # Return no bites for mine and for team to force fallback_by_title
+          %Tesla.Env{status: 200, body: %{"data" => %{"bites" => []}}}
+
+        is_binary(query) and String.contains?(query, "query Transcripts(") ->
+          # Title fallback but no results
+          %Tesla.Env{status: 200, body: %{"data" => %{"transcripts" => []}}}
+
+        true ->
+          flunk("unexpected request: #{inspect(payload)}")
+      end
+    end)
+
+    assert {:ok, %{accomplished: nil, action_items: []}} =
+             Fireflies.fetch_latest_for_series(series_id, title: "Weekly")
+  end
+
+  test "transcript summary returns rate-limited error and bubbles up" do
+    series_id = "series-rl"
+
+    Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+      payload = if is_binary(body), do: Jason.decode!(body), else: body
+      query = Map.get(payload, "query") || Map.get(payload, :query)
+
+      cond do
+        is_binary(query) and String.contains?(query, "query Bites(") ->
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "data" => %{
+                "bites" => [
+                  %{
+                    "id" => "b1",
+                    "transcript_id" => "t1",
+                    "created_at" => "2024-01-01T00:00:00Z",
+                    "created_from" => %{"id" => series_id}
+                  }
+                ]
+              }
+            }
+          }
+
+        is_binary(query) and String.contains?(query, "query Transcript(") ->
+          %Tesla.Env{
+            status: 200,
+            body: %{"errors" => [%{"code" => "too_many_requests", "message" => "slow down"}]}
+          }
+
+        true ->
+          flunk("unexpected request: #{inspect(payload)}")
+      end
+    end)
+
+    assert {:error, {:rate_limited, "slow down"}} =
+             Fireflies.fetch_latest_for_series(series_id, title: "Weekly")
+  end
+
+  test "search_transcripts_by_title delegates to client" do
+    Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql", body: _body} ->
+      %Tesla.Env{status: 200, body: %{"data" => %{"transcripts" => []}}}
+    end)
+
+    assert {:ok, []} = Fireflies.search_transcripts_by_title("Weekly", limit: 1)
+  end
 end

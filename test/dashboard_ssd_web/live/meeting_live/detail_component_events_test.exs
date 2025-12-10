@@ -89,4 +89,55 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
     refute html4 =~ ~s(value="client:#{c.id}" selected)
     refute html4 =~ ~s(value="project:#{p.id}" selected)
   end
+
+  test "refresh_post does nothing when series_id is nil (component)", %{conn: conn} do
+    defmodule NilSeriesHarness do
+      use Phoenix.LiveView
+      alias DashboardSSDWeb.MeetingLive.DetailComponent
+
+      def mount(_p, _s, socket) do
+        {:ok,
+         socket
+         |> Phoenix.Component.assign(:meeting_id, "evt-nil")
+         |> Phoenix.Component.assign(:series_id, nil)
+         |> Phoenix.Component.assign(:title, "Weekly – Nil Series")
+         |> Phoenix.Component.assign(:params, %{"mock" => "1"})}
+      end
+
+      def render(assigns) do
+        ~H"""
+        <.live_component
+          module={DetailComponent}
+          id="detail"
+          meeting_id={@meeting_id}
+          series_id={@series_id}
+          title={@title}
+          params={@params}
+        />
+        """
+      end
+    end
+
+    {:ok, view, html0} = live_isolated(conn, NilSeriesHarness)
+    assert html0 =~ "Summary pending"
+
+    render_click(element(view, "button[phx-click='refresh_post']"))
+    html1 = render(view)
+    assert html1 =~ "Summary pending"
+  end
+
+  test "assoc_save invalid entity and unknown leaves selection unchanged (component)", %{
+    conn: conn
+  } do
+    {:ok, view, html0} = live_isolated(conn, HarnessLV)
+    assert html0 =~ "— Choose —"
+
+    render_submit(element(view, "form[phx-submit='assoc_save']"), %{"entity" => "client:abc"})
+    html1 = render(view)
+    assert html1 =~ "— Choose —"
+
+    render_submit(element(view, "form[phx-submit='assoc_save']"), %{"entity" => "foo:1"})
+    html2 = render(view)
+    assert html2 =~ "— Choose —"
+  end
 end
