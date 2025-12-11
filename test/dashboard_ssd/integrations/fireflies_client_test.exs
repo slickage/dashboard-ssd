@@ -71,6 +71,15 @@ defmodule DashboardSSD.Integrations.FirefliesClientTest do
     assert {:error, {:rate_limited, "slow down"}} = FirefliesClient.list_bites()
   end
 
+  test "list_bites returns default rate-limit message when 429 body has no errors" do
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
+        %Tesla.Env{status: 429, body: %{}}
+    end)
+
+    assert {:error, {:rate_limited, "Too many requests"}} = FirefliesClient.list_bites()
+  end
+
   test "list_transcripts bubbles Tesla error reason" do
     Tesla.Mock.mock(fn _ -> {:error, :econnrefused} end)
     assert {:error, :econnrefused} = FirefliesClient.list_transcripts()

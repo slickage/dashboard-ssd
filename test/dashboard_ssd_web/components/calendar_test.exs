@@ -66,4 +66,12 @@ defmodule DashboardSSDWeb.CalendarComponentsHarnessTest do
     # No bg-theme-primary when no range is provided
     refute html =~ "bg-theme-primary"
   end
+
+  test "other today value passes through Map.update other branch", %{conn: conn} do
+    {:ok, view, _} = live_isolated(conn, CalHarness)
+    send(view.pid, {:assigns, %{today: :invalid}})
+    html = render(view)
+    # Renders normally
+    assert html =~ "Jan 2025"
+  end
 end

@@ -670,4 +670,91 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
     assert {:ok, %{accomplished: nil, action_items: []}} =
              Fireflies.fetch_latest_for_series(series_id, title: "No Similar Title")
   end
+
+  test "mine bites rate-limited returns same error" do
+    series_id = "series-mine-rl"
+
+    Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+      payload = if is_binary(body), do: Jason.decode!(body), else: body
+      query = Map.get(payload, "query") || Map.get(payload, :query)
+
+      cond do
+        is_binary(query) and String.contains?(query, "query Bites(") and payload["variables"]["mine"] == true ->
+          %Tesla.Env{status: 429, body: %{"errors" => [%{"message" => "too fast"}]}}
+
+        true -> flunk("unexpected request: #{inspect(payload)}")
+      end
+    end)
+
+    assert {:error, {:rate_limited, "too fast"}} =
+             Fireflies.fetch_latest_for_series(series_id, title: "Weekly")
+  end
+
+  test "team bites rate-limited returns same error" do
+    series_id = "series-team-rl"
+
+    Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+      payload = if is_binary(body), do: Jason.decode!(body), else: body
+      query = Map.get(payload, "query") || Map.get(payload, :query)
+
+      cond do
+        is_binary(query) and String.contains?(query, "query Bites(") and payload["variables"]["mine"] == true ->
+          %Tesla.Env{status: 200, body: %{"data" => %{"bites" => []}}}
+
+        is_binary(query) and String.contains?(query, "query Bites(") and payload["variables"]["my_team"] == true ->
+          %Tesla.Env{status: 429, body: %{"errors" => [%{"message" => "slow down team"}]}}
+
+        true -> flunk("unexpected request: #{inspect(payload)}")
+      end
+    end)
+
+    assert {:error, {:rate_limited, "slow down team"}} =
+             Fireflies.fetch_latest_for_series(series_id, title: "Weekly")
+  end
+
+  test "fallback_by_title returns rate-limited when transcripts are rate-limited" do
+    series_id = "series-title-rl"
+
+    Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+      payload = if is_binary(body), do: Jason.decode!(body), else: body
+      query = Map.get(payload, "query") || Map.get(payload, :query)
+
+      cond do
+        is_binary(query) and String.contains?(query, "query Bites(") ->
+          %Tesla.Env{status: 200, body: %{"data" => %{"bites" => []}}}
+
+        is_binary(query) and String.contains?(query, "query Transcripts(") ->
+          %Tesla.Env{status: 429, body: %{"errors" => [%{"message" => "title rl"}]}}
+
+        true -> flunk("unexpected request: #{inspect(payload)}")
+      end
+    end)
+
+    assert {:error, {:rate_limited, "title rl"}} =
+             Fireflies.fetch_latest_for_series(series_id, title: "Weekly")
+  end
+
+  test "normalize_items_to_list default branch handles unexpected type" do
+    series_id = "series-ai-map"
+
+    Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+      payload = if is_binary(body), do: Jason.decode!(body), else: body
+      query = Map.get(payload, "query") || Map.get(payload, :query)
+
+      cond do
+        is_binary(query) and String.contains?(query, "query Bites(") ->
+          %Tesla.Env{status: 200, body: %{"data" => %{"bites" => [
+            %{"id" => "b1", "transcript_id" => "tX", "created_at" => "2024-01-01T00:00:00Z", "created_from" => %{"id" => series_id}}
+          ]}}}
+
+        is_binary(query) and String.contains?(query, "query Transcript(") ->
+          %Tesla.Env{status: 200, body: %{"data" => %{"transcript" => %{"summary" => %{"overview" => "ok", "action_items" => %{"foo" => "bar"}}}}}}
+
+        true -> flunk("unexpected request: #{inspect(payload)}")
+      end
+    end)
+
+    assert {:ok, %{accomplished: "ok", action_items: []}} =
+             Fireflies.fetch_latest_for_series(series_id, title: "X")
+  end
 end

@@ -34,4 +34,8 @@ defmodule DashboardSSD.Meetings.AgendaUnitTest do
     assert Enum.map(items, & &1.text) == ["Hello"]
     assert Enum.all?(items, &(&1.source == "manual"))
   end
+
+  test "derive_items_for_event returns [] when series_id is nil" do
+    assert [] == Agenda.derive_items_for_event("evt-x", nil)
+  end
 end
