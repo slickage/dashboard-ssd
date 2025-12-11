@@ -1,8 +1,7 @@
 defmodule DashboardSSD.Meetings.AgendaUnitTest do
   use DashboardSSD.DataCase, async: true
 
-  alias DashboardSSD.Meetings.{Agenda, AgendaItem}
-  alias DashboardSSD.Repo
+  alias DashboardSSD.Meetings.Agenda
 
   test "list/create/update/delete/reorder items" do
     meeting_id = "evt-agenda"

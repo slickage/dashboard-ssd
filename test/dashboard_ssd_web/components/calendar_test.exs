@@ -1,8 +1,6 @@
-defmodule DashboardSSDWeb.CalendarComponentsTest do
+defmodule DashboardSSDWeb.CalendarComponentsHarnessTest do
   use DashboardSSDWeb.ConnCase, async: true
   import Phoenix.LiveViewTest
-
-  alias DashboardSSDWeb.CalendarComponents
 
   defmodule CalHarness do
     use Phoenix.LiveView
