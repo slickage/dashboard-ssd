@@ -701,7 +701,7 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
         is_binary(query) and String.contains?(query, "query Bites(") and payload["variables"]["mine"] == true ->
           %Tesla.Env{status: 200, body: %{"data" => %{"bites" => []}}}
 
-        is_binary(query) and String.contains?(query, "query Bites(") and payload["variables"]["my_team"] == true ->
+        is_binary(query) and String.contains?(query, "query Bites(") ->
           %Tesla.Env{status: 429, body: %{"errors" => [%{"message" => "slow down team"}]}}
 
         true -> flunk("unexpected request: #{inspect(payload)}")
