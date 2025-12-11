@@ -80,6 +80,23 @@ defmodule DashboardSSD.Integrations.FirefliesClientTest do
     assert {:error, {:rate_limited, "Too many requests"}} = FirefliesClient.list_bites()
   end
 
+  test "list_bites success with default limit (clamp(nil)) returns bites" do
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+        payload = if is_binary(body), do: Jason.decode!(body), else: body
+        # ensure limit not present (nil) when not provided
+        refute Map.get(payload, "variables") |> Map.has_key?("limit")
+        %Tesla.Env{status: 200, body: %{"data" => %{"bites" => [%{"id" => "b1"}]}}}
+    end)
+
+    assert {:ok, [%{"id" => "b1"}]} = FirefliesClient.list_bites()
+  end
+
+  test "list_bites returns {:error, reason} when Tesla errors" do
+    Tesla.Mock.mock(fn _ -> {:error, :nxdomain} end)
+    assert {:error, :nxdomain} = FirefliesClient.list_bites()
+  end
+
   test "list_transcripts bubbles Tesla error reason" do
     Tesla.Mock.mock(fn _ -> {:error, :econnrefused} end)
     assert {:error, :econnrefused} = FirefliesClient.list_transcripts()
@@ -115,6 +132,90 @@ defmodule DashboardSSD.Integrations.FirefliesClientTest do
     end)
 
     assert {:error, {:graphql_error, _}} = FirefliesClient.get_transcript_summary("t1")
+  end
+
+  test "get_bite returns bite on success" do
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
+        %Tesla.Env{status: 200, body: %{"data" => %{"bite" => %{"id" => "b1"}}}}
+    end)
+
+    assert {:ok, %{"id" => "b1"}} = FirefliesClient.get_bite("b1")
+  end
+
+  test "get_bite returns graphql_error on ok errors" do
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
+        %Tesla.Env{status: 200, body: %{"errors" => [%{"message" => "boom"}]}}
+    end)
+
+    assert {:error, {:graphql_error, _}} = FirefliesClient.get_bite("b1")
+  end
+
+  test "get_bite returns http_error on non-200" do
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
+        %Tesla.Env{status: 500, body: %{"error" => "boom"}}
+    end)
+
+    assert {:error, {:http_error, 500, %{"error" => "boom"}}} = FirefliesClient.get_bite("b1")
+  end
+
+  test "get_bite returns {:error, reason} when Tesla errors" do
+    Tesla.Mock.mock(fn _ -> {:error, :timeout} end)
+    assert {:error, :timeout} = FirefliesClient.get_bite("b1")
+  end
+
+  test "get_summary_for_transcript returns notes from first bite" do
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
+        %Tesla.Env{status: 200, body: %{"data" => %{"bites" => [%{"summary" => "Note X"}]}}}
+    end)
+
+    assert {:ok, %{notes: "Note X", action_items: [], bullet_gist: nil}} =
+             FirefliesClient.get_summary_for_transcript("t1")
+  end
+
+  test "get_summary_for_transcript returns {:error, reason} when Tesla errors" do
+    Tesla.Mock.mock(fn _ -> {:error, :timeout} end)
+    assert {:error, :timeout} = FirefliesClient.get_summary_for_transcript("t1")
+  end
+
+  test "list_transcripts returns non-empty list on ok data" do
+    # ensure token present
+    Application.put_env(:dashboard_ssd, :integrations, fireflies_api_token: "t")
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
+        %Tesla.Env{status: 200, body: %{"data" => %{"transcripts" => [%{"id" => "t1"}]}}}
+    end)
+    assert {:ok, [%{"id" => "t1"}]} = FirefliesClient.list_transcripts()
+  end
+
+  test "list_transcripts returns graphql_error on ok errors" do
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
+        %Tesla.Env{status: 200, body: %{"errors" => [%{"message" => "bad"}]}}
+    end)
+    assert {:error, {:graphql_error, _}} = FirefliesClient.list_transcripts()
+  end
+
+  test "list_transcripts variables include mine when explicitly provided" do
+    Application.put_env(:dashboard_ssd, :integrations, fireflies_api_token: "t")
+    Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+      payload = if is_binary(body), do: Jason.decode!(body), else: body
+      vars = Map.get(payload, "variables") || %{}
+      assert Map.get(vars, "mine") == false
+      %Tesla.Env{status: 200, body: %{"data" => %{"transcripts" => []}}}
+    end)
+    assert {:ok, []} = FirefliesClient.list_transcripts(mine: false)
+  end
+
+  test "list_users returns users on ok data" do
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
+        %Tesla.Env{status: 200, body: %{"data" => %{"users" => [%{"user_id" => "u1"}]}}}
+    end)
+    assert {:ok, [%{"user_id" => "u1"}]} = FirefliesClient.list_users()
   end
 
   test "get_bite returns :not_found on ok without bite" do
