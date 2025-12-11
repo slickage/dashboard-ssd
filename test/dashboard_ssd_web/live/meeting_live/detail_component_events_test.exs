@@ -217,7 +217,6 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
 
   defmodule NoMockHarness do
     use Phoenix.LiveView
-    import DashboardSSDWeb.MeetingLive.DetailComponent
     alias DashboardSSDWeb.MeetingLive.DetailComponent
 
     @impl true
