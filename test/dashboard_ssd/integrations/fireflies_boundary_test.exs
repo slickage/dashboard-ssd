@@ -679,10 +679,12 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
       query = Map.get(payload, "query") || Map.get(payload, :query)
 
       cond do
-        is_binary(query) and String.contains?(query, "query Bites(") and payload["variables"]["mine"] == true ->
+        is_binary(query) and String.contains?(query, "query Bites(") and
+            payload["variables"]["mine"] == true ->
           %Tesla.Env{status: 429, body: %{"errors" => [%{"message" => "too fast"}]}}
 
-        true -> flunk("unexpected request: #{inspect(payload)}")
+        true ->
+          flunk("unexpected request: #{inspect(payload)}")
       end
     end)
 
@@ -698,7 +700,8 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
       query = Map.get(payload, "query") || Map.get(payload, :query)
 
       cond do
-        is_binary(query) and String.contains?(query, "query Bites(") and payload["variables"]["mine"] == true ->
+        is_binary(query) and String.contains?(query, "query Bites(") and
+            payload["variables"]["mine"] == true ->
           %Tesla.Env{status: 200, body: %{"data" => %{"bites" => []}}}
 
         is_binary(query) and String.contains?(query, "query Bites(") ->
@@ -707,7 +710,8 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
         is_binary(query) and String.contains?(query, "query Transcripts(") ->
           %Tesla.Env{status: 429, body: %{"errors" => [%{"message" => "slow down team"}]}}
 
-        true -> flunk("unexpected request: #{inspect(payload)}")
+        true ->
+          flunk("unexpected request: #{inspect(payload)}")
       end
     end)
 
@@ -729,7 +733,8 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
         is_binary(query) and String.contains?(query, "query Transcripts(") ->
           %Tesla.Env{status: 429, body: %{"errors" => [%{"message" => "title rl"}]}}
 
-        true -> flunk("unexpected request: #{inspect(payload)}")
+        true ->
+          flunk("unexpected request: #{inspect(payload)}")
       end
     end)
 
@@ -746,14 +751,36 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
 
       cond do
         is_binary(query) and String.contains?(query, "query Bites(") ->
-          %Tesla.Env{status: 200, body: %{"data" => %{"bites" => [
-            %{"id" => "b1", "transcript_id" => "tX", "created_at" => "2024-01-01T00:00:00Z", "created_from" => %{"id" => series_id}}
-          ]}}}
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "data" => %{
+                "bites" => [
+                  %{
+                    "id" => "b1",
+                    "transcript_id" => "tX",
+                    "created_at" => "2024-01-01T00:00:00Z",
+                    "created_from" => %{"id" => series_id}
+                  }
+                ]
+              }
+            }
+          }
 
         is_binary(query) and String.contains?(query, "query Transcript(") ->
-          %Tesla.Env{status: 200, body: %{"data" => %{"transcript" => %{"summary" => %{"overview" => "ok", "action_items" => %{"foo" => "bar"}}}}}}
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "data" => %{
+                "transcript" => %{
+                  "summary" => %{"overview" => "ok", "action_items" => %{"foo" => "bar"}}
+                }
+              }
+            }
+          }
 
-        true -> flunk("unexpected request: #{inspect(payload)}")
+        true ->
+          flunk("unexpected request: #{inspect(payload)}")
       end
     end)
 

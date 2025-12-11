@@ -223,12 +223,12 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexTest do
     {:ok, view, _} = live(conn, ~p"/meetings?mock=1&d=#{d}&tz=120")
 
     # Click client chip
-    render_click(element(view, ~s(a[href*="client_id="])) )
+    render_click(element(view, ~s(a[href*="client_id="])))
     assert_patch(view, ~p"/meetings?mock=1&d=#{d}&tz=120" <> ~s(&client_id=#{client.id}))
 
     # Click project chip
     {:ok, view2, _} = live(conn, ~p"/meetings?mock=1&d=#{d}&tz=120")
-    render_click(element(view2, ~s(a[href*="project_id="])) )
+    render_click(element(view2, ~s(a[href*="project_id="])))
     assert_patch(view2, ~p"/meetings?mock=1&d=#{d}&tz=120" <> ~s(&project_id=#{project.id}))
   end
 

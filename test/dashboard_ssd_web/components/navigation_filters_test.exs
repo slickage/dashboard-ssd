@@ -22,7 +22,9 @@ defmodule DashboardSSDWeb.NavigationFiltersTest do
     def handle_info({:assigns, map}, socket) when is_map(map), do: {:noreply, assign(socket, map)}
   end
 
-  test "nav highlights active when path matches and includes items without capability", %{conn: conn} do
+  test "nav highlights active when path matches and includes items without capability", %{
+    conn: conn
+  } do
     {:ok, view, _} = live_isolated(conn, NavHarness)
     # Set path to /meetings so active state applies
     send(view.pid, {:assigns, %{path: "/meetings"}})

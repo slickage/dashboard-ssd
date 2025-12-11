@@ -262,7 +262,11 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
     @impl true
     def mount(_p, _s, socket) do
       # Seed cache with derived items so component derives agenda_text when manual empty
-      DashboardSSD.Meetings.CacheStore.put({:series_artifacts, "series-derived"}, %{accomplished: nil, action_items: ["A", "B"]}, :timer.minutes(5))
+      DashboardSSD.Meetings.CacheStore.put(
+        {:series_artifacts, "series-derived"},
+        %{accomplished: nil, action_items: ["A", "B"]},
+        :timer.minutes(5)
+      )
 
       {:ok,
        socket

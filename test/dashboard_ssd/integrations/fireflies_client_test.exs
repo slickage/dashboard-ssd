@@ -184,10 +184,12 @@ defmodule DashboardSSD.Integrations.FirefliesClientTest do
   test "list_transcripts returns non-empty list on ok data" do
     # ensure token present
     Application.put_env(:dashboard_ssd, :integrations, fireflies_api_token: "t")
+
     Tesla.Mock.mock(fn
       %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
         %Tesla.Env{status: 200, body: %{"data" => %{"transcripts" => [%{"id" => "t1"}]}}}
     end)
+
     assert {:ok, [%{"id" => "t1"}]} = FirefliesClient.list_transcripts()
   end
 
@@ -196,17 +198,20 @@ defmodule DashboardSSD.Integrations.FirefliesClientTest do
       %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
         %Tesla.Env{status: 200, body: %{"errors" => [%{"message" => "bad"}]}}
     end)
+
     assert {:error, {:graphql_error, _}} = FirefliesClient.list_transcripts()
   end
 
   test "list_transcripts variables include mine when explicitly provided" do
     Application.put_env(:dashboard_ssd, :integrations, fireflies_api_token: "t")
+
     Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
       payload = if is_binary(body), do: Jason.decode!(body), else: body
       vars = Map.get(payload, "variables") || %{}
       assert Map.get(vars, "mine") == false
       %Tesla.Env{status: 200, body: %{"data" => %{"transcripts" => []}}}
     end)
+
     assert {:ok, []} = FirefliesClient.list_transcripts(mine: false)
   end
 
@@ -215,6 +220,7 @@ defmodule DashboardSSD.Integrations.FirefliesClientTest do
       %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
         %Tesla.Env{status: 200, body: %{"data" => %{"users" => [%{"user_id" => "u1"}]}}}
     end)
+
     assert {:ok, [%{"user_id" => "u1"}]} = FirefliesClient.list_users()
   end
 

@@ -74,8 +74,12 @@ defmodule DashboardSSD.Integrations.GoogleCalendarTest do
 
   test "list_upcoming_for_user returns :no_token when user not integer or map with id" do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
-    assert {:error, :no_token} = GoogleCalendar.list_upcoming_for_user("bad", now, DateTime.add(now, 3600))
-    assert {:error, :no_token} = GoogleCalendar.list_upcoming_for_user(%{}, now, DateTime.add(now, 3600))
+
+    assert {:error, :no_token} =
+             GoogleCalendar.list_upcoming_for_user("bad", now, DateTime.add(now, 3600))
+
+    assert {:error, :no_token} =
+             GoogleCalendar.list_upcoming_for_user(%{}, now, DateTime.add(now, 3600))
   end
 
   test "list_upcoming returns [] when token missing or empty" do
