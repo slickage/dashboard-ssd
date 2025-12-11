@@ -3,7 +3,7 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
 
   import Ecto.Query
   alias DashboardSSD.Integrations.Fireflies
-  alias DashboardSSD.Meetings.{CacheStore, FirefliesArtifact}
+  alias DashboardSSD.Meetings.{CacheStore, FirefliesArtifact, FirefliesStore}
   alias DashboardSSD.Repo
 
   setup do
@@ -793,7 +793,7 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
 
     # Seed DB artifact
     :ok =
-      DashboardSSD.Meetings.FirefliesStore.upsert(series_id, %{
+      FirefliesStore.upsert(series_id, %{
         transcript_id: "t-db",
         accomplished: "DB Only",
         action_items: ["A"]
