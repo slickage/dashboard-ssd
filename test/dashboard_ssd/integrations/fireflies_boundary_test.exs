@@ -678,13 +678,11 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
       payload = if is_binary(body), do: Jason.decode!(body), else: body
       query = Map.get(payload, "query") || Map.get(payload, :query)
 
-      cond do
-        is_binary(query) and String.contains?(query, "query Bites(") and
-            payload["variables"]["mine"] == true ->
-          %Tesla.Env{status: 429, body: %{"errors" => [%{"message" => "too fast"}]}}
-
-        true ->
-          flunk("unexpected request: #{inspect(payload)}")
+      if is_binary(query) and String.contains?(query, "query Bites(") and
+           payload["variables"]["mine"] == true do
+        %Tesla.Env{status: 429, body: %{"errors" => [%{"message" => "too fast"}]}}
+      else
+        flunk("unexpected request: #{inspect(payload)}")
       end
     end)
 
