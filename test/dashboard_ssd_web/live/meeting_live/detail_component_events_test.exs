@@ -151,6 +151,19 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
     refute html4 =~ ~s(value="project:#{p.id}" selected)
   end
 
+  test "assoc_save project with explicit persist flag", %{conn: conn} do
+    {:ok, p} = Projects.create_project(%{name: "Proj Explicit"})
+    {:ok, view, _} = live_isolated(conn, HarnessLV)
+
+    render_submit(element(view, "form[phx-submit='assoc_save']"), %{
+      "entity" => "project:#{p.id}",
+      "persist_series" => "on"
+    })
+
+    html = render(view)
+    assert html =~ ~s(value="project:#{p.id}" selected)
+  end
+
   test "refresh_post does nothing when series_id is nil (component)", %{conn: conn} do
     defmodule NilSeriesHarness do
       use Phoenix.LiveView
@@ -200,5 +213,125 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
     render_submit(element(view, "form[phx-submit='assoc_save']"), %{"entity" => "foo:1"})
     html2 = render(view)
     assert html2 =~ "— Choose —"
+  end
+
+  defmodule NoMockHarness do
+    use Phoenix.LiveView
+    import DashboardSSDWeb.MeetingLive.DetailComponent
+    alias DashboardSSDWeb.MeetingLive.DetailComponent
+
+    @impl true
+    def mount(_p, _s, socket) do
+      {:ok,
+       socket
+       |> Phoenix.Component.assign(:meeting_id, "evt-rl")
+       |> Phoenix.Component.assign(:series_id, "series-rl")
+       |> Phoenix.Component.assign(:title, "Weekly – RL")
+       |> Phoenix.Component.assign(:params, %{})}
+    end
+
+    @impl true
+    def render(assigns) do
+      ~H"""
+      <.live_component
+        module={DetailComponent}
+        id="detail-rl"
+        meeting_id={@meeting_id}
+        series_id={@series_id}
+        title={@title}
+        params={@params}
+      />
+      """
+    end
+  end
+
+  test "shows rate-limited message when Fireflies returns RL (component)", %{conn: conn} do
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
+        %Tesla.Env{status: 429, body: %{"errors" => [%{"message" => "too many"}]}}
+    end)
+
+    {:ok, _view, html} = live_isolated(conn, NoMockHarness)
+    assert html =~ "Last meeting summary"
+    assert html =~ "too many"
+  end
+
+  defmodule DerivedHarness do
+    use Phoenix.LiveView
+    import DashboardSSDWeb.MeetingLive.DetailComponent
+    alias DashboardSSDWeb.MeetingLive.DetailComponent
+
+    @impl true
+    def mount(_p, _s, socket) do
+      # Seed cache with derived items so component derives agenda_text when manual empty
+      DashboardSSD.Meetings.CacheStore.put({:series_artifacts, "series-derived"}, %{accomplished: nil, action_items: ["A", "B"]}, :timer.minutes(5))
+
+      {:ok,
+       socket
+       |> Phoenix.Component.assign(:meeting_id, "evt-derived")
+       |> Phoenix.Component.assign(:series_id, "series-derived")
+       |> Phoenix.Component.assign(:title, "Weekly – Derived")
+       |> Phoenix.Component.assign(:params, %{})}
+    end
+
+    @impl true
+    def render(assigns) do
+      ~H"""
+      <.live_component
+        module={DetailComponent}
+        id="detail-derived"
+        meeting_id={@meeting_id}
+        series_id={@series_id}
+        title={@title}
+        params={@params}
+      />
+      """
+    end
+  end
+
+  test "derives agenda_text from Fireflies when manual empty (list items)", %{conn: conn} do
+    # Ensure no Tesla calls are needed (we seeded cache)
+    Tesla.Mock.mock(fn _ -> %Tesla.Env{status: 200, body: %{"data" => %{}}} end)
+    {:ok, _view, html} = live_isolated(conn, DerivedHarness)
+    # The textarea includes the derived agenda text
+    assert html =~ ">A"
+    assert html =~ ">B"
+  end
+
+  defmodule SuggestHarness do
+    use Phoenix.LiveView
+    import DashboardSSDWeb.MeetingLive.DetailComponent
+    alias DashboardSSDWeb.MeetingLive.DetailComponent
+
+    @impl true
+    def mount(_p, _s, socket) do
+      {:ok, c} = DashboardSSD.Clients.create_client(%{name: "Suggest C"})
+      _ = c
+      {:ok,
+       socket
+       |> Phoenix.Component.assign(:meeting_id, "evt-suggest")
+       |> Phoenix.Component.assign(:series_id, nil)
+       |> Phoenix.Component.assign(:title, "Weekly – Suggest C")
+       |> Phoenix.Component.assign(:params, %{})}
+    end
+
+    @impl true
+    def render(assigns) do
+      ~H"""
+      <.live_component
+        module={DetailComponent}
+        id="detail-suggest"
+        meeting_id={@meeting_id}
+        series_id={@series_id}
+        title={@title}
+        params={@params}
+      />
+      """
+    end
+  end
+
+  test "shows (suggested) tag for guessed client when no assoc", %{conn: conn} do
+    {:ok, _view, html} = live_isolated(conn, SuggestHarness)
+    assert html =~ "(suggested)"
   end
 end
