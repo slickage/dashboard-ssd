@@ -6,6 +6,7 @@ defmodule DashboardSSDWeb.CalendarComponentsHarnessTest do
     use Phoenix.LiveView
     import DashboardSSDWeb.CalendarComponents
 
+    @impl true
     def mount(_p, _s, socket) do
       {:ok, assign(socket, assigns_from_env())}
     end
@@ -21,6 +22,7 @@ defmodule DashboardSSDWeb.CalendarComponentsHarnessTest do
       }
     end
 
+    @impl true
     def render(assigns) do
       ~H"""
       <.month_calendar
