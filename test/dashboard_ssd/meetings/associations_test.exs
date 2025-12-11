@@ -35,6 +35,13 @@ defmodule DashboardSSD.Meetings.AssociationsTest do
     assert assoc2.recurring_series_id == "series-2"
   end
 
+  test "set_manual/4 with persist_series=false does not persist series" do
+    {:ok, client} = Clients.create_client(%{name: "No Persist"})
+    {:ok, assoc} = Associations.set_manual("evt-np", %{client_id: client.id}, "series-np", false)
+    assert assoc.persist_series == false
+    assert assoc.recurring_series_id == "series-np"
+  end
+
   test "get_for_event_or_series falls back to series when event missing" do
     {:ok, client} = Clients.create_client(%{name: "Fallback C"})
 

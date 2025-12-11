@@ -760,4 +760,22 @@ defmodule DashboardSSD.Integrations.FirefliesBoundaryTest do
     assert {:ok, %{accomplished: "ok", action_items: []}} =
              Fireflies.fetch_latest_for_series(series_id, title: "X")
   end
+
+  test "returns from DB artifact without hitting API" do
+    series_id = "series-db-only"
+
+    # Seed DB artifact
+    :ok =
+      DashboardSSD.Meetings.FirefliesStore.upsert(series_id, %{
+        transcript_id: "t-db",
+        accomplished: "DB Only",
+        action_items: ["A"]
+      })
+
+    # Any API call here should fail the test
+    Tesla.Mock.mock(fn _ -> flunk("API should not be called when DB artifact exists") end)
+
+    assert {:ok, %{accomplished: "DB Only", action_items: ["A"]}} =
+             Fireflies.fetch_latest_for_series(series_id, ttl: 60_000)
+  end
 end
