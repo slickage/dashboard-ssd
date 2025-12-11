@@ -71,4 +71,16 @@ defmodule DashboardSSD.Integrations.GoogleCalendarTest do
     assert Enum.find(events, &(&1.id == "A"))[:recurring_series_id] == "r-123"
     assert Enum.find(events, &(&1.id == "B"))[:title] == "Title B"
   end
+
+  test "list_upcoming_for_user returns :no_token when user not integer or map with id" do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+    assert {:error, :no_token} = GoogleCalendar.list_upcoming_for_user("bad", now, DateTime.add(now, 3600))
+    assert {:error, :no_token} = GoogleCalendar.list_upcoming_for_user(%{}, now, DateTime.add(now, 3600))
+  end
+
+  test "list_upcoming returns [] when token missing or empty" do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+    assert {:ok, []} = GoogleCalendar.list_upcoming(now, DateTime.add(now, 3600), token: nil)
+    assert {:ok, []} = GoogleCalendar.list_upcoming(now, DateTime.add(now, 3600), token: "")
+  end
 end

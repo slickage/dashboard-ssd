@@ -142,6 +142,21 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexTest do
     assert html =~ project.name
   end
 
+  test "shows Unassigned when no mapping", %{conn: conn} do
+    today = Date.utc_today() |> Date.to_iso8601()
+    {:ok, _view, html} = live(conn, ~p"/meetings?mock=1&d=#{today}")
+    assert html =~ "· Unassigned"
+  end
+
+  test "meeting title link preserves tz and d and mock params", %{conn: conn} do
+    d = Date.utc_today() |> Date.to_iso8601()
+    {:ok, _view, html} = live(conn, ~p"/meetings?mock=1&d=#{d}&tz=120")
+    # Title link should include preserved flags
+    assert html =~ ~s(mock=1)
+    assert html =~ ~s(d=#{d})
+    assert html =~ ~s(tz=120)
+  end
+
   test "meeting modal renders when id param present", %{conn: conn} do
     # Seed series artifacts to avoid external HTTP in the detail component
     CacheStore.put(
@@ -179,6 +194,42 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexTest do
 
     {:ok, _view2, html2} = live(conn, ~p"/meetings?mock=1&project_id=#{p.id}")
     assert html2 =~ "project-read-modal"
+  end
+
+  test "client and project chips patch to add respective ids preserving params", %{conn: conn} do
+    {:ok, client} = Clients.create_client(%{name: "Chip C"})
+    {:ok, project} = Projects.create_project(%{name: "Chip P"})
+
+    # Create mappings so chips render
+    %MeetingAssociation{}
+    |> MeetingAssociation.changeset(%{
+      calendar_event_id: "evt-1",
+      client_id: client.id,
+      origin: "manual",
+      persist_series: true
+    })
+    |> Repo.insert!()
+
+    %MeetingAssociation{}
+    |> MeetingAssociation.changeset(%{
+      calendar_event_id: "evt-2",
+      project_id: project.id,
+      origin: "manual",
+      persist_series: true
+    })
+    |> Repo.insert!()
+
+    d = Date.utc_today() |> Date.to_iso8601()
+    {:ok, view, _} = live(conn, ~p"/meetings?mock=1&d=#{d}&tz=120")
+
+    # Click client chip
+    render_click(element(view, ~s(a[href*="client_id="])) )
+    assert_patch(view, ~p"/meetings?mock=1&d=#{d}&tz=120" <> ~s(&client_id=#{client.id}))
+
+    # Click project chip
+    {:ok, view2, _} = live(conn, ~p"/meetings?mock=1&d=#{d}&tz=120")
+    render_click(element(view2, ~s(a[href*="project_id="])) )
+    assert_patch(view2, ~p"/meetings?mock=1&d=#{d}&tz=120" <> ~s(&project_id=#{project.id}))
   end
 
   test "prev from January wraps to December and next from December wraps to January", %{
