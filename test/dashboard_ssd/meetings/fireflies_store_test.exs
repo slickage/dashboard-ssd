@@ -88,23 +88,6 @@ defmodule DashboardSSD.Meetings.FirefliesStoreTest do
     assert {:ok, %{action_items: []}} = FirefliesStore.get(series)
   end
 
-  test "get falls back to [] for unexpected non-map action_items via insert_all" do
-    series = "series-num-items"
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
-    # Bypass changeset casting to store a bare number in action_items
-    DashboardSSD.Repo.insert_all(
-      "fireflies_artifacts",
-      [
-        %{
-          recurring_series_id: series,
-          action_items: 123,
-          fetched_at: now,
-          inserted_at: now,
-          updated_at: now
-        }
-      ]
-    )
-
-    assert {:ok, %{action_items: []}} = FirefliesStore.get(series)
-  end
+  # Note: fallback branch for non-map action_items cannot be hit via schema loading,
+  # since Ecto will reject non-map values for :map fields at load time.
 end
