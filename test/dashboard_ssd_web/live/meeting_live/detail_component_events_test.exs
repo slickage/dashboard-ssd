@@ -258,7 +258,6 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
 
   defmodule DerivedHarness do
     use Phoenix.LiveView
-    import DashboardSSDWeb.MeetingLive.DetailComponent
     alias DashboardSSDWeb.MeetingLive.DetailComponent
 
     @impl true
@@ -300,13 +299,10 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
 
   defmodule SuggestHarness do
     use Phoenix.LiveView
-    import DashboardSSDWeb.MeetingLive.DetailComponent
     alias DashboardSSDWeb.MeetingLive.DetailComponent
 
     @impl true
     def mount(_p, _s, socket) do
-      {:ok, c} = DashboardSSD.Clients.create_client(%{name: "Suggest C"})
-      _ = c
       {:ok,
        socket
        |> Phoenix.Component.assign(:meeting_id, "evt-suggest")
@@ -331,6 +327,7 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
   end
 
   test "shows (suggested) tag for guessed client when no assoc", %{conn: conn} do
+    {:ok, _} = DashboardSSD.Clients.create_client(%{name: "Suggest C"})
     {:ok, _view, html} = live_isolated(conn, SuggestHarness)
     assert html =~ "(suggested)"
   end
