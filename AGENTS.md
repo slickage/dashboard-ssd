@@ -114,6 +114,7 @@ Rules
 - Keep each commit message within 100 columns and subjects imperative.
 - Never use `git add -A`. Always stage file paths explicitly (e.g., `git add test/...` or `git add lib/...`) to
   avoid unintentionally committing tooling, artifacts, or unrelated changes. Use `git add -p` for selective hunks.
+- Run `mix format` before committing any code or tests to keep style consistent.
 
 Example sequence (commands)
 - git add lib/ test/
