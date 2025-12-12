@@ -6,6 +6,14 @@ defmodule DashboardSSDWeb.DateHelpers do
   session/assigns, convert before formatting.
   """
 
+  @doc """
+  Formats a DateTime/NaiveDateTime into a human-readable string.
+
+  Examples (UTC):
+    - DateTime -> "Nov 03, 2025 · 13:45 UTC"
+    - NaiveDateTime -> "Nov 03, 2025 · 13:45"
+    - nil -> "n/a"
+  """
   @spec human_datetime(DateTime.t() | NaiveDateTime.t() | nil) :: String.t()
   def human_datetime(nil), do: "n/a"
 
