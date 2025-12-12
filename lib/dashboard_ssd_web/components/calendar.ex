@@ -1,6 +1,7 @@
 defmodule DashboardSSDWeb.CalendarComponents do
   @moduledoc "Simple calendar components used across views."
   use Phoenix.Component
+  alias Phoenix.LiveView.Rendered
 
   @doc """
   Render a month grid for the given month (Date).
@@ -20,8 +21,8 @@ defmodule DashboardSSDWeb.CalendarComponents do
   attr :on_day_click, :string, default: nil
   attr :has_meetings, :map, default: %{}
 
+  @spec month_calendar(map()) :: Rendered.t()
   def month_calendar(assigns) do
-    @spec month_calendar(map()) :: Phoenix.LiveView.Rendered.t()
     assigns =
       assigns
       |> Map.update(:today, Date.utc_today(), fn
