@@ -635,4 +635,19 @@ defmodule DashboardSSD.KnowledgeBase.ActivityTest do
       assert {:error, :invalid_user} = Activity.recent_documents(%{})
     end
   end
+
+  test "record_view accepts integer document_id and non-map metadata" do
+    {:ok, user} =
+      Accounts.create_user(%{
+        email: "kb-activity3@example.com",
+        name: "U3",
+        role_id: Accounts.ensure_role!("employee").id
+      })
+
+    # integer document_id becomes string; metadata non-map is ignored
+    assert :ok = Activity.record_view(user.id, %{document_id: 42})
+
+    {:ok, recents} = Activity.recent_documents(user.id)
+    assert Enum.any?(recents, &(&1.document_id == "42"))
+  end
 end

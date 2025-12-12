@@ -6,21 +6,34 @@ Overview
 - Use wrappers in `DashboardSSD.Integrations` for quick IEx testing.
 
 Setup
-- Copy `.env.example` to `.env` and fill values (either name works when two are shown):
+- Copy `example.env` to `.env` and fill values (either name works when two are shown):
   - Linear: `LINEAR_API_KEY` or `LINEAR_TOKEN`
   - Slack: `SLACK_API_KEY` or `SLACK_BOT_TOKEN` (+ optional `SLACK_CHANNEL`)
   - Notion: `NOTION_API_KEY` or `NOTION_TOKEN`
   - Drive (optional direct access token): `GOOGLE_DRIVE_TOKEN` or `GOOGLE_OAUTH_TOKEN`
   - Google OAuth client: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+  - Fireflies: `FIREFLIES_API_TOKEN`
 - Ensure `.env` is not committed (it is gitignored).
 
-Google OAuth for Drive
+Google OAuth (Drive + Calendar)
 - In Google Cloud Console, create OAuth 2.0 credentials and a consent screen.
 - Add Authorized redirect URI: `http://localhost:4000/auth/google/callback`
 - Put `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env`.
-- Scope: app requests `email profile https://www.googleapis.com/auth/drive.readonly` and asks for offline access to obtain refresh_token.
+- Scope: app requests `email profile https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/calendar.readonly` and asks for offline access to obtain `refresh_token`.
 - Sign in at `http://localhost:4000/auth/google` to store the tokens on your user (table `external_identities`).
-- After sign-in, the stored access token can be used for Drive API calls.
+- After sign-in, the stored access token can be used for Drive and Calendar API calls.
+  - Calendar listing in the Meetings feature uses the signed-in user's token only (no env fallback) to avoid ambiguity across users.
+  - `GOOGLE_OAUTH_TOKEN` can still be used for Drive helpers in scripts, but is not used for Calendar listing in the UI.
+
+Fireflies.ai for Meetings
+- Provide `FIREFLIES_API_TOKEN` in `.env`.
+- The Meetings feature fetches structured summary fields from Fireflies (notes and action_items) when available, avoiding any local parsing.
+- If structured action_items are not available, the agenda starts empty and can be edited manually (future fallback logic may use vendor-provided alternatives).
+
+Default Fireflies user id (optional)
+- Set `FIREFLIES_USER_ID` in `.env` to scope transcript queries to a specific user by default (helpful when `mine: true` returns no results).
+- Discover your user id via IEx: `DashboardSSD.Integrations.FirefliesClient.list_users()`.
+- The client prefers `FIREFLIES_USER_ID` when no exclusive filter is passed to `list_transcripts/1` and `:mine` isn’t explicitly set.
 
 Load `.env`
 - Option 1 (recommended): it is auto-loaded on app start in dev/test by `config/runtime.exs`.

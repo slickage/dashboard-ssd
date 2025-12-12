@@ -254,6 +254,18 @@ window.addEventListener("phx:copy-to-clipboard", (event) => {
 
 // Flash auto-dismiss hook
 let Hooks = {}
+Hooks.TzDetect = {
+  mounted() {
+    try {
+      const url = new URL(window.location.href)
+      if (url.searchParams.get('tz') || url.searchParams.get('tz_offset')) return
+      const offset = -new Date().getTimezoneOffset() // minutes east of UTC (e.g., -480 for UTC-8)
+      this.pushEvent('tz:set', { offset })
+    } catch (_e) {
+      // no-op
+    }
+  }
+}
 Hooks.AutoDismiss = {
   mounted() {
     this.startTimer()

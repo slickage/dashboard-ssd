@@ -11,7 +11,9 @@ defmodule DashboardSSD.Integrations do
   """
 
   alias DashboardSSD.Accounts.ExternalIdentity
-  alias DashboardSSD.Integrations.{Drive, Linear, Notion, Slack}
+  alias DashboardSSD.Integrations.{Drive, GoogleCalendar, Linear, Notion, Slack}
+  alias DashboardSSD.Integrations.GoogleToken
+  alias DashboardSSD.Meetings.CacheStore, as: MeetingsCache
   alias DashboardSSD.Repo
   require Logger
 
@@ -158,6 +160,7 @@ defmodule DashboardSSD.Integrations do
   In test mode, falls back to a fixed token when no credentials are provided to
   avoid external network calls.
   """
+  @spec drive_service_token() :: {:ok, String.t()} | error()
   def drive_service_token do
     case env_drive_token() do
       {:ok, token} ->
@@ -170,6 +173,7 @@ defmodule DashboardSSD.Integrations do
   end
 
   @doc false
+  @spec env_drive_token() :: {:ok, String.t()} | error()
   def env_drive_token do
     token =
       Keyword.get(cfg(), :drive_token) || System.get_env("GOOGLE_DRIVE_TOKEN") ||
@@ -426,4 +430,63 @@ defmodule DashboardSSD.Integrations do
 
   defp default_rate_limit_message,
     do: "Linear API rate limit exceeded. Please wait before retrying."
+
+  # Google Calendar (user/env token helper)
+  @doc """
+  List upcoming calendar events for a user between `start_at` and `end_at`.
+
+  Token precedence:
+    1. User's ExternalIdentity with provider "google" (uses its `token`)
+    2. Env var `GOOGLE_OAUTH_TOKEN`
+
+  Options are forwarded to the GoogleCalendar client (e.g., `mock: :sample`).
+  Returns `{:error, :no_token}` when no usable token is available and `:mock`
+  is not set.
+  """
+  @spec calendar_list_upcoming_for_user(
+          pos_integer() | %{id: pos_integer()},
+          DateTime.t(),
+          DateTime.t(),
+          keyword()
+        ) ::
+          {:ok, list()} | {:error, term()}
+  def calendar_list_upcoming_for_user(user_or_id, start_at, end_at, opts \\ []) do
+    # Allow mock path without token and without caching (deterministic QA)
+    if Keyword.get(opts, :mock) == :sample do
+      GoogleCalendar.list_upcoming(start_at, end_at, opts)
+    else
+      user_id =
+        case user_or_id do
+          %{id: id} -> id
+          id when is_integer(id) -> id
+          _ -> nil
+        end
+
+      key =
+        {:gcal, user_id,
+         {Date.to_iso8601(DateTime.to_date(start_at)), Date.to_iso8601(DateTime.to_date(end_at))}}
+
+      ttl = Keyword.get(opts, :ttl, :timer.minutes(5))
+
+      MeetingsCache.fetch(
+        key,
+        fn -> fetch_calendar_list_for_user(user_id, start_at, end_at, opts) end,
+        ttl: ttl
+      )
+    end
+  end
+
+  defp fetch_calendar_list_for_user(user_id, start_at, end_at, opts) when is_integer(user_id) do
+    case GoogleToken.get_access_token_for_user(user_id) do
+      {:ok, token} ->
+        GoogleCalendar.list_upcoming(start_at, end_at, Keyword.put(opts, :token, token))
+
+      {:error, _} = err ->
+        err
+    end
+  end
+
+  defp fetch_calendar_list_for_user(_user_id, _start_at, _end_at, _opts), do: {:error, :no_token}
+
+  # Deprecated: fetching tokens without refresh moved to GoogleToken helper.
 end

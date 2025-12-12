@@ -1,0 +1,226 @@
+[
+  {
+    "title": "Upload Audio - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/graphql-api/mutation/upload-audio",
+    "section": "graphql-api",
+    "slug": "mutation/upload-audio",
+    "deprecated": []
+  },
+  {
+    "title": "Active Meetings query - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/graphql-api/query/active-meetings",
+    "section": "graphql-api",
+    "slug": "query/active-meetings",
+    "deprecated": []
+  },
+  {
+    "title": "Analytics query - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/graphql-api/query/analytics",
+    "section": "graphql-api",
+    "slug": "query/analytics",
+    "deprecated": []
+  },
+  {
+    "title": "AI Apps query - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/graphql-api/query/apps",
+    "section": "graphql-api",
+    "slug": "query/apps",
+    "deprecated": []
+  },
+  {
+    "title": "Bite query - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/graphql-api/query/bite",
+    "section": "graphql-api",
+    "slug": "query/bite",
+    "deprecated": []
+  },
+  {
+    "title": "Bites query - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/graphql-api/query/bites",
+    "section": "graphql-api",
+    "slug": "query/bites",
+    "deprecated": []
+  },
+  {
+    "title": "Transcript query - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/graphql-api/query/transcript",
+    "section": "graphql-api",
+    "slug": "query/transcript",
+    "deprecated": []
+  },
+  {
+    "title": "Transcripts query - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/graphql-api/query/transcripts",
+    "section": "graphql-api",
+    "slug": "query/transcripts",
+    "deprecated": []
+  },
+  {
+    "title": "User query - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/graphql-api/query/user",
+    "section": "graphql-api",
+    "slug": "query/user",
+    "deprecated": []
+  },
+  {
+    "title": "User Groups query - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/graphql-api/query/user-groups",
+    "section": "graphql-api",
+    "slug": "query/user-groups",
+    "deprecated": []
+  },
+  {
+    "title": "Users query - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/graphql-api/query/users",
+    "section": "graphql-api",
+    "slug": "query/users",
+    "deprecated": []
+  },
+  {
+    "title": "Webhooks - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/graphql-api/webhooks",
+    "section": "graphql-api",
+    "slug": "webhooks",
+    "deprecated": []
+  },
+  {
+    "title": "ActiveMeeting Schema - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/schema/active-meeting",
+    "section": "schema",
+    "slug": "active-meeting",
+    "deprecated": []
+  },
+  {
+    "title": "AIFilter Schema - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/schema/aifilter",
+    "section": "schema",
+    "slug": "aifilter",
+    "deprecated": []
+  },
+  {
+    "title": "Analytics Schema - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/schema/analytics",
+    "section": "schema",
+    "slug": "analytics",
+    "deprecated": []
+  },
+  {
+    "title": "App Output Schema - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/schema/app-output",
+    "section": "schema",
+    "slug": "app-output",
+    "deprecated": []
+  },
+  {
+    "title": "AI Apps Schema - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/schema/apps",
+    "section": "schema",
+    "slug": "apps",
+    "deprecated": []
+  },
+  {
+    "title": "AudioUploadStatus Schema - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/schema/audio-upload-status",
+    "section": "schema",
+    "slug": "audio-upload-status",
+    "deprecated": []
+  },
+  {
+    "title": "API Documentation",
+    "url": "https://docs.fireflies.ai/schema/bite",
+    "section": "schema",
+    "slug": "bite",
+    "deprecated": []
+  },
+  {
+    "title": "Channel Schema - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/schema/channel",
+    "section": "schema",
+    "slug": "channel",
+    "deprecated": []
+  },
+  {
+    "title": "MeetingAnalytics Schema - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/schema/meeting-analytics",
+    "section": "schema",
+    "slug": "meeting-analytics",
+    "deprecated": []
+  },
+  {
+    "title": "MeetingAttendee Schema - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/schema/meeting-attendee",
+    "section": "schema",
+    "slug": "meeting-attendee",
+    "deprecated": []
+  },
+  {
+    "title": "MeetingInfo Schema - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/schema/meeting-info",
+    "section": "schema",
+    "slug": "meeting-info",
+    "deprecated": []
+  },
+  {
+    "title": "Sentence Schema - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/schema/sentence",
+    "section": "schema",
+    "slug": "sentence",
+    "deprecated": []
+  },
+  {
+    "title": "Sentiments Schema - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/schema/sentiments",
+    "section": "schema",
+    "slug": "sentiments",
+    "deprecated": []
+  },
+  {
+    "title": "Speaker Schema - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/schema/speaker",
+    "section": "schema",
+    "slug": "speaker",
+    "deprecated": []
+  },
+  {
+    "title": "Summary Schema - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/schema/summary",
+    "section": "schema",
+    "slug": "summary",
+    "deprecated": []
+  },
+  {
+    "title": "Summary Section Schema - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/schema/summary-section",
+    "section": "schema",
+    "slug": "summary-section",
+    "deprecated": []
+  },
+  {
+    "title": "Transcript Schema - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/schema/transcript",
+    "section": "schema",
+    "slug": "transcript",
+    "deprecated": []
+  },
+  {
+    "title": "User Schema - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/schema/user",
+    "section": "schema",
+    "slug": "user",
+    "deprecated": []
+  },
+  {
+    "title": "User Group Member Schema - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/schema/user-group-member",
+    "section": "schema",
+    "slug": "user-group-member",
+    "deprecated": []
+  },
+  {
+    "title": "User Groups Schema - Fireflies.ai API Documentation",
+    "url": "https://docs.fireflies.ai/schema/user-groups",
+    "section": "schema",
+    "slug": "user-groups",
+    "deprecated": []
+  }
+]
