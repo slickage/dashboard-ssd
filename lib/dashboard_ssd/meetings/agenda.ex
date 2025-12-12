@@ -8,6 +8,11 @@ defmodule DashboardSSD.Meetings.Agenda do
   alias DashboardSSD.Repo
 
   @spec list_items(String.t()) :: [AgendaItem.t()]
+  @doc """
+  Lists persisted manual agenda items for a given `calendar_event_id`, ordered by `position`.
+
+  Returns an empty list when no items exist.
+  """
   def list_items(calendar_event_id) when is_binary(calendar_event_id) do
     from(ai in AgendaItem,
       where: ai.calendar_event_id == ^calendar_event_id,
@@ -17,6 +22,11 @@ defmodule DashboardSSD.Meetings.Agenda do
   end
 
   @spec create_item(map()) :: {:ok, AgendaItem.t()} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Creates a single manual agenda item.
+
+  Adds a default `source: "manual"` when not provided.
+  """
   def create_item(attrs) when is_map(attrs) do
     %AgendaItem{}
     |> AgendaItem.changeset(Map.put_new(attrs, :source, "manual"))
@@ -24,6 +34,11 @@ defmodule DashboardSSD.Meetings.Agenda do
   end
 
   @spec update_item(AgendaItem.t(), map()) :: {:ok, AgendaItem.t()} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Updates an existing agenda item with the given attributes.
+
+  Commonly used to edit the `text` or adjust the `position`.
+  """
   def update_item(%AgendaItem{} = item, attrs) do
     item
     |> AgendaItem.changeset(attrs)
@@ -31,9 +46,18 @@ defmodule DashboardSSD.Meetings.Agenda do
   end
 
   @spec delete_item(AgendaItem.t()) :: {:ok, AgendaItem.t()} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Deletes a manual agenda item.
+  """
   def delete_item(%AgendaItem{} = item), do: Repo.delete(item)
 
   @spec reorder_items(String.t(), [integer()]) :: :ok | {:error, term()}
+  @doc """
+  Reorders all items for a meeting according to `ordered_ids`.
+
+  Preserves existing positions for items not present in `ordered_ids`.
+  Returns `:ok` on success or `{:error, reason}` if the transaction fails.
+  """
   def reorder_items(calendar_event_id, ordered_ids) when is_binary(calendar_event_id) do
     items = list_items(calendar_event_id)
     pos_map = ordered_ids |> Enum.with_index(0) |> Map.new()

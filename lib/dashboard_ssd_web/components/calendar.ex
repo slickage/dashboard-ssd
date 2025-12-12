@@ -21,6 +21,7 @@ defmodule DashboardSSDWeb.CalendarComponents do
   attr :has_meetings, :map, default: %{}
 
   def month_calendar(assigns) do
+    @spec month_calendar(map()) :: Phoenix.LiveView.Rendered.t()
     assigns =
       assigns
       |> Map.update(:today, Date.utc_today(), fn

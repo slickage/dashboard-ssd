@@ -17,6 +17,12 @@ defmodule DashboardSSD.Meetings.FirefliesStore do
         }
 
   @spec get(String.t()) :: {:ok, artifacts()} | :not_found
+  @doc """
+  Retrieves persisted artifacts for a recurring series.
+
+  Returns `{:ok, %{...}}` when a record exists, normalizing `action_items` to a list,
+  or `:not_found` when no record is present.
+  """
   def get(series_id) when is_binary(series_id) do
     case Repo.one(
            from a in FirefliesArtifact, where: a.recurring_series_id == ^series_id, limit: 1
@@ -35,6 +41,12 @@ defmodule DashboardSSD.Meetings.FirefliesStore do
   end
 
   @spec upsert(String.t(), map()) :: :ok
+  @doc """
+  Inserts or updates the stored artifacts for a recurring series.
+
+  Automatically stamps `recurring_series_id` and `fetched_at` when missing.
+  Always returns `:ok` after attempting the write.
+  """
   def upsert(series_id, attrs) when is_binary(series_id) and is_map(attrs) do
     now = DateTime.utc_now()
 

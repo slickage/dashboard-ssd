@@ -6,6 +6,9 @@ defmodule DashboardSSD.Meetings.Associations do
   alias DashboardSSD.Repo
 
   @spec get_for_event(String.t()) :: MeetingAssociation.t() | nil
+  @doc """
+  Fetches the event-level association for the given `calendar_event_id`, if present.
+  """
   def get_for_event(calendar_event_id) do
     from(a in MeetingAssociation,
       where: a.calendar_event_id == ^calendar_event_id,
@@ -43,6 +46,11 @@ defmodule DashboardSSD.Meetings.Associations do
 
   @spec upsert_for_event(String.t(), map()) ::
           {:ok, MeetingAssociation.t()} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Inserts or updates an event-level association with the given attributes.
+
+  Creates a new record when none exists; otherwise updates the existing one.
+  """
   def upsert_for_event(calendar_event_id, attrs) do
     case get_for_event(calendar_event_id) do
       nil ->
@@ -59,6 +67,11 @@ defmodule DashboardSSD.Meetings.Associations do
 
   @spec set_manual(String.t(), map()) ::
           {:ok, MeetingAssociation.t()} | {:error, Ecto.Changeset.t()}
+  @doc """
+  Sets a manual association for an event (client or project) without series persistence.
+
+  Equivalent to `upsert_for_event/2` with `origin: "manual"`.
+  """
   def set_manual(calendar_event_id, %{client_id: _} = attrs),
     do: upsert_for_event(calendar_event_id, Map.merge(attrs, %{origin: "manual"}))
 
