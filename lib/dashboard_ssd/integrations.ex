@@ -160,6 +160,7 @@ defmodule DashboardSSD.Integrations do
   In test mode, falls back to a fixed token when no credentials are provided to
   avoid external network calls.
   """
+  @spec drive_service_token() :: {:ok, String.t()} | error()
   def drive_service_token do
     case env_drive_token() do
       {:ok, token} ->
@@ -172,6 +173,7 @@ defmodule DashboardSSD.Integrations do
   end
 
   @doc false
+  @spec env_drive_token() :: {:ok, String.t()} | error()
   def env_drive_token do
     token =
       Keyword.get(cfg(), :drive_token) || System.get_env("GOOGLE_DRIVE_TOKEN") ||
