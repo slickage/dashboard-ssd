@@ -296,4 +296,224 @@ defmodule DashboardSSD.Integrations.Fireflies do
         :ok
     end
   end
+
+  # ================= Per-event and batched notes =================
+
+  @doc """
+  Fetch notes for a specific meeting occurrence (by event map).
+
+  The `event` map should include keys:
+    * `:id` - calendar event id (string)
+    * `:starts_at`, `:ends_at` - DateTime.t()
+    * `:title` - meeting title (string, optional but recommended)
+    * `:participants` - [email] (optional)
+    * `:meeting_link` - URL (optional; used for exact match when present)
+
+  Returns `{:ok, %{accomplished, action_items, bullet_gist, transcript_id}}`,
+  `:not_found`, or `{:error, term}`.
+  """
+  @spec fetch_notes_for_event(map(), keyword()) ::
+          {:ok,
+           %{
+             accomplished: String.t() | nil,
+             action_items: [String.t()],
+             bullet_gist: String.t() | nil,
+             transcript_id: String.t() | nil
+           }}
+          | :not_found
+          | {:error, term()}
+  def fetch_notes_for_event(event, opts \\ []) when is_map(event) do
+    with {:ok, from_iso, to_iso} <- time_window_iso(event, opts),
+         {:ok, transcripts} <-
+           FirefliesClient.list_transcripts(
+             Keyword.merge(
+               [
+                 from_date: from_iso,
+                 to_date: to_iso,
+                 limit: Keyword.get(opts, :limit, 50)
+               ],
+               participants_filter(event)
+             )
+           ) do
+      case select_transcript_for_event(event, transcripts) do
+        {:ok, t} -> {:ok, normalize_transcript_summary(t)}
+        :not_found -> :not_found
+      end
+    end
+  end
+
+  @doc """
+  Batch version for a list of events. Performs a single transcripts query for the
+  window spanning all events, then maps results locally.
+
+  Returns `{:ok, %{event_id => note_map}}` for the matched subset.
+  """
+  @spec fetch_notes_for_events([map()], keyword()) :: {:ok, map()} | {:error, term()}
+  def fetch_notes_for_events(events, opts \\ []) when is_list(events) do
+    case time_window_for_events(events, opts) do
+      {:ok, from_iso, to_iso} ->
+        with {:ok, transcripts} <-
+               FirefliesClient.list_transcripts(
+                 [from_date: from_iso, to_date: to_iso, limit: Keyword.get(opts, :limit, 200)]
+               ) do
+          mapped =
+            Enum.reduce(events, %{}, fn ev, acc ->
+              case select_transcript_for_event(ev, transcripts) do
+                {:ok, t} -> Map.put(acc, ev[:id] || ev["id"], normalize_transcript_summary(t))
+                :not_found -> acc
+              end
+            end)
+
+          {:ok, mapped}
+        end
+
+      {:error, _} = err -> err
+    end
+  end
+
+  # -- selection helpers --
+
+  defp participants_filter(%{participants: ps}) when is_list(ps) and ps != [] do
+    [participants: Enum.filter(ps, &is_binary/1)]
+  end
+
+  defp participants_filter(_), do: []
+
+  defp time_window_iso(%{starts_at: s, ends_at: e}, opts) do
+    pad_secs = Keyword.get(opts, :pad_seconds, 300)
+    with {:ok, s2} <- shift_seconds(s, -pad_secs),
+         {:ok, e2} <- shift_seconds(e, pad_secs) do
+      {:ok, DateTime.to_iso8601(s2), DateTime.to_iso8601(e2)}
+    else
+      _ -> {:error, :invalid_time}
+    end
+  end
+
+  defp time_window_iso(_, _), do: {:error, :invalid_time}
+
+  defp time_window_for_events(events, opts) do
+    pad_secs = Keyword.get(opts, :pad_seconds, 300)
+
+    times =
+      events
+      |> Enum.flat_map(fn ev -> [ev[:starts_at] || ev["starts_at"], ev[:ends_at] || ev["ends_at"]] end)
+      |> Enum.filter(&match?(%DateTime{}, &1))
+
+    case times do
+      [] -> {:error, :invalid_time}
+      _ ->
+        min_t = Enum.min(times, DateTime)
+        max_t = Enum.max(times, DateTime)
+        with {:ok, s2} <- shift_seconds(min_t, -pad_secs),
+             {:ok, e2} <- shift_seconds(max_t, pad_secs) do
+          {:ok, DateTime.to_iso8601(s2), DateTime.to_iso8601(e2)}
+        else
+          _ -> {:error, :invalid_time}
+        end
+    end
+  end
+
+  defp shift_seconds(%DateTime{} = dt, sec) when is_integer(sec) do
+    {:ok, DateTime.add(dt, sec, :second)}
+  end
+
+  defp select_transcript_for_event(event, transcripts) when is_list(transcripts) do
+    link = event[:meeting_link] || event["meeting_link"]
+
+    with {:ok, by_link} <- pick_by_meeting_link(event, link, transcripts) do
+      {:ok, by_link}
+    else
+      _ ->
+        pick_by_time_and_title(event, transcripts)
+    end
+  end
+
+  defp pick_by_meeting_link(_event, nil, _), do: {:error, :no_link}
+  defp pick_by_meeting_link(_event, "", _), do: {:error, :no_link}
+
+  defp pick_by_meeting_link(event, link, transcripts) do
+    matches =
+      transcripts
+      |> Enum.filter(fn t ->
+        (Map.get(t, "meeting_link") || Map.get(t, :meeting_link)) == link
+      end)
+
+    case matches do
+      [] -> {:error, :not_found}
+      [_one] -> {:ok, List.first(matches)}
+      many -> {:ok, closest_by_time(many, event_start(event))}
+    end
+  end
+
+  defp pick_by_time_and_title(event, transcripts) do
+    start = event_start(event)
+    title = event[:title] || event["title"] || ""
+
+    candidates =
+      transcripts
+      |> Enum.map(fn t ->
+        {t, transcript_time(t), title_similarity(title, t)}
+      end)
+      |> Enum.reject(fn {_t, tdt, _score} -> is_nil(tdt) end)
+
+    case candidates do
+      [] -> :not_found
+      list ->
+        {best, best_dt, _score} =
+          list
+          |> Enum.min_by(fn {_t, tdt, _} -> abs_diff_sec(start, tdt) end)
+
+        # Basic sanity threshold: 6 hours by default
+        if abs_diff_sec(start, best_dt) <= 6 * 3600 do
+          {:ok, best}
+        else
+          :not_found
+        end
+    end
+  end
+
+  defp event_start(ev), do: ev[:starts_at] || ev["starts_at"]
+
+  defp transcript_time(t) do
+    case Map.get(t, "date") || Map.get(t, :date) do
+      nil -> nil
+      iso when is_binary(iso) ->
+        case DateTime.from_iso8601(iso) do
+          {:ok, dt, _} -> dt
+          _ -> nil
+        end
+    end
+  end
+
+  defp title_similarity(title, t) do
+    t_title = Map.get(t, "title") || Map.get(t, :title) || ""
+    similarity(normalize(title), normalize(to_string(t_title)))
+  end
+
+  defp abs_diff_sec(%DateTime{} = a, %DateTime{} = b) do
+    abs(DateTime.diff(a, b, :second))
+  end
+
+  defp closest_by_time(list, %DateTime{} = ref) do
+    list
+    |> Enum.min_by(fn t ->
+      case transcript_time(t) do
+        %DateTime{} = dt -> abs(DateTime.diff(dt, ref, :second))
+        _ -> 1_000_000_000
+      end
+    end)
+  end
+
+  defp normalize_transcript_summary(t) when is_map(t) do
+    sum = Map.get(t, "summary") || Map.get(t, :summary) || %{}
+    items = Map.get(sum, "action_items") || Map.get(sum, :action_items) || []
+    notes = Map.get(sum, "overview") || Map.get(sum, :overview) || Map.get(sum, "short_summary")
+    bullet = Map.get(sum, "bullet_gist") || Map.get(sum, :bullet_gist)
+    %{
+      accomplished: notes,
+      action_items: normalize_items_to_list(items),
+      bullet_gist: bullet,
+      transcript_id: Map.get(t, "id") || Map.get(t, :id)
+    }
+  end
 end
