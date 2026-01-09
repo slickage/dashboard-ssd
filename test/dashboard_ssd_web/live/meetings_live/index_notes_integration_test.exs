@@ -53,7 +53,8 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexNotesIntegrationTest do
         transcript_id: "t-contoso"
       })
 
-    {:ok, _view, html} = live(conn, ~p"/meetings?mock=1")
+    today = Date.utc_today() |> Date.to_iso8601()
+    {:ok, _view, html} = live(conn, ~p"/meetings?mock=1&d=#{today}")
 
     assert html =~ "Agenda"
     # Prefers action_items over accomplished text when present
