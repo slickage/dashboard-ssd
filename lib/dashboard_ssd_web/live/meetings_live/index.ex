@@ -4,7 +4,6 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
 
   alias DashboardSSD.{Clients, Projects}
   alias DashboardSSD.Integrations
-  alias DashboardSSD.Integrations.Fireflies
   alias DashboardSSD.Meetings.{Agenda, Associations, Notes}
   alias DashboardSSD.Meetings.CacheStore
   alias DashboardSSDWeb.DateHelpers
@@ -591,17 +590,6 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
 
       Map.put(acc, m.id, text)
     end)
-  end
-
-  defp agenda_from_fireflies_or_empty(_m, true), do: ""
-  defp agenda_from_fireflies_or_empty(%{recurring_series_id: nil}, _mock?), do: ""
-
-  defp agenda_from_fireflies_or_empty(%{recurring_series_id: s} = m, _mock?) do
-    case Fireflies.fetch_latest_for_series(s, title: m.title) do
-      {:ok, %{action_items: items}} when is_list(items) -> Enum.join(items, "\n")
-      {:ok, %{action_items: items}} when is_binary(items) -> items
-      _ -> ""
-    end
   end
 
   defp build_assoc_by_meeting(meetings) do
