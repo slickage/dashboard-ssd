@@ -163,7 +163,7 @@ defmodule DashboardSSD.Meetings.Notes do
     if Keyword.get(opts, :skip_remote, false) do
       :not_found
     else
-      with {:ok, event_id, date} <- event_id_and_date(event) do
+      with {:ok, _event_id, date} <- event_id_and_date(event) do
         case Fireflies.fetch_notes_for_event(event, opts) do
           {:ok, note} = ok ->
             persist_and_cache(event, date, note)
