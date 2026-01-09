@@ -40,41 +40,11 @@ defmodule DashboardSSD.Meetings.Notes do
   """
   @spec get_or_fetch_many([event_map], keyword()) :: {:ok, map()} | {:error, term}
   def get_or_fetch_many(events, opts \\ []) when is_list(events) do
-    # Partition cache hits and misses
-    {hits, misses} =
-      events
-      |> Enum.reduce({%{}, []}, fn ev, {acc, missing} ->
-        case event_id_and_date(ev) do
-          {:ok, id, date} ->
-            key = {:meeting_notes, id, date}
-
-            case CacheStore.get(key) do
-              {:ok, note} -> {Map.put(acc, id, note), missing}
-              :miss -> {acc, [{id, date, ev} | missing]}
-            end
-
-          _ ->
-            {acc, missing}
-        end
-      end)
-
-    # Try DB for misses
-    {db_hits, still_missing} =
-      Enum.reduce(misses, {%{}, []}, fn {id, date, ev}, {acc, miss2} ->
-        case NotesStore.get(id, date) do
-          {:ok, note} ->
-            CacheStore.put({:meeting_notes, id, date}, note)
-            {Map.put(acc, id, note), miss2}
-
-          :not_found ->
-            {acc, [{id, date, ev} | miss2]}
-        end
-      end)
-
+    {hits, misses} = partition_cache_hits(events)
+    {db_hits, still_missing} = fetch_db_for_misses(misses)
     remaining_events = Enum.map(still_missing, fn {_id, _date, ev} -> ev end)
 
-    with {:ok, fetched_map} <-
-           fetch_batch_and_persist(still_missing, remaining_events, opts) do
+    with {:ok, fetched_map} <- fetch_batch_and_persist(still_missing, remaining_events, opts) do
       {:ok, Map.merge(hits, Map.merge(db_hits, fetched_map))}
     end
   end
@@ -117,6 +87,36 @@ defmodule DashboardSSD.Meetings.Notes do
       transcript_id: attrs.transcript_id,
       fetched_at: attrs.fetched_at
     })
+  end
+
+  defp partition_cache_hits(events) do
+    Enum.reduce(events, {%{}, []}, fn ev, {acc, missing} ->
+      case event_id_and_date(ev) do
+        {:ok, id, date} ->
+          key = {:meeting_notes, id, date}
+
+          case CacheStore.get(key) do
+            {:ok, note} -> {Map.put(acc, id, note), missing}
+            :miss -> {acc, [{id, date, ev} | missing]}
+          end
+
+        _ ->
+          {acc, missing}
+      end
+    end)
+  end
+
+  defp fetch_db_for_misses(misses) do
+    Enum.reduce(misses, {%{}, []}, fn {id, date, ev}, {acc, miss2} ->
+      case NotesStore.get(id, date) do
+        {:ok, note} ->
+          CacheStore.put({:meeting_notes, id, date}, note)
+          {Map.put(acc, id, note), miss2}
+
+        :not_found ->
+          {acc, [{id, date, ev} | miss2]}
+      end
+    end)
   end
 
   defp fetch_batch_and_persist([], _events, _opts), do: {:ok, %{}}
