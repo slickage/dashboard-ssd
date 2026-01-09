@@ -42,10 +42,8 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentTest do
       })
 
     assert html =~ "Last meeting summary"
-    assert html =~ "Notes"
-    assert html =~ ">A<"
-    assert html =~ ">B<"
-    # agenda textarea should include manual text, not derived items
+    assert html =~ "Summary pending"
+    # agenda textarea should include manual text
     assert html =~ ">Manual<"
   end
 

@@ -17,9 +17,7 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
     clients = Clients.list_clients()
     projects = Projects.list_projects()
 
-    mock? =
-      (Map.get(assigns || %{}, :params)
-       |> then(&(&1 && Map.get(&1, "mock")))) in ["1", "true"]
+    mock? = assigns[:mock?] || Map.get(assigns[:params] || %{}, "mock") in ["1", "true"]
 
     {post, post_error} =
       fetch_post_occurrence(assigns, mock?) || {%{accomplished: nil, action_items: []}, nil}
@@ -189,7 +187,6 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
 
   defp refresh_assigns(socket) do
     id = socket.assigns.meeting_id
-    series_id = socket.assigns.series_id
     manual = Agenda.list_items(id)
 
     mock? =
@@ -243,24 +240,7 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
     end
   end
 
-  defp fetch_post(nil, _mock?, _title), do: {%{accomplished: nil, action_items: []}, nil}
-
-  defp fetch_post(_series_id, true, _title),
-    do: {%{accomplished: nil, action_items: []}, nil}
-
-  defp fetch_post(series_id, false, title) do
-    case Fireflies.fetch_latest_for_series(series_id, title: title) do
-      {:ok, v} ->
-        {v, nil}
-
-      {:error, {:rate_limited, msg}} ->
-        {%{accomplished: nil, action_items: []}, %{type: :rate_limited, message: msg}}
-
-      {:error, _} ->
-        {%{accomplished: nil, action_items: []},
-         %{type: :generic, message: "Fireflies data unavailable. Please try again later."}}
-    end
-  end
+  # (series fallback fetch removed per Step 5.1)
 
   defp build_agenda_text(manual, post) do
     base =

@@ -221,11 +221,15 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
 
     @impl true
     def mount(_p, _s, socket) do
+      now = ~U[2025-12-20 12:00:00Z]
+
       {:ok,
        socket
        |> Phoenix.Component.assign(:meeting_id, "evt-rl")
        |> Phoenix.Component.assign(:series_id, "series-rl")
        |> Phoenix.Component.assign(:title, "Weekly – RL")
+       |> Phoenix.Component.assign(:starts_at, now)
+       |> Phoenix.Component.assign(:ends_at, DateTime.add(now, 3600, :second))
        |> Phoenix.Component.assign(:params, %{})}
     end
 
@@ -292,12 +296,11 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
   end
 
   test "derives agenda_text from Fireflies when manual empty (list items)", %{conn: conn} do
-    # Ensure no Tesla calls are needed (we seeded cache)
+    # No series fallback anymore; ensure no remote calls and expect pending
     Tesla.Mock.mock(fn _ -> %Tesla.Env{status: 200, body: %{"data" => %{}}} end)
     {:ok, _view, html} = live_isolated(conn, DerivedHarness)
-    # The textarea includes the derived agenda text
-    assert html =~ ">A"
-    assert html =~ ">B"
+    # Now shows summary pending (occurrence-only)
+    assert html =~ "Summary pending"
   end
 
   defmodule OccurrenceNoNotesHarness do
