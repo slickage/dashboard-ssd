@@ -231,4 +231,69 @@ defmodule DashboardSSD.Meetings.NotesTest do
     Tesla.Mock.mock(fn _ -> flunk("HTTP should not be called after persistence") end)
     assert {:ok, %{accomplished: "one", action_items: ["I1", "I2"]}} = Notes.get_or_fetch(event)
   end
+
+  test "skips remote fetch for future event" do
+    now = DateTime.utc_now()
+
+    event = %{
+      id: "evt-future",
+      starts_at: DateTime.add(now, 3600, :second),
+      ends_at: DateTime.add(now, 7200, :second),
+      title: "Future Meeting"
+    }
+
+    Tesla.Mock.mock(fn _ -> flunk("HTTP should not be called for future events") end)
+    assert :not_found == Notes.get_or_fetch(event)
+
+    refute Repo.get_by(MeetingNote, calendar_event_id: "evt-future")
+  end
+
+  test "batch skips future events and returns only past mappings" do
+    now = DateTime.utc_now()
+    past = DateTime.add(now, -86_400, :second)
+
+    ev_past = %{
+      id: "evt-past",
+      starts_at: past,
+      ends_at: DateTime.add(past, 3600, :second),
+      title: "Past"
+    }
+
+    ev_future = %{
+      id: "evt-fut2",
+      starts_at: DateTime.add(now, 7200, :second),
+      ends_at: DateTime.add(now, 10_800, :second),
+      title: "Future 2"
+    }
+
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+        payload = if is_binary(body), do: Jason.decode!(body), else: body
+        query = Map.get(payload, "query") || Map.get(payload, :query)
+
+        if is_binary(query) and String.contains?(query, "query Transcripts(") do
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "data" => %{
+                "transcripts" => [
+                  %{
+                    "id" => "t-past",
+                    "title" => "Past",
+                    "date" => DateTime.to_iso8601(past),
+                    "summary" => %{"overview" => "P", "action_items" => []}
+                  }
+                ]
+              }
+            }
+          }
+        else
+          flunk("unexpected request: #{inspect(payload)}")
+        end
+    end)
+
+    assert {:ok, map} = Notes.get_or_fetch_many([ev_past, ev_future])
+    assert map["evt-past"].accomplished == "P"
+    refute Map.has_key?(map, "evt-fut2")
+  end
 end
