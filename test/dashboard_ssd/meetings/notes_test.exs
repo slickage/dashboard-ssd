@@ -187,4 +187,48 @@ defmodule DashboardSSD.Meetings.NotesTest do
     assert {:error, {:rate_limited, "rl"}} = Notes.get_or_fetch(event)
     refute Repo.get_by(MeetingNote, calendar_event_id: "evt-err")
   end
+
+  test "subsequent get_or_fetch uses cache/DB and skips HTTP" do
+    base = ~U[2025-12-16 15:00:00Z]
+
+    event = %{
+      id: "evt-cache-http",
+      starts_at: base,
+      ends_at: DateTime.add(base, 3600, :second),
+      title: "Weekly"
+    }
+
+    # First call: seed via remote fetch
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+        payload = if is_binary(body), do: Jason.decode!(body), else: body
+        query = Map.get(payload, "query") || Map.get(payload, :query)
+
+        if is_binary(query) and String.contains?(query, "query Transcripts(") do
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "data" => %{
+                "transcripts" => [
+                  %{
+                    "id" => "t-first",
+                    "title" => "Weekly",
+                    "date" => DateTime.to_iso8601(base),
+                    "summary" => %{"overview" => "one", "action_items" => ["I1", "I2"]}
+                  }
+                ]
+              }
+            }
+          }
+        else
+          flunk("unexpected request: #{inspect(payload)}")
+        end
+    end)
+
+    assert {:ok, %{accomplished: "one", action_items: ["I1", "I2"]}} = Notes.get_or_fetch(event)
+
+    # Second call: should hit cache/DB and not call HTTP
+    Tesla.Mock.mock(fn _ -> flunk("HTTP should not be called after persistence") end)
+    assert {:ok, %{accomplished: "one", action_items: ["I1", "I2"]}} = Notes.get_or_fetch(event)
+  end
 end
