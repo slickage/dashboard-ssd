@@ -354,7 +354,9 @@ defmodule DashboardSSD.Integrations.Fireflies do
       {:ok, from_iso, to_iso} ->
         with {:ok, transcripts} <-
                FirefliesClient.list_transcripts(
-                 [from_date: from_iso, to_date: to_iso, limit: Keyword.get(opts, :limit, 200)]
+                 from_date: from_iso,
+                 to_date: to_iso,
+                 limit: Keyword.get(opts, :limit, 200)
                ) do
           mapped =
             Enum.reduce(events, %{}, fn ev, acc ->
@@ -367,7 +369,8 @@ defmodule DashboardSSD.Integrations.Fireflies do
           {:ok, mapped}
         end
 
-      {:error, _} = err -> err
+      {:error, _} = err ->
+        err
     end
   end
 
@@ -381,6 +384,7 @@ defmodule DashboardSSD.Integrations.Fireflies do
 
   defp time_window_iso(%{starts_at: s, ends_at: e}, opts) do
     pad_secs = Keyword.get(opts, :pad_seconds, 300)
+
     with {:ok, s2} <- shift_seconds(s, -pad_secs),
          {:ok, e2} <- shift_seconds(e, pad_secs) do
       {:ok, DateTime.to_iso8601(s2), DateTime.to_iso8601(e2)}
@@ -396,14 +400,19 @@ defmodule DashboardSSD.Integrations.Fireflies do
 
     times =
       events
-      |> Enum.flat_map(fn ev -> [ev[:starts_at] || ev["starts_at"], ev[:ends_at] || ev["ends_at"]] end)
+      |> Enum.flat_map(fn ev ->
+        [ev[:starts_at] || ev["starts_at"], ev[:ends_at] || ev["ends_at"]]
+      end)
       |> Enum.filter(&match?(%DateTime{}, &1))
 
     case times do
-      [] -> {:error, :invalid_time}
+      [] ->
+        {:error, :invalid_time}
+
       _ ->
         min_t = Enum.min(times, DateTime)
         max_t = Enum.max(times, DateTime)
+
         with {:ok, s2} <- shift_seconds(min_t, -pad_secs),
              {:ok, e2} <- shift_seconds(max_t, pad_secs) do
           {:ok, DateTime.to_iso8601(s2), DateTime.to_iso8601(e2)}
@@ -457,7 +466,9 @@ defmodule DashboardSSD.Integrations.Fireflies do
       |> Enum.reject(fn {_t, tdt, _score} -> is_nil(tdt) end)
 
     case candidates do
-      [] -> :not_found
+      [] ->
+        :not_found
+
       list ->
         {best, best_dt, _score} =
           list
@@ -476,7 +487,9 @@ defmodule DashboardSSD.Integrations.Fireflies do
 
   defp transcript_time(t) do
     case Map.get(t, "date") || Map.get(t, :date) do
-      nil -> nil
+      nil ->
+        nil
+
       iso when is_binary(iso) ->
         case DateTime.from_iso8601(iso) do
           {:ok, dt, _} -> dt
@@ -509,6 +522,7 @@ defmodule DashboardSSD.Integrations.Fireflies do
     items = Map.get(sum, "action_items") || Map.get(sum, :action_items) || []
     notes = Map.get(sum, "overview") || Map.get(sum, :overview) || Map.get(sum, "short_summary")
     bullet = Map.get(sum, "bullet_gist") || Map.get(sum, :bullet_gist)
+
     %{
       accomplished: notes,
       action_items: normalize_items_to_list(items),

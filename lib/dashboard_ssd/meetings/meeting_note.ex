@@ -71,4 +71,3 @@ defmodule DashboardSSD.Meetings.MeetingNote do
 
   defp normalize_action_items_attr(attrs), do: attrs
 end
-

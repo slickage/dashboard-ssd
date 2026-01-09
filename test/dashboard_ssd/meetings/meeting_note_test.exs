@@ -8,6 +8,7 @@ defmodule DashboardSSD.Meetings.MeetingNoteTest do
     test "requires calendar_event_id and occurrence_date" do
       cs = MeetingNote.changeset(%MeetingNote{}, %{})
       refute cs.valid?
+
       assert %{calendar_event_id: ["can't be blank"], occurrence_date: ["can't be blank"]} =
                errors_on(cs)
     end
@@ -77,4 +78,3 @@ defmodule DashboardSSD.Meetings.MeetingNoteTest do
     end
   end
 end
-

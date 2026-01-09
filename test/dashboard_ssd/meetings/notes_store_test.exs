@@ -78,4 +78,3 @@ defmodule DashboardSSD.Meetings.NotesStoreTest do
     end
   end
 end
-

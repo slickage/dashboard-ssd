@@ -60,12 +60,14 @@ defmodule DashboardSSD.Meetings.NotesStore do
         %MeetingNote{}
         |> MeetingNote.changeset(attrs)
         |> Repo.insert()
+
         :ok
 
       %MeetingNote{} = rec ->
         rec
         |> MeetingNote.changeset(attrs)
         |> Repo.update()
+
         :ok
     end
   end
@@ -87,4 +89,3 @@ defmodule DashboardSSD.Meetings.NotesStore do
   defp normalize_items(%{"items" => l}) when is_list(l), do: l
   defp normalize_items(_), do: []
 end
-

@@ -23,6 +23,7 @@ defmodule DashboardSSD.Integrations.FirefliesEventNotesTest do
 
   test "fetch_notes_for_event selects by meeting_link when available" do
     now = ~U[2025-12-11 17:00:00Z]
+
     ev = %{
       id: "evt-ml",
       starts_at: now,
@@ -78,6 +79,7 @@ defmodule DashboardSSD.Integrations.FirefliesEventNotesTest do
 
   test "fetch_notes_for_event falls back to nearest time within threshold" do
     now = ~U[2025-12-11 10:00:00Z]
+
     ev = %{
       id: "evt-time",
       starts_at: now,
@@ -123,6 +125,7 @@ defmodule DashboardSSD.Integrations.FirefliesEventNotesTest do
 
   test "fetch_notes_for_event returns :not_found when no suitable transcript" do
     now = ~U[2025-12-11 10:00:00Z]
+
     ev = %{
       id: "evt-none",
       starts_at: now,
@@ -138,9 +141,18 @@ defmodule DashboardSSD.Integrations.FirefliesEventNotesTest do
         if is_binary(query) and String.contains?(query, "query Transcripts(") do
           %Tesla.Env{
             status: 200,
-            body: %{"data" => %{"transcripts" => [
-              %{"id" => "t-too-far", "date" => DateTime.to_iso8601(DateTime.add(now, 9 * 3600, :second)), "summary" => %{"overview" => "far"}}
-            ]}}}
+            body: %{
+              "data" => %{
+                "transcripts" => [
+                  %{
+                    "id" => "t-too-far",
+                    "date" => DateTime.to_iso8601(DateTime.add(now, 9 * 3600, :second)),
+                    "summary" => %{"overview" => "far"}
+                  }
+                ]
+              }
+            }
+          }
         else
           flunk("unexpected request: #{inspect(payload)}")
         end
@@ -152,7 +164,13 @@ defmodule DashboardSSD.Integrations.FirefliesEventNotesTest do
   test "fetch_notes_for_events maps multiple events from single query" do
     base = ~U[2025-12-11 12:00:00Z]
     ev1 = %{id: "evt-1", starts_at: base, ends_at: DateTime.add(base, 3600, :second), title: "A"}
-    ev2 = %{id: "evt-2", starts_at: DateTime.add(base, 7200, :second), ends_at: DateTime.add(base, 10800, :second), title: "B"}
+
+    ev2 = %{
+      id: "evt-2",
+      starts_at: DateTime.add(base, 7200, :second),
+      ends_at: DateTime.add(base, 10800, :second),
+      title: "B"
+    }
 
     Tesla.Mock.mock(fn
       %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
@@ -186,9 +204,11 @@ defmodule DashboardSSD.Integrations.FirefliesEventNotesTest do
         end
     end)
 
-    assert {:ok, %{"evt-1" => %{accomplished: "A-notes", action_items: ["x"], transcript_id: "t-a"},
-                    "evt-2" => %{accomplished: "B-notes", action_items: ["y"], transcript_id: "t-b"}}} =
+    assert {:ok,
+            %{
+              "evt-1" => %{accomplished: "A-notes", action_items: ["x"], transcript_id: "t-a"},
+              "evt-2" => %{accomplished: "B-notes", action_items: ["y"], transcript_id: "t-b"}
+            }} =
              Fireflies.fetch_notes_for_events([ev1, ev2])
   end
 end
-
