@@ -567,15 +567,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
     Enum.reduce(meetings, %{}, fn m, acc ->
       manual_text = manual_agenda_text(m.id)
       note_text = notes_text_for(meetings_notes: notes_map, meeting: m)
-
-      text =
-        if String.trim(manual_text) == "" do
-          if String.trim(note_text) == "", do: placeholder, else: note_text
-        else
-          manual_text
-        end
-
-      Map.put(acc, m.id, text)
+      Map.put(acc, m.id, choose_agenda_text(manual_text, note_text, placeholder))
     end)
   end
 
@@ -603,6 +595,17 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
       _ -> ""
     end
   end
+
+  defp choose_agenda_text(manual_text, note_text, placeholder) do
+    cond do
+      not blank?(manual_text) -> manual_text
+      not blank?(note_text) -> note_text
+      true -> placeholder
+    end
+  end
+
+  defp blank?(nil), do: true
+  defp blank?(text) when is_binary(text), do: String.trim(text) == ""
 
   defp build_assoc_by_meeting(meetings) do
     clients = Clients.list_clients()
