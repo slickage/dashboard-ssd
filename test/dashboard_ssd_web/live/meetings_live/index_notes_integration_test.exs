@@ -3,6 +3,7 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexNotesIntegrationTest do
   import Phoenix.LiveViewTest
 
   alias DashboardSSD.Accounts
+  alias DashboardSSD.Meetings.FirefliesStore
   alias DashboardSSD.Meetings.NotesStore
 
   setup %{conn: conn} do
@@ -59,5 +60,27 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexNotesIntegrationTest do
     assert html =~ "AX"
     assert html =~ "AY"
     assert html =~ "CX"
+  end
+
+  test "shows placeholder when no per-occurrence notes and no manual agenda (no series fallback)",
+       %{conn: conn} do
+    # Seed series artifacts that would previously have appeared via fallback
+    :ok =
+      FirefliesStore.upsert("series-alpha", %{accomplished: "Series Alpha", action_items: ["SA"]})
+
+    :ok =
+      FirefliesStore.upsert("series-contoso", %{
+        accomplished: "Series Contoso",
+        action_items: ["SC"]
+      })
+
+    # Do not seed meeting_notes; in mock mode, remote is skipped and per-occurrence is :not_found
+    {:ok, _view, html} = live(conn, ~p"/meetings?mock=1")
+
+    assert html =~ "No notes for this occurrence yet"
+    refute html =~ "Series Alpha"
+    refute html =~ "SA"
+    refute html =~ "Series Contoso"
+    refute html =~ "SC"
   end
 end
