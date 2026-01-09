@@ -90,20 +90,23 @@ defmodule DashboardSSD.Meetings.Notes do
   end
 
   defp partition_cache_hits(events) do
-    Enum.reduce(events, {%{}, []}, fn ev, {acc, missing} ->
-      case event_id_and_date(ev) do
-        {:ok, id, date} ->
-          key = {:meeting_notes, id, date}
+    Enum.reduce(events, {%{}, []}, &partition_event/2)
+  end
 
-          case CacheStore.get(key) do
-            {:ok, note} -> {Map.put(acc, id, note), missing}
-            :miss -> {acc, [{id, date, ev} | missing]}
-          end
+  defp partition_event(ev, {acc, missing}) do
+    case event_id_and_date(ev) do
+      {:ok, id, date} -> partition_by_cache(id, date, ev, acc, missing)
+      _ -> {acc, missing}
+    end
+  end
 
-        _ ->
-          {acc, missing}
-      end
-    end)
+  defp partition_by_cache(id, date, ev, acc, missing) do
+    key = {:meeting_notes, id, date}
+
+    case CacheStore.get(key) do
+      {:ok, note} -> {Map.put(acc, id, note), missing}
+      :miss -> {acc, [{id, date, ev} | missing]}
+    end
   end
 
   defp fetch_db_for_misses(misses) do
