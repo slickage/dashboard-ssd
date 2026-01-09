@@ -339,6 +339,10 @@ defmodule DashboardSSD.Integrations.Fireflies do
         {:ok, t} -> {:ok, normalize_transcript_summary(t)}
         :not_found -> :not_found
       end
+    else
+      {:error, {:rate_limited, _} = rl} -> {:error, rl}
+      {:error, _} = err -> err
+      _ -> :not_found
     end
   end
 

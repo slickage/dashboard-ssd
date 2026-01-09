@@ -76,7 +76,17 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
         {:noreply, socket}
 
       s ->
-        _ = Fireflies.refresh_series(s)
+        res = Fireflies.refresh_series(s)
+
+        socket =
+          case res do
+            {:error, {:rate_limited, msg}} ->
+              assign(socket, post_error: %{type: :rate_limited, message: msg})
+
+            _ ->
+              socket
+          end
+
         refresh_assigns(socket)
     end
   end
@@ -196,6 +206,9 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
       fetch_post_occurrence(socket.assigns, mock?) ||
         {%{accomplished: nil, action_items: []}, nil}
 
+    # Preserve any existing error (e.g., rate limited) if we didn't get a new one
+    final_error = post_error || socket.assigns[:post_error]
+
     agenda_text = build_agenda_text(manual, post)
 
     {:noreply,
@@ -204,7 +217,7 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
        summary_text: post.accomplished,
        action_items: normalize_action_items(post.action_items),
        agenda_text: agenda_text,
-       post_error: post_error
+       post_error: final_error
      )}
   end
 
@@ -290,6 +303,11 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
 
       <div class="mt-8">
         <h3 class="font-medium">Last meeting summary</h3>
+        <%= if @post_error && @post_error[:type] == :rate_limited do %>
+          <div class="mt-2 text-amber-400 text-sm whitespace-pre-wrap">
+            Fireflies rate limited: {@post_error.message}
+          </div>
+        <% end %>
         <%= if @post_error do %>
           <div class="mt-2 text-red-400 text-sm whitespace-pre-wrap">{@post_error.message}</div>
         <% end %>

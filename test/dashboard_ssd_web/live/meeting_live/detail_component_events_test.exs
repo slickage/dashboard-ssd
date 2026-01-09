@@ -248,15 +248,18 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
     end
   end
 
-  test "shows rate-limited message when Fireflies returns RL (component)", %{conn: conn} do
-    Tesla.Mock.mock(fn
+  test "shows rate-limited notice when per-occurrence fetch is rate-limited", %{conn: conn} do
+    Tesla.Mock.mock_global(fn
       %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
         %Tesla.Env{status: 429, body: %{"errors" => [%{"message" => "too many"}]}}
     end)
 
-    {:ok, _view, html} = live_isolated(conn, NoMockHarness)
+    {:ok, view, html} = live_isolated(conn, NoMockHarness)
     assert html =~ "Last meeting summary"
-    assert html =~ "too many"
+    # Trigger refresh to surface RL message deterministically in this LV process
+    render_click(element(view, "button[phx-click='refresh_post']"))
+    html2 = render(view)
+    assert html2 =~ "Fireflies rate limited: too many"
   end
 
   defmodule DerivedHarness do
