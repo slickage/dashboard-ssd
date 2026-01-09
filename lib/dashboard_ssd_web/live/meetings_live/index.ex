@@ -5,7 +5,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
   alias DashboardSSD.{Clients, Projects}
   alias DashboardSSD.Integrations
   alias DashboardSSD.Integrations.Fireflies
-  alias DashboardSSD.Meetings.{Agenda, Associations}
+  alias DashboardSSD.Meetings.{Agenda, Associations, Notes}
   alias DashboardSSD.Meetings.CacheStore
   alias DashboardSSDWeb.DateHelpers
   import DashboardSSDWeb.CalendarComponents, only: [month_calendar: 1]
@@ -40,7 +40,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
     has_meetings =
       has_meeting_days(socket.assigns.current_user, month_prev, month_next, tz_offset, mock?)
 
-    agenda_texts = build_agenda_texts(meetings, mock?)
+    agenda_texts = build_agenda_texts_with_notes(meetings, mock?)
     assoc_by_meeting = build_assoc_by_meeting(meetings)
     live_action = live_action_from_params(params)
 
@@ -551,7 +551,24 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
     end)
   end
 
-  defp build_agenda_texts(meetings, mock?) do
+  defp build_agenda_texts_with_notes(meetings, mock?) do
+    events =
+      Enum.map(meetings, fn m ->
+        %{
+          id: m.id,
+          starts_at: m.start_at,
+          ends_at: m.end_at,
+          title: m.title,
+          recurring_series_id: m[:recurring_series_id]
+        }
+      end)
+
+    notes_map =
+      case Notes.get_or_fetch_many(events, if(mock?, do: [skip_remote: true], else: [])) do
+        {:ok, m} when is_map(m) -> m
+        _ -> %{}
+      end
+
     Enum.reduce(meetings, %{}, fn m, acc ->
       manual =
         m.id
@@ -559,9 +576,16 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
         |> Enum.sort_by(& &1.position)
         |> Enum.map_join("\n", &(&1.text || ""))
 
+      note_text =
+        case Map.get(notes_map, m.id) do
+          %{action_items: items} when is_list(items) and items != [] -> Enum.join(items, "\n")
+          %{accomplished: txt} when is_binary(txt) -> String.trim(txt)
+          _ -> ""
+        end
+
       text =
         case String.trim(manual) do
-          "" -> agenda_from_fireflies_or_empty(m, mock?)
+          "" -> note_text
           other -> other
         end
 
