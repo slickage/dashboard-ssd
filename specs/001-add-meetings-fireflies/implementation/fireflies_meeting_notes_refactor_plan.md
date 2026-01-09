@@ -111,6 +111,23 @@ vendor terms.
 - Validation
   - LiveView tests asserting that unrelated notes do not appear and correct ones render.
 
+## Step 5.1 — Occurrence-Only Display (no series fallback in UI)
+- Behavior
+  - When a meeting has not yet occurred OR no per-occurrence notes exist for the
+    selected occurrence (cache/DB/remote all missing), the UI must not display
+    series-level notes for that meeting. Instead, render a friendly placeholder
+    (e.g., “No notes for this occurrence yet”).
+  - Keep the series refresh action available in the detail view, but do not
+    auto-fill the occurrence UI with series artifacts; avoid misleading content.
+- Implementation details
+  - Index and detail: if per-occurrence fetch returns `:not_found` (and meeting
+    `starts_at` is in the future or there is no stored `meeting_notes` record),
+    show the placeholder message and skip series fallback rendering.
+  - Preserve the existing manual agenda override (manual text still wins when present).
+- Tests
+  - Add LV tests for a future-dated meeting and for `:not_found` branches to
+    assert the placeholder renders and that no series data appears in the UI.
+
 ## Step 6 — Batched Fetch Optimization
 - Implementation details
   - Build one transcript window from the current page’s events: `min(starts_at)..max(ends_at)`.
