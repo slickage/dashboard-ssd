@@ -168,7 +168,7 @@ defmodule DashboardSSD.Integrations.FirefliesEventNotesTest do
     ev2 = %{
       id: "evt-2",
       starts_at: DateTime.add(base, 7200, :second),
-      ends_at: DateTime.add(base, 10800, :second),
+      ends_at: DateTime.add(base, 10_800, :second),
       title: "B"
     }
 

@@ -483,50 +483,33 @@ defmodule DashboardSSD.Integrations.Fireflies do
 
   defp event_start(ev), do: ev[:starts_at] || ev["starts_at"]
 
-  defp transcript_time(t) do
-    case Map.get(t, "date") || Map.get(t, :date) do
-      nil ->
-        nil
+  defp transcript_time(%{"date" => d}), do: parse_transcript_date(d)
+  defp transcript_time(%{date: d}), do: parse_transcript_date(d)
+  defp transcript_time(_), do: nil
 
-      iso when is_binary(iso) ->
-        case DateTime.from_iso8601(iso) do
-          {:ok, dt, _} -> dt
-          _ -> nil
-        end
-
-      ts when is_integer(ts) ->
-        # Treat large integers as epoch milliseconds; otherwise seconds.
-        if ts > 9_999_999_999 do
-          case DateTime.from_unix(ts, :millisecond) do
-            {:ok, dt} -> dt
-            _ -> nil
-          end
-        else
-          case DateTime.from_unix(ts) do
-            {:ok, dt} -> dt
-            _ -> nil
-          end
-        end
-
-      ts when is_float(ts) ->
-        i = round(ts)
-
-        if i > 9_999_999_999 do
-          case DateTime.from_unix(i, :millisecond) do
-            {:ok, dt} -> dt
-            _ -> nil
-          end
-        else
-          case DateTime.from_unix(i) do
-            {:ok, dt} -> dt
-            _ -> nil
-          end
-        end
-
-      _ ->
-        nil
+  defp parse_transcript_date(iso) when is_binary(iso) do
+    case DateTime.from_iso8601(iso) do
+      {:ok, dt, _} -> dt
+      _ -> nil
     end
   end
+
+  defp parse_transcript_date(ts) when is_integer(ts) do
+    if ts > 9_999_999_999 do
+      case DateTime.from_unix(ts, :millisecond) do
+        {:ok, dt} -> dt
+        _ -> nil
+      end
+    else
+      case DateTime.from_unix(ts) do
+        {:ok, dt} -> dt
+        _ -> nil
+      end
+    end
+  end
+
+  defp parse_transcript_date(ts) when is_float(ts), do: parse_transcript_date(round(ts))
+  defp parse_transcript_date(_), do: nil
 
   defp title_similarity(title, t) do
     t_title = Map.get(t, "title") || Map.get(t, :title) || ""

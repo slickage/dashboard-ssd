@@ -551,16 +551,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
   end
 
   defp build_agenda_texts_with_notes(meetings, mock?) do
-    events =
-      Enum.map(meetings, fn m ->
-        %{
-          id: m.id,
-          starts_at: m.start_at,
-          ends_at: m.end_at,
-          title: m.title,
-          recurring_series_id: m[:recurring_series_id]
-        }
-      end)
+    events = Enum.map(meetings, &event_from_meeting/1)
 
     notes_map =
       case Notes.get_or_fetch_many(events, if(mock?, do: [skip_remote: true], else: [])) do
@@ -569,27 +560,35 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
       end
 
     Enum.reduce(meetings, %{}, fn m, acc ->
-      manual =
-        m.id
-        |> Agenda.list_items()
-        |> Enum.sort_by(& &1.position)
-        |> Enum.map_join("\n", &(&1.text || ""))
-
-      note_text =
-        case Map.get(notes_map, m.id) do
-          %{action_items: items} when is_list(items) and items != [] -> Enum.join(items, "\n")
-          %{accomplished: txt} when is_binary(txt) -> String.trim(txt)
-          _ -> ""
-        end
-
-      text =
-        case String.trim(manual) do
-          "" -> note_text
-          other -> other
-        end
-
-      Map.put(acc, m.id, text)
+      manual_text = manual_agenda_text(m.id)
+      note_text = notes_text_for(meetings_notes: notes_map, meeting: m)
+      Map.put(acc, m.id, if(String.trim(manual_text) == "", do: note_text, else: manual_text))
     end)
+  end
+
+  defp event_from_meeting(m) do
+    %{
+      id: m.id,
+      starts_at: m.start_at,
+      ends_at: m.end_at,
+      title: m.title,
+      recurring_series_id: m[:recurring_series_id]
+    }
+  end
+
+  defp manual_agenda_text(meeting_id) do
+    meeting_id
+    |> Agenda.list_items()
+    |> Enum.sort_by(& &1.position)
+    |> Enum.map_join("\n", &(&1.text || ""))
+  end
+
+  defp notes_text_for(meetings_notes: notes_map, meeting: m) do
+    case Map.get(notes_map, m.id) do
+      %{action_items: items} when is_list(items) and items != [] -> Enum.join(items, "\n")
+      %{accomplished: txt} when is_binary(txt) -> String.trim(txt)
+      _ -> ""
+    end
   end
 
   defp build_assoc_by_meeting(meetings) do

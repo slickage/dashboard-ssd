@@ -147,23 +147,26 @@ defmodule DashboardSSD.Meetings.Notes do
   defp fetch_batch_and_persist([], _events, _opts), do: {:ok, %{}}
 
   defp fetch_batch_and_persist(still_missing, events, opts) do
-    if Keyword.get(opts, :skip_remote, false) do
-      {:ok, %{}}
-    else
-      case Fireflies.fetch_notes_for_events(events, opts) do
-        {:ok, mapped} when is_map(mapped) ->
-          Enum.each(still_missing, fn {id, date, ev} ->
-            case Map.get(mapped, id) do
-              nil -> :noop
-              note -> persist_and_cache(ev, date, note)
-            end
-          end)
-
-          {:ok, mapped}
-
-        {:error, _} = err ->
-          err
+    result =
+      if Keyword.get(opts, :skip_remote, false) do
+        {:ok, %{}}
+      else
+        Fireflies.fetch_notes_for_events(events, opts)
       end
+
+    case result do
+      {:ok, mapped} when is_map(mapped) ->
+        Enum.each(still_missing, fn {id, date, ev} ->
+          case Map.get(mapped, id) do
+            nil -> :noop
+            note -> persist_and_cache(ev, date, note)
+          end
+        end)
+
+        {:ok, mapped}
+
+      {:error, _} = err ->
+        err
     end
   end
 end
