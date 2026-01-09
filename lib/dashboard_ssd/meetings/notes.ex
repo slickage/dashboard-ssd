@@ -25,37 +25,12 @@ defmodule DashboardSSD.Meetings.Notes do
   """
   @spec get_or_fetch(event_map, keyword()) :: {:ok, note_map} | :not_found | {:error, term}
   def get_or_fetch(event, opts \\ []) when is_map(event) do
-    with {:ok, event_id, date} <- event_id_and_date(event) do
-      key = {:meeting_notes, event_id, date}
-
-      case CacheStore.get(key) do
-        {:ok, note} ->
-          {:ok, note}
-
-        :miss ->
-          case NotesStore.get(event_id, date) do
-            {:ok, note} ->
-              CacheStore.put(key, note)
-              {:ok, note}
-
-            :not_found ->
-              if Keyword.get(opts, :skip_remote, false) do
-                :not_found
-              else
-                case Fireflies.fetch_notes_for_event(event, opts) do
-                  {:ok, note} = ok ->
-                    persist_and_cache(event, date, note)
-                    ok
-
-                  :not_found ->
-                    :not_found
-
-                  {:error, _} = err ->
-                    err
-                end
-              end
-          end
-      end
+    with {:ok, event_id, date} <- event_id_and_date(event),
+         {:ok, note} <- get_from_cache_or_db(event_id, date) do
+      {:ok, note}
+    else
+      :miss -> fetch_remote_and_persist(event, opts)
+      {:error, _} = err -> err
     end
   end
 
@@ -156,17 +131,55 @@ defmodule DashboardSSD.Meetings.Notes do
 
     case result do
       {:ok, mapped} when is_map(mapped) ->
-        Enum.each(still_missing, fn {id, date, ev} ->
-          case Map.get(mapped, id) do
-            nil -> :noop
-            note -> persist_and_cache(ev, date, note)
-          end
-        end)
+        Enum.each(still_missing, &persist_if_present(&1, mapped))
 
         {:ok, mapped}
 
       {:error, _} = err ->
         err
+    end
+  end
+
+  defp get_from_cache_or_db(event_id, date) do
+    key = {:meeting_notes, event_id, date}
+
+    case CacheStore.get(key) do
+      {:ok, note} ->
+        {:ok, note}
+
+      :miss ->
+        case NotesStore.get(event_id, date) do
+          {:ok, note} ->
+            CacheStore.put(key, note)
+            {:ok, note}
+
+          :not_found ->
+            :miss
+        end
+    end
+  end
+
+  defp fetch_remote_and_persist(event, opts) do
+    if Keyword.get(opts, :skip_remote, false) do
+      :not_found
+    else
+      with {:ok, event_id, date} <- event_id_and_date(event) do
+        case Fireflies.fetch_notes_for_event(event, opts) do
+          {:ok, note} = ok ->
+            persist_and_cache(event, date, note)
+            ok
+
+          other ->
+            other
+        end
+      end
+    end
+  end
+
+  defp persist_if_present({id, date, ev}, mapped) do
+    case Map.get(mapped, id) do
+      nil -> :noop
+      note -> persist_and_cache(ev, date, note)
     end
   end
 end

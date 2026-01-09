@@ -350,28 +350,24 @@ defmodule DashboardSSD.Integrations.Fireflies do
   """
   @spec fetch_notes_for_events([map()], keyword()) :: {:ok, map()} | {:error, term()}
   def fetch_notes_for_events(events, opts \\ []) when is_list(events) do
-    case time_window_for_events(events, opts) do
-      {:ok, from_iso, to_iso} ->
-        with {:ok, transcripts} <-
-               FirefliesClient.list_transcripts(
-                 from_date: from_iso,
-                 to_date: to_iso,
-                 limit: Keyword.get(opts, :limit, 200)
-               ) do
-          mapped =
-            Enum.reduce(events, %{}, fn ev, acc ->
-              case select_transcript_for_event(ev, transcripts) do
-                {:ok, t} -> Map.put(acc, ev[:id] || ev["id"], normalize_transcript_summary(t))
-                :not_found -> acc
-              end
-            end)
-
-          {:ok, mapped}
-        end
-
-      {:error, _} = err ->
-        err
+    with {:ok, from_iso, to_iso} <- time_window_for_events(events, opts),
+         {:ok, transcripts} <-
+           FirefliesClient.list_transcripts(
+             from_date: from_iso,
+             to_date: to_iso,
+             limit: Keyword.get(opts, :limit, 200)
+           ) do
+      {:ok, map_events_to_notes(events, transcripts)}
     end
+  end
+
+  defp map_events_to_notes(events, transcripts) do
+    Enum.reduce(events, %{}, fn ev, acc ->
+      case select_transcript_for_event(ev, transcripts) do
+        {:ok, t} -> Map.put(acc, ev[:id] || ev["id"], normalize_transcript_summary(t))
+        :not_found -> acc
+      end
+    end)
   end
 
   # -- selection helpers --
