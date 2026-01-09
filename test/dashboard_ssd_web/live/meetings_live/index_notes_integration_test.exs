@@ -80,7 +80,9 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexNotesIntegrationTest do
       })
 
     # Do not seed meeting_notes; in mock mode, remote is skipped and per-occurrence is :not_found
-    {:ok, _view, html} = live(conn, ~p"/meetings?mock=1")
+    # Use a future window to avoid any notes seeded by other tests
+    future = Date.add(Date.utc_today(), 30) |> Date.to_iso8601()
+    {:ok, _view, html} = live(conn, ~p"/meetings?mock=1&d=#{future}")
 
     assert html =~ "No notes for this occurrence yet"
     refute html =~ "Series Alpha"
