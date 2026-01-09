@@ -287,6 +287,9 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
           meeting_id={@params["id"]}
           series_id={@params["series_id"]}
           title={@params["title"]}
+          starts_at={meeting_field(@meetings, @params["id"], :start_at)}
+          ends_at={meeting_field(@meetings, @params["id"], :end_at)}
+          mock?={Map.get(@params || %{}, "mock") in ["1", "true"]}
         />
       </.modal>
     <% end %>
@@ -645,6 +648,13 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
     case Date.compare(s, e) do
       :gt -> acc
       _ -> expand_dates(Date.add(s, 1), e, MapSet.put(acc, s))
+    end
+  end
+
+  defp meeting_field(meetings, id, field) do
+    case Enum.find(meetings || [], fn m -> m.id == id end) do
+      nil -> nil
+      m -> Map.get(m, field)
     end
   end
 end

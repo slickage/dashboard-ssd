@@ -4,7 +4,7 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
 
   alias DashboardSSD.{Clients, Projects}
   alias DashboardSSD.Integrations.Fireflies
-  alias DashboardSSD.Meetings.{Agenda, Associations}
+  alias DashboardSSD.Meetings.{Agenda, Associations, Notes}
 
   @impl true
   def update(assigns, socket) do
@@ -21,7 +21,8 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
       (Map.get(assigns || %{}, :params)
        |> then(&(&1 && Map.get(&1, "mock")))) in ["1", "true"]
 
-    {post, post_error} = fetch_post(series_id, mock?, title)
+    {post, post_error} =
+      fetch_post_occurrence(assigns, mock?) || fetch_post(series_id, mock?, title)
 
     agenda_text = build_agenda_text(manual, post)
 
@@ -191,14 +192,12 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
     series_id = socket.assigns.series_id
     manual = Agenda.list_items(id)
 
-    mock? = Map.get(socket.assigns[:params] || %{}, "mock") in ["1", "true"]
+    mock? =
+      socket.assigns[:mock?] || Map.get(socket.assigns[:params] || %{}, "mock") in ["1", "true"]
 
     {post, post_error} =
-      fetch_post(
-        series_id,
-        mock?,
-        socket.assigns[:title]
-      )
+      fetch_post_occurrence(socket.assigns, mock?) ||
+        fetch_post(series_id, mock?, socket.assigns[:title])
 
     agenda_text = build_agenda_text(manual, post)
 
@@ -213,6 +212,36 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
   end
 
   # ======= helpers extracted to reduce complexity =======
+
+  defp fetch_post_occurrence(assigns, mock?) do
+    with %DateTime{} = s <- assigns[:starts_at],
+         %DateTime{} = e <- assigns[:ends_at] do
+      event = %{
+        id: assigns[:meeting_id] || assigns[:id],
+        starts_at: s,
+        ends_at: e,
+        title: assigns[:title],
+        recurring_series_id: assigns[:series_id]
+      }
+
+      case Notes.get_or_fetch(event, skip_remote: !!mock?) do
+        {:ok, note} ->
+          {%{accomplished: note[:accomplished], action_items: note[:action_items]}, nil}
+
+        :not_found ->
+          nil
+
+        {:error, {:rate_limited, msg}} ->
+          {%{accomplished: nil, action_items: []}, %{type: :rate_limited, message: msg}}
+
+        {:error, _} ->
+          {%{accomplished: nil, action_items: []},
+           %{type: :generic, message: "Fireflies data unavailable. Please try again later."}}
+      end
+    else
+      _ -> nil
+    end
+  end
 
   defp fetch_post(nil, _mock?, _title), do: {%{accomplished: nil, action_items: []}, nil}
 
