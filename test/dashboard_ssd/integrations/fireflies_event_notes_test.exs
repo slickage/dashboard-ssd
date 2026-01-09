@@ -211,4 +211,44 @@ defmodule DashboardSSD.Integrations.FirefliesEventNotesTest do
             }} =
              Fireflies.fetch_notes_for_events([ev1, ev2])
   end
+
+  test "accepts numeric epoch date (ms) in transcripts" do
+    now = ~U[2025-12-11 10:00:00Z]
+
+    ev = %{
+      id: "evt-ms",
+      starts_at: now,
+      ends_at: DateTime.add(now, 3600, :second),
+      title: "Standup"
+    }
+
+    Tesla.Mock.mock(fn %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+      payload = if is_binary(body), do: Jason.decode!(body), else: body
+      query = Map.get(payload, "query") || Map.get(payload, :query)
+
+      if is_binary(query) and String.contains?(query, "query Transcripts(") do
+        %Tesla.Env{
+          status: 200,
+          body: %{
+            "data" => %{
+              "transcripts" => [
+                %{
+                  "id" => "t-ms",
+                  "title" => "Standup",
+                  # epoch milliseconds
+                  "date" => DateTime.to_unix(now, :millisecond),
+                  "summary" => %{"overview" => "MS date", "action_items" => []}
+                }
+              ]
+            }
+          }
+        }
+      else
+        flunk("unexpected request: #{inspect(payload)}")
+      end
+    end)
+
+    assert {:ok, %{accomplished: "MS date", transcript_id: "t-ms"}} =
+             Fireflies.fetch_notes_for_event(ev)
+  end
 end

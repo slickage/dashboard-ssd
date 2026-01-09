@@ -495,6 +495,38 @@ defmodule DashboardSSD.Integrations.Fireflies do
           {:ok, dt, _} -> dt
           _ -> nil
         end
+
+      ts when is_integer(ts) ->
+        # Treat large integers as epoch milliseconds; otherwise seconds.
+        if ts > 9_999_999_999 do
+          case DateTime.from_unix(ts, :millisecond) do
+            {:ok, dt} -> dt
+            _ -> nil
+          end
+        else
+          case DateTime.from_unix(ts) do
+            {:ok, dt} -> dt
+            _ -> nil
+          end
+        end
+
+      ts when is_float(ts) ->
+        i = round(ts)
+
+        if i > 9_999_999_999 do
+          case DateTime.from_unix(i, :millisecond) do
+            {:ok, dt} -> dt
+            _ -> nil
+          end
+        else
+          case DateTime.from_unix(i) do
+            {:ok, dt} -> dt
+            _ -> nil
+          end
+        end
+
+      _ ->
+        nil
     end
   end
 
