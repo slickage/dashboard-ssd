@@ -562,10 +562,20 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
         _ -> %{}
       end
 
+    placeholder = "No notes for this occurrence yet"
+
     Enum.reduce(meetings, %{}, fn m, acc ->
       manual_text = manual_agenda_text(m.id)
       note_text = notes_text_for(meetings_notes: notes_map, meeting: m)
-      Map.put(acc, m.id, if(String.trim(manual_text) == "", do: note_text, else: manual_text))
+
+      text =
+        if String.trim(manual_text) == "" do
+          if String.trim(note_text) == "", do: placeholder, else: note_text
+        else
+          manual_text
+        end
+
+      Map.put(acc, m.id, text)
     end)
   end
 

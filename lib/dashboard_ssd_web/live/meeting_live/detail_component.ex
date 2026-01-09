@@ -22,7 +22,7 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
        |> then(&(&1 && Map.get(&1, "mock")))) in ["1", "true"]
 
     {post, post_error} =
-      fetch_post_occurrence(assigns, mock?) || fetch_post(series_id, mock?, title)
+      fetch_post_occurrence(assigns, mock?) || {%{accomplished: nil, action_items: []}, nil}
 
     agenda_text = build_agenda_text(manual, post)
 
@@ -197,7 +197,7 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
 
     {post, post_error} =
       fetch_post_occurrence(socket.assigns, mock?) ||
-        fetch_post(series_id, mock?, socket.assigns[:title])
+        {%{accomplished: nil, action_items: []}, nil}
 
     agenda_text = build_agenda_text(manual, post)
 
