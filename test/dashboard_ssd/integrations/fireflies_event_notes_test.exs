@@ -107,7 +107,7 @@ defmodule DashboardSSD.Integrations.FirefliesEventNotesTest do
                   %{
                     "id" => "t-far",
                     "title" => "Daily Standup",
-                    "date" => DateTime.to_iso8601(DateTime.add(now, 10 * 3600, :second)),
+                    "date" => DateTime.to_iso8601(DateTime.add(now, 10_800, :second)),
                     "summary" => %{"overview" => "Far", "action_items" => []}
                   }
                 ]
@@ -146,7 +146,7 @@ defmodule DashboardSSD.Integrations.FirefliesEventNotesTest do
                 "transcripts" => [
                   %{
                     "id" => "t-too-far",
-                    "date" => DateTime.to_iso8601(DateTime.add(now, 9 * 3600, :second)),
+                    "date" => DateTime.to_iso8601(DateTime.add(now, 9_000, :second)),
                     "summary" => %{"overview" => "far"}
                   }
                 ]

@@ -1,7 +1,7 @@
 defmodule DashboardSSD.Meetings.NotesTest do
   use DashboardSSD.DataCase, async: false
 
-  alias DashboardSSD.Meetings.{Notes, NotesStore, MeetingNote, CacheStore}
+  alias DashboardSSD.Meetings.{CacheStore, MeetingNote, Notes, NotesStore}
   alias DashboardSSD.Repo
 
   setup do
@@ -119,7 +119,7 @@ defmodule DashboardSSD.Meetings.NotesTest do
     ev2 = %{
       id: "evt-b",
       starts_at: DateTime.add(base, 7200, :second),
-      ends_at: DateTime.add(base, 10800, :second),
+      ends_at: DateTime.add(base, 10_800, :second),
       title: "B"
     }
 

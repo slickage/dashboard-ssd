@@ -429,11 +429,9 @@ defmodule DashboardSSD.Integrations.Fireflies do
   defp select_transcript_for_event(event, transcripts) when is_list(transcripts) do
     link = event[:meeting_link] || event["meeting_link"]
 
-    with {:ok, by_link} <- pick_by_meeting_link(event, link, transcripts) do
-      {:ok, by_link}
-    else
-      _ ->
-        pick_by_time_and_title(event, transcripts)
+    case pick_by_meeting_link(event, link, transcripts) do
+      {:ok, by_link} -> {:ok, by_link}
+      _ -> pick_by_time_and_title(event, transcripts)
     end
   end
 

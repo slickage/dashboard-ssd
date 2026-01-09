@@ -3,6 +3,7 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexNotesIntegrationTest do
   import Phoenix.LiveViewTest
 
   alias DashboardSSD.Accounts
+  alias DashboardSSD.Meetings.NotesStore
 
   setup %{conn: conn} do
     {:ok, user} =
@@ -38,14 +39,14 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexNotesIntegrationTest do
     ev2_date = DateTime.to_date(DateTime.add(start_dt, 2 * 3600, :second))
 
     :ok =
-      DashboardSSD.Meetings.NotesStore.upsert("evt-1", ev1_date, %{
+      NotesStore.upsert("evt-1", ev1_date, %{
         accomplished: "Alpha notes",
         action_items: ["AX", "AY"],
         transcript_id: "t-alpha"
       })
 
     :ok =
-      DashboardSSD.Meetings.NotesStore.upsert("evt-2", ev2_date, %{
+      NotesStore.upsert("evt-2", ev2_date, %{
         accomplished: "Contoso notes",
         action_items: ["CX"],
         transcript_id: "t-contoso"

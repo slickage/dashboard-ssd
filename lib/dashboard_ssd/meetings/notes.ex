@@ -4,8 +4,8 @@ defmodule DashboardSSD.Meetings.Notes do
   cache → DB → remote (Fireflies) strategy. Supports batched retrieval.
   """
 
-  alias DashboardSSD.Meetings.{CacheStore, NotesStore}
   alias DashboardSSD.Integrations.Fireflies
+  alias DashboardSSD.Meetings.{CacheStore, NotesStore}
 
   @type event_map :: map()
   @type note_map :: %{

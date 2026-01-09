@@ -1,8 +1,8 @@
 defmodule DashboardSSD.Meetings.MeetingNoteTest do
   use DashboardSSD.DataCase, async: true
 
-  alias DashboardSSD.Repo
   alias DashboardSSD.Meetings.MeetingNote
+  alias DashboardSSD.Repo
 
   describe "changeset/2 validations" do
     test "requires calendar_event_id and occurrence_date" do
