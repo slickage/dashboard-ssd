@@ -3,8 +3,7 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexNotesIntegrationTest do
   import Phoenix.LiveViewTest
 
   alias DashboardSSD.Accounts
-  alias DashboardSSD.Meetings.FirefliesStore
-  alias DashboardSSD.Meetings.NotesStore
+  alias DashboardSSD.Meetings.{CacheStore, FirefliesStore, NotesStore}
 
   setup %{conn: conn} do
     {:ok, user} =
@@ -22,10 +21,15 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexNotesIntegrationTest do
       Keyword.merge(prev || [], fireflies_api_token: "tok")
     )
 
+    # Ensure cross-test cache isolation (ETS cache is global)
+    CacheStore.reset()
+
     on_exit(fn ->
       if prev,
         do: Application.put_env(:dashboard_ssd, :integrations, prev),
         else: Application.delete_env(:dashboard_ssd, :integrations)
+
+      CacheStore.reset()
     end)
 
     {:ok, conn: init_test_session(conn, %{user_id: user.id})}
