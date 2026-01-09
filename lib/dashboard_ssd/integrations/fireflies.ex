@@ -342,7 +342,6 @@ defmodule DashboardSSD.Integrations.Fireflies do
     else
       {:error, {:rate_limited, _} = rl} -> {:error, rl}
       {:error, _} = err -> err
-      _ -> :not_found
     end
   end
 

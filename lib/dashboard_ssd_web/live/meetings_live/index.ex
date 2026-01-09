@@ -604,7 +604,6 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
     end
   end
 
-  defp blank?(nil), do: true
   defp blank?(text) when is_binary(text), do: String.trim(text) == ""
 
   defp build_assoc_by_meeting(meetings) do
