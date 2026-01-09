@@ -54,7 +54,9 @@ defmodule DashboardSSDWeb.MeetingsLive.IndexNotesIntegrationTest do
     {:ok, _view, html} = live(conn, ~p"/meetings?mock=1")
 
     assert html =~ "Agenda"
-    assert html =~ "Alpha notes"
-    assert html =~ "Contoso notes"
+    # Prefers action_items over accomplished text when present
+    assert html =~ "AX"
+    assert html =~ "AY"
+    assert html =~ "CX"
   end
 end
