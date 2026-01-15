@@ -4,7 +4,7 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
 
   alias DashboardSSD.Accounts
   alias DashboardSSD.Clients
-  alias DashboardSSD.Meetings.{Agenda, CacheStore}
+  alias DashboardSSD.Meetings.{Agenda, CacheStore, FirefliesStore}
   alias DashboardSSD.Projects
   alias DashboardSSDWeb.MeetingLive.DetailComponent
 
@@ -221,11 +221,15 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
 
     @impl true
     def mount(_p, _s, socket) do
+      now = ~U[2025-12-20 12:00:00Z]
+
       {:ok,
        socket
        |> Phoenix.Component.assign(:meeting_id, "evt-rl")
        |> Phoenix.Component.assign(:series_id, "series-rl")
        |> Phoenix.Component.assign(:title, "Weekly – RL")
+       |> Phoenix.Component.assign(:starts_at, now)
+       |> Phoenix.Component.assign(:ends_at, DateTime.add(now, 3600, :second))
        |> Phoenix.Component.assign(:params, %{})}
     end
 
@@ -244,15 +248,18 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
     end
   end
 
-  test "shows rate-limited message when Fireflies returns RL (component)", %{conn: conn} do
-    Tesla.Mock.mock(fn
+  test "shows rate-limited notice when per-occurrence fetch is rate-limited", %{conn: conn} do
+    Tesla.Mock.mock_global(fn
       %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
         %Tesla.Env{status: 429, body: %{"errors" => [%{"message" => "too many"}]}}
     end)
 
-    {:ok, _view, html} = live_isolated(conn, NoMockHarness)
+    {:ok, view, html} = live_isolated(conn, NoMockHarness)
     assert html =~ "Last meeting summary"
-    assert html =~ "too many"
+    # Trigger refresh to surface RL message deterministically in this LV process
+    render_click(element(view, "button[phx-click='refresh_post']"))
+    html2 = render(view)
+    assert html2 =~ "Fireflies rate limited: too many"
   end
 
   defmodule DerivedHarness do
@@ -292,12 +299,62 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentEventsTest do
   end
 
   test "derives agenda_text from Fireflies when manual empty (list items)", %{conn: conn} do
-    # Ensure no Tesla calls are needed (we seeded cache)
+    # No series fallback anymore; ensure no remote calls and expect pending
     Tesla.Mock.mock(fn _ -> %Tesla.Env{status: 200, body: %{"data" => %{}}} end)
     {:ok, _view, html} = live_isolated(conn, DerivedHarness)
-    # The textarea includes the derived agenda text
-    assert html =~ ">A"
-    assert html =~ ">B"
+    # Now shows summary pending (occurrence-only)
+    assert html =~ "Summary pending"
+  end
+
+  defmodule OccurrenceNoNotesHarness do
+    use Phoenix.LiveView
+    alias DashboardSSDWeb.MeetingLive.DetailComponent
+
+    @impl true
+    def mount(_p, _s, socket) do
+      now = ~U[2025-12-20 12:00:00Z]
+
+      {:ok,
+       socket
+       |> Phoenix.Component.assign(:meeting_id, "evt-occ-none")
+       |> Phoenix.Component.assign(:series_id, "series-occ-none")
+       |> Phoenix.Component.assign(:title, "Weekly – Occ")
+       |> Phoenix.Component.assign(:starts_at, now)
+       |> Phoenix.Component.assign(:ends_at, DateTime.add(now, 3600, :second))
+       |> Phoenix.Component.assign(:params, %{"mock" => "1"})}
+    end
+
+    @impl true
+    def render(assigns) do
+      ~H"""
+      <.live_component
+        module={DetailComponent}
+        id="detail-occ-none"
+        meeting_id={@meeting_id}
+        series_id={@series_id}
+        title={@title}
+        starts_at={@starts_at}
+        ends_at={@ends_at}
+        params={@params}
+      />
+      """
+    end
+  end
+
+  test "detail component shows pending when no per-occurrence notes (no series fallback)", %{
+    conn: conn
+  } do
+    # Seed series data that should NOT appear
+    :ok =
+      FirefliesStore.upsert("series-occ-none", %{
+        accomplished: "Series Should Not Show",
+        action_items: ["X"]
+      })
+
+    {:ok, _view, html} = live_isolated(conn, OccurrenceNoNotesHarness)
+    assert html =~ "Summary pending"
+    refute html =~ "Series Should Not Show"
+    refute html =~ ">X<"
   end
 
   defmodule SuggestHarness do

@@ -4,7 +4,7 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
 
   alias DashboardSSD.{Clients, Projects}
   alias DashboardSSD.Integrations.Fireflies
-  alias DashboardSSD.Meetings.{Agenda, Associations}
+  alias DashboardSSD.Meetings.{Agenda, Associations, Notes}
 
   @impl true
   def update(assigns, socket) do
@@ -17,11 +17,10 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
     clients = Clients.list_clients()
     projects = Projects.list_projects()
 
-    mock? =
-      (Map.get(assigns || %{}, :params)
-       |> then(&(&1 && Map.get(&1, "mock")))) in ["1", "true"]
+    mock? = assigns[:mock?] || Map.get(assigns[:params] || %{}, "mock") in ["1", "true"]
 
-    {post, post_error} = fetch_post(series_id, mock?, title)
+    {post, post_error} =
+      fetch_post_occurrence(assigns, mock?) || {%{accomplished: nil, action_items: []}, nil}
 
     agenda_text = build_agenda_text(manual, post)
 
@@ -77,7 +76,17 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
         {:noreply, socket}
 
       s ->
-        _ = Fireflies.refresh_series(s)
+        res = Fireflies.refresh_series(s)
+
+        socket =
+          case res do
+            {:error, {:rate_limited, msg}} ->
+              assign(socket, post_error: %{type: :rate_limited, message: msg})
+
+            _ ->
+              socket
+          end
+
         refresh_assigns(socket)
     end
   end
@@ -188,17 +197,17 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
 
   defp refresh_assigns(socket) do
     id = socket.assigns.meeting_id
-    series_id = socket.assigns.series_id
     manual = Agenda.list_items(id)
 
-    mock? = Map.get(socket.assigns[:params] || %{}, "mock") in ["1", "true"]
+    mock? =
+      socket.assigns[:mock?] || Map.get(socket.assigns[:params] || %{}, "mock") in ["1", "true"]
 
     {post, post_error} =
-      fetch_post(
-        series_id,
-        mock?,
-        socket.assigns[:title]
-      )
+      fetch_post_occurrence(socket.assigns, mock?) ||
+        {%{accomplished: nil, action_items: []}, nil}
+
+    # Preserve any existing error (e.g., rate limited) if we didn't get a new one
+    final_error = post_error || socket.assigns[:post_error]
 
     agenda_text = build_agenda_text(manual, post)
 
@@ -208,30 +217,43 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
        summary_text: post.accomplished,
        action_items: normalize_action_items(post.action_items),
        agenda_text: agenda_text,
-       post_error: post_error
+       post_error: final_error
      )}
   end
 
   # ======= helpers extracted to reduce complexity =======
 
-  defp fetch_post(nil, _mock?, _title), do: {%{accomplished: nil, action_items: []}, nil}
+  defp fetch_post_occurrence(assigns, mock?) do
+    with %DateTime{} = s <- assigns[:starts_at],
+         %DateTime{} = e <- assigns[:ends_at] do
+      event = %{
+        id: assigns[:meeting_id] || assigns[:id],
+        starts_at: s,
+        ends_at: e,
+        title: assigns[:title],
+        recurring_series_id: assigns[:series_id]
+      }
 
-  defp fetch_post(_series_id, true, _title),
-    do: {%{accomplished: nil, action_items: []}, nil}
+      case Notes.get_or_fetch(event, skip_remote: !!mock?) do
+        {:ok, note} ->
+          {%{accomplished: note[:accomplished], action_items: note[:action_items]}, nil}
 
-  defp fetch_post(series_id, false, title) do
-    case Fireflies.fetch_latest_for_series(series_id, title: title) do
-      {:ok, v} ->
-        {v, nil}
+        :not_found ->
+          nil
 
-      {:error, {:rate_limited, msg}} ->
-        {%{accomplished: nil, action_items: []}, %{type: :rate_limited, message: msg}}
+        {:error, {:rate_limited, msg}} ->
+          {%{accomplished: nil, action_items: []}, %{type: :rate_limited, message: msg}}
 
-      {:error, _} ->
-        {%{accomplished: nil, action_items: []},
-         %{type: :generic, message: "Fireflies data unavailable. Please try again later."}}
+        {:error, _} ->
+          {%{accomplished: nil, action_items: []},
+           %{type: :generic, message: "Fireflies data unavailable. Please try again later."}}
+      end
+    else
+      _ -> nil
     end
   end
+
+  # (series fallback fetch removed per Step 5.1)
 
   defp build_agenda_text(manual, post) do
     base =
@@ -281,6 +303,11 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponent do
 
       <div class="mt-8">
         <h3 class="font-medium">Last meeting summary</h3>
+        <%= if @post_error && @post_error[:type] == :rate_limited do %>
+          <div class="mt-2 text-amber-400 text-sm whitespace-pre-wrap">
+            Fireflies rate limited: {@post_error.message}
+          </div>
+        <% end %>
         <%= if @post_error do %>
           <div class="mt-2 text-red-400 text-sm whitespace-pre-wrap">{@post_error.message}</div>
         <% end %>

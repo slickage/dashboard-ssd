@@ -4,8 +4,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
 
   alias DashboardSSD.{Clients, Projects}
   alias DashboardSSD.Integrations
-  alias DashboardSSD.Integrations.Fireflies
-  alias DashboardSSD.Meetings.{Agenda, Associations}
+  alias DashboardSSD.Meetings.{Agenda, Associations, Notes}
   alias DashboardSSD.Meetings.CacheStore
   alias DashboardSSDWeb.DateHelpers
   import DashboardSSDWeb.CalendarComponents, only: [month_calendar: 1]
@@ -40,7 +39,7 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
     has_meetings =
       has_meeting_days(socket.assigns.current_user, month_prev, month_next, tz_offset, mock?)
 
-    agenda_texts = build_agenda_texts(meetings, mock?)
+    agenda_texts = build_agenda_texts_with_notes(meetings, mock?)
     assoc_by_meeting = build_assoc_by_meeting(meetings)
     live_action = live_action_from_params(params)
 
@@ -288,6 +287,9 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
           meeting_id={@params["id"]}
           series_id={@params["series_id"]}
           title={@params["title"]}
+          starts_at={meeting_field(@meetings, @params["id"], :start_at)}
+          ends_at={meeting_field(@meetings, @params["id"], :end_at)}
+          mock?={Map.get(@params || %{}, "mock") in ["1", "true"]}
         />
       </.modal>
     <% end %>
@@ -551,34 +553,58 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
     end)
   end
 
-  defp build_agenda_texts(meetings, mock?) do
+  defp build_agenda_texts_with_notes(meetings, mock?) do
+    events = Enum.map(meetings, &event_from_meeting/1)
+
+    notes_map =
+      case Notes.get_or_fetch_many(events, if(mock?, do: [skip_remote: true], else: [])) do
+        {:ok, m} when is_map(m) -> m
+        _ -> %{}
+      end
+
+    placeholder = "No notes for this occurrence yet"
+
     Enum.reduce(meetings, %{}, fn m, acc ->
-      manual =
-        m.id
-        |> Agenda.list_items()
-        |> Enum.sort_by(& &1.position)
-        |> Enum.map_join("\n", &(&1.text || ""))
-
-      text =
-        case String.trim(manual) do
-          "" -> agenda_from_fireflies_or_empty(m, mock?)
-          other -> other
-        end
-
-      Map.put(acc, m.id, text)
+      manual_text = manual_agenda_text(m.id)
+      note_text = notes_text_for(meetings_notes: notes_map, meeting: m)
+      Map.put(acc, m.id, choose_agenda_text(manual_text, note_text, placeholder))
     end)
   end
 
-  defp agenda_from_fireflies_or_empty(_m, true), do: ""
-  defp agenda_from_fireflies_or_empty(%{recurring_series_id: nil}, _mock?), do: ""
+  defp event_from_meeting(m) do
+    %{
+      id: m.id,
+      starts_at: m.start_at,
+      ends_at: m.end_at,
+      title: m.title,
+      recurring_series_id: m[:recurring_series_id]
+    }
+  end
 
-  defp agenda_from_fireflies_or_empty(%{recurring_series_id: s} = m, _mock?) do
-    case Fireflies.fetch_latest_for_series(s, title: m.title) do
-      {:ok, %{action_items: items}} when is_list(items) -> Enum.join(items, "\n")
-      {:ok, %{action_items: items}} when is_binary(items) -> items
+  defp manual_agenda_text(meeting_id) do
+    meeting_id
+    |> Agenda.list_items()
+    |> Enum.sort_by(& &1.position)
+    |> Enum.map_join("\n", &(&1.text || ""))
+  end
+
+  defp notes_text_for(meetings_notes: notes_map, meeting: m) do
+    case Map.get(notes_map, m.id) do
+      %{action_items: items} when is_list(items) and items != [] -> Enum.join(items, "\n")
+      %{accomplished: txt} when is_binary(txt) -> String.trim(txt)
       _ -> ""
     end
   end
+
+  defp choose_agenda_text(manual_text, note_text, placeholder) do
+    cond do
+      not blank?(manual_text) -> manual_text
+      not blank?(note_text) -> note_text
+      true -> placeholder
+    end
+  end
+
+  defp blank?(text) when is_binary(text), do: String.trim(text) == ""
 
   defp build_assoc_by_meeting(meetings) do
     clients = Clients.list_clients()
@@ -634,6 +660,13 @@ defmodule DashboardSSDWeb.MeetingsLive.Index do
     case Date.compare(s, e) do
       :gt -> acc
       _ -> expand_dates(Date.add(s, 1), e, MapSet.put(acc, s))
+    end
+  end
+
+  defp meeting_field(meetings, id, field) do
+    case Enum.find(meetings || [], fn m -> m.id == id end) do
+      nil -> nil
+      m -> Map.get(m, field)
     end
   end
 end
