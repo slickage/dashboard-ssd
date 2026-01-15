@@ -23,6 +23,34 @@ defmodule DashboardSSD.Meetings.NotesStoreTest do
       assert note.action_items == ["A", "B"]
       assert note.accomplished == nil
     end
+
+    test "normalizes nil action_items to empty list" do
+      {:ok, _} =
+        %MeetingNote{}
+        |> MeetingNote.changeset(%{
+          calendar_event_id: "evt-nil",
+          occurrence_date: ~D[2025-12-20],
+          action_items: nil
+        })
+        |> Repo.insert()
+
+      assert {:ok, note} = NotesStore.get("evt-nil", ~D[2025-12-20])
+      assert note.action_items == []
+    end
+
+    test "normalizes map with items key to list" do
+      {:ok, _} =
+        %MeetingNote{}
+        |> MeetingNote.changeset(%{
+          calendar_event_id: "evt-map",
+          occurrence_date: ~D[2025-12-21],
+          action_items: %{"items" => ["i1", "i2"]}
+        })
+        |> Repo.insert()
+
+      assert {:ok, note} = NotesStore.get("evt-map", ~D[2025-12-21])
+      assert note.action_items == ["i1", "i2"]
+    end
   end
 
   describe "upsert/3" do

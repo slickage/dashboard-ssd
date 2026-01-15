@@ -232,6 +232,43 @@ defmodule DashboardSSD.Meetings.NotesTest do
     assert {:ok, %{accomplished: "one", action_items: ["I1", "I2"]}} = Notes.get_or_fetch(event)
   end
 
+  test "get_or_fetch returns error for invalid event id" do
+    event = %{id: 123, occurrence_date: ~D[2025-12-11]}
+    assert {:error, :invalid_event_id} = Notes.get_or_fetch(event)
+  end
+
+  test "derive_date accepts string keys for starts_at" do
+    base = ~U[2025-12-11 12:00:00Z]
+
+    event = %{
+      "id" => "evt-str",
+      "starts_at" => base,
+      "ends_at" => DateTime.add(base, 3600, :second)
+    }
+
+    Tesla.Mock.mock(fn _ -> flunk("HTTP should be skipped with skip_remote") end)
+    assert :not_found == Notes.get_or_fetch(event, skip_remote: true)
+  end
+
+  test "get_or_fetch_many ignores events with invalid id/date and does not call HTTP" do
+    bad = %{title: "Missing id and starts_at"}
+    Tesla.Mock.mock(fn _ -> flunk("HTTP should not be called for invalid events") end)
+    assert {:ok, %{}} = Notes.get_or_fetch_many([bad])
+  end
+
+  test "batch path propagates rate-limited error" do
+    now = DateTime.utc_now()
+    past = DateTime.add(now, -3600, :second)
+    ev = %{id: "evt-rl-batch", starts_at: past, ends_at: now, title: "A"}
+
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.fireflies.ai/graphql"} ->
+        %Tesla.Env{status: 429, body: %{"errors" => [%{"message" => "batch rl"}]}}
+    end)
+
+    assert {:error, {:rate_limited, "batch rl"}} = Notes.get_or_fetch_many([ev])
+  end
+
   test "skips remote fetch for future event" do
     now = DateTime.utc_now()
 
