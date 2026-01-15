@@ -195,4 +195,11 @@ defmodule DashboardSSD.Meetings.Notes do
       note -> persist_and_cache(ev, date, note)
     end
   end
+
+  defp future_event?(event) do
+    case event[:starts_at] || event["starts_at"] do
+      %DateTime{} = dt -> DateTime.compare(dt, DateTime.utc_now()) == :gt
+      _ -> false
+    end
+  end
 end
