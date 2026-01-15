@@ -51,6 +51,37 @@ defmodule DashboardSSD.Meetings.NotesStoreTest do
       assert {:ok, note} = NotesStore.get("evt-map", ~D[2025-12-21])
       assert note.action_items == ["i1", "i2"]
     end
+
+    test "insert_all with nil action_items normalizes to []" do
+      # Bypass changeset to write raw values
+      Repo.insert_all("meeting_notes", [
+        %{
+          calendar_event_id: "evt-insert-nil",
+          occurrence_date: ~D[2025-12-22],
+          action_items: nil,
+          inserted_at: DateTime.utc_now(),
+          updated_at: DateTime.utc_now()
+        }
+      ])
+
+      assert {:ok, note} = NotesStore.get("evt-insert-nil", ~D[2025-12-22])
+      assert note.action_items == []
+    end
+
+    test "insert_all with items map normalizes to list" do
+      Repo.insert_all("meeting_notes", [
+        %{
+          calendar_event_id: "evt-insert-map",
+          occurrence_date: ~D[2025-12-23],
+          action_items: %{"items" => ["m1", "m2"]},
+          inserted_at: DateTime.utc_now(),
+          updated_at: DateTime.utc_now()
+        }
+      ])
+
+      assert {:ok, note} = NotesStore.get("evt-insert-map", ~D[2025-12-23])
+      assert note.action_items == ["m1", "m2"]
+    end
   end
 
   describe "upsert/3" do

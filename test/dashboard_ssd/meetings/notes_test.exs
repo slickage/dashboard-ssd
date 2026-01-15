@@ -333,4 +333,20 @@ defmodule DashboardSSD.Meetings.NotesTest do
     assert map["evt-past"].accomplished == "P"
     refute Map.has_key?(map, "evt-fut2")
   end
+
+  test "get_or_fetch_many triggers invalid id branch in event_id_and_date (line 60)" do
+    # One invalid event (non-binary id) and one valid event; skip remote to avoid HTTP
+    now = DateTime.utc_now()
+    past = DateTime.add(now, -3600, :second)
+    bad = %{id: 123, occurrence_date: ~D[2025-12-22]}
+    good = %{id: "evt-good", starts_at: past, ends_at: now, title: "Good"}
+
+    # No HTTP should be called regardless
+    Tesla.Mock.mock(fn _ -> flunk("HTTP should not be called in this test") end)
+
+    # The invalid event hits event_id_and_date/1 cond branch (line 60) indirectly
+    assert {:ok, map} = Notes.get_or_fetch_many([bad, good], skip_remote: true)
+    # No notes returned since skip_remote and nothing in cache/DB
+    assert map == %{}
+  end
 end
