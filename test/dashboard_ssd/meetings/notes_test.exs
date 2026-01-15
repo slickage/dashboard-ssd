@@ -269,6 +269,52 @@ defmodule DashboardSSD.Meetings.NotesTest do
     assert {:error, {:rate_limited, "batch rl"}} = Notes.get_or_fetch_many([ev])
   end
 
+  test "batch persist_if_present persists mapping for missing event" do
+    base = ~U[2025-12-22 08:00:00Z]
+
+    ev = %{
+      id: "evt-batch-one",
+      starts_at: base,
+      ends_at: DateTime.add(base, 3600, :second),
+      title: "Batch One"
+    }
+
+    Tesla.Mock.mock(fn
+      %{method: :post, url: "https://api.fireflies.ai/graphql", body: body} ->
+        payload = if is_binary(body), do: Jason.decode!(body), else: body
+        query = Map.get(payload, "query") || Map.get(payload, :query)
+
+        if is_binary(query) and String.contains?(query, "query Transcripts(") do
+          %Tesla.Env{
+            status: 200,
+            body: %{
+              "data" => %{
+                "transcripts" => [
+                  %{
+                    "id" => "t-one",
+                    "title" => "Batch One",
+                    "date" => DateTime.to_iso8601(base),
+                    "summary" => %{"overview" => "B1", "action_items" => ["b1"]}
+                  }
+                ]
+              }
+            }
+          }
+        else
+          flunk("unexpected request: #{inspect(payload)}")
+        end
+    end)
+
+    assert {:ok, %{"evt-batch-one" => %{accomplished: "B1", action_items: ["b1"]}}} =
+             Notes.get_or_fetch_many([ev])
+
+    # Persisted via persist_if_present branch
+    assert Repo.get_by!(MeetingNote,
+             calendar_event_id: "evt-batch-one",
+             occurrence_date: DateTime.to_date(base)
+           )
+  end
+
   test "skips remote fetch for future event" do
     now = DateTime.utc_now()
 
