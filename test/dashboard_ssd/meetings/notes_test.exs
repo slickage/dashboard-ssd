@@ -334,6 +334,15 @@ defmodule DashboardSSD.Meetings.NotesTest do
     refute Map.has_key?(map, "evt-fut2")
   end
 
+  test "invalid id branch in event_id_and_date (line 60) returns error" do
+    # Ensure we do not attempt any HTTP calls
+    Tesla.Mock.mock(fn _ -> flunk("HTTP should not be called for invalid id") end)
+
+    # id is non-binary to trigger the cond branch at notes.ex:60
+    event = %{id: 123, occurrence_date: ~D[2025-12-24]}
+    assert {:error, :invalid_event_id} = Notes.get_or_fetch(event, skip_remote: true)
+  end
+
   test "get_or_fetch_many triggers invalid id branch in event_id_and_date (line 60)" do
     # One invalid event (non-binary id) and one valid event; skip remote to avoid HTTP
     now = DateTime.utc_now()
