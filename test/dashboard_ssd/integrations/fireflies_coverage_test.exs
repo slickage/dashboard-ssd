@@ -84,22 +84,20 @@ defmodule DashboardSSD.Integrations.FirefliesCoverageTest do
             ""
         end
 
-      cond do
-        String.contains?(q, "query Transcript(") ->
-          json(%{
-            "data" => %{
-              "transcript" => %{
-                "summary" => %{
-                  "action_items" => ["One", "Two"],
-                  "overview" => "Accomplished text",
-                  "bullet_gist" => "Bullet"
-                }
+      if String.contains?(q, "query Transcript(") do
+        json(%{
+          "data" => %{
+            "transcript" => %{
+              "summary" => %{
+                "action_items" => ["One", "Two"],
+                "overview" => "Accomplished text",
+                "bullet_gist" => "Bullet"
               }
             }
-          })
-
-        true ->
-          json(%{"data" => %{}})
+          }
+        })
+      else
+        json(%{"data" => %{}})
       end
     end)
 
@@ -189,16 +187,14 @@ defmodule DashboardSSD.Integrations.FirefliesCoverageTest do
             ""
         end
 
-      cond do
-        String.contains?(q, "query Transcripts(") ->
-          json(%{
-            "errors" => [
-              %{"extensions" => %{"code" => "too_many_requests"}, "message" => "Slow down"}
-            ]
-          })
-
-        true ->
-          json(%{"data" => %{}})
+      if String.contains?(q, "query Transcripts(") do
+        json(%{
+          "errors" => [
+            %{"extensions" => %{"code" => "too_many_requests"}, "message" => "Slow down"}
+          ]
+        })
+      else
+        json(%{"data" => %{}})
       end
     end)
 
@@ -249,12 +245,10 @@ defmodule DashboardSSD.Integrations.FirefliesCoverageTest do
             ""
         end
 
-      cond do
-        String.contains?(q, "query Transcripts(") ->
-          json(%{"data" => %{"transcripts" => transcripts}})
-
-        true ->
-          json(%{"data" => %{}})
+      if String.contains?(q, "query Transcripts(") do
+        json(%{"data" => %{"transcripts" => transcripts}})
+      else
+        json(%{"data" => %{}})
       end
     end)
 
@@ -324,12 +318,10 @@ defmodule DashboardSSD.Integrations.FirefliesCoverageTest do
             ""
         end
 
-      cond do
-        String.contains?(q, "query Transcripts(") ->
-          json(%{"data" => %{"transcripts" => transcripts}})
-
-        true ->
-          json(%{"data" => %{}})
+      if String.contains?(q, "query Transcripts(") do
+        json(%{"data" => %{"transcripts" => transcripts}})
+      else
+        json(%{"data" => %{}})
       end
     end)
 
@@ -362,9 +354,10 @@ defmodule DashboardSSD.Integrations.FirefliesCoverageTest do
             ""
         end
 
-      cond do
-        String.contains?(q, "query Transcripts(") -> json(%{"data" => %{"transcripts" => []}})
-        true -> json(%{"data" => %{}})
+      if String.contains?(q, "query Transcripts(") do
+        json(%{"data" => %{"transcripts" => []}})
+      else
+        json(%{"data" => %{}})
       end
     end)
 
@@ -410,12 +403,10 @@ defmodule DashboardSSD.Integrations.FirefliesCoverageTest do
             ""
         end
 
-      cond do
-        String.contains?(q, "query Transcripts(") ->
-          json(%{"data" => %{"transcripts" => transcripts}})
-
-        true ->
-          json(%{"data" => %{}})
+      if String.contains?(q, "query Transcripts(") do
+        json(%{"data" => %{"transcripts" => transcripts}})
+      else
+        json(%{"data" => %{}})
       end
     end)
 
