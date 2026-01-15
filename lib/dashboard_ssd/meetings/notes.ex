@@ -185,9 +185,6 @@ defmodule DashboardSSD.Meetings.Notes do
           other ->
             other
         end
-
-      {false, false, {:error, _} = err} ->
-        err
     end
   end
 
