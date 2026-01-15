@@ -45,15 +45,15 @@ defmodule DashboardSSD.Integrations.FirefliesCoverageTest do
         end
 
       cond do
-        String.contains?(q, "query Bites(") and Map.get(v, "mine") == true ->
-          json(%{"data" => %{"bites" => []}})
-
         String.contains?(q, "query Bites(") and Map.get(v, "my_team") == true ->
           json(%{
             "errors" => [
               %{"extensions" => %{"code" => "too_many_requests"}, "message" => "Slow down"}
             ]
           })
+
+        String.contains?(q, "query Bites(") and Map.get(v, "mine") == true ->
+          json(%{"data" => %{"bites" => []}})
 
         true ->
           json(%{"data" => %{}})
@@ -268,7 +268,8 @@ defmodule DashboardSSD.Integrations.FirefliesCoverageTest do
     # Tms is closer than Tsec
     t_ms = DateTime.add(ref, 60, :second) |> DateTime.to_unix(:millisecond)
     t_sec = DateTime.add(ref, 3600, :second) |> DateTime.to_unix()
-    t_float = t_ms * 1.0
+    # Make float slightly further than ms so ms wins
+    t_float = (t_ms + 2000) * 1.0
 
     ev = %{
       id: "E-CL",
