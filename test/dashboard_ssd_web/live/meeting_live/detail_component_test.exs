@@ -104,7 +104,7 @@ defmodule DashboardSSDWeb.MeetingLive.DetailComponentTest do
   test "assoc_apply_guess handles client and project via direct event call" do
     # Build a minimal socket assigns for direct handle_event invocation
     socket = %Phoenix.LiveView.Socket{
-      assigns: %{meeting_id: "evt-handle", series_id: "series-handle"}
+      assigns: %{__changed__: %{}, meeting_id: "evt-handle", series_id: "series-handle"}
     }
 
     {:ok, client} = DashboardSSD.Clients.create_client(%{name: "X Co"})
