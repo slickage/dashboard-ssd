@@ -169,23 +169,25 @@ defmodule DashboardSSD.Meetings.Notes do
   end
 
   defp fetch_remote_and_persist(event, opts) do
-    if Keyword.get(opts, :skip_remote, false) do
-      :not_found
-    else
-      if future_event?(event) do
+    case {Keyword.get(opts, :skip_remote, false), future_event?(event), event_id_and_date(event)} do
+      {true, _fut, _eid} ->
         :not_found
-      else
-        with {:ok, _event_id, date} <- event_id_and_date(event) do
-          case Fireflies.fetch_notes_for_event(event, opts) do
-            {:ok, note} = ok ->
-              persist_and_cache(event, date, note)
-              ok
 
-            other ->
-              other
-          end
+      {false, true, _eid} ->
+        :not_found
+
+      {false, false, {:ok, _event_id, date}} ->
+        case Fireflies.fetch_notes_for_event(event, opts) do
+          {:ok, note} = ok ->
+            persist_and_cache(event, date, note)
+            ok
+
+          other ->
+            other
         end
-      end
+
+      {false, false, {:error, _} = err} ->
+        err
     end
   end
 
